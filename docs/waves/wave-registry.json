@@ -10,7 +10,7 @@
       "id": "MVP-W00",
       "title": "Authoritative Source and Git Baseline Recovery",
       "status": "active",
-      "document": "recovery/mvp-w00/plan-r004.md",
+      "document": "recovery/mvp-w00/plan-r005.md",
       "depends_on": [],
       "allowed_change_scope": [
         "docs/waves/**",
