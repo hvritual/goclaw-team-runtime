@@ -85,7 +85,12 @@ publish_stage="${stage_dir}/release"
 mkdir -p "${work_dir}" "${publish_stage}"
 cleanup_release_stage() {
   if [[ -n "${stage_dir:-}" && -d "${stage_dir}" ]]; then
-    rm -rf -- "${stage_dir}"
+    # Some synchronized/container filesystems can transiently recreate an
+    # emptied build directory while the final child exits. Retry the exact
+    # release stage once; the following existence check still fails closed.
+    if ! rm -rf -- "${stage_dir}"; then
+      rm -rf -- "${stage_dir}"
+    fi
     if [[ -e "${stage_dir}" ]]; then
       echo "cannot remove release stage ${stage_dir}" >&2
       stage_dir=""
