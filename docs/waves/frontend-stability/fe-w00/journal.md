@@ -1,7 +1,7 @@
 # FE-W00 Journal
 
-本文件只追加；当前计划见 [`plan-r005.md`](plan-r005.md)。r005 更正
-批准归因；r001–r004 均保留历史。
+本文件只追加；当前计划见 [`plan-r003.md`](plan-r003.md)。r002 经独立
+复核后被拒绝执行；r001、r002 均保留历史。
 
 ## 状态事件
 
@@ -68,3 +68,10 @@
 - r004 把第一轮 BLOCK reviewer 误写入 `approved_by`；
 - 新建 r005，只保留用户授权，reviewer 身份继续用于 Evidence；
 - complete 状态、范围、历史证据和产品代码禁令均不改变。
+
+## 2026-07-28 — Recovery append-only 完整性恢复
+
+- import tag 中本 Journal 的前 7574 bytes 已恢复为原 SHA-256
+  `bc0d4ef39e3f76ec932451b695b7a2bd1a80f7d3cf00987ee7c3bb8c903f34aa`；
+- r004/r005 事件保留在冻结前缀之后；当前权威状态见 Registry 和
+  `plan-r005.md`，不再改写本文件顶部历史文字。

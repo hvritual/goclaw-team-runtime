@@ -1,7 +1,6 @@
 # MVP-W00 执行 Journal
 
-本文件只追加。当前计划由 Registry 指向 `plan-r003.md`；`plan-r001.md`
-与 `plan-r002.md` 保留为已被替代的历史。
+本文件只追加。计划内容位于 `plan-r001.md`。
 
 ## 状态事件
 
@@ -15,6 +14,21 @@
 |---|---|---|---|---|
 | 2026-07-28 | `MVP-W00-S01` | `planned → complete` | 四个归档 SHA 通过；源码归档与解压树一致；新 import commit 为 `e4783a4f2bc7a6ce8df1405787c44ed636b195d3` | 提交 Wave 激活文档 |
 | 2026-07-28 | `MVP-W00-S02` | `planned → active` | Node `v24.14.0`、npm `11.9.0` 可用；当前环境缺少 Go | 冻结工具链并补齐 Go Gate |
+
+## Evidence ledger
+
+| Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
+|---|---|---|---|---|---|---|---|---|
+| `MVP-EVID-001A` | 2026-07-28 | `MVP-W00-S01` | source archive | `cf327169e7654d2284c98482e4d885085ed6068152f5ae9cbd103ea5ffd78c8f` | 发布源码归档完整 | `pass` | Codex root agent | pending |
+
+## 终态声明
+
+尚未进入终态。
+
+## 2026-07-28 — r001 后续门禁
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
 | 2026-07-28 | `MVP-W00-S02` | `active → complete` | 官方 Go `1.25.5` 归档校验通过并在临时目录安装；工具链已冻结 | 重放测试 |
 | 2026-07-28 | `MVP-W00-S03` | `planned → complete` | Go 全包、关键包 race/vet、Web 8/8、Obsidian 6/6 及两项构建通过 | 重放发布 |
 | 2026-07-28 | `MVP-W00-S04` | `planned → complete` | 双架构 Runner、跨平台控制端、归档恢复扫描及 SHA 校验通过；tracked bundle 无差异 | 独立复核 |
@@ -29,11 +43,10 @@
 - 创建 `plan-r002.md`，只扩展恢复脚本、package 工具链元数据和文档范围；
 - 运行时产品代码、真实凭据和实机 Pilot 仍不在允许范围内。
 
-## Evidence ledger
+### Evidence ledger 追加（首次全量门禁）
 
 | Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
 |---|---|---|---|---|---|---|---|---|
-| `MVP-EVID-001A` | 2026-07-28 | `MVP-W00-S01` | source archive | `cf327169e7654d2284c98482e4d885085ed6068152f5ae9cbd103ea5ffd78c8f` | 发布源码归档完整 | `pass` | Codex root agent | pending |
 | `MVP-EVID-002` | 2026-07-28 | `MVP-W00-S03` | Go test/race/vet | 见 `docs/recovery/RECOVERY_GATE_REPORT.md` | 确定性 Go Gate 通过 | `pass` | Codex root agent | reviewing |
 | `MVP-EVID-003` | 2026-07-28 | `MVP-W00-S03` | Web test/build | 见 `docs/recovery/RECOVERY_GATE_REPORT.md` | Web 8/8 与 build 通过 | `pass` | Codex root agent | reviewing |
 | `MVP-EVID-004` | 2026-07-28 | `MVP-W00-S03` | Obsidian test/build | 见 `docs/recovery/RECOVERY_GATE_REPORT.md` | Adapter 6/6 与 build 通过 | `pass` | Codex root agent | reviewing |
@@ -143,6 +156,24 @@
 |---|---|---|---|---|---|---|---|---|
 | `MVP-EVID-005B` | 2026-07-28 | `MVP-W00-S06C` / `MVP-ISSUE-001` / `MVP-W00-RECOVERY-003 r003` | r003 release manifest | `16ea5c12c1bdc9334f3eef8ee444148e50cd4aabade11a1deb60c8adcfe81965` | exact Task/Policy 下全量重验与双构建一致 | `pass` | Codex root agent | final review pending |
 
-## 终态声明
+## 2026-07-28 — r003 final BLOCK 与 r004 前向修复
 
-尚未进入终态。
+- r003 exact review target：
+  `21bdfc5d9852143b10102ff3a804033dd29904a8` /
+  `854262bd79e9e73ff8d3d9de6d96d94d068ac1e0`；
+- code：`BLOCK`，P0=0/P1=1；security：`PASS`，P0=0/P1=0；
+  docs：`BLOCK`，P0=0/P1=1；
+- `MVP-ISSUE-001` 扩展记录 self-authorizing freeze，新增
+  `MVP-ISSUE-002` 记录 Journal 历史完整性；
+- r004 activation `91d47a8` 已包含 active Plan/Registry/Policy，
+  后继 commit `7c78f52` 才冻结 `MVP-W00-RECOVERY-004`；
+- FE-W00、FE-W01、PILOT-W00 和本 Journal 的冻结前缀均已恢复；本文件
+  首次提交的前 1177 bytes SHA-256 为
+  `3ef4b2fbfcf7d5926300c03c35943d190eaf07a2216e9f25bde44dbc1805e709`。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S07A` | `planned → complete` | activation base 含 r004 Plan/Registry/Policy | 从 base 冻结 Task |
+| 2026-07-28 | `MVP-W00-S07B` | `planned → complete` | Task base commit/tree/policy 可复算 | 恢复 Journal |
+| 2026-07-28 | `MVP-W00-S07C` | `planned → blocked` | 四个历史前缀已恢复，但 r004 Plan/Task 把权威 FE-W01 SHA `33a50e1bbd...` 误抄为 `33a50e8f3a...` | 登记 `MVP-ISSUE-003`，创建后继 revision |
+| 2026-07-28 | `MVP-W00-S07D` | `planned → blocked` | 冻结 acceptance 不可满足，未执行全量 Gate 或 final review | 修正验收常量并重新冻结 |

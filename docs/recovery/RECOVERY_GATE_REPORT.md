@@ -1,8 +1,9 @@
 # GoClaw 恢复 Gate 报告
 
-Wave：`MVP-W00 r002`
+Wave：`MVP-W00 r004`
 
-状态：r002 确定性 Gate 已通过；第二轮独立复核待执行
+状态：r004 Task 已从 activation base 冻结；Journal 历史前缀已恢复，但
+r004 Plan/Task 的 FE-W01 SHA 常量抄写错误；本 revision 失败关闭
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -23,7 +24,7 @@ Wave：`MVP-W00 r002`
 | Archive negative tests | `test-release-archive-lib.sh` | `pass` | duplicate/extra/link/traversal 全部 fail closed |
 | Release build | `scripts/build-release.sh` × 2 | `pass` | 首次原子发布；第二次整目录 identical |
 | Source scan | release script recoverable scan | `pass` | 路径、类型、二进制、凭据和精确成员合同通过 |
-| Independent review | code/security/docs | `collecting` | 第一轮 P0=0/P1=8；r002 第二轮待执行 |
+| Independent review | code/security/docs | `collecting` | r003 final：code/docs 各 P1=1、security PASS；r004 final 待执行 |
 
 ## 通过规则
 
@@ -119,3 +120,32 @@ existing release`；manifest 绑定：
 这是 final review 前的 r003 候选，不是最终 tag 制品。独立复核写回会产生
 新的 docs commit；S06D 必须从该最终 commit 再构建两次并核对 manifest，
 然后才能创建 tag。
+
+## S07C r004 治理与 Journal 完整性
+
+r004 activation base 为
+`91d47a874d3eb5f7823ea8b0e9df1c24656cccec`，tree 为
+`8b6880ac3e3bf194786ab595c91f6a6cdc890eb9`。该 base 已包含 active
+`plan-r004.md`、Registry 和 Policy manifest；manifest SHA-256 为
+`4479549a338b7c6859defb738f93ce37e518c6bddb9ee3d9a58598f1b3f7a1f4`。
+Task freeze 位于后继 commit `7c78f522be5dce3f17f1178a022218dc90db2997`，
+因此 activation、freeze 与实施没有自授权循环。
+
+四个 Journal 的冻结前缀已恢复：
+
+| Journal | 冻结长度 | SHA-256 |
+|---|---:|---|
+| FE-W00 | 7574 bytes | `bc0d4ef39e3f76ec932451b695b7a2bd1a80f7d3cf00987ee7c3bb8c903f34aa` |
+| FE-W01 | 44983 bytes | `2c7372d4869119380f5079f70865e5b7523329b83cc51ba2cdae81c6c9cbed85` |
+| PILOT-W00 | 7145 bytes | `56c300e815e91170cbaffa145d02c1f9cec97bcf35632d649b2f81fa4f4c6d3e` |
+| MVP-W00 首次提交 | 1177 bytes | `3ef4b2fbfcf7d5926300c03c35943d190eaf07a2216e9f25bde44dbc1805e709` |
+
+其中 FE-W01 的独立冻结点前 26641 bytes SHA-256 已恢复为 r009 Plan、
+R7 Evidence 和 import tree 共同固定的
+`33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`。
+当前状态只由 Registry/current Plan/README 表达，Journal 顶部历史文字不再
+改写。
+
+r004 Plan/Task 把该值误抄为 `33a50e8f3a...`。原值、原文件与实算结果三者
+一致，不能为了满足错误常量改写 Journal；因此 r004 S07C 失败关闭并登记
+`MVP-ISSUE-003`，后继 revision 必须修正验收常量后重新冻结。

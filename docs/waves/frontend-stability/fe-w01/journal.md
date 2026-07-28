@@ -1,14 +1,8 @@
 # FE-W01 Journal
 
-本文件只追加；当前计划为 [`plan-r011.md`](plan-r011.md)，状态
-`blocked`。r009 及更早执行历史只读保留；在 recovered base 上批准新
-revision 前，不得迁移产品 patch 或启动本地 Playwright。
-
-## 2026-07-28 — r011 批准归因更正
-
-- r010 把第一轮 BLOCK reviewer 误写入 `approved_by`；
-- 新建 r011，只保留用户授权；
-- blocked、MVP-W00 依赖、docs-only 范围和外部 Gate 全部不变。
+本文件只追加；当前 active 计划为 [`plan-r007.md`](plan-r007.md)。r007
+已替代 r006 的执行范围；在 Revision 5 Task Base/worktree 精确冻结前，
+R4 patch 不得迁移，本地 Playwright 不得安装或启动。r001–r006 均保留历史。
 
 ## 状态事件
 
@@ -383,3 +377,18 @@ EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变
   `blocked`、`docs/waves/**`、`false`；
 - r010 增加 `MVP-W00` 依赖，不改写 r009 历史；
 - 恢复完成后必须用新 revision 重新绑定 Task base 与未完成 Evidence。
+
+## 2026-07-28 — r011 批准归因更正
+
+- r010 把第一轮 BLOCK reviewer 误写入 `approved_by`；
+- 新建 r011，只保留用户授权；
+- blocked、MVP-W00 依赖、docs-only 范围和外部 Gate 全部不变。
+
+## 2026-07-28 — Recovery append-only 完整性恢复
+
+- import tag 中本 Journal 的前 44983 bytes 已恢复为原 SHA-256
+  `2c7372d4869119380f5079f70865e5b7523329b83cc51ba2cdae81c6c9cbed85`；
+- 独立冻结点前 26641 bytes SHA-256 已恢复为
+  `33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`；
+- r010/r011 事件保留在冻结前缀之后；当前权威状态见 Registry 和
+  `plan-r011.md`，不再改写本文件顶部历史文字。

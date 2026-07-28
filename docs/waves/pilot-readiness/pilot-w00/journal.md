@@ -2,13 +2,6 @@
 
 本文件只追加。原始日志、二进制和敏感值不进入仓库。
 
-## 2026-07-28 — r006 批准归因更正
-
-- r005 把第一轮 BLOCK reviewer 误写入 `approved_by`；
-- 新建 r006，只保留用户授权；
-- blocked、FE-W00/MVP-W00/FE-W01 依赖、docs-only 范围和全部现场 Gate
-  不变。
-
 ## 2026-07-27 — S01 激活
 
 - 用户授权：补充 Runner 跨平台要求并推进到 3 人试点；
@@ -141,3 +134,17 @@
 - Registry 仍残留 r003 的广泛产品 allowlist/product flag；
 - 创建 r005，依赖 `FE-W00`、`MVP-W00`、`FE-W01`，并统一为 docs-only；
 - 本 revision 即使依赖完成也不自动恢复实机 Pilot，必须新建 Plan revision。
+
+## 2026-07-28 — r006 批准归因更正
+
+- r005 把第一轮 BLOCK reviewer 误写入 `approved_by`；
+- 新建 r006，只保留用户授权；
+- blocked、FE-W00/MVP-W00/FE-W01 依赖、docs-only 范围和全部现场 Gate
+  不变。
+
+## 2026-07-28 — Recovery append-only 完整性恢复
+
+- import tag 中本 Journal 的前 7145 bytes 已恢复为原 SHA-256
+  `56c300e815e91170cbaffa145d02c1f9cec97bcf35632d649b2f81fa4f4c6d3e`；
+- r004–r006 事件保留在冻结前缀之后；当前权威状态见 Registry 和
+  `plan-r006.md`，不再改写本文件顶部历史文字。

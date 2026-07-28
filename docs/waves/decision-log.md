@@ -114,3 +114,37 @@
 - 关联：`MVP-W00-S06A–S06D`、`MVP-EVID-006`、
   `Task-ID MVP-W00-RECOVERY-003`、`Issue MVP-ISSUE-001`、
   `Policy-Bundle 1d725fc514890338a8d6e7ad338287474674a709b650bacf329ec0ff2f07e0d2`。
+
+## 2026-07-28 — MVP-DEC-006：从可解析 activation base 冻结并恢复 Journal 前缀
+
+- 状态：`active`。
+- 触发：r003 final code review 发现 Task base 不含当时 active
+  Plan/Registry/Policy；docs review 发现四个 Journal 的历史前缀被改写。
+- 否决方案：拒绝 amend/rebase 历史；拒绝只在新 Task 文本中声称 base
+  可解析；拒绝用新的 current pointer 覆盖 Journal 顶部历史文字。
+- 决策：r004 严格拆分 activation、freeze、implementation；activation
+  base 必须已经包含 active r004 Plan/Registry/Policy。四个 Journal 恢复
+  各自冻结前缀，后续事件只在 EOF 追加，current authority 由 Registry、
+  current Plan 和 README 表达。
+- 影响：Recovery 仍是唯一 active、docs-only Wave；全量 Gate 与三路复核
+  重跑前禁止 recovered tag，FE/PILOT 继续 blocked。
+- 回滚：发现任何前缀或 tuple 不一致即新增 superseding revision，保留
+  r003/r004 失败证据，不覆盖原归档和 import tag。
+- 关联：`MVP-W00-S07A–S07E`、`MVP-EVID-006`、
+  `Task-ID MVP-W00-RECOVERY-004`、`MVP-ISSUE-001/002`、
+  `Policy-Bundle 4479549a338b7c6859defb738f93ce37e518c6bddb9ee3d9a58598f1b3f7a1f4`。
+
+## 2026-07-28 — MVP-DEC-007：错误的冻结 SHA 不以改写历史满足
+
+- 状态：`active`。
+- 触发：r004 S07C 实算发现 Plan/Task 把 FE-W01 的 26641-byte SHA 从
+  权威值 `33a50e1bbd...` 误抄为 `33a50e8f3a...`。
+- 否决方案：拒绝修改已批准 r004 Plan/Task；拒绝改造 Journal 字节去匹配
+  无来源的错误哈希；拒绝跳过该 acceptance。
+- 决策：保留 r004 失败证据，登记 `MVP-ISSUE-003`，以前向 revision
+  引用 r009 Plan、R7 Evidence、import tree 与本次实算的同一正确 SHA，
+  再重新执行 activation、freeze、Gate 和复核。
+- 影响：r004 不进入 S07D/S07E，不创建 tag。
+- 回滚：后继 revision 仍不一致则保持 Recovery blocked。
+- 关联：`MVP-W00-S07C`、`MVP-EVID-006`、
+  `Task-ID MVP-W00-RECOVERY-004`、`MVP-ISSUE-003`。
