@@ -1,0 +1,26 @@
+# Start with:
+#   limactl start --name=goclaw-pilot ./goclaw-runner.yaml.example
+# This is a dedicated Linux guest. No host directory is mounted into it.
+base:
+  - template://ubuntu-24.04
+
+vmType: vz
+cpus: 4
+memory: 8GiB
+disk: 60GiB
+
+mounts: []
+
+containerd:
+  system: false
+  user: false
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/sh
+      set -eu
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y bubblewrap ca-certificates git
+      install -d -o 1000 -g 1000 -m 0700 /var/lib/goclaw-runner

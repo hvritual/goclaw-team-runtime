@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "track_id": "PILOT-READINESS-2026-07",
+  "project_id": "goclaw-team-runtime",
+  "current_release": "0.8.0-pilot.1",
+  "active_wave": "PILOT-W00",
+  "updated_at": "2026-07-27",
+  "waves": [
+    {
+      "id": "FE-W00",
+      "title": "Executable Baseline and First Issue Split",
+      "status": "complete",
+      "document": "frontend-stability/fe-w00/plan-r003.md",
+      "depends_on": [],
+      "allowed_change_scope": [
+        "docs/**",
+        "test-plans/**",
+        "non-production diagnostic fixtures"
+      ],
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "FE-W01",
+      "title": "Session Transport, Dashboard Shell, and Local Browser Regression Gate",
+      "status": "blocked",
+      "document": "frontend-stability/fe-w01/plan-r009.md",
+      "depends_on": [
+        "FE-W00"
+      ],
+      "allowed_change_scope": [
+        "ui/src/team/client.ts",
+        "ui/vite.config.ts",
+        "ui/package.json",
+        "ui/tests/team-transport.test.mjs",
+        "gateway/team_runtime_test.go",
+        "gateway/web_sessions_test.go",
+        "gateway/ui.go",
+        "gateway/server_auth_test.go",
+        "channels/weworkwsbot_test.go",
+        "memory/catalog/ingest.go",
+        "memory/catalog/service_test.go",
+        "docs/waves/**"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
+      "id": "FE-W02",
+      "title": "Read Model Contracts",
+      "status": "planned",
+      "document": "frontend-stability/fe-w02/plan-r001.md",
+      "depends_on": [
+        "FE-W01"
+      ],
+      "allowed_change_scope": [
+        "all Team Web Console loader paths",
+        "typed RPC response adapters",
+        "query handlers required by confirmed issues",
+        "directly related tests and documentation"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
+      "id": "FE-W03",
+      "title": "Command Workflows",
+      "status": "planned",
+      "document": "frontend-stability/fe-w03/plan-r001.md",
+      "depends_on": [
+        "FE-W02"
+      ],
+      "allowed_change_scope": [
+        "Chat, Spec, Approvals, Development and Harness command flows",
+        "confirmed mutation RPC contract fixes",
+        "directly related tests and documentation"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
+      "id": "FE-W04",
+      "title": "UX Resilience and Accessibility",
+      "status": "planned",
+      "document": "frontend-stability/fe-w04/plan-r001.md",
+      "depends_on": [
+        "FE-W03"
+      ],
+      "allowed_change_scope": [
+        "shared UI primitives and styles",
+        "explicit state rendering",
+        "responsive and accessibility fixes",
+        "directly related tests and documentation"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
+      "id": "FE-W05",
+      "title": "Integrated Verification and Release",
+      "status": "planned",
+      "document": "frontend-stability/fe-w05/plan-r001.md",
+      "depends_on": [
+        "FE-W04"
+      ],
+      "allowed_change_scope": [
+        "tests",
+        "release scripts",
+        "deployment examples",
+        "documentation",
+        "release-blocking fixes returned to their owning Wave"
+      ],
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "PILOT-W00",
+      "title": "Three-person Controlled Pilot",
+      "status": "active",
+      "document": "pilot-readiness/pilot-w00/plan-r003.md",
+      "depends_on": [
+        "FE-W00"
+      ],
+      "allowed_change_scope": [
+        "AGENTS.md",
+        "README.md",
+        "CHANGELOG.md",
+        "CHANGE-HANDOFF.md",
+        "Makefile",
+        ".goreleaser.yaml",
+        "config.json.example",
+        "config/**",
+        "cli/**",
+        "gateway/**",
+        "internal/start/**",
+        "orchestratorlite/**",
+        "workstation/**",
+        "teamcontrol/**",
+        "ouroboros/**",
+        "agent/manager.go",
+        "agent/manager_project_session_test.go",
+        "session/**",
+        "ui/package.json",
+        "ui/package-lock.json",
+        "ui/src/team/**",
+        "ui/tests/**",
+        "scripts/**",
+        "deploy/**",
+        "docs/**"
+      ],
+      "product_code_changes_allowed": true
+    }
+  ]
+}

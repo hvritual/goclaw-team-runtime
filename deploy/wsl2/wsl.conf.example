@@ -1,0 +1,11 @@
+# Install as /etc/wsl.conf inside the dedicated GoClaw WSL2 distribution.
+# Then run `wsl.exe --shutdown` from Windows and start the distribution again.
+[boot]
+systemd=true
+
+[interop]
+enabled=false
+appendWindowsPath=false
+
+[automount]
+enabled=false

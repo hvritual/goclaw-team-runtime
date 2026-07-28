@@ -1,0 +1,33 @@
+[Unit]
+Description=GoClaw local Codex workstation runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+UMask=0077
+EnvironmentFile=%h/.config/goclaw/runner.env
+ExecStartPre=/usr/local/bin/goclaw runner doctor \
+  --key-file ${GOCLAW_RUNNER_KEY_FILE} \
+  --work-root ${GOCLAW_RUNNER_WORK_ROOT} \
+  --repo ${GOCLAW_REPOSITORY_ID}=${GOCLAW_REPOSITORY_PATH} \
+  --codex-command ${GOCLAW_CODEX_COMMAND} \
+  --verification-sandbox ${GOCLAW_VERIFICATION_SANDBOX}
+ExecStart=/usr/local/bin/goclaw runner work \
+  --id ${GOCLAW_RUNNER_ID} \
+  --key-file ${GOCLAW_RUNNER_KEY_FILE} \
+  --work-root ${GOCLAW_RUNNER_WORK_ROOT} \
+  --repo ${GOCLAW_REPOSITORY_ID}=${GOCLAW_REPOSITORY_PATH} \
+  --project ${GOCLAW_PROJECT_ID} \
+  --codex-command ${GOCLAW_CODEX_COMMAND} \
+  --verification-sandbox ${GOCLAW_VERIFICATION_SANDBOX} \
+  --heartbeat 30s \
+  --poll 5s
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+KillMode=control-group
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

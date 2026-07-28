@@ -1,0 +1,125 @@
+{
+  "project_id": "project-alpha",
+  "title": "为订单接口增加幂等校验",
+  "repo_path": "/absolute/path/to/project-repository",
+  "base_ref": "main",
+  "request": {
+    "raw_request": "在不改变现有成功响应结构的前提下，为创建订单接口增加基于 Idempotency-Key 的幂等校验。",
+    "source": "obsidian"
+  },
+  "goal": {
+    "objective": "重复提交相同 Idempotency-Key 时只创建一个订单，并返回首次请求的结果。",
+    "non_goals": [
+      "不重写订单存储层",
+      "不增加新的外部基础设施"
+    ],
+    "assumptions": [
+      "现有数据库支持唯一索引"
+    ],
+    "success_tests": [
+      "新增幂等单元测试通过",
+      "现有订单测试全部通过",
+      "git diff --check 通过"
+    ]
+  },
+  "plan": {
+    "summary": "先锁定幂等键存储边界，再实现并验证成功、重复和并发路径。",
+    "milestones": [
+      {
+        "id": "m1",
+        "title": "实现与验证",
+        "work_items": [
+          {
+            "id": "w1",
+            "title": "实现幂等校验",
+            "instructions": "只修改 internal/orders 与对应测试；保留既有 API 兼容性。",
+            "capability_manifest": {
+              "executor": "codex-exec",
+              "tools": [
+                "filesystem",
+                "shell"
+              ],
+              "sandbox": "workspace-write"
+            },
+            "verification_commands": [
+              {
+                "name": "订单测试",
+                "argv": [
+                  "go",
+                  "test",
+                  "./internal/orders/..."
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "evidence_plan": {
+    "required": [
+      "diff",
+      "policy",
+      "verification",
+      "independent_review"
+    ],
+    "commands": [
+      {
+        "name": "订单测试",
+        "argv": [
+          "go",
+          "test",
+          "./internal/orders/..."
+        ]
+      },
+      {
+        "name": "补丁格式",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ]
+      }
+    ]
+  },
+  "scope": {
+    "allowed_paths": [
+      "internal/orders/**"
+    ],
+    "denied_paths": [
+      ".env",
+      ".env.*",
+      "**/.env*"
+    ],
+    "max_changed_files": 12,
+    "max_changed_lines": 500,
+    "allow_new_dependency": false
+  },
+  "risk": {
+    "level": "medium",
+    "forbidden": [
+      "修改生产配置",
+      "推送远端分支",
+      "创建或删除数据库"
+    ],
+    "rollback": "丢弃隔离 worktree 或回退验收后的本地提交。",
+    "human_escalates": [
+      "需要修改公开 API",
+      "需要增加依赖",
+      "验证命令不可用"
+    ]
+  },
+  "cost": {
+    "max_repair_attempts": 2,
+    "max_input_tokens": 200000,
+    "max_output_tokens": 30000
+  },
+  "done_gate": {
+    "require_changed_files": true,
+    "require_all_verifications": true,
+    "require_policy_pass": true,
+    "require_independent_review": true,
+    "require_human_acceptance": true
+  },
+  "created_by": "alice"
+}

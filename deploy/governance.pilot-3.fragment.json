@@ -1,0 +1,62 @@
+{
+  "governance": {
+    "enabled": true,
+    "require_authenticated_reviewers": true,
+    "require_rationale": true,
+    "require_counterargument": true,
+    "min_rationale_runes": 12,
+    "forbid_self_approval": true,
+    "seed_approval_quorum": 2,
+    "high_risk_approval_quorum": 2,
+    "evolution_approval_quorum": 2,
+    "harness_approval_quorum": 1,
+    "min_distinct_task_reviewers": 2,
+    "max_task_review_kinds_per_reviewer": 2,
+    "forbid_final_approver_from_task_review": true,
+    "forbid_harness_promoter_from_approval": true,
+    "reviewers": {
+      "alice": {
+        "token_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "team_user_id": "alice",
+        "roles": [
+          "seed_approve",
+          "evolution_approve",
+          "scenario_review",
+          "capacity_review",
+          "harness_approve",
+          "knowledge_approve",
+          "memory_approve",
+          "authority_manage",
+          "readiness_override",
+          "conflict_resolve"
+        ]
+      },
+      "bob": {
+        "token_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "team_user_id": "bob",
+        "roles": [
+          "seed_approve",
+          "evolution_approve",
+          "risk_review",
+          "cost_review",
+          "harness_promote",
+          "harness_rollback",
+          "evaluation_resolve",
+          "outcome_record"
+        ]
+      },
+      "carol": {
+        "token_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "team_user_id": "carol",
+        "roles": [
+          "seed_approve",
+          "evolution_approve",
+          "task_accept",
+          "task_cancel",
+          "kill_switch",
+          "session_cancel"
+        ]
+      }
+    }
+  }
+}

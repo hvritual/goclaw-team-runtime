@@ -1,0 +1,12 @@
+{
+  "answers": [
+    {
+      "question_id": "q1-goal",
+      "text": "The observable goal agreed by the project owner."
+    },
+    {
+      "question_id": "q1-success",
+      "text": "The exact command and observable result that prove success."
+    }
+  ]
+}
