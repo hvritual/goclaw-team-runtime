@@ -10,8 +10,9 @@
 | 2 | `6fa9607f97715660271ea1356797d4dffaf78f62` | `f3d30badaeb83c91622b4585d73923f6e787f0fb` | clean reviewed HEAD |
 | 2 implementation | `792b599c56852e26623bca83313f56b3a0693f2b` | `6d7da8ee1d4c9f69fc4cc2aea8fade9b816e9a6c` | 双构建候选 |
 | r003 final | `21bdfc5d9852143b10102ff3a804033dd29904a8` | `854262bd79e9e73ff8d3d9de6d96d94d068ac1e0` | exact clean reviewed HEAD；触发 r004 |
+| r005 final | `526e14b7214403d3b1bfbc9a660abf960a364a4e` | `524c764eb8203441cfb9c50e4219861b126275bd` | exact clean reviewed HEAD；三路 PASS |
 
-当前结论：`BLOCK`
+当前结论：三路 final review `PASS`；S08E 最终双构建/tag 待执行
 
 ## 审查角色与工具策略
 
@@ -103,5 +104,34 @@ review；后继 revision 修正常量并重新冻结前当前 `BLOCK` 不变。
 状态：activation base 与 Task freeze 已分离，S08C 五个前缀及 S08D
 全量 Gate/双构建通过。确定性重验目标为
 `e262b8c3be6a42d3b86e13fe48b34c055dccb9db` /
-`bdf8c76ca2fc0b992e4a9d403c0ae1a0cbcf1b78`；等待 evidence commit 后对
-exact clean HEAD 执行三路只读复核。三路 P0/P1 清零前当前 `BLOCK` 不变。
+`bdf8c76ca2fc0b992e4a9d403c0ae1a0cbcf1b78`；三路 reviewer 已对
+`526e14b7214403d3b1bfbc9a660abf960a364a4e` /
+`524c764eb8203441cfb9c50e4219861b126275bd` exact clean HEAD 完成只读复核。
+
+## r005 最终复核结果
+
+| Reviewer | P0 | P1 | P2 | 结论 |
+|---|---:|---:|---:|---|
+| `recovery_code_review` | 0 | 0 | existing | `PASS` |
+| `recovery_security_review` | 0 | 0 | 6 | `PASS` |
+| `recovery_docs_review` | 0 | 0 | 0 | `PASS` |
+
+code/source 确认 self-authorizing freeze P1 已关闭；docs/governance 确认
+Journal append-only P1 与 Gate report 旧标题 P2 已关闭。security 对四个
+tar 的成员合同、来源、checksum、工具链、归档负例、原子发布与 secret
+扫描独立通过。
+
+仍保留的非阻断 P2：
+
+1. import tag/checksum 未签名；
+2. GitHub Actions 与 Docker base 未全部固定 digest；
+3. 尚无 SBOM、漏洞报告和外部 WORM Evidence；
+4. 历史 credential-shaped material 仍待 owner 证明撤销、轮换或从未有效；
+5. archive create 的 `--files-from` 尚未用 `--verbatim-files-from` 加固，
+   当前 638 个成员无 leading-dash 路径；
+6. ignored `dist/` 根目录仍有早期原版命名 rebuild，存在误取风险；最终交付
+   前必须隔离，只以版本目录和 checksum 为准。
+
+三路 PASS 只放行 S08E。必须先写回本结果，再从该最终 clean commit 连续
+构建两次，核对 manifest commit/tree/checksum，并让 recovered tag 指向同一
+commit；在此之前 Recovery 仍未完成。

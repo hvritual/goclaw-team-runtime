@@ -55,7 +55,7 @@
 | `MVP-EVID-003` | `MVP-W00` | `MVP-ISSUE-001` | Web test/build | Web 8/8、build 通过且 tracked bundle 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r005 deterministic revalidation；final review pending |
 | `MVP-EVID-004` | `MVP-W00` | `MVP-ISSUE-001` | Obsidian test/build | Adapter 6/6、build 通过且 tracked `main.js` 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r005 deterministic revalidation；final review pending |
 | `MVP-EVID-005` | `MVP-W00` | `MVP-ISSUE-001` | release rebuild | 锁、stage、规范化归档、精确合同、原子版本目录和同 commit 双构建通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r005 candidate `e262b8c`；final review pending |
-| `MVP-EVID-006` | `MVP-W00` | `MVP-ISSUE-001`–`003` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `collecting` | r003 final BLOCK；r004 常量错误失败关闭；r005 final pending |
+| `MVP-EVID-006` | `MVP-W00` | `MVP-ISSUE-001`–`003` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `passed` | r005 `526e14b` / `524c764`；code/security/docs PASS |
 
 证据状态允许：`planned`、`collecting`、`passed`、`failed`、`superseded`。
 

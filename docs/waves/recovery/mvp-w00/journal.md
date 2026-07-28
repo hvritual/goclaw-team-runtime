@@ -216,3 +216,19 @@
 | Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
 |---|---|---|---|---|---|---|---|---|
 | `MVP-EVID-005C` | 2026-07-28 | `MVP-W00-S08D` / `MVP-ISSUE-001`–`003` / `MVP-W00-RECOVERY-005 r005` | r005 candidate release manifest | `0379cf736ac1fb6a3770be39ccb8156c877a8dfd1ec50777c90c2b7896fdc2b8` | 正确 SHA authority、完整 Gate 与同 commit 双构建一致 | `pass` | Codex root agent | final review pending |
+
+## 2026-07-28 — r005 三路最终复核
+
+- review target：`526e14b7214403d3b1bfbc9a660abf960a364a4e` /
+  `524c764eb8203441cfb9c50e4219861b126275bd`，worktree clean；
+- code/source：`PASS`，P0=0/P1=0，self-authorizing freeze P1 已关闭；
+- security/supply-chain：`PASS`，P0=0/P1=0，保留 6 个非阻断 P2；
+- docs/governance：`PASS`，P0=0/P1=0/P2=0，Journal P1 与 Gate report P2
+  已关闭；
+- `MVP-ISSUE-001`–`003` 独立验证完成；Recovery 仍等待 review 写回 commit
+  上的最终双构建、manifest/tag 对齐。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S08D` | `review → complete` | 三路 exact target 复核 P0=0/P1=0 | 写回复核结论 |
+| 2026-07-28 | `MVP-W00-S08E` | `planned → active` | review 通过；最终双构建/tag 尚未执行 | 从 review-writeback clean commit 构建两次 |

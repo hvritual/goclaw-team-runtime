@@ -2,8 +2,8 @@
 
 Wave：`MVP-W00 r005`
 
-状态：r005 Task 已从 activation base 冻结；五个历史前缀、全量确定性
-Gate 与同 commit 双构建通过；最终独立复核待执行
+状态：r005 Task、五个历史前缀、全量确定性 Gate、候选双构建和三路
+final review 通过；S08E 最终 commit 双构建/tag 待执行
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -24,7 +24,7 @@ Gate 与同 commit 双构建通过；最终独立复核待执行
 | Archive negative tests | `test-release-archive-lib.sh` | `pass` | duplicate/extra/link/traversal 全部 fail closed |
 | Release build | `scripts/build-release.sh` × 2 | `pass` | 首次原子发布；第二次整目录 identical |
 | Source scan | release script recoverable scan | `pass` | 路径、类型、二进制、凭据和精确成员合同通过 |
-| Independent review | code/security/docs | `collecting` | r003 final BLOCK；r004 常量错误失败关闭；r005 final 待执行 |
+| Independent review | code/security/docs | `pass` | r005 exact target `526e14b` / `524c764`；三路 P0=0/P1=0 |
 
 ## 通过规则
 
