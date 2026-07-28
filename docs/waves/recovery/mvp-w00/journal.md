@@ -232,3 +232,19 @@
 |---|---|---|---|---|
 | 2026-07-28 | `MVP-W00-S08D` | `review → complete` | 三路 exact target 复核 P0=0/P1=0 | 写回复核结论 |
 | 2026-07-28 | `MVP-W00-S08E` | `planned → active` | review 通过；最终双构建/tag 尚未执行 | 从 review-writeback clean commit 构建两次 |
+
+## 2026-07-28 — S08E 最终 tag 与 Recovery 完成
+
+- review-writeback commit `bf36ed343ca213d1df0a32ffa0e5184063b1fd58` /
+  tree `bce6dc94a2b7bfd57edb3848e4b6833786f62ac9` 连续构建两次完全一致；
+- manifest SHA-256：
+  `a12e7e7497b8e217212f8bc04124f1c5371792364b1712b91d0e13e76e7353d9`；
+- annotated tag `v0.8.0-pilot.1-recovered.1` 指向同一 commit，manifest
+  commit/tree、tag target、checksum 和 clean tree 全部通过；
+- 旧原版命名 ignored rebuild 已隔离；创建终态 r006，并把唯一 active
+  Wave 移交到 `FE-W01 r012`。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S08E` | `active → complete` | final 双构建、manifest/tag/checksum 对齐 | 激活 MVP-W01 |
+| 2026-07-28 | `MVP-W00-S09` | `planned → complete` | Registry/current release/README 移交到 FE-W01 r012 | 从 transition base 冻结 Browser Task |

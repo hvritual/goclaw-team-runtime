@@ -12,7 +12,7 @@
 | r003 final | `21bdfc5d9852143b10102ff3a804033dd29904a8` | `854262bd79e9e73ff8d3d9de6d96d94d068ac1e0` | exact clean reviewed HEAD；触发 r004 |
 | r005 final | `526e14b7214403d3b1bfbc9a660abf960a364a4e` | `524c764eb8203441cfb9c50e4219861b126275bd` | exact clean reviewed HEAD；三路 PASS |
 
-当前结论：三路 final review `PASS`；S08E 最终双构建/tag 待执行
+当前结论：三路 final review `PASS`；S08E 最终双构建/tag 已通过
 
 ## 审查角色与工具策略
 
@@ -129,9 +129,9 @@ tar 的成员合同、来源、checksum、工具链、归档负例、原子发�
 4. 历史 credential-shaped material 仍待 owner 证明撤销、轮换或从未有效；
 5. archive create 的 `--files-from` 尚未用 `--verbatim-files-from` 加固，
    当前 638 个成员无 leading-dash 路径；
-6. ignored `dist/` 根目录仍有早期原版命名 rebuild，存在误取风险；最终交付
-   前必须隔离，只以版本目录和 checksum 为准。
+6. ignored `dist/` 根目录曾有早期原版命名 rebuild，存在误取风险；现已移
+   到 `/tmp` 隔离，只以版本目录和 checksum 为准。
 
-三路 PASS 只放行 S08E。必须先写回本结果，再从该最终 clean commit 连续
-构建两次，核对 manifest commit/tree/checksum，并让 recovered tag 指向同一
-commit；在此之前 Recovery 仍未完成。
+三路 PASS 已放行 S08E；最终 clean commit 双构建、manifest/tree/checksum
+和 recovered tag 对齐已完成。未签名、digest、SBOM/WORM、credential owner
+与未来 `--verbatim-files-from` 加固继续作为非阻断 P2 进入后继路线。

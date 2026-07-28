@@ -392,3 +392,17 @@ EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变
   `33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`；
 - r010/r011 事件保留在冻结前缀之后；当前权威状态见 Registry 和
   `plan-r011.md`，不再改写本文件顶部历史文字。
+
+## 2026-07-28 — r012 recovered-base MVP 激活
+
+- `MVP-W00` 已以 tag `v0.8.0-pilot.1-recovered.1` 完成；
+- 新建 `plan-r012.md`，在 recovered base 上重新绑定 deterministic、
+  Browser、ptrace 和 credential owner Gate；
+- Browser plugin 必须优先；若 localhost/runtime invocation 失败，本 Plan
+  允许使用仓库外临时 Playwright，并记录精确 fallback 原因；
+- 本次 transition 只更新治理/证据，不启动 runtime，不修改产品代码；
+- 当前权威状态见 Registry、`plan-r012.md` 与后继 frozen Task。
+
+| Seq | 时间 | Actor | From | To | 原因 | Evidence |
+|---:|---|---|---|---|---|---|
+| 7 | 2026-07-28 | Wave governance | `blocked` | `active` | Recovery 完成，用户授权继续 MVP-W01 | recovered tag + r012 |

@@ -1,18 +1,19 @@
 # Team Web Console 稳定化 Track
 
 - Track ID：`FE-STABILITY-2026-07`
-- 基线版本：`0.7.0`
+- 基线版本：`0.8.0-pilot.1-recovered.1`
 - 当前 Wave：`FE-W01`
-- 当前计划：[`FE-W01 plan-r011`](fe-w01/plan-r011.md)
-- 当前执行状态：W01 `blocked`，等待 `MVP-W00` 建立 recovered Git base；
-  r011 不授权产品变更。历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
+- 当前计划：[`FE-W01 plan-r012`](fe-w01/plan-r012.md)
+- 当前执行状态：W01 `active`；`MVP-W00` recovered Git base 与 tag 已完成，
+  r012 只授权技术/浏览器门禁和已复现范围。历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
   文档终审。R6 技术 Gate 通过但 traceability 失败，已在 credential/runtime
   前停止并只读保留；R7 从 `5160273` 完成可追溯重建，S12/EVID020 的完整
   Task tuple、trailers、11/11 manifest 与确定性 Gate 已通过三路独立复核。
   S11 下载完整性通过，但当前容器、首次授权宿主与用户再次触发的授权宿主
   重试均拒绝 ptrace，EVID018 已失败关闭为 `environment-blocked`；未创建
   credential/runtime。
-  `FE-ISSUE-007` credential owner 仍未解析，因此仍禁止产品提交和发布。
+  `FE-ISSUE-007` credential owner 仍未解析；`FE-ISSUE-010` ptrace
+  capability 仍须在当前环境重新预检，因此 W01 不能提前 complete。
 - 用户报告：[`FE-ISSUE-001`](../issue-register.md)
 - 注册表：[`wave-registry.json`](../wave-registry.json)
 

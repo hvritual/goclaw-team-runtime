@@ -148,3 +148,20 @@
 - 回滚：后继 revision 仍不一致则保持 Recovery blocked。
 - 关联：`MVP-W00-S07C`、`MVP-EVID-006`、
   `Task-ID MVP-W00-RECOVERY-004`、`MVP-ISSUE-003`。
+
+## 2026-07-28 — MVP-DEC-008：Recovery 完成后只激活 FE-W01 浏览器门禁
+
+- 状态：`active`。
+- 触发：`v0.8.0-pilot.1-recovered.1` 的来源、Gate、三路复核、双构建和
+  tag/manifest 对齐全部完成；用户要求先完成恢复再进入 MVP。
+- 否决方案：拒绝同时激活 PILOT-W00/FE-W02；拒绝在未完成 ptrace、
+  credential owner 和真实浏览器 Gate 时直接启动三台 Runner。
+- 决策：用终态 `MVP-W00 r006` 关闭 Recovery，只激活 `FE-W01 r012`。
+  Browser plugin 优先；明确允许在 plugin localhost/runtime 失败后使用
+  仓库外 Playwright fallback，但不降低 syscall/owner Gate。
+- 影响：current release 更新为 `0.8.0-pilot.1-recovered.1`；FE-W01 仅在
+  已复现范围内允许产品变更，实际 freeze 前仍禁止 runtime/代码改动。
+- 回滚：Browser/ptrace/owner 任一失败则 FE-W01 进入 blocked Evidence，
+  PILOT-W00 保持 blocked。
+- 关联：`MVP-W00-S09`、`FE-W01-S13A–S13E`、
+  `FE-ISSUE-003`–`010`、`MVP-EVID-005/006`。

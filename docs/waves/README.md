@@ -2,12 +2,10 @@
 
 本文定义 GoClaw 的分波更新规则。它首先用于 Team Web Console 稳定化，
 以后所有需要多个步骤、多个模块或多轮验证的更新也必须遵守同一规则。
-当前机器可读入口是 `MVP-W00 r005`；它负责从已校验的发布归档恢复权威
-Git 基线、重放确定性 Gate，并完成可从 base 解析且保持 Journal
-append-only 的最终验收。
-`PILOT-W00` 在恢复完成前暂停为 `blocked`；
-`FE-W01` 仍因外部凭据证明和 ptrace 环境阻断而保留为 `blocked`，二者均未
-被描述为完成。
+恢复基线 `MVP-W00 r006` 已完成，当前机器可读入口是 `FE-W01 r012`。
+recovered release 为 `0.8.0-pilot.1-recovered.1`；FE-W01 在该权威 base
+上执行确定性、真实浏览器、ptrace 零出站和 credential owner 门禁。
+`PILOT-W00` 继续 `blocked`，在 FE-W01 完成前不得启动三台 Runner 放行。
 
 Wave 文档是计划、范围、门禁和证据索引，不替代运行时权威数据：
 
@@ -86,8 +84,8 @@ stateDiagram-v2
 | Wave | 状态 | 目标 | 产品代码 |
 |---|---|---|---:|
 | [`FE-W00`](frontend-stability/fe-w00/plan-r005.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
-| [`MVP-W00`](recovery/mvp-w00/plan-r005.md) | `active` | 权威源码、可重复发布与可追溯最终验收 | r005 仅文档；禁止运行时业务代码 |
-| [`FE-W01`](frontend-stability/fe-w01/plan-r011.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
+| [`MVP-W00`](recovery/mvp-w00/plan-r006.md) | `complete` | 权威源码、可重复发布与可追溯最终验收 | 禁止 |
+| [`FE-W01`](frontend-stability/fe-w01/plan-r012.md) | `active` | recovered base 登录、WebSocket、浏览器、ptrace 与凭据闭环 | 仅已复现范围 |
 | [`FE-W02`](frontend-stability/fe-w02/plan-r001.md) | `planned` | 所有页面读取 loader 与 RPC 返回契约 | 受限 |
 | [`FE-W03`](frontend-stability/fe-w03/plan-r001.md) | `planned` | 对话、规格、审批、开发和 Harness 命令链 | 受限 |
 | [`FE-W04`](frontend-stability/fe-w04/plan-r001.md) | `planned` | 状态呈现、响应式、可访问性和恢复体验 | 受限 |

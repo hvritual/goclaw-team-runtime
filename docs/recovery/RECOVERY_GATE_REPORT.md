@@ -2,8 +2,8 @@
 
 Wave：`MVP-W00 r005`
 
-状态：r005 Task、五个历史前缀、全量确定性 Gate、候选双构建和三路
-final review 通过；S08E 最终 commit 双构建/tag 待执行
+状态：`complete`；r005 Task、五个历史前缀、全量确定性 Gate、三路
+final review、最终双构建、manifest/tag 对齐全部通过
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -200,3 +200,24 @@ current acceptance 已唯一切换到 r005。
 
 这是 final review 前候选。复核结论写回后必须从最终 clean commit 再连续
 构建两次并核对 manifest/tag target，当前目录不得作为最终发布宣称。
+
+## S08E 最终恢复发布
+
+review-writeback commit
+`bf36ed343ca213d1df0a32ffa0e5184063b1fd58`，tree
+`bce6dc94a2b7bfd57edb3848e4b6833786f62ac9`。从该 clean commit 连续构建
+两次，第二次明确为 `Verified identical existing release`。
+
+annotated tag `v0.8.0-pilot.1-recovered.1` 指向同一 commit；manifest 的
+`source_commit`/`source_tree` 与 tag target 完全一致，最终 checksum：
+
+| 制品 | SHA-256 |
+|---|---|
+| Linux amd64 runtime | `cb4b329610c6b12e4e60a5c97d695a0dd84ca5b7abff7186c1e882a3ff7d312b` |
+| Linux arm64 runtime | `77e9dc7ff9f9222cd475b7bcffe938c9e4776208159119238139688f527bb941` |
+| recovered source | `924c6bbddde355c035016bef24120ae0b6fe24644f3b64941f0aefd44b5b1197` |
+| Obsidian `0.6.0` | `0b7d1103050f0c1b65511a3f1938723493f1644e2d57748a8a5c888176cda59b` |
+| final release manifest | `a12e7e7497b8e217212f8bc04124f1c5371792364b1712b91d0e13e76e7353d9` |
+
+旧原版命名 ignored rebuild 与 review 前 candidates 已移至 `/tmp` 隔离；
+正式交付入口只有 `dist/releases/0.8.0-pilot.1-recovered.1/` 及其 checksum。

@@ -1,10 +1,10 @@
 # 三人试点就绪 Track
 
 - Track ID：`PILOT-READINESS-2026-07`
-- 候选版本：`0.8.0-pilot.1`
+- 候选版本：`0.8.0-pilot.1-recovered.1`
 - 当前 Wave：`PILOT-W00`
 - 当前计划：[`PILOT-W00 plan-r006`](pilot-w00/plan-r006.md)
-- 当前状态：`blocked`；等待 `MVP-W00` 和 `FE-W01` 完成，当前 revision
+- 当前状态：`blocked`；`MVP-W00` 已完成，继续等待 `FE-W01`，当前 revision
   仅允许文档变更。
 - 目标：一个中央控制面、一个项目、三名真人、三台独立 Runner 的可控开发试点
 
