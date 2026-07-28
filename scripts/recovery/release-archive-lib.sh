@@ -16,12 +16,18 @@ goclaw_create_normalized_archive() {
   local source_date_epoch="$5"
   local transform_args=()
 
-  [[ -d "${source_root}" ]] ||
+  if [[ ! -d "${source_root}" ]]; then
     goclaw_archive_fail "source root is not a directory: ${source_root}"
-  [[ -s "${manifest}" ]] ||
+    return 1
+  fi
+  if [[ ! -s "${manifest}" ]]; then
     goclaw_archive_fail "archive manifest is empty: ${manifest}"
-  [[ "${source_date_epoch}" =~ ^[0-9]+$ ]] ||
+    return 1
+  fi
+  if [[ ! "${source_date_epoch}" =~ ^[0-9]+$ ]]; then
     goclaw_archive_fail "SOURCE_DATE_EPOCH is not numeric"
+    return 1
+  fi
 
   if [[ -n "${prefix}" ]]; then
     transform_args=(--transform="s#^#${prefix}/#")
@@ -53,28 +59,43 @@ goclaw_validate_archive_contract() {
   local validation_root actual_manifest type_manifest duplicates
   local member member_path type
 
-  [[ -f "${archive}" ]] ||
+  if [[ ! -f "${archive}" ]]; then
     goclaw_archive_fail "archive is not a regular file: ${archive}"
-  [[ -s "${expected_manifest}" ]] ||
+    return 1
+  fi
+  if [[ ! -s "${expected_manifest}" ]]; then
     goclaw_archive_fail "expected member manifest is empty"
-  [[ ! -e "${extract_root}" ]] ||
-    goclaw_archive_fail "extract destination already exists: ${extract_root}"
+    return 1
+  fi
+  if [[ -e "${extract_root}" ]]; then
+    goclaw_archive_fail \
+      "extract destination already exists: ${extract_root}"
+    return 1
+  fi
 
   validation_root="${extract_root}.contract"
-  [[ ! -e "${validation_root}" ]] ||
+  if [[ -e "${validation_root}" ]]; then
     goclaw_archive_fail \
       "archive validation directory already exists: ${validation_root}"
+    return 1
+  fi
   mkdir -p "${validation_root}"
   actual_manifest="${validation_root}/actual.txt"
   type_manifest="${validation_root}/types.txt"
   duplicates="${validation_root}/duplicates.txt"
 
-  tar -tzf "${archive}" > "${actual_manifest}" ||
+  if ! tar -tzf "${archive}" > "${actual_manifest}"; then
     goclaw_archive_fail "cannot list ${archive}"
-  tar -tvzf "${archive}" > "${type_manifest}" ||
+    return 1
+  fi
+  if ! tar -tvzf "${archive}" > "${type_manifest}"; then
     goclaw_archive_fail "cannot inspect entry types in ${archive}"
-  [[ -s "${actual_manifest}" ]] ||
+    return 1
+  fi
+  if [[ ! -s "${actual_manifest}" ]]; then
     goclaw_archive_fail "archive is empty: ${archive}"
+    return 1
+  fi
 
   LC_ALL=C sort "${actual_manifest}" | uniq -d > "${duplicates}"
   if [[ -s "${duplicates}" ]]; then
@@ -90,12 +111,15 @@ goclaw_validate_archive_contract() {
   fi
 
   while IFS= read -r member; do
-    [[ -n "${member}" ]] ||
+    if [[ -z "${member}" ]]; then
       goclaw_archive_fail "archive contains an empty member name"
+      return 1
+    fi
     member_path="${member%/}"
     case "${member_path}" in
       /* | .. | ../* | */../* | */.. | *\\*)
         goclaw_archive_fail "unsafe archive member: ${member}"
+        return 1
         ;;
     esac
     if [[ "${expected_root}" != "-" ]]; then
@@ -105,36 +129,46 @@ goclaw_validate_archive_contract() {
         *)
           goclaw_archive_fail \
             "archive member is outside ${expected_root}: ${member}"
+          return 1
           ;;
       esac
     fi
   done < "${actual_manifest}"
 
   while IFS= read -r member; do
-    [[ -n "${member}" ]] ||
+    if [[ -z "${member}" ]]; then
       goclaw_archive_fail "cannot parse archive entry type"
+      return 1
+    fi
     type="${member:0:1}"
-    [[ "${type}" == "-" ]] ||
+    if [[ "${type}" != "-" ]]; then
       goclaw_archive_fail "unsupported archive entry type ${type}"
+      return 1
+    fi
   done < "${type_manifest}"
 
   if ! diff -u \
     <(LC_ALL=C sort "${expected_manifest}") \
     <(LC_ALL=C sort "${actual_manifest}"); then
     goclaw_archive_fail "archive members do not match the exact contract"
+    return 1
   fi
 
   mkdir -p "${extract_root}"
-  tar \
+  if ! tar \
     --extract \
     --gzip \
     --file="${archive}" \
     --directory="${extract_root}" \
     --no-same-owner \
-    --no-same-permissions
+    --no-same-permissions; then
+    goclaw_archive_fail "cannot extract validated archive"
+    return 1
+  fi
 
   if find "${extract_root}" ! -type d ! -type f -print -quit | grep -q .; then
     goclaw_archive_fail "extracted archive contains a non-regular object"
+    return 1
   fi
 
   rm -rf -- "${validation_root}"
