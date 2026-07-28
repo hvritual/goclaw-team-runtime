@@ -1,9 +1,9 @@
 # FE-EVID-W01-021 — r012 MVP 环境预检与失败关闭
 
-日期：2026-07-28  
-Wave/Step：`FE-W01 r012` / `FE-W01-S13B`、`S13C`  
-Task：`FE-W01-MVP-BROWSER-012 r012`  
-Issues：`FE-ISSUE-007`、`FE-ISSUE-010`  
+日期：2026-07-28
+Wave/Step：`FE-W01 r012` / `FE-W01-S13B`、`S13C`
+Task：`FE-W01-MVP-BROWSER-012 r012`
+Issues：`FE-ISSUE-007`、`FE-ISSUE-010`
 证据状态：`failed/environment-blocked`
 
 ## 精确对象

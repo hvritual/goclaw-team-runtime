@@ -430,3 +430,14 @@ EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变
 | `S13C` | partial/blocked | deterministic Gate 通过，Browser rendered flow 未执行 |
 | `S13D` | blocked | credential owner closure 未获得 |
 | `S13E` | pending | 等待本次精确 Evidence commit 的独立复核 |
+
+### FE-EVID-W01-021 前向格式修正
+
+- exact commit `d7e31e86d3c39fc0bfbcb6e49bf9a478dd755b8d` 的首次独立
+  security review 因 Evidence 元数据 4 处尾随空格判定 `P1/BLOCK`；
+- 不改写该提交；后继提交移除尾随空格，Evidence SHA-256 从
+  `39ca7e943f3ee5fcbd451d7d2321cf05fe0f88fe162937266f0167c832793d29`
+  更新为
+  `5baf3087d4cc94f701c810216081a8758848559010c1bf9b632a2dd1bc36eea9`；
+- Evidence 内容结论、Browser/ptrace/owner 失败关闭状态和产品范围均未变化；
+- `S13E` 保持 `pending`，等待修正提交的三路独立复核。
