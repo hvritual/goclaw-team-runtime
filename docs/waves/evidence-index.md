@@ -54,8 +54,8 @@
 | `MVP-EVID-002` | `MVP-W00` | `N/A — recovery bootstrap` | Go test/race/vet | 全包 test、6 个关键包 race/vet 通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
 | `MVP-EVID-003` | `MVP-W00` | `N/A — recovery bootstrap` | Web test/build | Web 8/8、build 通过且 tracked bundle 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
 | `MVP-EVID-004` | `MVP-W00` | `N/A — recovery bootstrap` | Obsidian test/build | Adapter 6/6、build 通过且 tracked `main.js` 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
-| `MVP-EVID-005` | `MVP-W00` | `N/A — recovery bootstrap` | release rebuild | Linux 双架构、控制端交叉编译和 S04 归档扫描通过；最终双构建待 r002 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `collecting` | first review blocked release |
-| `MVP-EVID-006` | `MVP-W00` | `N/A — recovery bootstrap` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `failed` | three independent reviewers；r002 re-review pending |
+| `MVP-EVID-005` | `MVP-W00` | `N/A — recovery bootstrap` | release rebuild | 锁、stage、规范化归档、精确合同、原子版本目录和同 commit 双构建通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r002 re-review pending |
+| `MVP-EVID-006` | `MVP-W00` | `N/A — recovery bootstrap` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `collecting` | first review failed；r002 re-review pending |
 
 证据状态允许：`planned`、`collecting`、`passed`、`failed`、`superseded`。
 

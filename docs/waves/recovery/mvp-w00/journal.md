@@ -63,6 +63,32 @@
 | 2026-07-28 | `MVP-W00-S05A` | `planned → complete` | Registry/Plan/Index/Evidence/Decision 投影一致 | 发布脚本修复 |
 | 2026-07-28 | `MVP-W00-S05B` | `planned → complete` | 固定 import tree 来源验证通过 | 发布脚本修复 |
 
+## 2026-07-28 — S05C/S05D 可重复恢复发布
+
+- 发布改为全局互斥锁、版本隔离 stage 和版本目录原子 rename；
+- 原始 `0.8.0-pilot.1` 输出名受保护，recovered runtime 使用
+  `0.8.0-pilot.1-recovered.1`；
+- tar 使用 commit epoch、稳定排序、固定 owner/group/mode 和 `gzip -n`；
+- runtime、source、Obsidian 全部在解压前校验安全路径、类型、链接、重复
+  成员和精确成员合同；
+- Obsidian 保持组件版本 `0.6.0`，release manifest 显式映射 runtime；
+- 负向自测拒绝 extra、duplicate、symlink、traversal；一次自测确实发现
+  conditional function 的失败返回缺口，修复后四类样本全部 fail closed；
+- commit `792b599c56852e26623bca83313f56b3a0693f2b` 连续构建两次，第二次
+  整个版本目录与首次发布完全一致。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S05C` | `planned → complete` | 原子/规范化发布、精确 archive contract、工具链和组件映射通过 | 双构建 |
+| 2026-07-28 | `MVP-W00-S05D` | `planned → complete` | 同 commit 两次构建逐字节一致；clean tree | 三路独立复核 |
+| 2026-07-28 | `MVP-W00-S05E` | `planned → active` | P0/P1 清零复核尚未执行 | code/security/docs re-review |
+
+### Evidence ledger 追加
+
+| Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
+|---|---|---|---|---|---|---|---|---|
+| `MVP-EVID-005A` | 2026-07-28 | `MVP-W00-S05C/S05D` | recovered release manifest | `f2c4cfe786a0c562ed4d0e983002e10e653bcb1f77ecf3a4c2fbbf0e34253305` | r002 候选的原子发布、归档合同和双构建一致 | `pass` | Codex root agent | r002 re-review pending |
+
 ## 终态声明
 
 尚未进入终态。

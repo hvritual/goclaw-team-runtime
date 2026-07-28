@@ -2,7 +2,7 @@
 
 Wave：`MVP-W00 r002`
 
-状态：确定性 Gate 已通过；独立复核 `BLOCK`，进入 `plan-r002`
+状态：r002 确定性 Gate 已通过；第二轮独立复核待执行
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -20,9 +20,10 @@ Wave：`MVP-W00 r002`
 | Web build | `npm run build` | `pass` | TypeScript + Vite 通过 |
 | Obsidian tests | `npm test` | `pass` | 6/6 |
 | Obsidian build | `npm run build` | `pass` | TypeScript + esbuild 通过 |
-| Release build | `scripts/build-release.sh` | `pass` | Linux 双架构和控制端交叉编译通过 |
-| Source scan | release script recoverable scan | `pass` | 路径、类型、二进制和凭据特征扫描通过 |
-| Independent review | code/security/docs | `blocked` | P0=0；去重后 8 个 P1 待关闭 |
+| Archive negative tests | `test-release-archive-lib.sh` | `pass` | duplicate/extra/link/traversal 全部 fail closed |
+| Release build | `scripts/build-release.sh` × 2 | `pass` | 首次原子发布；第二次整目录 identical |
+| Source scan | release script recoverable scan | `pass` | 路径、类型、二进制、凭据和精确成员合同通过 |
+| Independent review | code/security/docs | `collecting` | 第一轮 P0=0/P1=8；r002 第二轮待执行 |
 
 ## 通过规则
 
@@ -47,8 +48,15 @@ go vet \
 (cd ui && npm ci && npm test && npm run build)
 (cd plugins/obsidian-goclaw && npm ci && npm test && npm run build)
 
-INCLUDE_OBSIDIAN_PLUGIN=1 ./scripts/build-release.sh
-(cd dist && sha256sum -c SHA256SUMS-0.8.0-pilot.1.txt)
+scripts/recovery/test-release-archive-lib.sh
+
+RELEASE_VERSION=0.8.0-pilot.1-recovered.1 \
+  INCLUDE_OBSIDIAN_PLUGIN=1 ./scripts/build-release.sh
+RELEASE_VERSION=0.8.0-pilot.1-recovered.1 \
+  INCLUDE_OBSIDIAN_PLUGIN=1 ./scripts/build-release.sh
+
+(cd dist/releases/0.8.0-pilot.1-recovered.1 &&
+  sha256sum -c SHA256SUMS-0.8.0-pilot.1-recovered.1.txt)
 git diff --exit-code -- gateway/ui_dist plugins/obsidian-goclaw/main.js
 ```
 
@@ -57,7 +65,7 @@ npm 使用 UI、插件和 release 三个独立的 `/tmp` cache。首轮 npm 因�
 `/root/.npm` 不可写而失败，修正缓存位置后完整重放通过；没有把首轮环境
 失败隐去或描述成代码缺陷。
 
-## 发布重建结果
+## S04 历史构建快照
 
 | 制品 | SHA-256 |
 |---|---|
@@ -72,3 +80,22 @@ npm 使用 UI、插件和 release 三个独立的 `/tmp` cache。首轮 npm 因�
 且 r001 构建未固定 gzip/归档时间；`plan-r002` 将以新版本名完成两次位级
 一致的原子构建。构建完成后，受追踪的 UI bundle 和 Obsidian `main.js`
 无差异。
+
+## S05D 第二轮复核候选
+
+候选 commit：`792b599c56852e26623bca83313f56b3a0693f2b`。以下值由同一 commit
+连续两次洁净执行产生；第二次输出明确为 `Verified identical existing
+release`。复核结论写回后会再从最终文档 commit 构建，因此最终发布必须以
+版本目录内的 manifest/checksum 为准，不能把本表当成最终 locator。
+
+| 制品 | SHA-256 |
+|---|---|
+| Linux amd64 runtime | `be234e3f424d1c548851dcfc98a97ca4aab4ade26a4c0a054aad82906e8f5132` |
+| Linux arm64 runtime | `2bd8094d78f783b3ae6b91e20a3ae88aeebe6d45be82d863705904b7381c5e97` |
+| recovered source | `3157e998e8fc7b153c458dc28917d01e637831e808c77d079b5e8a77f2858e55` |
+| Obsidian `0.6.0` | `b4eb4051b161eba11ff95146a346e8b7440a8e71c3c9ecd53e7d86e6784568b6` |
+| release manifest | `f2c4cfe786a0c562ed4d0e983002e10e653bcb1f77ecf3a4c2fbbf0e34253305` |
+
+版本目录为 `dist/releases/0.8.0-pilot.1-recovered.1/`；原始输入仍位于独立
+只读目录，未被覆盖。recovered source 已包含 `.tool-versions`，release
+manifest 将 runtime `0.8.0-pilot.1-recovered.1` 映射到 Obsidian `0.6.0`。

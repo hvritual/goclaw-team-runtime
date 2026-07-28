@@ -1,6 +1,6 @@
 # GoClaw 0.8.0-pilot.1 恢复来源证明
 
-状态：import tree 来源验证已通过；最终 recovered release 收集中
+状态：import tree 与 recovered release 候选验证已通过；独立复核收集中
 日期：2026-07-28
 
 ## 权威来源
@@ -38,6 +38,11 @@ scripts/recovery/verify-source-import.sh \
 manifest。恢复构建必须使用 `0.8.0-pilot.1-recovered.1` 版本目录和单独
 manifest，不允许用同名文件覆盖或混淆这些输入。
 
+recovered 候选的 `release-manifest-0.8.0-pilot.1-recovered.1.json` 绑定
+构建 commit/tree、`SOURCE_DATE_EPOCH`、Go/Node/npm 和 Obsidian 组件版本。
+发布脚本拒绝使用原始 `0.8.0-pilot.1` 名称，并且同一版本目录已存在时只
+接受逐字节相同的再次构建。
+
 ## 冻结工具链
 
 | 工具 | 版本 | 当前恢复环境 |
@@ -49,7 +54,8 @@ manifest，不允许用同名文件覆盖或混淆这些输入。
 | Git | `2.51.1` | 已安装 |
 
 Go 工具链只用于恢复验证，没有进入源码包。正式 CI/开发机应根据
-`.tool-versions` 安装相同版本。
+`.tool-versions` 安装相同版本；两个 npm package manifest 还固定
+`packageManager=npm@11.9.0` 与 Node/npm engines。
 
 ## 后续绑定规则
 
