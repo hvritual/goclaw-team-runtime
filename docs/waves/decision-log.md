@@ -50,3 +50,51 @@
   声明为通过。
 - 回滚：保留只读 import tag；恢复 Gate 失败时将 `MVP-W00` 置为
   `blocked`，不进入后继 MVP Wave。
+
+## 2026-07-28 — MVP-DEC-001A：暂停旧 Pilot 激活状态
+
+- 状态：`active`。
+- Supersedes：仅替代 `PILOT-DEC-001` 的“当前激活 `PILOT-W00`”状态，
+  不替代其三人 Pilot 目标、Linux substrate 和外部门禁结论。
+- 触发：用户批准先恢复源码和 MVP，且原发布归档不含 Git 历史。
+- 否决方案：拒绝把旧 Pilot 继续保持 active，也不删除旧决策。
+- 影响：`MVP-W00` 成为唯一 active；FE-W01/PILOT 仅 docs-only blocked。
+- 关联：`MVP-W00-S01/S05A`、`MVP-EVID-001/006`、
+  `Task-ID MVP-W00-RECOVERY-002`；Issue 为 `N/A — recovery bootstrap`。
+
+## 2026-07-28 — MVP-DEC-002：Recovery 独占 active Wave
+
+- 状态：`active`。
+- 触发：恢复 base 未冻结时并行 Pilot/FE 修改会让 Task 与 Evidence 失去唯一
+  commit。
+- 否决方案：拒绝同时激活 Recovery、FE-W01 和 PILOT-W00。
+- 影响：Registry 只能有一个 active record；后两者依赖 `MVP-W00` complete。
+- 回滚：Recovery blocked 时所有后继 Wave 继续 blocked，不降级门禁。
+- 关联：`MVP-W00 r002`、`MVP-EVID-006`、
+  `Task-ID MVP-W00-RECOVERY-002`；Issue 为 `N/A — recovery bootstrap`。
+
+## 2026-07-28 — MVP-DEC-003：Recovery 不修产品缺陷
+
+- 状态：`active`。
+- 触发：第一轮 Gate 和独立复核只发现恢复/发布/治理问题。
+- 否决方案：拒绝在 Recovery 顺带修改 Gateway、Runner、TeamControl 或 UI
+  运行时。
+- 影响：r002 只扩展恢复脚本、工具链 package metadata 和文档；产品问题
+  必须在 recovered base 上新建 Wave。
+- 回滚：任一产品目录越界立即停止并回到最后一个 docs/config commit。
+- 关联：`MVP-W00-S05B–S05E`、`MVP-EVID-005/006`、
+  `Task-ID MVP-W00-RECOVERY-002`；Issue 为 `N/A — recovery bootstrap`。
+
+## 2026-07-28 — MVP-DEC-004：一次性恢复 Bootstrap 例外
+
+- 状态：`active`。
+- 触发：待恢复归档内没有 `.git`，无法在新仓库中先提交 Wave plan 再创建
+  根提交。
+- 决策：用户指令先行授权后，允许且仅允许把校验归档逐字导入为根提交；
+  第二个提交立即激活 docs-only Recovery Wave。
+- 否决方案：拒绝伪造一个早于导入的历史 commit，也拒绝在根提交中混入恢复
+  文档或产品修复。
+- 影响：例外仅覆盖 `e4783a4` import；后续所有变更恢复正常 Wave-first。
+- 回滚：保留 import tag 和 BLOCK 证据，不重写根提交。
+- 关联：`MVP-W00-S01`、`MVP-EVID-001`、
+  `Task-ID RECOVERY-IMPORT-001`；Issue 为 `N/A — recovery bootstrap`。

@@ -1,6 +1,7 @@
 # GoClaw 恢复 Gate 报告
 
-Wave：`MVP-W00 r001`  
+Wave：`MVP-W00 r002`
+
 状态：确定性 Gate 已通过；独立复核 `BLOCK`，进入 `plan-r002`
 日期：2026-07-28
 
@@ -9,7 +10,7 @@ Wave：`MVP-W00 r001`
 | Gate | 命令/对象 | 状态 | 证据摘要 |
 |---|---|---|---|
 | Archive SHA | `sha256sum -c SHA256SUMS-0.8.0-pilot.1.txt` | `pass` | 四个归档全部 OK |
-| Archive compare | `tar --compare` | `pass` | 611 个成员与解压树一致 |
+| Import tree compare | `verify-source-import.sh` | `pass` | 固定 import tree；611/611、内容/执行位/extra=0 |
 | Git import | import commit/tree | `pass` | 611 个文件已追踪 |
 | Toolchain | Go/Node/npm/Git | `pass` | 版本已冻结 |
 | Go all packages | `go test -count=1 ./...` | `pass` | 所有包通过 |
@@ -34,6 +35,9 @@ Wave：`MVP-W00 r001`
 ## 本次执行命令
 
 ```bash
+scripts/recovery/verify-source-import.sh \
+  /immutable/input/goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz
+
 go test -count=1 ./...
 go test -race -count=1 \
   ./session ./orchestratorlite ./teamcontrol ./workstation ./gateway ./cli

@@ -1,0 +1,4 @@
+a2bc45dc666a962a76f308dd9a005eb45891aef5a72a17f68ceb9f6cb7d1f9a1  goclaw-team-runtime-linux-amd64-0.8.0-pilot.1.tar.gz
+a113314865a25836686c22ea38da7454ac9d9f02b1fc81e7e1ed052392d883a3  goclaw-team-runtime-linux-arm64-0.8.0-pilot.1.tar.gz
+cf327169e7654d2284c98482e4d885085ed6068152f5ae9cbd103ea5ffd78c8f  goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz
+4c4d5d87d219b52f2bca6ac084a61d3f40934a8d4915ba1e1e0b7a9e350e4f64  obsidian-goclaw-plugin-0.8.0-pilot.1.tar.gz

@@ -1,8 +1,8 @@
 # FE-W01 Journal
 
-本文件只追加；当前 active 计划为 [`plan-r007.md`](plan-r007.md)。r007
-已替代 r006 的执行范围；在 Revision 5 Task Base/worktree 精确冻结前，
-R4 patch 不得迁移，本地 Playwright 不得安装或启动。r001–r006 均保留历史。
+本文件只追加；当前计划为 [`plan-r010.md`](plan-r010.md)，状态
+`blocked`。r009 及更早执行历史只读保留；在 recovered base 上批准新
+revision 前，不得迁移产品 patch 或启动本地 Playwright。
 
 ## 状态事件
 
@@ -370,3 +370,10 @@ Evidence，不 amend。
 复核接受的是“阻断被准确记录且安全停止”，不是 S11 绿色通过。只有
 `FE-ISSUE-010` 的 ptrace capability 恢复后，才允许重新收集绿色
 EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变。
+## 2026-07-28 — r010 暂停并等待 recovered base
+
+- `MVP-W00` 是唯一 active Wave；
+- 新建 `plan-r010.md`，把 FE-W01 机器状态、范围和 product flag 收敛为
+  `blocked`、`docs/waves/**`、`false`；
+- r010 增加 `MVP-W00` 依赖，不改写 r009 历史；
+- 恢复完成后必须用新 revision 重新绑定 Task base 与未完成 Evidence。

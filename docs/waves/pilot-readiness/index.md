@@ -3,7 +3,9 @@
 - Track ID：`PILOT-READINESS-2026-07`
 - 候选版本：`0.8.0-pilot.1`
 - 当前 Wave：`PILOT-W00`
-- 当前计划：[`PILOT-W00 plan-r003`](pilot-w00/plan-r003.md)
+- 当前计划：[`PILOT-W00 plan-r005`](pilot-w00/plan-r005.md)
+- 当前状态：`blocked`；等待 `MVP-W00` 和 `FE-W01` 完成，当前 revision
+  仅允许文档变更。
 - 目标：一个中央控制面、一个项目、三名真人、三台独立 Runner 的可控开发试点
 
 本 Track 吸收尚未完成的前台读取/命令/韧性工作，并增加 Runner、Wave
@@ -17,7 +19,7 @@
 前必须由 `goclaw pilot check` 对上述条件失败关闭。
 
 当前实现和确定性发布 Gate 已收敛为 `0.8.0-pilot.1` 技术候选，但 Track
-仍为 active：真实三台电脑、Codex OAuth、飞书、浏览器/Obsidian Desktop、
+仍未完成：真实三台电脑、Codex OAuth、飞书、浏览器/Obsidian Desktop、
 bwrap/WSL2/Lima 和 credential owner 证明尚未全部完成。代码完成不自动
 等于试点已上线。
 

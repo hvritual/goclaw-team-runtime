@@ -1,13 +1,13 @@
 # GoClaw 0.8.0-pilot.1 恢复来源证明
 
-状态：`MVP-W00` 收集中  
+状态：import tree 来源验证已通过；最终 recovered release 收集中
 日期：2026-07-28
 
 ## 权威来源
 
 | 项 | 值 |
 |---|---|
-| 源码归档 | `goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz` |
+| 源码归档 | content locator `sha256:cf327169e7654d2284c98482e4d885085ed6068152f5ae9cbd103ea5ffd78c8f` |
 | 归档 SHA-256 | `cf327169e7654d2284c98482e4d885085ed6068152f5ae9cbd103ea5ffd78c8f` |
 | 归档成员数 | `611` |
 | 原始 Git 历史 | 不存在于归档，未声称恢复 |
@@ -22,22 +22,21 @@
 ## 已执行验证
 
 ```bash
-sha256sum -c SHA256SUMS-0.8.0-pilot.1.txt
-tar -tzf goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz
-tar --compare --gzip \
-  --file goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz \
-  --directory goclaw-0.8.0-pilot.1-source
-git ls-files
-git rev-parse 'v0.8.0-pilot.1-import^{}^{tree}'
+scripts/recovery/verify-source-import.sh \
+  /immutable/input/goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz
 ```
 
 结果：
 
 - 四个发布归档的 SHA-256 全部通过；
 - 源码归档无绝对路径、`..` 穿越、`.git` 或链接成员；
-- 解压目录与归档逐文件比较通过；
-- Git 根提交追踪 611 个文件；
+- 固定从 `v0.8.0-pilot.1-import^{commit}` 导出的 Git tree 与归档比较；
+- 611/611 个文件名与内容一致，执行位差异 0，额外文件 0；
 - 原有 `goclaw/` 脏工作树未被修改。
+
+`docs/recovery/ORIGINAL_INPUT_SHA256SUMS.txt` 是原始四个输入归档的独立
+manifest。恢复构建必须使用 `0.8.0-pilot.1-recovered.1` 版本目录和单独
+manifest，不允许用同名文件覆盖或混淆这些输入。
 
 ## 冻结工具链
 

@@ -1,6 +1,7 @@
 # MVP-W00 执行 Journal
 
-本文件只追加。计划内容位于 `plan-r001.md`。
+本文件只追加。当前计划由 Registry 指向 `plan-r002.md`；`plan-r001.md`
+保留为已被替代的历史。
 
 ## 状态事件
 
@@ -37,6 +38,30 @@
 | `MVP-EVID-003` | 2026-07-28 | `MVP-W00-S03` | Web test/build | 见 `docs/recovery/RECOVERY_GATE_REPORT.md` | Web 8/8 与 build 通过 | `pass` | Codex root agent | reviewing |
 | `MVP-EVID-004` | 2026-07-28 | `MVP-W00-S03` | Obsidian test/build | 见 `docs/recovery/RECOVERY_GATE_REPORT.md` | Adapter 6/6 与 build 通过 | `pass` | Codex root agent | reviewing |
 | `MVP-EVID-005` | 2026-07-28 | `MVP-W00-S04` | release archives | `cb02be08f065274855ee6a0b9935a567b3a70b6aca23ea58be7f304047b26e7e` | 跨平台构建和安全扫描通过 | `pass` | Codex root agent | reviewing |
+| `MVP-EVID-006` | 2026-07-28 | `MVP-W00-S05` | `docs/recovery/RECOVERY_REVIEW.md` | pending | 第一轮独立复核 | `failed` | three reviewers | r002 re-review pending |
+
+## 证据元数据更正
+
+第一轮登记曾把 Index 中的 003 合并为 Web+Obsidian、004 写成 Release、
+005 写成 Review，违反 r001 的稳定定义。更正后的唯一映射为：
+
+`001 provenance`、`002 Go`、`003 Web`、`004 Obsidian`、`005 Release`、
+`006 Review`。`001A` 只是 `001` 的归档 SHA 子证据，不是新的 Gate。
+
+## 2026-07-28 — S05A/S05B 治理与来源重放
+
+- 新建 FE-W00 r004、FE-W01 r010、PILOT-W00 r005；
+- Registry、当前 Plan、Track Index 的状态、依赖、scope 和 product flag
+  已收敛，唯一 active 仍为 `MVP-W00`；
+- Evidence 恢复为 001–006 稳定定义，Decision 补齐 supersedes、替代方案、
+  影响、Evidence/Task 和 bootstrap 例外；
+- 新增 `verify-source-import.sh`，固定比较 import tag，而不是可变工作树；
+- 实际结果：611/611，内容差异 0、执行位差异 0、额外文件 0。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S05A` | `planned → complete` | Registry/Plan/Index/Evidence/Decision 投影一致 | 发布脚本修复 |
+| 2026-07-28 | `MVP-W00-S05B` | `planned → complete` | 固定 import tree 来源验证通过 | 发布脚本修复 |
 
 ## 终态声明
 

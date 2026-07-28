@@ -126,3 +126,11 @@
 - `MVP-W00` 成为唯一 active Wave，只允许恢复文档、工具链清单和验证配置；
 - 只有恢复 Gate 全部通过并生成新 base commit 后，才允许创建后继 Pilot
   revision 并重新绑定实机 Evidence。
+
+## 2026-07-28 — r005 收敛机器依赖与范围
+
+- 独立来源和文档复核发现 r004 正文要求等待 `MVP-W00`，但 frontmatter 与
+  Registry 未机器化该依赖；
+- Registry 仍残留 r003 的广泛产品 allowlist/product flag；
+- 创建 r005，依赖 `FE-W00`、`MVP-W00`、`FE-W01`，并统一为 docs-only；
+- 本 revision 即使依赖完成也不自动恢复实机 Pilot，必须新建 Plan revision。

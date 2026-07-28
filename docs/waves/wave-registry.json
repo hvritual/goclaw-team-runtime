@@ -29,7 +29,7 @@
       "id": "FE-W00",
       "title": "Executable Baseline and First Issue Split",
       "status": "complete",
-      "document": "frontend-stability/fe-w00/plan-r003.md",
+      "document": "frontend-stability/fe-w00/plan-r004.md",
       "depends_on": [],
       "allowed_change_scope": [
         "docs/**",
@@ -42,25 +42,15 @@
       "id": "FE-W01",
       "title": "Session Transport, Dashboard Shell, and Local Browser Regression Gate",
       "status": "blocked",
-      "document": "frontend-stability/fe-w01/plan-r009.md",
+      "document": "frontend-stability/fe-w01/plan-r010.md",
       "depends_on": [
-        "FE-W00"
+        "FE-W00",
+        "MVP-W00"
       ],
       "allowed_change_scope": [
-        "ui/src/team/client.ts",
-        "ui/vite.config.ts",
-        "ui/package.json",
-        "ui/tests/team-transport.test.mjs",
-        "gateway/team_runtime_test.go",
-        "gateway/web_sessions_test.go",
-        "gateway/ui.go",
-        "gateway/server_auth_test.go",
-        "channels/weworkwsbot_test.go",
-        "memory/catalog/ingest.go",
-        "memory/catalog/service_test.go",
         "docs/waves/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
     },
     {
       "id": "FE-W02",
@@ -130,38 +120,16 @@
       "id": "PILOT-W00",
       "title": "Three-person Controlled Pilot",
       "status": "blocked",
-      "document": "pilot-readiness/pilot-w00/plan-r004.md",
+      "document": "pilot-readiness/pilot-w00/plan-r005.md",
       "depends_on": [
-        "FE-W00"
+        "FE-W00",
+        "MVP-W00",
+        "FE-W01"
       ],
       "allowed_change_scope": [
-        "AGENTS.md",
-        "README.md",
-        "CHANGELOG.md",
-        "CHANGE-HANDOFF.md",
-        "Makefile",
-        ".goreleaser.yaml",
-        "config.json.example",
-        "config/**",
-        "cli/**",
-        "gateway/**",
-        "internal/start/**",
-        "orchestratorlite/**",
-        "workstation/**",
-        "teamcontrol/**",
-        "ouroboros/**",
-        "agent/manager.go",
-        "agent/manager_project_session_test.go",
-        "session/**",
-        "ui/package.json",
-        "ui/package-lock.json",
-        "ui/src/team/**",
-        "ui/tests/**",
-        "scripts/**",
-        "deploy/**",
         "docs/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
     }
   ]
 }

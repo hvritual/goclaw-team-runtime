@@ -81,14 +81,14 @@ Wave ID。一个问题使用稳定 `FE-ISSUE-NNN`，不能因为跨 Wave 就重�
 
 | Wave | 状态 | 目标 | 产品代码 |
 |---|---|---|---:|
-| [`FE-W00`](frontend-stability/fe-w00/plan-r003.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
+| [`FE-W00`](frontend-stability/fe-w00/plan-r004.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
 | [`MVP-W00`](recovery/mvp-w00/plan-r001.md) | `active` | 权威源码与 Git 基线恢复、确定性 Gate 重放 | 禁止 |
-| [`FE-W01`](frontend-stability/fe-w01/plan-r009.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
+| [`FE-W01`](frontend-stability/fe-w01/plan-r010.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
 | [`FE-W02`](frontend-stability/fe-w02/plan-r001.md) | `planned` | 所有页面读取 loader 与 RPC 返回契约 | 受限 |
 | [`FE-W03`](frontend-stability/fe-w03/plan-r001.md) | `planned` | 对话、规格、审批、开发和 Harness 命令链 | 受限 |
 | [`FE-W04`](frontend-stability/fe-w04/plan-r001.md) | `planned` | 状态呈现、响应式、可访问性和恢复体验 | 受限 |
 | [`FE-W05`](frontend-stability/fe-w05/plan-r001.md) | `planned` | 集成、安全、回归和发布就绪 | 禁止新增功能 |
-| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r004.md) | `blocked` | Runner、治理、前端、恢复与三人并发试点 | 禁止 |
+| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r005.md) | `blocked` | Runner、治理、前端、恢复与三人并发试点 | 禁止 |
 
 顺序是依赖顺序，不是日期承诺。W00 结束前不开始修复；若 W00 证明某个
 问题属于后端契约、部署或数据迁移，仍保留原 Issue ID，但在相应 Wave

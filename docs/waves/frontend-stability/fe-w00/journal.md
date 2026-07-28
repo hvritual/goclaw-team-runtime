@@ -1,7 +1,7 @@
 # FE-W00 Journal
 
-本文件只追加；当前计划见 [`plan-r003.md`](plan-r003.md)。r002 经独立
-复核后被拒绝执行；r001、r002 均保留历史。
+本文件只追加；当前计划见 [`plan-r004.md`](plan-r004.md)。r004 只同步
+已确认的完成投影；r001–r003 均保留历史。
 
 ## 状态事件
 
@@ -56,3 +56,9 @@
 | 2026-07-26 | `FE-W00-S11` | `review → changes-requested` | Evidence 根因获批，但 r002 Step 身份、回滚、负例与范围 Gate 不足 | 新建并复核 r003；产品代码保持不变 |
 | 2026-07-26 | `FE-W00-S11` | `changes-requested → complete` | W00/W01 r003 通过 Wave 与安全独立复核 | 执行 S12 原子状态切换 |
 | 2026-07-26 | `FE-W00-S12` | `planned → complete` | Registry、Issue、Evidence、README、Track 与两个 Journal 同步；W01 成为唯一 active Wave | 在专用 worktree 执行 W01-S01 |
+## 2026-07-28 — r004 完成状态投影
+
+- 独立文档复核发现 Registry 的 `complete` 与当前 r003 frontmatter 的
+  `active` 不一致；
+- 新建 r004，只同步已确认的 complete 终态，不改变历史证据和范围；
+- 产品代码继续禁止。
