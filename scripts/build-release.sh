@@ -263,10 +263,20 @@ if [[ "${source_only}" == "0" ]]; then
     mkdir -p "${work_dir}/bin"
     for release_arch in amd64 arm64; do
       binary="${work_dir}/bin/goclaw-linux-${release_arch}"
+      team_control_binary="${work_dir}/bin/goclaw-team-control-linux-${release_arch}"
+      runner_binary="${work_dir}/bin/goclaw-runner-linux-${release_arch}"
       CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
         go build -buildvcs=false -trimpath \
         -ldflags="-s -w -X main.Version=${release_version}" \
         -o "${binary}" .
+      CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
+        go build -buildvcs=false -trimpath \
+        -ldflags="-s -w -X main.Version=${release_version}" \
+        -o "${team_control_binary}" ./cmd/team-control
+      CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
+        go build -buildvcs=false -trimpath \
+        -ldflags="-s -w -X main.Version=${release_version}" \
+        -o "${runner_binary}" ./cmd/runner
       go version -m "${binary}" \
         > "${work_dir}/linux-${release_arch}.buildinfo"
       grep -Fq "GOOS=linux" \
@@ -277,7 +287,8 @@ if [[ "${source_only}" == "0" ]]; then
         fail_release "linux/${release_arch} binary reports the wrong GOARCH"
     done
 
-    # Native Windows/macOS are control-CLI-only targets during the pilot.
+    # Native Windows/macOS can manage the control plane and Runner registration,
+    # while actual task execution remains inside the supported Linux substrate.
     for control_target in \
       darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
       control_os="${control_target%/*}"
@@ -291,6 +302,18 @@ if [[ "${source_only}" == "0" ]]; then
         -ldflags="-s -w -X main.Version=${release_version}" \
         -o \
         "${work_dir}/control-${control_os}-${control_arch}${control_suffix}" .
+      CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
+        go build -buildvcs=false -trimpath \
+        -ldflags="-s -w -X main.Version=${release_version}" \
+        -o \
+        "${work_dir}/goclaw-team-control-${control_os}-${control_arch}${control_suffix}" \
+        ./cmd/team-control
+      CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
+        go build -buildvcs=false -trimpath \
+        -ldflags="-s -w -X main.Version=${release_version}" \
+        -o \
+        "${work_dir}/goclaw-runner-${control_os}-${control_arch}${control_suffix}" \
+        ./cmd/runner
     done
   )
 fi
@@ -351,6 +374,12 @@ if [[ "${source_only}" == "0" ]]; then
       "${work_dir}/bin/goclaw-linux-${release_arch}" \
       "${binary_stage}/goclaw"
     install -m 0755 \
+      "${work_dir}/bin/goclaw-team-control-linux-${release_arch}" \
+      "${binary_stage}/goclaw-team-control"
+    install -m 0755 \
+      "${work_dir}/bin/goclaw-runner-linux-${release_arch}" \
+      "${binary_stage}/goclaw-runner"
+    install -m 0755 \
       "${repo_dir}/scripts/verify-sandbox-bwrap.sh" \
       "${binary_stage}/scripts/verify-sandbox-bwrap.sh"
     install -m 0644 \
@@ -359,6 +388,9 @@ if [[ "${source_only}" == "0" ]]; then
     install -m 0644 \
       "${repo_dir}/deploy/systemd/goclaw-runner.service.example" \
       "${binary_stage}/deploy/systemd/goclaw-runner.service.example"
+    install -m 0644 \
+      "${repo_dir}/deploy/systemd/goclaw-team-control.service.example" \
+      "${binary_stage}/deploy/systemd/goclaw-team-control.service.example"
     install -m 0644 \
       "${repo_dir}/deploy/wsl2/README_CN.md" \
       "${binary_stage}/deploy/wsl2/README_CN.md"
@@ -383,11 +415,14 @@ if [[ "${source_only}" == "0" ]]; then
       deploy/lima/goclaw-runner.yaml.example \
       deploy/lima/runner.env.example \
       deploy/runner.env.example \
+      deploy/systemd/goclaw-team-control.service.example \
       deploy/systemd/goclaw-runner.service.example \
       deploy/wsl2/README_CN.md \
       deploy/wsl2/runner.env.example \
       deploy/wsl2/wsl.conf.example \
       goclaw \
+      goclaw-runner \
+      goclaw-team-control \
       scripts/verify-sandbox-bwrap.sh \
       > "${binary_expected}"
     goclaw_create_normalized_archive \
@@ -404,12 +439,26 @@ if [[ "${source_only}" == "0" ]]; then
 
     [[ -x "${binary_check}/goclaw" ]] ||
       fail_release "Linux package lost the goclaw executable mode"
+    [[ -x "${binary_check}/goclaw-team-control" ]] ||
+      fail_release "Linux package lost the Team Control executable mode"
+    [[ -x "${binary_check}/goclaw-runner" ]] ||
+      fail_release "Linux package lost the Runner executable mode"
     [[ -x "${binary_check}/scripts/verify-sandbox-bwrap.sh" ]] ||
       fail_release "Linux package sandbox wrapper is not executable"
     go version -m "${binary_check}/goclaw" \
       > "${binary_check}/buildinfo.txt"
     grep -Fq "GOARCH=${release_arch}" "${binary_check}/buildinfo.txt" ||
       fail_release "packaged Linux binary architecture mismatch"
+    go version -m "${binary_check}/goclaw-team-control" \
+      > "${binary_check}/team-control-buildinfo.txt"
+    grep -Fq "GOARCH=${release_arch}" \
+      "${binary_check}/team-control-buildinfo.txt" ||
+      fail_release "packaged Team Control architecture mismatch"
+    go version -m "${binary_check}/goclaw-runner" \
+      > "${binary_check}/runner-buildinfo.txt"
+    grep -Fq "GOARCH=${release_arch}" \
+      "${binary_check}/runner-buildinfo.txt" ||
+      fail_release "packaged Runner architecture mismatch"
   done
 fi
 
