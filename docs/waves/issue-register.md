@@ -51,6 +51,7 @@
 | Issue ID | 流程 | 环境/基线 | 期望 | 实际 | 严重度 | 状态 | 证据 | Wave | Task |
 |---|---|---|---|---|---|---|---|---|---|
 | `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；base `6fa9607f97715660271ea1356797d4dffaf78f62` | current revision/权限唯一；批准者真实；实现绑定完整 frozen Task tuple | r002 第二轮 docs review 发现 README 指针冲突、BLOCK reviewer 被写入 `approved_by`、发布实现缺 Repository/Policy/Issue 绑定 | `S1` | `fixed` | `RECOVERY_REVIEW` 第二轮；`MVP-W00 r003`；等待最终独立验证 | `MVP-W00-S06A`–`S06D` | `MVP-W00-RECOVERY-003` r003 |
+| `MVP-ISSUE-002` | Journal 历史完整性 | recovered Git；r003 final review | 已冻结历史字节不变，Recovery 状态只在 EOF 追加 | FE-W01 前 26641 bytes SHA 从 `33a50e...` 变为 `b98013...`；FE-W00/PILOT/MVP 也存在顶部改写或中间插入 | `S1` | `fixing` | `recovery_docs_review` r003 final；`MVP-W00 r004` | `MVP-W00-S07C`–`S07E` | activation 后冻结 |
 
 ## 三人试点问题
 
