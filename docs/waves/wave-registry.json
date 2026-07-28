@@ -1,11 +1,25 @@
 {
   "schema_version": 1,
-  "track_id": "PILOT-READINESS-2026-07",
+  "track_id": "MVP-RECOVERY-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1",
-  "active_wave": "PILOT-W00",
-  "updated_at": "2026-07-27",
+  "active_wave": "MVP-W00",
+  "updated_at": "2026-07-28",
   "waves": [
+    {
+      "id": "MVP-W00",
+      "title": "Authoritative Source and Git Baseline Recovery",
+      "status": "active",
+      "document": "recovery/mvp-w00/plan-r001.md",
+      "depends_on": [],
+      "allowed_change_scope": [
+        "docs/waves/**",
+        "docs/recovery/**",
+        ".tool-versions",
+        "scripts/recovery/**"
+      ],
+      "product_code_changes_allowed": false
+    },
     {
       "id": "FE-W00",
       "title": "Executable Baseline and First Issue Split",
@@ -110,8 +124,8 @@
     {
       "id": "PILOT-W00",
       "title": "Three-person Controlled Pilot",
-      "status": "active",
-      "document": "pilot-readiness/pilot-w00/plan-r003.md",
+      "status": "blocked",
+      "document": "pilot-readiness/pilot-w00/plan-r004.md",
       "depends_on": [
         "FE-W00"
       ],

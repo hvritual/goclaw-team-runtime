@@ -117,3 +117,12 @@
   freeze、enqueue、Runner、Evidence、accept 和 link-pr 的完整操作说明；
 - 本次只更新文档和 README 入口，不改变 Runtime 行为，也不把多项目常规
   模式误写为已完成三人现场 Pilot Gate。
+
+## 2026-07-28 — r004 暂停并等待恢复基线
+
+- 用户批准先执行源码恢复阶段以及 MVP；
+- 已确认 `0.8.0-pilot.1` 来源归档完整，但不含原始 `.git`；
+- 创建 `plan-r004.md`，把本 Wave 从 `active` 暂停为 `blocked`；
+- `MVP-W00` 成为唯一 active Wave，只允许恢复文档、工具链清单和验证配置；
+- 只有恢复 Gate 全部通过并生成新 base commit 后，才允许创建后继 Pilot
+  revision 并重新绑定实机 Evidence。

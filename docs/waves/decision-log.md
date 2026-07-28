@@ -40,3 +40,13 @@
 - 普通实现细节；
 - 没有权威输入的产品目标；
 - 为了让 Gate 通过而降低验收标准。
+# 2026-07-28 — MVP-DEC-001：从校验归档恢复权威 Git 基线
+
+- 决策：暂停 `PILOT-W00`，激活 `MVP-W00`，从
+  `goclaw-team-runtime-source-0.8.0-pilot.1.tar.gz` 建立新的归档导入历史。
+- 原因：归档不含原始 `.git`；任何后续 Task/Wave 都需要可解析、可复核的
+  唯一 base commit。
+- 边界：不伪造 7 月 27 日 commit，不修改运行时，不把历史实机 Gate
+  声明为通过。
+- 回滚：保留只读 import tag；恢复 Gate 失败时将 `MVP-W00` 置为
+  `blocked`，不进入后继 MVP Wave。
