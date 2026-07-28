@@ -165,3 +165,17 @@
   PILOT-W00 保持 blocked。
 - 关联：`MVP-W00-S09`、`FE-W01-S13A–S13E`、
   `FE-ISSUE-003`–`010`、`MVP-EVID-005/006`。
+
+## 2026-07-28 — TR-DEC-001：用双应用路线替代未完成前端路线
+
+- 状态：`active`。
+- 触发：用户明确要求按对话历史自动规划并完整实现 Team Control 与 Runner，
+  每个 Wave 完成后推送 GitHub。
+- 决策：保留 FE-W01–FE-W05 历史和失败 Evidence，但状态改为
+  `superseded`；激活只依赖已完成 `MVP-W00` 的 `TR-W00`，后继严格按
+  `TC-W01 → RN-W01 → INT-W01 → REL-W01` 顺序推进。
+- 安全边界：GitHub 是源码/规划/Evidence 权威源，但凭据不进入仓库；授权
+  被撤销或过期时停止推送并保留本地 commit，不尝试绕过权限。
+- 否决方案：不伪造 FE-W01 complete，不同时激活多个 Wave，不把所有范围
+  塞入一个不可复核的提交。
+- 关联：`TR-W00-S01`、`TR-ISSUE-001`、`TR-EVID-W00-001`。

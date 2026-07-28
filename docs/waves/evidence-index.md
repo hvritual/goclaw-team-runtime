@@ -57,6 +57,11 @@
 | `MVP-EVID-004` | `MVP-W00` | `MVP-ISSUE-001` | Obsidian test/build | Adapter 6/6、build 通过且 tracked `main.js` 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r005 deterministic revalidation；final review pending |
 | `MVP-EVID-005` | `MVP-W00` | `MVP-ISSUE-001` | release rebuild | 锁、stage、规范化归档、精确合同、原子版本目录和同 commit 双构建通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | final tag `v0.8.0-pilot.1-recovered.1`；manifest `a12e7e...` |
 | `MVP-EVID-006` | `MVP-W00` | `MVP-ISSUE-001`–`003` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `passed` | r005 `526e14b` / `524c764`；code/security/docs PASS |
+| `TR-EVID-W00-001` | `TR-W00` | `TR-ISSUE-001` | application boundary | 双入口、命令隔离、兼容入口和六目标交叉构建全部通过 | 待 TR-W00 产生 | `collecting` | independent review pending |
+| `TC-EVID-W01-001` | `TC-W01` | `TC-ISSUE-001` | control plane contracts | 预算、知识源、Skill、Runner release、Context Bundle 的 RBAC/并发/持久化测试通过 | 待 TC-W01 产生 | `planned` | unassigned |
+| `RN-EVID-W01-001` | `RN-W01` | `RN-ISSUE-001` | runner lifecycle | 兼容性、更新、回滚、多项目、目录与 Evidence 测试通过 | 待 RN-W01 产生 | `planned` | unassigned |
+| `INT-EVID-W01-001` | `INT-W01` | `INT-ISSUE-001` | MCP/context integration | project-scoped MCP、Context Bundle、Skill/知识读取与拒绝矩阵通过 | 待 INT-W01 产生 | `planned` | unassigned |
+| `REL-EVID-W01-001` | `REL-W01` | `TR-ISSUE-001`–`INT-ISSUE-001` | release | 双应用跨平台归档、校验和、凭据扫描、部署/回滚和试点 Gate 通过 | 待 REL-W01 产生 | `planned` | unassigned |
 
 证据状态允许：`planned`、`collecting`、`passed`、`failed`、`superseded`。
 
