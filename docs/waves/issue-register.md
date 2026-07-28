@@ -50,7 +50,7 @@
 
 | Issue ID | 流程 | 环境/基线 | 期望 | 实际 | 严重度 | 状态 | 证据 | Wave | Task |
 |---|---|---|---|---|---|---|---|---|---|
-| `TR-ISSUE-001` | Team Control/Runner 应用部署 | recovered `0.8.0-pilot.1`；单一 `goclaw` 入口 | 控制面和工作站是独立命令面、构建物和升级单元 | 现有代码虽有完整服务/CLI 模块，但同一入口同时暴露两类职责，发行包也只有单一 runtime | `S1` | `fixing` | `docs/IMPLEMENTATION_STATUS_CN.md` 与现有 entrypoint/build script 静态盘点 | `TR-W00-S01`–`S05` | activation 后冻结 |
+| `TR-ISSUE-001` | Team Control/Runner 应用部署 | recovered `0.8.0-pilot.1`；单一 `goclaw` 入口 | 控制面和工作站是独立命令面、构建物和升级单元 | 现有代码虽有完整服务/CLI 模块，但同一入口同时暴露两类职责，发行包也只有单一 runtime | `S1` | `fixing` | [`TR-EVID-W00-001`](team-runtime/tr-w00/s05-application-boundary-verification.md)：deterministic passed，独立 final pending | `TR-W00-S01`–`S05` | `TR-W00-APP-SPLIT-001` r001 |
 | `TC-ISSUE-001` | 中央全局治理 | 现有 TeamControl 文件存储与 RPC | 管理预算、知识源、Skill、Runner release 和 Context Bundle | 成员/Token/项目/策略已实现，上述集中 Registry/账本/编译合同未闭合 | `S1` | `planned` | `TC-W01` 激活后复现 | `TC-W01` | 未冻结 |
 | `RN-ISSUE-001` | Runner 生命周期 | 现有 register/doctor/work/update/key rotation | 兼容性协商、校验下载、原子升级与回滚 | 本地执行闭环已实现，版本管理仍依赖人工替换同版本 binary | `S1` | `planned` | `RN-W01` 激活后复现 | `RN-W01` | 未冻结 |
 | `INT-ISSUE-001` | Runner 项目上下文 | 现有 Memory Catalog/Harness knowledge/Codex runner | Runner 以 project-scoped MCP 读取批准知识与 Skill，并验证 Context Bundle | 知识接口存在于 Agent/Gateway，但 Runner/Codex 执行包没有统一 MCP/Context 合同 | `S1` | `planned` | `INT-W01` 激活后复现 | `INT-W01` | 未冻结 |

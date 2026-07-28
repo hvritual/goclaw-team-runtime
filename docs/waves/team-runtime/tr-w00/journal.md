@@ -27,3 +27,16 @@
   `61613faf29b804b6723afe9378aa15f31b67a962ac620b7bc53d4b509e9d9977`；
 - Draft PR：`https://github.com/hvritual/goclaw-team-runtime/pull/1`；
 - freeze 后才允许修改双入口、命令面、构建、部署和文档范围。
+
+## 2026-07-28 — S02–S04 实现与 S05 确定性验证
+
+- 新增 `goclaw-team-control`、`goclaw-runner`，保留兼容 `goclaw`；
+- Team Control 不暴露 Runner worker；Runner 不暴露中央管理命令；
+- 新增 18 目标跨平台构建、三 binary Linux release 包和 systemd 模板；
+- Go unit/vet/race、UI 8/8、Obsidian 6/6、两项 build 全部通过；
+- `0.9.0-wave.2` release Gate 退出码 0，四项发布 SHA 重验通过；
+- 共享工作区曾重新物化 release stage；精确人工清理成功，归档和 Git tree
+  未受影响；
+- Evidence：`TR-EVID-W00-001`；
+- `S02/S03/S04` complete，`S05` deterministic passed、independent final
+  pending；TR-W00 仍 active。
