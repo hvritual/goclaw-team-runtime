@@ -4,8 +4,12 @@
 - 基线版本：`0.8.0-pilot.1-recovered.1`
 - 当前 Wave：`FE-W01`
 - 当前计划：[`FE-W01 plan-r012`](fe-w01/plan-r012.md)
-- 当前执行状态：W01 `active`；`MVP-W00` recovered Git base 与 tag 已完成，
-  r012 只授权技术/浏览器门禁和已复现范围。历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
+- 当前执行状态：W01 `active`，执行门禁 `blocked`；`MVP-W00` recovered
+  Git base 与 tag 已完成，r012 只授权技术/浏览器门禁和已复现范围。
+  recovered-base 确定性 Gate 已通过，但 `FE-EVID-W01-021` 记录 Browser
+  localhost 动作被安全策略拒绝、ptrace capability 失败及 credential
+  owner 缺失；三路独立复核接受该失败 Evidence，不代表 MVP 通过。
+  历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
   文档终审。R6 技术 Gate 通过但 traceability 失败，已在 credential/runtime
   前停止并只读保留；R7 从 `5160273` 完成可追溯重建，S12/EVID020 的完整
   Task tuple、trailers、11/11 manifest 与确定性 Gate 已通过三路独立复核。
@@ -87,5 +91,9 @@ W01 就推断为正常。
 - [`FE-EVID-W01-020`](fe-w01/s12-r7-traceable-deterministic-revalidation.md)：
   r009/R7 完整 tuple/trailers、source-first、11/11 manifest 与全量确定性
   Gate 已通过代码、安全与文档独立复核，当前 passed。
+- [`FE-EVID-W01-021`](fe-w01/s13-r012-mvp-environment-blocked.md)：
+  recovered-base UI 8/8、production build 和 Gateway/session/agent race
+  通过；Browser、ptrace 与 credential owner 失败关闭，三路独立复核
+  `P0=0/P1=0/P2=0`，当前 failed。
 
 协议复现只授权最小 transport 修复，不代表真实页面交互或视觉已经通过。

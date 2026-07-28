@@ -441,3 +441,20 @@ EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变
   `5baf3087d4cc94f701c810216081a8758848559010c1bf9b632a2dd1bc36eea9`；
 - Evidence 内容结论、Browser/ptrace/owner 失败关闭状态和产品范围均未变化；
 - `S13E` 保持 `pending`，等待修正提交的三路独立复核。
+
+## 2026-07-28 — r012 失败 Evidence 独立验收
+
+- exact review commit：
+  `7878856c2feef7c8bedd1d52d25aa888304ee632`；
+- tree：`31b3cfa380c487ee999253dad514b8562179f5d6`；
+- code/security/documentation 三路复核均为
+  `PASS, P0=0, P1=0, P2=0`；
+- UI 8/8、production build 与 Gateway/session/agent race 已由 code
+  reviewer 独立重跑通过；
+- `git show --check`、从 freeze 到 review commit 的
+  `git diff --check`、Task tuple、policy manifest、commit trailers、
+  Evidence SHA 和 Journal append-only 前缀全部通过；
+- 复核接受的是 `FE-EVID-W01-021` 的失败关闭真实性，不是 Browser、
+  ptrace、credential owner、FE-W01 或 MVP 通过；
+- `S13E` 完成“失败 Evidence 验收”；`S13B/S13C/S13D` 阻断不变，
+  FE-W02/MVP-W02/PILOT-W00 不得启动。
