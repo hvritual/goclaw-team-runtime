@@ -17,3 +17,13 @@
 | `TR-W00-S03` | planned | 等待 S02 |
 | `TR-W00-S04` | planned | 等待 S03 |
 | `TR-W00-S05` | planned | 等待 S02–S04 |
+
+## 2026-07-28 — r001 Task Freeze
+
+- activation base：`e87aa3ac3330f3259a12d2a7f3198ee2726d6814`；
+- base tree：`35ec868bdc34261a4efc0e70c80d3e11c85ce3a3`；
+- Task：`TR-W00-APP-SPLIT-001`；
+- Policy manifest SHA-256：
+  `61613faf29b804b6723afe9378aa15f31b67a962ac620b7bc53d4b509e9d9977`；
+- Draft PR：`https://github.com/hvritual/goclaw-team-runtime/pull/1`；
+- freeze 后才允许修改双入口、命令面、构建、部署和文档范围。
