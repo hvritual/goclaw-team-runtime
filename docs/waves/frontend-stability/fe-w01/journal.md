@@ -406,3 +406,27 @@ EVID018；S08、产品提交、W01 complete 与 release 的阻断均保持不变
 | Seq | 时间 | Actor | From | To | 原因 | Evidence |
 |---:|---|---|---|---|---|---|
 | 7 | 2026-07-28 | Wave governance | `blocked` | `active` | Recovery 完成，用户授权继续 MVP-W01 | recovered tag + r012 |
+
+## 2026-07-28 — r012 recovered-base MVP 环境预检
+
+- Task base 为 `683a008caf3c99642f5ec32a71443c63092f7a4c`，
+  freeze commit 为 `5eb7437a26149325c81e5763537e612a5495186d`；
+- `npm ci`、UI 8/8、production build 与
+  `go test -race ./gateway ./session ./agent` 通过，tracked UI bundle 无 diff；
+- `strace -f -e trace=connect ... /bin/true` 在任何 runtime 前被 ptrace
+  权限拒绝，零字节 trace 与 stderr 临时文件已删除；
+- Browser plugin 成功绑定 runtime，但访问 `127.0.0.1:5173` 的动作被
+  Browser 安全策略拒绝，并明确禁止 workaround、raw CDP 和其他 browser
+  surface；因此没有执行 Playwright fallback；
+- Vite 已立即终止；未启动 Gateway/provider，未创建 credential、profile、
+  config、session database、trace 或 screenshot；
+- credential owner 证明未提供，`FE-ISSUE-007` 保持外部阻断；
+- Evidence：`FE-EVID-W01-021`，SHA-256
+  `39ca7e943f3ee5fcbd451d7d2321cf05fe0f88fe162937266f0167c832793d29`。
+
+| Step | 状态 | 结论 |
+|---|---|---|
+| `S13B` | blocked | ptrace capability test 未通过 |
+| `S13C` | partial/blocked | deterministic Gate 通过，Browser rendered flow 未执行 |
+| `S13D` | blocked | credential owner closure 未获得 |
+| `S13E` | pending | 等待本次精确 Evidence commit 的独立复核 |
