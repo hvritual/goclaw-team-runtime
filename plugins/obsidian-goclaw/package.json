@@ -2,6 +2,11 @@
   "name": "obsidian-goclaw",
   "version": "0.6.0",
   "private": true,
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": "24.14.x",
+    "npm": "11.9.x"
+  },
   "description": "Project-scoped GoClaw chat, team operations, governed memory, Ouroboros specification, approvals and Better-Harness control panel for Obsidian.",
   "main": "main.js",
   "scripts": {

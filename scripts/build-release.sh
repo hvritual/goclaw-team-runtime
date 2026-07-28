@@ -3,27 +3,88 @@ set -euo pipefail
 
 repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 dist_dir="${repo_dir}/dist"
-release_version="0.8.0-pilot.1"
+release_root="${dist_dir}/releases"
+release_version="${RELEASE_VERSION:-0.8.0-pilot.1-recovered.1}"
 npm_cache_dir="${GOCLAW_NPM_CACHE:-${TMPDIR:-/tmp}/goclaw-npm-cache}"
 include_obsidian_plugin="${INCLUDE_OBSIDIAN_PLUGIN:-0}"
 source_only="${SOURCE_ONLY:-0}"
+
+# shellcheck source=scripts/recovery/release-archive-lib.sh
+source "${repo_dir}/scripts/recovery/release-archive-lib.sh"
 
 fail_release() {
   echo "release validation failed: $*" >&2
   exit 1
 }
 
-# Keep the source release intentionally narrower than the working tree. This
-# predicate is applied while building the manifest and again to every archive
-# member so a future allowlist expansion cannot accidentally ship local state
-# or build output.
+for command_name in \
+  awk chmod cp diff find flock git go grep gzip install mkdir mktemp mv node npm \
+  od rm sha256sum sort tar tr uniq; do
+  command -v "${command_name}" >/dev/null ||
+    fail_release "required command is unavailable: ${command_name}"
+done
+
+[[ "${release_version}" =~ ^[0-9A-Za-z][0-9A-Za-z.+-]*$ ]] ||
+  fail_release "RELEASE_VERSION contains unsafe characters"
+[[ "${release_version}" != "0.8.0-pilot.1" ]] ||
+  fail_release \
+    "0.8.0-pilot.1 is reserved for the immutable original input archives"
+[[ "${include_obsidian_plugin}" == "0" ||
+  "${include_obsidian_plugin}" == "1" ]] ||
+  fail_release "INCLUDE_OBSIDIAN_PLUGIN must be 0 or 1"
+[[ "${source_only}" == "0" || "${source_only}" == "1" ]] ||
+  fail_release "SOURCE_ONLY must be 0 or 1"
+
+expected_go_version="go1.25.5"
+expected_node_version="v24.14.0"
+expected_npm_version="11.9.0"
+[[ "$(go version | awk '{print $3}')" == "${expected_go_version}" ]] ||
+  fail_release "Go must be ${expected_go_version}"
+[[ "$(node --version)" == "${expected_node_version}" ]] ||
+  fail_release "Node must be ${expected_node_version}"
+[[ "$(npm --version)" == "${expected_npm_version}" ]] ||
+  fail_release "npm must be ${expected_npm_version}"
+
+release_commit="$(git -C "${repo_dir}" rev-parse --verify HEAD^{commit})"
+release_tree="$(git -C "${repo_dir}" rev-parse "${release_commit}^{tree}")"
+commit_epoch="$(git -C "${repo_dir}" show -s --format=%ct "${release_commit}")"
+if [[ -n "${SOURCE_DATE_EPOCH:-}" &&
+  "${SOURCE_DATE_EPOCH}" != "${commit_epoch}" ]]; then
+  fail_release \
+    "SOURCE_DATE_EPOCH must equal the release commit timestamp ${commit_epoch}"
+fi
+source_date_epoch="${commit_epoch}"
+export SOURCE_DATE_EPOCH="${source_date_epoch}"
+
+if [[ -n "$(git -C "${repo_dir}" status --porcelain --untracked-files=all)" ]]; then
+  fail_release "release builds require a clean Git worktree"
+fi
+
+mkdir -p "${dist_dir}" "${release_root}"
+exec 9>"${dist_dir}/.release.lock"
+flock -n 9 ||
+  fail_release "another release build already holds ${dist_dir}/.release.lock"
+
+stage_dir="$(mktemp -d "${dist_dir}/.release-${release_version}.XXXXXX")"
+work_dir="${stage_dir}/work"
+publish_stage="${stage_dir}/release"
+mkdir -p "${work_dir}" "${publish_stage}"
+cleanup_release_stage() {
+  if [[ -n "${stage_dir:-}" && -d "${stage_dir}" ]]; then
+    rm -rf -- "${stage_dir}"
+  fi
+}
+trap cleanup_release_stage EXIT
+
+# Keep the source release intentionally narrower than the working tree. The
+# predicate is applied while building the manifest and again after extraction.
 source_path_is_forbidden() {
   local path="${1#./}"
   local base="${path##*/}"
 
   case "/${path}/" in
-    */.git/* | */.agents/* | */.codex/* | */.claude/* | */.idea/* | */.vscode/* | \
-      */.env/* | */.env.*/* | */.dSYM/* | \
+    */.git/* | */.agents/* | */.codex/* | */.claude/* | */.idea/* | \
+      */.vscode/* | */.env/* | */.env.*/* | */.dSYM/* | \
       */node_modules/* | */dist/* | */build/* | */out/* | */target/* | \
       */coverage/* | */.cache/* | */.next/* | */.turbo/*)
       return 0
@@ -35,11 +96,11 @@ source_path_is_forbidden() {
       auth.json | credentials.json | data.json | goclaw | goclaw_test | \
       coverage.out | *.coverprofile | *.prof | *.trace | \
       *.pem | *.key | *.p12 | *.pfx | *.jks | \
-      *.db | *.db-* | *.sqlite | *.sqlite-* | *.sqlite3 | *.sqlite3-* | *.log | \
-      *.tar | *.tar.gz | *.tgz | *.zip | *.7z | *.rar | *.gz | *.bz2 | *.xz | \
-      *.test | *.exe | *.dll | *.dylib | *.so | *.so.* | *.a | *.o | *.obj | \
-      *.wasm | *.bin | *.class | *.jar | *.war | *.pyc | *.tmp | *.swp | \
-      *.bak | *~ | .eslintcache)
+      *.db | *.db-* | *.sqlite | *.sqlite-* | *.sqlite3 | *.sqlite3-* | \
+      *.log | *.tar | *.tar.gz | *.tgz | *.zip | *.7z | *.rar | *.gz | \
+      *.bz2 | *.xz | *.test | *.exe | *.dll | *.dylib | *.so | *.so.* | \
+      *.a | *.o | *.obj | *.wasm | *.bin | *.class | *.jar | *.war | \
+      *.pyc | *.tmp | *.swp | *.bak | *~ | .eslintcache)
       return 0
       ;;
   esac
@@ -85,10 +146,6 @@ file_has_raw_credential_assignment() {
       value = trim(value)
       lower = tolower(value)
 
-      # Environment lookups, templates, and conspicuous documentation/test
-      # values are references, not raw credentials. In particular, task- IDs
-      # used throughout the development docs must never be classified as a
-      # token merely because the setting name ends in TOKEN.
       if (value == "" ||
           value ~ /\$/ ||
           value ~ /^<.*>$/ ||
@@ -135,117 +192,39 @@ validate_source_file() {
     return
   fi
   if file_has_common_binary_magic "${file}"; then
-    printf '%s (common executable/object binary)\n' "${display_path}" >> "${findings_file}"
+    printf '%s (common executable/object binary)\n' \
+      "${display_path}" >> "${findings_file}"
     return
   fi
   if file_has_credential_material "${file}"; then
-    printf '%s (credential-like material)\n' "${display_path}" >> "${findings_file}"
+    printf '%s (credential-like material)\n' \
+      "${display_path}" >> "${findings_file}"
   fi
 }
 
-validate_source_archive() {
-  local archive="$1"
-  local expected_count="$2"
-  local validation_root="$3"
-  local member_list="${validation_root}/members.txt"
-  local type_list="${validation_root}/types.txt"
-  local extract_root="${validation_root}/extracted"
-  local findings_file="${validation_root}/findings.txt"
-  local member member_path type actual_count
-
-  mkdir -p "${validation_root}" "${extract_root}"
-  : > "${findings_file}"
-
-  tar -tzf "${archive}" > "${member_list}" ||
-    fail_release "cannot list source archive ${archive}"
-  tar -tvzf "${archive}" > "${type_list}" ||
-    fail_release "cannot inspect source archive entry types"
-  [[ -s "${member_list}" ]] || fail_release "source archive is empty"
-
-  while IFS= read -r member; do
-    [[ -n "${member}" ]] || fail_release "source archive contains an empty member name"
-    member_path="${member%/}"
-    case "${member_path}" in
-      /* | .. | ../* | */../* | */.. | *\\*)
-        fail_release "unsafe source archive member: ${member}"
-        ;;
-    esac
-    case "${member_path}" in
-      "goclaw-${release_version}" | "goclaw-${release_version}/"*)
-        ;;
-      *)
-        fail_release "source archive member is outside the release root: ${member}"
-        ;;
-    esac
-    if source_path_is_forbidden "${member_path}"; then
-      fail_release "forbidden source archive member: ${member}"
-    fi
-  done < "${member_list}"
-
-  while IFS= read -r member; do
-    [[ -n "${member}" ]] || fail_release "cannot parse source archive entry type"
-    type="${member:0:1}"
-    case "${type}" in
-      - | d)
-        ;;
-      l | h)
-        fail_release "source archive contains a link entry"
-        ;;
-      *)
-        fail_release "source archive contains unsupported entry type ${type}"
-        ;;
-    esac
-  done < "${type_list}"
-
-  actual_count="$(wc -l < "${member_list}")"
-  actual_count="${actual_count//[[:space:]]/}"
-  [[ "${actual_count}" == "${expected_count}" ]] ||
-    fail_release "source archive member count changed (${actual_count}, expected ${expected_count})"
-
-  tar \
-    --extract \
-    --gzip \
-    --file "${archive}" \
-    --directory "${extract_root}" \
-    --no-same-owner \
-    --no-same-permissions ||
-    fail_release "cannot recover source archive for credential validation"
-
-  if find "${extract_root}" -type l -print -quit | grep -q .; then
-    fail_release "recovered source archive contains a symlink"
-  fi
-
-  while IFS= read -r -d '' member; do
-    member_path="${member#"${extract_root}/"}"
-    validate_source_file "${member}" "${member_path}" "${findings_file}"
-  done < <(find "${extract_root}" -type f -print0)
-
-  if [[ -s "${findings_file}" ]]; then
-    echo "Refusing source archive after recoverable-content validation:" >&2
-    LC_ALL=C sort -u "${findings_file}" >&2
-    exit 1
-  fi
+read_json_version() {
+  node -e \
+    'const fs=require("fs");console.log(JSON.parse(fs.readFileSync(process.argv[1],"utf8")).version)' \
+    "$1"
 }
 
-mkdir -p "${dist_dir}"
-stage_dir="$(mktemp -d "${dist_dir}/.release-${release_version}.XXXXXX")"
-cleanup_release_stage() {
-  if [[ -n "${stage_dir:-}" && -d "${stage_dir}" ]]; then
-    rm -rf -- "${stage_dir}"
-  fi
-}
-trap cleanup_release_stage EXIT
-
-[[ "${include_obsidian_plugin}" == "0" || "${include_obsidian_plugin}" == "1" ]] ||
-  fail_release "INCLUDE_OBSIDIAN_PLUGIN must be 0 or 1"
-[[ "${source_only}" == "0" || "${source_only}" == "1" ]] ||
-  fail_release "SOURCE_ONLY must be 0 or 1"
+obsidian_package="${repo_dir}/plugins/obsidian-goclaw/package.json"
+obsidian_manifest="${repo_dir}/plugins/obsidian-goclaw/manifest.json"
+obsidian_versions="${repo_dir}/plugins/obsidian-goclaw/versions.json"
+obsidian_version="$(read_json_version "${obsidian_package}")"
+[[ "$(read_json_version "${obsidian_manifest}")" == "${obsidian_version}" ]] ||
+  fail_release "Obsidian package.json and manifest.json versions differ"
+node -e \
+  'const fs=require("fs");const v=process.argv[2];const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!Object.prototype.hasOwnProperty.call(p,v))process.exit(1)' \
+  "${obsidian_versions}" "${obsidian_version}" ||
+  fail_release "Obsidian versions.json does not contain ${obsidian_version}"
 
 (
   cd "${repo_dir}/ui"
   NPM_CONFIG_CACHE="${npm_cache_dir}" npm ci \
     --registry=https://registry.npmjs.org \
     --replace-registry-host=always
+  NPM_CONFIG_CACHE="${npm_cache_dir}" npm test
   NPM_CONFIG_CACHE="${npm_cache_dir}" npm run build
 )
 find "${repo_dir}/gateway/ui_dist" -mindepth 1 -type f -delete
@@ -257,25 +236,31 @@ if [[ "${source_only}" == "0" ]]; then
     cd "${repo_dir}"
     # The upstream all-package suite contains channel integration tests with
     # external network side effects. Keep release verification deterministic.
-    go test -count=1 ./memory ./memory/catalog ./governance ./ouroboros ./orchestratorlite ./harness ./teamcontrol ./workstation ./providers ./gateway ./agent ./agent/tools ./config ./cli ./cli/commands ./internal/start
+    go test -count=1 \
+      ./memory ./memory/catalog ./governance ./ouroboros ./orchestratorlite \
+      ./harness ./teamcontrol ./workstation ./providers ./gateway ./agent \
+      ./agent/tools ./config ./cli ./cli/commands ./internal/start
+
+    mkdir -p "${work_dir}/bin"
     for release_arch in amd64 arm64; do
+      binary="${work_dir}/bin/goclaw-linux-${release_arch}"
       CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
         go build -buildvcs=false -trimpath \
         -ldflags="-s -w -X main.Version=${release_version}" \
-        -o "${dist_dir}/goclaw-linux-${release_arch}" .
-      go version -m "${dist_dir}/goclaw-linux-${release_arch}" \
-        > "${stage_dir}/linux-${release_arch}.buildinfo"
-      grep -Fq "GOOS=linux" "${stage_dir}/linux-${release_arch}.buildinfo" ||
+        -o "${binary}" .
+      go version -m "${binary}" \
+        > "${work_dir}/linux-${release_arch}.buildinfo"
+      grep -Fq "GOOS=linux" \
+        "${work_dir}/linux-${release_arch}.buildinfo" ||
         fail_release "linux/${release_arch} binary reports the wrong GOOS"
-      grep -Fq "GOARCH=${release_arch}" "${stage_dir}/linux-${release_arch}.buildinfo" ||
+      grep -Fq "GOARCH=${release_arch}" \
+        "${work_dir}/linux-${release_arch}.buildinfo" ||
         fail_release "linux/${release_arch} binary reports the wrong GOARCH"
     done
-    install -m 0755 "${dist_dir}/goclaw-linux-amd64" "${dist_dir}/goclaw"
 
     # Native Windows/macOS are control-CLI-only targets during the pilot.
-    # Compile them to prove platform helpers remain portable, but do not ship
-    # them as execution Runner packages.
-    for control_target in darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+    for control_target in \
+      darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
       control_os="${control_target%/*}"
       control_arch="${control_target#*/}"
       control_suffix=""
@@ -285,14 +270,21 @@ if [[ "${source_only}" == "0" ]]; then
       CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
         go build -buildvcs=false -trimpath \
         -ldflags="-s -w -X main.Version=${release_version}" \
-        -o "${stage_dir}/control-${control_os}-${control_arch}${control_suffix}" .
+        -o \
+        "${work_dir}/control-${control_os}-${control_arch}${control_suffix}" .
     done
   )
 fi
 
-if [[ "${source_only}" == "0" && "${include_obsidian_plugin}" == "1" ]]; then
-  obsidian_stage="${stage_dir}/obsidian-goclaw"
-  mkdir -p "${obsidian_stage}"
+if [[ "${source_only}" == "0" &&
+  "${include_obsidian_plugin}" == "1" ]]; then
+  obsidian_stage="${work_dir}/obsidian-package"
+  obsidian_expected="${work_dir}/obsidian-expected.txt"
+  obsidian_archive="$(
+    printf '%s/obsidian-goclaw-plugin-%s.tar.gz' \
+      "${publish_stage}" "${obsidian_version}"
+  )"
+  mkdir -p "${obsidian_stage}/obsidian-goclaw"
   (
     cd "${repo_dir}/plugins/obsidian-goclaw"
     NPM_CONFIG_CACHE="${npm_cache_dir}" npm ci \
@@ -300,29 +292,44 @@ if [[ "${source_only}" == "0" && "${include_obsidian_plugin}" == "1" ]]; then
       --replace-registry-host=always
     NPM_CONFIG_CACHE="${npm_cache_dir}" npm test
     NPM_CONFIG_CACHE="${npm_cache_dir}" npm run build
-    cp manifest.json main.js styles.css versions.json "${obsidian_stage}/"
+    cp manifest.json main.js styles.css versions.json \
+      "${obsidian_stage}/obsidian-goclaw/"
   )
-  (
-    cd "${stage_dir}"
-    tar -czf "obsidian-goclaw-plugin-${release_version}.tar.gz" obsidian-goclaw
-  )
-  rm -rf -- "${obsidian_stage}"
+  printf '%s\n' \
+    obsidian-goclaw/main.js \
+    obsidian-goclaw/manifest.json \
+    obsidian-goclaw/styles.css \
+    obsidian-goclaw/versions.json \
+    > "${obsidian_expected}"
+  goclaw_create_normalized_archive \
+    "${obsidian_archive}" \
+    "${obsidian_stage}" \
+    "${obsidian_expected}" \
+    "" \
+    "${source_date_epoch}"
+  goclaw_validate_archive_contract \
+    "${obsidian_archive}" \
+    "${obsidian_expected}" \
+    "obsidian-goclaw" \
+    "${work_dir}/obsidian-archive-check"
 fi
 
 if [[ "${source_only}" == "0" ]]; then
   for release_arch in amd64 arm64; do
-    (
-    binary_stage="${stage_dir}/linux-${release_arch}-package"
-    binary_check="${stage_dir}/linux-${release_arch}-package-check"
-    binary_archive="${stage_dir}/goclaw-team-runtime-linux-${release_arch}-${release_version}.tar.gz"
+    binary_stage="${work_dir}/linux-${release_arch}-package"
+    binary_expected="${work_dir}/linux-${release_arch}-expected.txt"
+    binary_check="${work_dir}/linux-${release_arch}-archive-check"
+    binary_archive="$(
+      printf '%s/goclaw-team-runtime-linux-%s-%s.tar.gz' \
+        "${publish_stage}" "${release_arch}" "${release_version}"
+    )"
     mkdir -p \
       "${binary_stage}/scripts" \
       "${binary_stage}/deploy/systemd" \
       "${binary_stage}/deploy/wsl2" \
-      "${binary_stage}/deploy/lima" \
-      "${binary_check}"
+      "${binary_stage}/deploy/lima"
     install -m 0755 \
-      "${dist_dir}/goclaw-linux-${release_arch}" \
+      "${work_dir}/bin/goclaw-linux-${release_arch}" \
       "${binary_stage}/goclaw"
     install -m 0755 \
       "${repo_dir}/scripts/verify-sandbox-bwrap.sh" \
@@ -333,56 +340,81 @@ if [[ "${source_only}" == "0" ]]; then
     install -m 0644 \
       "${repo_dir}/deploy/systemd/goclaw-runner.service.example" \
       "${binary_stage}/deploy/systemd/goclaw-runner.service.example"
-    cp -R "${repo_dir}/deploy/wsl2/." "${binary_stage}/deploy/wsl2/"
-    cp -R "${repo_dir}/deploy/lima/." "${binary_stage}/deploy/lima/"
+    install -m 0644 \
+      "${repo_dir}/deploy/wsl2/README_CN.md" \
+      "${binary_stage}/deploy/wsl2/README_CN.md"
+    install -m 0644 \
+      "${repo_dir}/deploy/wsl2/runner.env.example" \
+      "${binary_stage}/deploy/wsl2/runner.env.example"
+    install -m 0644 \
+      "${repo_dir}/deploy/wsl2/wsl.conf.example" \
+      "${binary_stage}/deploy/wsl2/wsl.conf.example"
+    install -m 0644 \
+      "${repo_dir}/deploy/lima/README_CN.md" \
+      "${binary_stage}/deploy/lima/README_CN.md"
+    install -m 0644 \
+      "${repo_dir}/deploy/lima/goclaw-runner.yaml.example" \
+      "${binary_stage}/deploy/lima/goclaw-runner.yaml.example"
+    install -m 0644 \
+      "${repo_dir}/deploy/lima/runner.env.example" \
+      "${binary_stage}/deploy/lima/runner.env.example"
 
-    (
-      cd "${binary_stage}"
-      tar -czf "${binary_archive}" \
-        goclaw \
-        scripts/verify-sandbox-bwrap.sh \
-        deploy/runner.env.example \
-        deploy/systemd/goclaw-runner.service.example \
-        deploy/wsl2 \
-        deploy/lima
-    )
+    printf '%s\n' \
+      deploy/lima/README_CN.md \
+      deploy/lima/goclaw-runner.yaml.example \
+      deploy/lima/runner.env.example \
+      deploy/runner.env.example \
+      deploy/systemd/goclaw-runner.service.example \
+      deploy/wsl2/README_CN.md \
+      deploy/wsl2/runner.env.example \
+      deploy/wsl2/wsl.conf.example \
+      goclaw \
+      scripts/verify-sandbox-bwrap.sh \
+      > "${binary_expected}"
+    goclaw_create_normalized_archive \
+      "${binary_archive}" \
+      "${binary_stage}" \
+      "${binary_expected}" \
+      "" \
+      "${source_date_epoch}"
+    goclaw_validate_archive_contract \
+      "${binary_archive}" \
+      "${binary_expected}" \
+      "-" \
+      "${binary_check}"
 
-    tar -xzf "${binary_archive}" -C "${binary_check}"
     [[ -x "${binary_check}/goclaw" ]] ||
       fail_release "Linux package lost the goclaw executable mode"
     [[ -x "${binary_check}/scripts/verify-sandbox-bwrap.sh" ]] ||
       fail_release "Linux package sandbox wrapper is not executable"
-    [[ -f "${binary_check}/deploy/runner.env.example" ]] ||
-      fail_release "Linux package is missing runner.env.example"
-    [[ -f "${binary_check}/deploy/systemd/goclaw-runner.service.example" ]] ||
-      fail_release "Linux package is missing the runner systemd example"
-    [[ -f "${binary_check}/deploy/wsl2/wsl.conf.example" ]] ||
-      fail_release "Linux package is missing the WSL2 profile"
-    [[ -f "${binary_check}/deploy/lima/goclaw-runner.yaml.example" ]] ||
-      fail_release "Linux package is missing the Lima profile"
     go version -m "${binary_check}/goclaw" \
       > "${binary_check}/buildinfo.txt"
     grep -Fq "GOARCH=${release_arch}" "${binary_check}/buildinfo.txt" ||
       fail_release "packaged Linux binary architecture mismatch"
-    )
   done
 fi
 
 (
   cd "${repo_dir}"
   source_paths=(
-    .editorconfig .gitattributes .github .gitignore .golangci.yml .goreleaser.yaml
-    AGENTS.md CHANGE-HANDOFF.md CHANGELOG.md Dockerfile LICENSE Makefile README.md
-    THIRD_PARTY_NOTICES.md config.json.example go.mod go.sum main.go
+    .editorconfig .gitattributes .github .gitignore .golangci.yml
+    .goreleaser.yaml .tool-versions
+    AGENTS.md CHANGE-HANDOFF.md CHANGELOG.md Dockerfile LICENSE Makefile
+    README.md THIRD_PARTY_NOTICES.md config.json.example go.mod go.sum main.go
     signal_default.go signal_windows.go
-    agent bus channels cli config cron deploy docker docs errors gateway governance
-    harness integration internal memory orchestratorlite ouroboros pairing plugins
-    providers scripts session src-tauri teamcontrol third_party ui workstation
+    agent bus channels cli config cron deploy docker docs errors gateway
+    governance harness integration internal memory orchestratorlite ouroboros
+    pairing plugins providers scripts session src-tauri teamcontrol third_party
+    ui workstation
   )
-  source_manifest_unsorted="${stage_dir}/source-files.unsorted.nul"
-  source_manifest="${stage_dir}/source-files.nul"
-  source_findings="${stage_dir}/source-findings.txt"
-  : > "${source_manifest_unsorted}"
+  source_manifest="${work_dir}/source-files.txt"
+  source_expected="${work_dir}/source-expected.txt"
+  source_findings="${work_dir}/source-findings.txt"
+  source_archive="$(
+    printf '%s/goclaw-team-runtime-source-%s.tar.gz' \
+      "${publish_stage}" "${release_version}"
+  )"
+  : > "${source_manifest}"
   : > "${source_findings}"
 
   for source_path in "${source_paths[@]}"; do
@@ -401,7 +433,7 @@ fi
       fi
       [[ -f "${candidate}" ]] ||
         fail_release "allowlisted source is not a regular file: ${candidate}"
-      printf '%s\0' "${candidate}" >> "${source_manifest_unsorted}"
+      printf '%s\n' "${candidate}" >> "${source_manifest}"
     done < <(
       find "${source_path}" \
         \( -type d \( \
@@ -414,86 +446,123 @@ fi
     )
   done
 
-  LC_ALL=C sort -zu "${source_manifest_unsorted}" > "${source_manifest}"
-  source_count="$(LC_ALL=C tr '\0' '\n' < "${source_manifest}" | wc -l)"
-  source_count="${source_count//[[:space:]]/}"
-  [[ "${source_count}" =~ ^[1-9][0-9]*$ ]] ||
+  LC_ALL=C sort -u -o "${source_manifest}" "${source_manifest}"
+  [[ -s "${source_manifest}" ]] ||
     fail_release "source manifest is empty"
-
-  while IFS= read -r -d '' source_file; do
-    validate_source_file "${source_file}" "${source_file}" "${source_findings}"
-  done < "${source_manifest}"
+  while IFS= read -r source_file; do
+    validate_source_file \
+      "${source_file}" "${source_file}" "${source_findings}"
+    printf 'goclaw-%s/%s\n' \
+      "${release_version}" "${source_file}"
+  done < "${source_manifest}" > "${source_expected}"
   if [[ -s "${source_findings}" ]]; then
     echo "Refusing to package allowlisted source files:" >&2
     LC_ALL=C sort -u "${source_findings}" >&2
     exit 1
   fi
 
-  tar \
-    --create \
-    --gzip \
-    --file="${stage_dir}/goclaw-team-runtime-source-${release_version}.tar.gz" \
-    --null \
-    --no-recursion \
-    --hard-dereference \
-    --transform="s#^#goclaw-${release_version}/#" \
-    --files-from="${source_manifest}"
+  goclaw_create_normalized_archive \
+    "${source_archive}" \
+    "${repo_dir}" \
+    "${source_manifest}" \
+    "goclaw-${release_version}" \
+    "${source_date_epoch}"
+  goclaw_validate_archive_contract \
+    "${source_archive}" \
+    "${source_expected}" \
+    "goclaw-${release_version}" \
+    "${work_dir}/source-archive-check"
 
-  validate_source_archive \
-    "${stage_dir}/goclaw-team-runtime-source-${release_version}.tar.gz" \
-    "${source_count}" \
-    "${stage_dir}/source-archive-validation"
+  while IFS= read -r source_file; do
+    validate_source_file \
+      "${work_dir}/source-archive-check/goclaw-${release_version}/${source_file}" \
+      "goclaw-${release_version}/${source_file}" \
+      "${source_findings}"
+  done < "${source_manifest}"
+  if [[ -s "${source_findings}" ]]; then
+    echo "Refusing recovered source archive:" >&2
+    LC_ALL=C sort -u "${source_findings}" >&2
+    exit 1
+  fi
 )
+
+if ! git -C "${repo_dir}" diff --quiet -- gateway/ui_dist; then
+  fail_release "Web build does not match tracked gateway/ui_dist"
+fi
+if [[ "${include_obsidian_plugin}" == "1" ]] &&
+  ! git -C "${repo_dir}" diff --quiet -- plugins/obsidian-goclaw/main.js; then
+  fail_release "Obsidian build does not match tracked main.js"
+fi
+if [[ -n "$(git -C "${repo_dir}" status --porcelain --untracked-files=all)" ]]; then
+  fail_release "release verification changed the Git worktree"
+fi
+
+include_obsidian_json=false
+if [[ "${source_only}" == "0" &&
+  "${include_obsidian_plugin}" == "1" ]]; then
+  include_obsidian_json=true
+fi
+release_manifest="${publish_stage}/release-manifest-${release_version}.json"
+cat > "${release_manifest}" <<EOF
+{
+  "schema": "goclaw.release/v1",
+  "runtime_version": "${release_version}",
+  "source_commit": "${release_commit}",
+  "source_tree": "${release_tree}",
+  "source_date_epoch": ${source_date_epoch},
+  "toolchain": {
+    "go": "${expected_go_version}",
+    "node": "${expected_node_version}",
+    "npm": "${expected_npm_version}"
+  },
+  "components": {
+    "obsidian_goclaw": {
+      "version": "${obsidian_version}",
+      "included": ${include_obsidian_json}
+    }
+  }
+}
+EOF
 
 (
-  cd "${stage_dir}"
-  checksum_artifacts=(
-    "goclaw-team-runtime-source-${release_version}.tar.gz"
+  cd "${publish_stage}"
+  mapfile -t checksum_artifacts < <(
+    find . -maxdepth 1 -type f ! -name 'SHA256SUMS-*' \
+      -printf '%f\n' | LC_ALL=C sort
   )
-  if [[ "${source_only}" == "0" ]]; then
-    checksum_artifacts=(
-      "goclaw-team-runtime-linux-amd64-${release_version}.tar.gz"
-      "goclaw-team-runtime-linux-arm64-${release_version}.tar.gz"
-      "${checksum_artifacts[@]}"
-    )
-  fi
-  if [[ "${source_only}" == "0" && "${include_obsidian_plugin}" == "1" ]]; then
-    checksum_artifacts+=("obsidian-goclaw-plugin-${release_version}.tar.gz")
-  fi
-  sha256sum "${checksum_artifacts[@]}" > "SHA256SUMS-${release_version}.txt"
+  [[ "${#checksum_artifacts[@]}" -gt 0 ]] ||
+    fail_release "no release artifacts were produced"
+  LC_ALL=C sha256sum "${checksum_artifacts[@]}" \
+    > "SHA256SUMS-${release_version}.txt"
+  sha256sum -c "SHA256SUMS-${release_version}.txt"
+  chmod 0644 ./*
 )
 
-release_artifacts=(
-  "goclaw-team-runtime-source-${release_version}.tar.gz"
-  "SHA256SUMS-${release_version}.txt"
+final_release_dir="${release_root}/${release_version}"
+if [[ -e "${final_release_dir}" ]]; then
+  [[ -d "${final_release_dir}" && ! -L "${final_release_dir}" ]] ||
+    fail_release "existing release target is not a regular directory"
+  if ! diff --recursive --brief --no-dereference \
+    "${publish_stage}" "${final_release_dir}"; then
+    fail_release \
+      "release ${release_version} already exists with different content"
+  fi
+  if find "${final_release_dir}" -mindepth 1 \
+    \( ! -type f -o ! -perm 0644 \) -print -quit | grep -q .; then
+    fail_release "existing release directory has an invalid type or mode"
+  fi
+  echo "Verified identical existing release:"
+else
+  mv -- "${publish_stage}" "${final_release_dir}"
+  echo "Published atomically:"
+fi
+
+(
+  cd "${final_release_dir}"
+  sha256sum -c "SHA256SUMS-${release_version}.txt"
 )
-if [[ "${source_only}" == "0" ]]; then
-  release_artifacts=(
-    "goclaw-team-runtime-linux-amd64-${release_version}.tar.gz"
-    "goclaw-team-runtime-linux-arm64-${release_version}.tar.gz"
-    "${release_artifacts[@]}"
-  )
-fi
-if [[ "${source_only}" == "0" && "${include_obsidian_plugin}" == "1" ]]; then
-  release_artifacts+=("obsidian-goclaw-plugin-${release_version}.tar.gz")
-fi
-for artifact in "${release_artifacts[@]}"; do
-  mv -f "${stage_dir}/${artifact}" "${dist_dir}/${artifact}"
-done
+find "${final_release_dir}" -maxdepth 1 -type f -printf '  %p\n' |
+  LC_ALL=C sort
+
 cleanup_release_stage
 stage_dir=""
-
-echo "Built:"
-if [[ "${source_only}" == "0" ]]; then
-  echo "  ${dist_dir}/goclaw-linux-amd64"
-  echo "  ${dist_dir}/goclaw-linux-arm64"
-  echo "  ${dist_dir}/goclaw-team-runtime-linux-amd64-${release_version}.tar.gz"
-  echo "  ${dist_dir}/goclaw-team-runtime-linux-arm64-${release_version}.tar.gz"
-fi
-echo "  ${dist_dir}/goclaw-team-runtime-source-${release_version}.tar.gz"
-if [[ "${source_only}" == "0" && "${include_obsidian_plugin}" == "1" ]]; then
-  echo "  ${dist_dir}/obsidian-goclaw-plugin-${release_version}.tar.gz"
-elif [[ "${source_only}" == "0" ]]; then
-  echo "  Obsidian adapter skipped (set INCLUDE_OBSIDIAN_PLUGIN=1 to package it)"
-fi
-echo "  ${dist_dir}/SHA256SUMS-${release_version}.txt"
