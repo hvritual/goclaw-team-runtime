@@ -194,3 +194,25 @@
 | 2026-07-28 | `MVP-W00-S08B` | `planned → complete` | exact base 含 active r005 Plan/Registry/Policy | 复算投影与前缀 |
 | 2026-07-28 | `MVP-W00-S08C` | `planned → complete` | 五个冻结前缀和 current projection 一致 | 全量确定性 Gate |
 | 2026-07-28 | `MVP-W00-S08D` | `planned → active` | Gate 与 final review 尚未执行 | exact clean HEAD revalidation |
+
+## 2026-07-28 — S08D r005 全量重验
+
+- exact candidate：`e262b8c3be6a42d3b86e13fe48b34c055dccb9db` /
+  `bdf8c76ca2fc0b992e4a9d403c0ae1a0cbcf1b78`；
+- Policy、来源 611/611、archive negative、Go 全包/race/vet、Web 8/8、
+  Obsidian 6/6、两项 production build 与 tracked bundle diff 全部通过；
+- release 首次原子发布，第二次明确为
+  `Verified identical existing release`；
+- manifest SHA-256：
+  `0379cf736ac1fb6a3770be39ccb8156c877a8dfd1ec50777c90c2b7896fdc2b8`；
+- final review 与 review 结论写回后的最终双构建/tag 尚未执行。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S08D` | `active → review` | frozen Task 下全量 Gate 与双构建通过 | exact evidence HEAD 三路复核 |
+
+### Evidence ledger 追加
+
+| Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
+|---|---|---|---|---|---|---|---|---|
+| `MVP-EVID-005C` | 2026-07-28 | `MVP-W00-S08D` / `MVP-ISSUE-001`–`003` / `MVP-W00-RECOVERY-005 r005` | r005 candidate release manifest | `0379cf736ac1fb6a3770be39ccb8156c877a8dfd1ec50777c90c2b7896fdc2b8` | 正确 SHA authority、完整 Gate 与同 commit 双构建一致 | `pass` | Codex root agent | final review pending |

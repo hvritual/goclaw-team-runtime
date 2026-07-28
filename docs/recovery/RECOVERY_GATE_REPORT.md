@@ -2,8 +2,8 @@
 
 Wave：`MVP-W00 r005`
 
-状态：r005 Task 已从 activation base 冻结；五个历史前缀与权威 SHA
-复算通过；r005 全量确定性 Gate 与最终独立复核待执行
+状态：r005 Task 已从 activation base 冻结；五个历史前缀、全量确定性
+Gate 与同 commit 双构建通过；最终独立复核待执行
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -164,3 +164,39 @@ Task freeze 位于后继 commit `96de00a8eec661c0f2e5d17fac7ff8fe8c375574`。
 `33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`；
 S08C 的五个冻结长度/SHA 全部通过。r004 错误常量仅作为失败历史保留，
 current acceptance 已唯一切换到 r005。
+
+## S08D r005 全量确定性重验
+
+重验目标 commit：
+`e262b8c3be6a42d3b86e13fe48b34c055dccb9db`；tree：
+`bdf8c76ca2fc0b992e4a9d403c0ae1a0cbcf1b78`。
+
+| Gate | 结果 |
+|---|---|
+| r005 Policy manifest | 三项 `OK` |
+| 固定 import tree | 611/611；content/exec/extra = 0 |
+| Archive negative | duplicate/extra/link/traversal 等全部 fail closed |
+| Go all packages | `PASS` |
+| Go race / vet | 6 个关键包 `PASS` |
+| Web | 8/8，production build `PASS` |
+| Obsidian | 6/6，production build `PASS` |
+| Tracked bundles | `gateway/ui_dist` 与 `main.js` 无 diff |
+| Release build × 2 | 首次原子发布；第二次 `Verified identical existing release` |
+
+首次 release 命令使用隔离 PATH 时遗漏冻结 Node 目录，在任何发布前以
+“required command is unavailable: node”失败。补入 Node `v24.14.0` 的
+绝对目录后，从头完整执行两次通过；没有把环境失败记录成产品缺陷。
+
+候选 manifest 绑定上述 commit/tree，runtime
+`0.8.0-pilot.1-recovered.1` 映射 Obsidian `0.6.0`：
+
+| 制品 | SHA-256 |
+|---|---|
+| Linux amd64 runtime | `fab445ad091541c7fed9b01d7edb960c7c6d4864cb4364ddbfb43a30ce5913b1` |
+| Linux arm64 runtime | `030be540ded422f2b3eaeaa4faea2753d145c1ebc5bb8c86959cbb413031d7d9` |
+| recovered source | `8e97df84ce35c5f72398777938a1be11b4051acff0089d3f6a90778bd839c226` |
+| Obsidian `0.6.0` | `fb252ea3e2d7040d891a201de2dc0d01c0983e0487d84f6fdfdd8ced29c51bbc` |
+| release manifest | `0379cf736ac1fb6a3770be39ccb8156c877a8dfd1ec50777c90c2b7896fdc2b8` |
+
+这是 final review 前候选。复核结论写回后必须从最终 clean commit 再连续
+构建两次并核对 manifest/tag target，当前目录不得作为最终发布宣称。

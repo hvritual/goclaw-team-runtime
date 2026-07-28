@@ -100,6 +100,8 @@ review；后继 revision 修正常量并重新冻结前当前 `BLOCK` 不变。
 
 ## r005 最终复核
 
-状态：activation base 与 Task freeze 已分离，S08C 五个前缀复算通过；
-等待 S08D 全量 Gate 和 exact clean HEAD 三路只读复核。三路 P0/P1 清零前
-当前 `BLOCK` 不变。
+状态：activation base 与 Task freeze 已分离，S08C 五个前缀及 S08D
+全量 Gate/双构建通过。确定性重验目标为
+`e262b8c3be6a42d3b86e13fe48b34c055dccb9db` /
+`bdf8c76ca2fc0b992e4a9d403c0ae1a0cbcf1b78`；等待 evidence commit 后对
+exact clean HEAD 执行三路只读复核。三路 P0/P1 清零前当前 `BLOCK` 不变。
