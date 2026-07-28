@@ -10,20 +10,13 @@
       "id": "MVP-W00",
       "title": "Authoritative Source and Git Baseline Recovery",
       "status": "active",
-      "document": "recovery/mvp-w00/plan-r002.md",
+      "document": "recovery/mvp-w00/plan-r003.md",
       "depends_on": [],
       "allowed_change_scope": [
         "docs/waves/**",
-        "docs/recovery/**",
-        ".tool-versions",
-        "scripts/recovery/**",
-        "scripts/build-release.sh",
-        "ui/package.json",
-        "ui/package-lock.json",
-        "plugins/obsidian-goclaw/package.json",
-        "plugins/obsidian-goclaw/package-lock.json"
+        "docs/recovery/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
     },
     {
       "id": "FE-W00",

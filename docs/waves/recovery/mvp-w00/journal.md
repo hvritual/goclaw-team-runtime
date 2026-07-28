@@ -89,6 +89,23 @@
 |---|---|---|---|---|---|---|---|---|
 | `MVP-EVID-005A` | 2026-07-28 | `MVP-W00-S05C/S05D` | recovered release manifest | `f2c4cfe786a0c562ed4d0e983002e10e653bcb1f77ecf3a4c2fbbf0e34253305` | r002 候选的原子发布、归档合同和双构建一致 | `pass` | Codex root agent | r002 re-review pending |
 
+## 2026-07-28 — r002 第二轮复核与 r003 激活
+
+- code/source：`PASS`，P0=0、P1=0；
+- security/supply-chain：`PASS`，P0=0、P1=0；
+- docs/governance：`BLOCK`，P0=0、P1=3；
+- 三个治理 P1 稳定登记为 `MVP-ISSUE-001`，不修改 r002 或历史 commit；
+- 新建 `plan-r003`，`approved_by` 只保留用户授权；
+- 从 exact base `6fa9607f97715660271ea1356797d4dffaf78f62` 冻结
+  `MVP-W00-RECOVERY-003 r003`，包含 Repository、Issue、policy hash、
+  acceptance 和 verification；
+- r002 候选只作为历史实现证据，必须在 r003 Task 下完整重验。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S05E` | `active → blocked` | docs review P1=3；禁止 tag | 激活 r003 |
+| 2026-07-28 | `MVP-W00-S06A` | `planned → complete` | Issue、Task、Repository/base、policy bundle 和 r003 Registry 已冻结 | 修正 projection/approval/ID |
+
 ## 终态声明
 
 尚未进入终态。

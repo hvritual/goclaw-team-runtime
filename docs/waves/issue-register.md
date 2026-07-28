@@ -46,6 +46,12 @@
 | `FE-ISSUE-009` | Wave Task/commit traceability | R6；Plan r008；runtime 前 | 检查 freeze tuple 与 activation/freeze/Evidence commit trailers | Task 冻结 Repository 与 policy hash；每个 commit 含 AGENTS mandatory trailers | freeze 缺 Repository/hash；`047306b/90278f4/d761721` 只有 subject | `S1` | `verified` | [`FE-EVID-W01-019`](frontend-stability/fe-w01/s12-r6-traceability-preflight.md)；[`FE-EVID-W01-020`](frontend-stability/fe-w01/s12-r7-traceable-deterministic-revalidation.md)；代码、安全与文档独立复核通过，产品仍未提交 | `FE-W01-S12` | `FE-W01-TRANSPORT-R1` rev 7 |
 | `FE-ISSUE-010` | S11 Gateway syscall 零出站 Gate | Linux 6.12.13；strace 6.8；credential/runtime 前 | 以 `strace -f -e trace=connect` 包裹无网络 `/bin/true`；sandbox、首次授权宿主及用户再次触发的授权宿主重试 | 能归属进程树并生成可用 syscall trace | 三次均在 trace 前被 ptrace 权限拒绝；能力检查被定向终止并清理 | `S1` | `root-caused` | [`FE-EVID-W01-018`](frontend-stability/fe-w01/s11-inert-provider-environment-blocked.md)；未用 socket 轮询替代 | `FE-W01-S11` | `FE-W01-TRANSPORT-R1` rev 7；等待 ptrace-capable environment |
 
+## Recovery 问题
+
+| Issue ID | 流程 | 环境/基线 | 期望 | 实际 | 严重度 | 状态 | 证据 | Wave | Task |
+|---|---|---|---|---|---|---|---|---|---|
+| `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；base `6fa9607f97715660271ea1356797d4dffaf78f62` | current revision/权限唯一；批准者真实；实现绑定完整 frozen Task tuple | r002 第二轮 docs review 发现 README 指针冲突、BLOCK reviewer 被写入 `approved_by`、发布实现缺 Repository/Policy/Issue 绑定 | `S1` | `fixing` | `RECOVERY_REVIEW` 第二轮；`MVP-W00 r003` | `MVP-W00-S06A`–`S06D` | `MVP-W00-RECOVERY-003` r003 |
+
 ## 三人试点问题
 
 下列条目来自 2026-07-27 三路只读源码审计。根因均能由当前实现路径直接
