@@ -1,8 +1,14 @@
 # FE-W01 Journal
 
-本文件只追加；当前计划为 [`plan-r010.md`](plan-r010.md)，状态
+本文件只追加；当前计划为 [`plan-r011.md`](plan-r011.md)，状态
 `blocked`。r009 及更早执行历史只读保留；在 recovered base 上批准新
 revision 前，不得迁移产品 patch 或启动本地 Playwright。
+
+## 2026-07-28 — r011 批准归因更正
+
+- r010 把第一轮 BLOCK reviewer 误写入 `approved_by`；
+- 新建 r011，只保留用户授权；
+- blocked、MVP-W00 依赖、docs-only 范围和外部 Gate 全部不变。
 
 ## 状态事件
 

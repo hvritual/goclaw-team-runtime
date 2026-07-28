@@ -1,7 +1,7 @@
 # MVP-W00 执行 Journal
 
-本文件只追加。当前计划由 Registry 指向 `plan-r002.md`；`plan-r001.md`
-保留为已被替代的历史。
+本文件只追加。当前计划由 Registry 指向 `plan-r003.md`；`plan-r001.md`
+与 `plan-r002.md` 保留为已被替代的历史。
 
 ## 状态事件
 
@@ -105,6 +105,22 @@
 |---|---|---|---|---|
 | 2026-07-28 | `MVP-W00-S05E` | `active → blocked` | docs review P1=3；禁止 tag | 激活 r003 |
 | 2026-07-28 | `MVP-W00-S06A` | `planned → complete` | Issue、Task、Repository/base、policy bundle 和 r003 Registry 已冻结 | 修正 projection/approval/ID |
+
+## 2026-07-28 — S06B current projection 与批准语义
+
+- 新建 FE-W00 r005、FE-W01 r011、PILOT-W00 r006；当前 revisions 的
+  `approved_by` 只包含用户授权，BLOCK reviewer 只保留为 reviewer/finding；
+- 总 README、Track 和 Registry 全部指向 r003/r005/r011/r006；
+- MVP r003 为 docs-only、`product_code_changes_allowed=false`，r002 的
+  发布工具授权只作为不可变历史保留；
+- Wave/Evidence/Issue ID 规则泛化到 FE、PILOT、MVP；
+- MVP Evidence reviewer 改为稳定 agent identity + round；
+- Review round 2 精确绑定 commit/tree，旧 working-tree locator 明确记录为
+  第一轮缺陷，不再作为当前权威对象。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S06B` | `planned → complete` | 三个 docs P1 的实现已完成，`MVP-ISSUE-001 fixed` | 完整重验与最终独立复核 |
 
 ## 终态声明
 

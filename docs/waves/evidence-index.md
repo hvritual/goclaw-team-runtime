@@ -50,19 +50,20 @@
 | `PILOT-EVID-009` | `PILOT-W00` | `PILOT-ISSUE-011` | external attestation | owner 证明历史材料已撤销/轮换或从未有效 | 待 credential owner 产生 | `planned` | unassigned |
 | `PILOT-EVID-010` | `PILOT-W00` | `PILOT-ISSUE-001`、`002` | target substrate smoke | 真机 native Linux、WSL2 与 Lima 均通过 doctor、无网络 bwrap 和中断清理 | 待三名试点 owner 产生 | `planned` | unassigned |
 | `PILOT-EVID-011` | `PILOT-W00` | 试点外部 Gate | credential/integration | 三名成员各自 Codex OAuth、真实飞书路由和可选 Obsidian Desktop 交互通过 | 待三名试点 owner 与飞书管理员产生 | `planned` | unassigned |
-| `MVP-EVID-001` | `MVP-W00` | `N/A — recovery bootstrap` | provenance | 原归档 SHA、611 个文件、内容、执行位和 Git import tree 一致 | [`SOURCE_PROVENANCE`](../recovery/SOURCE_PROVENANCE.md) | `passed` | first review + fixed-tree replay |
-| `MVP-EVID-002` | `MVP-W00` | `N/A — recovery bootstrap` | Go test/race/vet | 全包 test、6 个关键包 race/vet 通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
-| `MVP-EVID-003` | `MVP-W00` | `N/A — recovery bootstrap` | Web test/build | Web 8/8、build 通过且 tracked bundle 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
-| `MVP-EVID-004` | `MVP-W00` | `N/A — recovery bootstrap` | Obsidian test/build | Adapter 6/6、build 通过且 tracked `main.js` 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | first review |
-| `MVP-EVID-005` | `MVP-W00` | `N/A — recovery bootstrap` | release rebuild | 锁、stage、规范化归档、精确合同、原子版本目录和同 commit 双构建通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | r002 re-review pending |
-| `MVP-EVID-006` | `MVP-W00` | `N/A — recovery bootstrap` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `collecting` | first review failed；r002 re-review pending |
+| `MVP-EVID-001` | `MVP-W00` | `MVP-ISSUE-001` | provenance | 原归档 SHA、611 个文件、内容、执行位和 Git import tree 一致 | [`SOURCE_PROVENANCE`](../recovery/SOURCE_PROVENANCE.md) | `passed` | `recovery_code_review` round 2 |
+| `MVP-EVID-002` | `MVP-W00` | `MVP-ISSUE-001` | Go test/race/vet | 全包 test、6 个关键包 race/vet 通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | `recovery_code_review` round 2 |
+| `MVP-EVID-003` | `MVP-W00` | `MVP-ISSUE-001` | Web test/build | Web 8/8、build 通过且 tracked bundle 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | `recovery_code_review` round 2 |
+| `MVP-EVID-004` | `MVP-W00` | `MVP-ISSUE-001` | Obsidian test/build | Adapter 6/6、build 通过且 tracked `main.js` 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | `recovery_security_review` round 2 |
+| `MVP-EVID-005` | `MVP-W00` | `MVP-ISSUE-001` | release rebuild | 锁、stage、规范化归档、精确合同、原子版本目录和同 commit 双构建通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | `recovery_code_review` + `recovery_security_review` round 2 |
+| `MVP-EVID-006` | `MVP-W00` | `MVP-ISSUE-001` | independent review | 三路只读复核无未关闭 P0/P1 | [`RECOVERY_REVIEW`](../recovery/RECOVERY_REVIEW.md) | `collecting` | round 2 code/security PASS；docs BLOCK；r003 final pending |
 
 证据状态允许：`planned`、`collecting`、`passed`、`failed`、`superseded`。
 
 ## Evidence ID 规则
 
-格式为 `FE-EVID-WNN-NNN`。证据失败后不覆盖结果；新增一个 ID 或追加新的
-执行记录，并用 Wave 进度日志说明它替代了哪次运行。
+格式为 `<TRACK>-EVID-...`，例如 `FE-EVID-W01-020`、
+`PILOT-EVID-010`、`MVP-EVID-006`。证据失败后不覆盖结果；新增子证据 ID
+或追加执行记录，并用 Wave Journal 说明它替代了哪次运行。
 
 ## 脱敏要求
 

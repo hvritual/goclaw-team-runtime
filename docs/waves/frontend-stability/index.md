@@ -3,9 +3,9 @@
 - Track ID：`FE-STABILITY-2026-07`
 - 基线版本：`0.7.0`
 - 当前 Wave：`FE-W01`
-- 当前计划：[`FE-W01 plan-r010`](fe-w01/plan-r010.md)
+- 当前计划：[`FE-W01 plan-r011`](fe-w01/plan-r011.md)
 - 当前执行状态：W01 `blocked`，等待 `MVP-W00` 建立 recovered Git base；
-  r010 不授权产品变更。历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
+  r011 不授权产品变更。历史 `FE-DEC-013` 与 r009 已通过 Wave、安全和
   文档终审。R6 技术 Gate 通过但 traceability 失败，已在 credential/runtime
   前停止并只读保留；R7 从 `5160273` 完成可追溯重建，S12/EVID020 的完整
   Task tuple、trailers、11/11 manifest 与确定性 Gate 已通过三路独立复核。

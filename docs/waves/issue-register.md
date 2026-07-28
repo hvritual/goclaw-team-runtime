@@ -50,7 +50,7 @@
 
 | Issue ID | 流程 | 环境/基线 | 期望 | 实际 | 严重度 | 状态 | 证据 | Wave | Task |
 |---|---|---|---|---|---|---|---|---|---|
-| `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；base `6fa9607f97715660271ea1356797d4dffaf78f62` | current revision/权限唯一；批准者真实；实现绑定完整 frozen Task tuple | r002 第二轮 docs review 发现 README 指针冲突、BLOCK reviewer 被写入 `approved_by`、发布实现缺 Repository/Policy/Issue 绑定 | `S1` | `fixing` | `RECOVERY_REVIEW` 第二轮；`MVP-W00 r003` | `MVP-W00-S06A`–`S06D` | `MVP-W00-RECOVERY-003` r003 |
+| `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；base `6fa9607f97715660271ea1356797d4dffaf78f62` | current revision/权限唯一；批准者真实；实现绑定完整 frozen Task tuple | r002 第二轮 docs review 发现 README 指针冲突、BLOCK reviewer 被写入 `approved_by`、发布实现缺 Repository/Policy/Issue 绑定 | `S1` | `fixed` | `RECOVERY_REVIEW` 第二轮；`MVP-W00 r003`；等待最终独立验证 | `MVP-W00-S06A`–`S06D` | `MVP-W00-RECOVERY-003` r003 |
 
 ## 三人试点问题
 

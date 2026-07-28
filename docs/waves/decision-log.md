@@ -98,3 +98,19 @@
 - 回滚：保留 import tag 和 BLOCK 证据，不重写根提交。
 - 关联：`MVP-W00-S01`、`MVP-EVID-001`、
   `Task-ID RECOVERY-IMPORT-001`；Issue 为 `N/A — recovery bootstrap`。
+
+## 2026-07-28 — MVP-DEC-005：不改写 r002，前向重建可追溯验收
+
+- 状态：`active`。
+- 触发：r002 第二轮 code/security PASS，但 docs/governance 因 current
+  projection、approval attribution 和 frozen Task tuple 三项 P1 BLOCK。
+- 否决方案：拒绝 amend/rebase 历史提交伪装当时合规；拒绝扩大 bootstrap
+  例外；拒绝在无 Task tuple 下直接打 tag。
+- 决策：登记 `MVP-ISSUE-001`，创建 r003，只授权文档治理与完整重验；从
+  exact base 冻结 Repository/assignee/Issue/policy/acceptance/verification。
+- 影响：r002 发布实现保留为候选证据，不再修改；r003 最终 Gate 通过前
+  `MVP-W00` 保持唯一 active，FE/PILOT 继续 blocked。
+- 回滚：任一 P1 保持未关闭即停止 tag；不回滚或覆盖原始归档/import tag。
+- 关联：`MVP-W00-S06A–S06D`、`MVP-EVID-006`、
+  `Task-ID MVP-W00-RECOVERY-003`、`Issue MVP-ISSUE-001`、
+  `Policy-Bundle 1d725fc514890338a8d6e7ad338287474674a709b650bacf329ec0ff2f07e0d2`。

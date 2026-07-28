@@ -22,7 +22,7 @@
       "id": "FE-W00",
       "title": "Executable Baseline and First Issue Split",
       "status": "complete",
-      "document": "frontend-stability/fe-w00/plan-r004.md",
+      "document": "frontend-stability/fe-w00/plan-r005.md",
       "depends_on": [],
       "allowed_change_scope": [
         "docs/**",
@@ -35,7 +35,7 @@
       "id": "FE-W01",
       "title": "Session Transport, Dashboard Shell, and Local Browser Regression Gate",
       "status": "blocked",
-      "document": "frontend-stability/fe-w01/plan-r010.md",
+      "document": "frontend-stability/fe-w01/plan-r011.md",
       "depends_on": [
         "FE-W00",
         "MVP-W00"
@@ -113,7 +113,7 @@
       "id": "PILOT-W00",
       "title": "Three-person Controlled Pilot",
       "status": "blocked",
-      "document": "pilot-readiness/pilot-w00/plan-r005.md",
+      "document": "pilot-readiness/pilot-w00/plan-r006.md",
       "depends_on": [
         "FE-W00",
         "MVP-W00",

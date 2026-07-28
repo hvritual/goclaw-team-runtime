@@ -1,7 +1,15 @@
 # GoClaw Recovery 独立复核记录
 
-日期：2026-07-28  
-对象：`v0.8.0-pilot.1-import..working-tree`  
+日期：2026-07-28
+
+审查对象：
+
+| Round | Git range / commit | Tree | 说明 |
+|---|---|---|---|
+| 1 | import 后、r002 前历史 working tree | 不可精确复算 | 此 locator 缺陷触发 r002，保留为失败事实 |
+| 2 | `6fa9607f97715660271ea1356797d4dffaf78f62` | `f3d30badaeb83c91622b4585d73923f6e787f0fb` | clean reviewed HEAD |
+| 2 implementation | `792b599c56852e26623bca83313f56b3a0693f2b` | `6d7da8ee1d4c9f69fc4cc2aea8fade9b816e9a6c` | 双构建候选 |
+
 当前结论：`BLOCK`
 
 ## 审查角色与工具策略
@@ -53,3 +61,16 @@
 状态：`plan-r002` 的 S05A–S05D 已实施，候选 commit
 `792b599c56852e26623bca83313f56b3a0693f2b` 待三路只读复核。第一轮
 `BLOCK` 在第二轮结果写入前保持有效，不能提前创建 recovered tag。
+
+## 第二轮结果
+
+| Reviewer | P0 | P1 | 结论 |
+|---|---:|---:|---|
+| `recovery_code_review` | 0 | 0 | `PASS` |
+| `recovery_security_review` | 0 | 0 | `PASS` |
+| `recovery_docs_review` | 0 | 3 | `BLOCK` |
+
+docs/governance 的三个 P1 登记为 `MVP-ISSUE-001`：current projection
+冲突、BLOCK reviewer 被误记为批准者、r002 实现缺完整 frozen Task tuple。
+`MVP-W00 r003` 采用 forward-only 修复，不改写 r002 历史；最终三路复核
+仍未执行。

@@ -2,8 +2,9 @@
 
 本文定义 GoClaw 的分波更新规则。它首先用于 Team Web Console 稳定化，
 以后所有需要多个步骤、多个模块或多轮验证的更新也必须遵守同一规则。
-当前机器可读入口是 `MVP-W00`；它只负责从已校验的发布归档恢复权威 Git
-基线并重放确定性 Gate。`PILOT-W00` 在恢复完成前暂停为 `blocked`；
+当前机器可读入口是 `MVP-W00 r003`；它负责从已校验的发布归档恢复权威
+Git 基线、重放确定性 Gate，并完成 r002 发布实现的可追溯最终验收。
+`PILOT-W00` 在恢复完成前暂停为 `blocked`；
 `FE-W01` 仍因外部凭据证明和 ptrace 环境阻断而保留为 `blocked`，二者均未
 被描述为完成。
 
@@ -74,21 +75,23 @@ stateDiagram-v2
 | `frontend-stability/fe-wNN/plan-rNNN.md` | 不可变的 Wave 计划 revision |
 | `frontend-stability/fe-wNN/journal.md` | 追加式状态、变更、决策和证据索引 |
 
-文件名使用英文 kebab-case，Wave ID 使用 `FE-WNN`。文件移动不改变
-Wave ID。一个问题使用稳定 `FE-ISSUE-NNN`，不能因为跨 Wave 就重新编号。
+文件名使用英文 kebab-case。Wave ID 使用 `<TRACK>-WNN`，例如
+`FE-W01`、`PILOT-W00`、`MVP-W00`；Evidence 使用
+`<TRACK>-EVID-...`，Issue 使用 `<TRACK>-ISSUE-NNN`。文件移动或跨 Wave
+不改变稳定 ID。
 
 ## 当前稳定化路线
 
 | Wave | 状态 | 目标 | 产品代码 |
 |---|---|---|---:|
-| [`FE-W00`](frontend-stability/fe-w00/plan-r004.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
-| [`MVP-W00`](recovery/mvp-w00/plan-r001.md) | `active` | 权威源码与 Git 基线恢复、确定性 Gate 重放 | 禁止 |
-| [`FE-W01`](frontend-stability/fe-w01/plan-r010.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
+| [`FE-W00`](frontend-stability/fe-w00/plan-r005.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
+| [`MVP-W00`](recovery/mvp-w00/plan-r003.md) | `active` | 权威源码、可重复发布与可追溯最终验收 | r003 仅文档；禁止运行时业务代码 |
+| [`FE-W01`](frontend-stability/fe-w01/plan-r011.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
 | [`FE-W02`](frontend-stability/fe-w02/plan-r001.md) | `planned` | 所有页面读取 loader 与 RPC 返回契约 | 受限 |
 | [`FE-W03`](frontend-stability/fe-w03/plan-r001.md) | `planned` | 对话、规格、审批、开发和 Harness 命令链 | 受限 |
 | [`FE-W04`](frontend-stability/fe-w04/plan-r001.md) | `planned` | 状态呈现、响应式、可访问性和恢复体验 | 受限 |
 | [`FE-W05`](frontend-stability/fe-w05/plan-r001.md) | `planned` | 集成、安全、回归和发布就绪 | 禁止新增功能 |
-| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r005.md) | `blocked` | Runner、治理、前端、恢复与三人并发试点 | 禁止 |
+| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r006.md) | `blocked` | Runner、治理、前端、恢复与三人并发试点 | 禁止 |
 
 顺序是依赖顺序，不是日期承诺。W00 结束前不开始修复；若 W00 证明某个
 问题属于后端契约、部署或数据迁移，仍保留原 Issue ID，但在相应 Wave
