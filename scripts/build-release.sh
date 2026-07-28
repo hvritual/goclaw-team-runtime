@@ -75,7 +75,10 @@ done < <(
     -mindepth 1 \
     -maxdepth 1 \
     -type d \
-    -name ".release-${release_version}.??????" \
+    \( \
+      -name ".release-${release_version}.??????" -o \
+      -name ".release-${release_version}.??????.cleanup.*" \
+    \) \
     -print
 )
 
@@ -85,14 +88,24 @@ publish_stage="${stage_dir}/release"
 mkdir -p "${work_dir}" "${publish_stage}"
 cleanup_release_stage() {
   if [[ -n "${stage_dir:-}" && -d "${stage_dir}" ]]; then
-    # Some synchronized/container filesystems can transiently recreate an
-    # emptied build directory while the final child exits. Retry the exact
-    # release stage once; the following existence check still fails closed.
-    if ! rm -rf -- "${stage_dir}"; then
-      rm -rf -- "${stage_dir}"
+    # Isolate the stage with one metadata operation before recursively
+    # deleting it. This avoids synchronized/container filesystems repopulating
+    # the original path while a large extracted source tree is being removed.
+    cleanup_stage="${stage_dir}.cleanup.$$"
+    if [[ -e "${cleanup_stage}" ]]; then
+      echo "release cleanup target already exists: ${cleanup_stage}" >&2
+      stage_dir=""
+      return 1
     fi
-    if [[ -e "${stage_dir}" ]]; then
-      echo "cannot remove release stage ${stage_dir}" >&2
+    if ! mv -- "${stage_dir}" "${cleanup_stage}"; then
+      echo "cannot isolate release stage ${stage_dir}" >&2
+      stage_dir=""
+      return 1
+    fi
+    stage_dir=""
+    rm -rf -- "${cleanup_stage}"
+    if [[ -e "${cleanup_stage}" ]]; then
+      echo "cannot remove isolated release stage ${cleanup_stage}" >&2
       stage_dir=""
       return 1
     fi
