@@ -65,6 +65,20 @@ exec 9>"${dist_dir}/.release.lock"
 flock -n 9 ||
   fail_release "another release build already holds ${dist_dir}/.release.lock"
 
+# A killed build can leave an unpublished staging directory. The global lock
+# proves no live publisher owns it, and the validated version keeps the cleanup
+# confined to this release.
+while IFS= read -r stale_stage; do
+  rm -rf -- "${stale_stage}"
+done < <(
+  find "${dist_dir}" \
+    -mindepth 1 \
+    -maxdepth 1 \
+    -type d \
+    -name ".release-${release_version}.??????" \
+    -print
+)
+
 stage_dir="$(mktemp -d "${dist_dir}/.release-${release_version}.XXXXXX")"
 work_dir="${stage_dir}/work"
 publish_stage="${stage_dir}/release"
@@ -72,6 +86,11 @@ mkdir -p "${work_dir}" "${publish_stage}"
 cleanup_release_stage() {
   if [[ -n "${stage_dir:-}" && -d "${stage_dir}" ]]; then
     rm -rf -- "${stage_dir}"
+    if [[ -e "${stage_dir}" ]]; then
+      echo "cannot remove release stage ${stage_dir}" >&2
+      stage_dir=""
+      return 1
+    fi
   fi
 }
 trap cleanup_release_stage EXIT
