@@ -50,6 +50,11 @@
 | `PILOT-EVID-009` | `PILOT-W00` | `PILOT-ISSUE-011` | external attestation | owner 证明历史材料已撤销/轮换或从未有效 | 待 credential owner 产生 | `planned` | unassigned |
 | `PILOT-EVID-010` | `PILOT-W00` | `PILOT-ISSUE-001`、`002` | target substrate smoke | 真机 native Linux、WSL2 与 Lima 均通过 doctor、无网络 bwrap 和中断清理 | 待三名试点 owner 产生 | `planned` | unassigned |
 | `PILOT-EVID-011` | `PILOT-W00` | 试点外部 Gate | credential/integration | 三名成员各自 Codex OAuth、真实飞书路由和可选 Obsidian Desktop 交互通过 | 待三名试点 owner 与飞书管理员产生 | `planned` | unassigned |
+| `MVP-EVID-001` | `MVP-W00` | source recovery | provenance | 原归档 SHA、成员、解压树、Git import tree 一致 | [`SOURCE_PROVENANCE`](../recovery/SOURCE_PROVENANCE.md) | `passed` | independent review in progress |
+| `MVP-EVID-002` | `MVP-W00` | deterministic Go | test/race/vet | 全包 test、6 个关键包 race/vet 通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | independent review in progress |
+| `MVP-EVID-003` | `MVP-W00` | Web/Obsidian | test/build | Web 8/8、Adapter 6/6、两项 build 通过且 tracked bundle 无 diff | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | independent review in progress |
+| `MVP-EVID-004` | `MVP-W00` | release rebuild | cross-build/archive scan | Linux 双架构、控制端交叉编译、恢复扫描和归档 SHA 通过 | [`RECOVERY_GATE_REPORT`](../recovery/RECOVERY_GATE_REPORT.md) | `passed` | independent review in progress |
+| `MVP-EVID-005` | `MVP-W00` | independent review | code/security/docs | 三路只读复核无未关闭 P0/P1 | 待 `RECOVERY_REVIEW.md` | `collecting` | three independent reviewers |
 
 证据状态允许：`planned`、`collecting`、`passed`、`failed`、`superseded`。
 
