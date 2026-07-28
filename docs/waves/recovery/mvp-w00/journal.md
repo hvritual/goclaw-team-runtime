@@ -122,6 +122,27 @@
 |---|---|---|---|---|
 | 2026-07-28 | `MVP-W00-S06B` | `planned → complete` | 三个 docs P1 的实现已完成，`MVP-ISSUE-001 fixed` | 完整重验与最终独立复核 |
 
+## 2026-07-28 — S06C r003 完整重验
+
+- Policy manifest 自校验通过；
+- 固定 import tree 重放为 611/611，内容/执行位/extra 全为 0；
+- archive negative suite 全部 fail closed；
+- Go 全包、六关键包 race/vet 全部通过；
+- Web 8/8、Obsidian 6/6 及两项 production build 通过；
+- commit `3c209a411333d31bdac44896a40d256bde33e3b0` 连续 release 构建两次，
+  第二次整目录 identical；
+- manifest commit/tree 与该候选完全一致，工作树无产品 diff。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S06C` | `planned → review` | frozen Task 下全量 Gate 通过；最终三路复核待执行 | exact HEAD code/security/docs review |
+
+### Evidence ledger 追加
+
+| Evidence ID | 时间 | Step/Issue/Task | Artifact/Trace | SHA-256 | 声明 | 结果 | 生成者 | 复核者 |
+|---|---|---|---|---|---|---|---|---|
+| `MVP-EVID-005B` | 2026-07-28 | `MVP-W00-S06C` / `MVP-ISSUE-001` / `MVP-W00-RECOVERY-003 r003` | r003 release manifest | `16ea5c12c1bdc9334f3eef8ee444148e50cd4aabade11a1deb60c8adcfe81965` | exact Task/Policy 下全量重验与双构建一致 | `pass` | Codex root agent | final review pending |
+
 ## 终态声明
 
 尚未进入终态。

@@ -74,3 +74,9 @@ docs/governance 的三个 P1 登记为 `MVP-ISSUE-001`：current projection
 冲突、BLOCK reviewer 被误记为批准者、r002 实现缺完整 frozen Task tuple。
 `MVP-W00 r003` 采用 forward-only 修复，不改写 r002 历史；最终三路复核
 仍未执行。
+
+## r003 最终复核
+
+状态：S06A–S06C 已完成，等待 code/security/docs 对提交后的 exact clean
+HEAD 做最终只读复核。reviewer prompt 必须携带完整 commit/tree；结论写回
+时在本文件记录该不可变 locator。三路 P0/P1 清零前当前 `BLOCK` 不变。
