@@ -177,3 +177,20 @@
 | 2026-07-28 | `MVP-W00-S07B` | `planned → complete` | Task base commit/tree/policy 可复算 | 恢复 Journal |
 | 2026-07-28 | `MVP-W00-S07C` | `planned → blocked` | 四个历史前缀已恢复，但 r004 Plan/Task 把权威 FE-W01 SHA `33a50e1bbd...` 误抄为 `33a50e8f3a...` | 登记 `MVP-ISSUE-003`，创建后继 revision |
 | 2026-07-28 | `MVP-W00-S07D` | `planned → blocked` | 冻结 acceptance 不可满足，未执行全量 Gate 或 final review | 修正验收常量并重新冻结 |
+
+## 2026-07-28 — r005 正确常量与 Task 冻结
+
+- r005 将 FE-W01 26641-byte SHA 修正为 r009 Plan、R7 Evidence、import tree
+  与当前文件共同复算的
+  `33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`；
+- activation `df8fe9f` 已包含 active r005 Plan/Registry/Policy；
+- 后继 commit `96de00a` 冻结 `MVP-W00-RECOVERY-005`，base commit/tree 与
+  Policy manifest 均可复算；
+- 五个冻结前缀长度/SHA 全部通过，current projection 唯一切换到 r005。
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-28 | `MVP-W00-S08A` | `planned → complete` | r005 activation 只包含 Plan/Registry/Issue/Policy | 从 activation base 冻结 |
+| 2026-07-28 | `MVP-W00-S08B` | `planned → complete` | exact base 含 active r005 Plan/Registry/Policy | 复算投影与前缀 |
+| 2026-07-28 | `MVP-W00-S08C` | `planned → complete` | 五个冻结前缀和 current projection 一致 | 全量确定性 Gate |
+| 2026-07-28 | `MVP-W00-S08D` | `planned → active` | Gate 与 final review 尚未执行 | exact clean HEAD revalidation |

@@ -2,7 +2,7 @@
 
 本文定义 GoClaw 的分波更新规则。它首先用于 Team Web Console 稳定化，
 以后所有需要多个步骤、多个模块或多轮验证的更新也必须遵守同一规则。
-当前机器可读入口是 `MVP-W00 r004`；它负责从已校验的发布归档恢复权威
+当前机器可读入口是 `MVP-W00 r005`；它负责从已校验的发布归档恢复权威
 Git 基线、重放确定性 Gate，并完成可从 base 解析且保持 Journal
 append-only 的最终验收。
 `PILOT-W00` 在恢复完成前暂停为 `blocked`；
@@ -86,7 +86,7 @@ stateDiagram-v2
 | Wave | 状态 | 目标 | 产品代码 |
 |---|---|---|---:|
 | [`FE-W00`](frontend-stability/fe-w00/plan-r005.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
-| [`MVP-W00`](recovery/mvp-w00/plan-r004.md) | `active` | 权威源码、可重复发布与可追溯最终验收 | r004 仅文档；禁止运行时业务代码 |
+| [`MVP-W00`](recovery/mvp-w00/plan-r005.md) | `active` | 权威源码、可重复发布与可追溯最终验收 | r005 仅文档；禁止运行时业务代码 |
 | [`FE-W01`](frontend-stability/fe-w01/plan-r011.md) | `blocked` | 可追溯 R7、登录、WebSocket transport、inert-provider Gate 与本地 Playwright 回归 | 禁止 |
 | [`FE-W02`](frontend-stability/fe-w02/plan-r001.md) | `planned` | 所有页面读取 loader 与 RPC 返回契约 | 受限 |
 | [`FE-W03`](frontend-stability/fe-w03/plan-r001.md) | `planned` | 对话、规格、审批、开发和 Harness 命令链 | 受限 |

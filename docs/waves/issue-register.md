@@ -50,9 +50,9 @@
 
 | Issue ID | 流程 | 环境/基线 | 期望 | 实际 | 严重度 | 状态 | 证据 | Wave | Task |
 |---|---|---|---|---|---|---|---|---|---|
-| `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；r003 final review | current revision/权限唯一；批准者真实；Task 可从 exact base 解析完整 tuple/policy | r002 的 projection/批准/tuple 缺口在 r003 修复，但 r003 Task base 尚不含 active r003 Plan/Registry/Policy，形成 self-authorizing freeze | `S1` | `fixed` | r004 activation `91d47a8` 与 freeze `7c78f52` 顺序分离；等待最终独立验证 | `MVP-W00-S07A`–`S07E` | `MVP-W00-RECOVERY-004` r004 |
-| `MVP-ISSUE-002` | Journal 历史完整性 | recovered Git；r003 final review | 已冻结历史字节不变，Recovery 状态只在 EOF 追加 | FE-W01 前 26641 bytes SHA 从 `33a50e...` 变为 `b98013...`；FE-W00/PILOT/MVP 也存在顶部改写或中间插入 | `S1` | `fixed` | 四个历史前缀与 FE-W01 独立冻结 SHA 已恢复；等待后继 revision 独立验证 | `MVP-W00-S07C`–`S07E` | `MVP-W00-RECOVERY-004` r004 |
-| `MVP-ISSUE-003` | Recovery 冻结验收常量 | recovered Git；r004 S07C 实算 | Plan/Task 的 FE-W01 26641-byte SHA 与 r009 Plan、R7 Evidence、import tree 一致 | r004 误抄为 `33a50e8f3a...`；三份权威来源与实算均为 `33a50e1bbd...` | `S1` | `fixing` | `plan-r009.md`、`s12-r7-traceable-deterministic-revalidation.md`、import tree 和 `head -c 26641`；r005 | `MVP-W00-S08A`–`S08E` | activation 后冻结 |
+| `MVP-ISSUE-001` | Recovery 治理与最终发布 | recovered Git；r003 final review | current revision/权限唯一；批准者真实；Task 可从 exact base 解析完整 tuple/policy | r002 的 projection/批准/tuple 缺口在 r003 修复，但 r003 Task base 尚不含 active r003 Plan/Registry/Policy，形成 self-authorizing freeze | `S1` | `fixed` | r005 activation `df8fe9f` 与 freeze `96de00a` 顺序分离；等待最终独立验证 | `MVP-W00-S08A`–`S08E` | `MVP-W00-RECOVERY-005` r005 |
+| `MVP-ISSUE-002` | Journal 历史完整性 | recovered Git；r003 final review | 已冻结历史字节不变，Recovery 状态只在 EOF 追加 | FE-W01 前 26641 bytes SHA 从 `33a50e...` 变为 `b98013...`；FE-W00/PILOT/MVP 也存在顶部改写或中间插入 | `S1` | `fixed` | r005 S08C 五个冻结前缀复算通过；等待最终独立验证 | `MVP-W00-S08C`–`S08E` | `MVP-W00-RECOVERY-005` r005 |
+| `MVP-ISSUE-003` | Recovery 冻结验收常量 | recovered Git；r004 S07C 实算 | Plan/Task 的 FE-W01 26641-byte SHA 与 r009 Plan、R7 Evidence、import tree 一致 | r004 误抄为 `33a50e8f3a...`；三份权威来源与实算均为 `33a50e1bbd...` | `S1` | `fixed` | r005 Plan/Task 引用完整权威 SHA；四来源复算一致；等待最终独立验证 | `MVP-W00-S08A`–`S08E` | `MVP-W00-RECOVERY-005` r005 |
 
 ## 三人试点问题
 

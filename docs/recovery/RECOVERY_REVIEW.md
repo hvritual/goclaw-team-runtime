@@ -92,8 +92,14 @@ Journal 的冻结历史字节被改写或插入，FE-W01 独立冻结 SHA 失效
 activation → freeze → implementation 三提交前向修复，并恢复 Journal
 历史前缀；不 amend/rebase r003 或更早历史。
 
-## r004 最终复核
+## r004 失败关闭
 
 状态：S07C 在 final review 前发现 frozen SHA acceptance 抄写错误并失败
 关闭；登记 `MVP-ISSUE-003`。r004 不执行 S07D/S07E，也不提交 final
 review；后继 revision 修正常量并重新冻结前当前 `BLOCK` 不变。
+
+## r005 最终复核
+
+状态：activation base 与 Task freeze 已分离，S08C 五个前缀复算通过；
+等待 S08D 全量 Gate 和 exact clean HEAD 三路只读复核。三路 P0/P1 清零前
+当前 `BLOCK` 不变。

@@ -1,9 +1,9 @@
 # GoClaw 恢复 Gate 报告
 
-Wave：`MVP-W00 r004`
+Wave：`MVP-W00 r005`
 
-状态：r004 Task 已从 activation base 冻结；Journal 历史前缀已恢复，但
-r004 Plan/Task 的 FE-W01 SHA 常量抄写错误；本 revision 失败关闭
+状态：r005 Task 已从 activation base 冻结；五个历史前缀与权威 SHA
+复算通过；r005 全量确定性 Gate 与最终独立复核待执行
 日期：2026-07-28
 
 ## Gate 矩阵
@@ -24,7 +24,7 @@ r004 Plan/Task 的 FE-W01 SHA 常量抄写错误；本 revision 失败关闭
 | Archive negative tests | `test-release-archive-lib.sh` | `pass` | duplicate/extra/link/traversal 全部 fail closed |
 | Release build | `scripts/build-release.sh` × 2 | `pass` | 首次原子发布；第二次整目录 identical |
 | Source scan | release script recoverable scan | `pass` | 路径、类型、二进制、凭据和精确成员合同通过 |
-| Independent review | code/security/docs | `collecting` | r003 final：code/docs 各 P1=1、security PASS；r004 final 待执行 |
+| Independent review | code/security/docs | `collecting` | r003 final BLOCK；r004 常量错误失败关闭；r005 final 待执行 |
 
 ## 通过规则
 
@@ -149,3 +149,18 @@ R7 Evidence 和 import tree 共同固定的
 r004 Plan/Task 把该值误抄为 `33a50e8f3a...`。原值、原文件与实算结果三者
 一致，不能为了满足错误常量改写 Journal；因此 r004 S07C 失败关闭并登记
 `MVP-ISSUE-003`，后继 revision 必须修正验收常量后重新冻结。
+
+## S08C r005 权威常量与 Task 复算
+
+r005 activation base 为
+`df8fe9f3a258a1265ec54a55830e1b05aaef4596`，tree 为
+`7862625bab872b2ad8d3463fda56db9d8c069cd4`。该 base 已包含 active
+`plan-r005.md`、Registry 和 Policy manifest；manifest SHA-256 为
+`49a20a17d6a528fc20d28eb59fa0b9b2bbaedaf6a6e2319f8aab21fe8f4e3b60`。
+Task freeze 位于后继 commit `96de00a8eec661c0f2e5d17fac7ff8fe8c375574`。
+
+`plan-r009.md`、R7 Evidence、import tree 与当前文件对 FE-W01
+26641-byte 前缀的结果均为
+`33a50e1bbd028ca06adcee3e18df0ea62f405ff72a6e982b318720c11bccf997`；
+S08C 的五个冻结长度/SHA 全部通过。r004 错误常量仅作为失败历史保留，
+current acceptance 已唯一切换到 r005。
