@@ -34,3 +34,10 @@
 - Policy manifest `3/3`，SHA-256 `5d06456c...`；
 - 后继实现必须使用 r003 tuple；r002 产品改动尚未提交，可在本授权下前向
   完成。
+
+## 2026-07-29 — r004 release identity scope correction
+
+- RunnerRelease 缺 `size_bytes`，本地 stage 无法同时绑定中央大小与 SHA；
+- r003 scope 未授权 `gateway/team_control.go` 投影新增非秘密字段；
+- r004 前向增加完整 artifact identity 与最小 Gateway scope；此前产品
+  变更仍未提交，不改写 r002/r003 历史。
