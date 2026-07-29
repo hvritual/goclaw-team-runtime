@@ -1129,9 +1129,9 @@ func (h *Handler) rpcControlSummary(
 	}
 	var limit, used int64
 	for _, budget := range budgets {
-		if budget.LimitTokens > math.MaxInt64-limit ||
-			budget.UsedTokens > math.MaxInt64-used {
-			return nil, fmt.Errorf("budget summary overflow")
+		if budget.LimitTokens > teamcontrol.MaxProjectTokenTotal-limit ||
+			budget.UsedTokens > teamcontrol.MaxProjectTokenTotal-used {
+			return nil, fmt.Errorf("budget summary exceeds JavaScript safe integer")
 		}
 		limit += budget.LimitTokens
 		used += budget.UsedTokens

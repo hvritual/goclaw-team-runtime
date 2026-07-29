@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -37,6 +38,15 @@ func TestTokenBudgetUsageIsIdempotentBoundedAndConcurrent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, beforeReplay, afterReplay)
 	require.Equal(t, beforeRevision, fixture.service.store.state.Revision)
+	_, err = fixture.service.RecordTokenUsage(
+		fixture.alice.ID,
+		RecordTokenUsageInput{
+			ID: "usage-canonical-collision", ProjectID: fixture.projectA.ID,
+			BudgetID: budget.ID, Tokens: 1,
+			Metadata: map[string]string{"model": "codex", "MODEL": "other"},
+		},
+	)
+	require.ErrorContains(t, err, "duplicates canonical key")
 
 	conflictInput := first
 	conflictInput.Tokens = 11
@@ -300,6 +310,9 @@ func TestRegistryAndContextCompilerAreProjectScopedAndDeterministic(t *testing.T
 	}
 	first, err := fixture.service.CompileContext(fixture.alice.ID, input)
 	require.NoError(t, err)
+	beforeReplay, err := os.ReadFile(fixture.service.store.path)
+	require.NoError(t, err)
+	beforeRevision := fixture.service.store.state.Revision
 	second, err := fixture.service.CompileContext(
 		fixture.alice.ID,
 		CompileContextInput{
@@ -312,6 +325,10 @@ func TestRegistryAndContextCompilerAreProjectScopedAndDeterministic(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, first.ID, second.ID)
 	require.Equal(t, first.Hash, second.Hash)
+	afterReplay, err := os.ReadFile(fixture.service.store.path)
+	require.NoError(t, err)
+	require.Equal(t, beforeReplay, afterReplay)
+	require.Equal(t, beforeRevision, fixture.service.store.state.Revision)
 	require.Equal(t, ContextCompilerVersion, first.CompilerVersion)
 	require.Len(t, first.Knowledge, 1)
 	require.Len(t, first.Skills, 1)
@@ -441,6 +458,10 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		"https://user:secret@example.invalid/knowledge",
 		"https://example.invalid/knowledge?token=secret",
 		"https://example.invalid/knowledge#secret",
+		"//attacker/share/knowledge",
+		`\\attacker\share\knowledge`,
+		"x://attacker/share/knowledge",
+		`\\?\C:\vault\knowledge`,
 	} {
 		input := base
 		input.URI = uri
@@ -451,6 +472,9 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 	input.Metadata = map[string]string{"provider_token": "secret"}
 	_, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
 	require.ErrorContains(t, err, "unsupported metadata key")
+	input.Metadata = map[string]string{"source_kind": "git", "SOURCE_KIND": "file"}
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+	require.ErrorContains(t, err, "duplicates canonical key")
 
 	created, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, base)
 	require.NoError(t, err)
@@ -472,6 +496,10 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 	approved.Status = RegistryApproved
 	value, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, approved)
 	require.NoError(t, err)
+	downgrade := approved
+	downgrade.Status = RegistryDraft
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, downgrade)
+	require.ErrorIs(t, err, ErrInvalidTransition)
 	require.ErrorIs(t, fixture.service.DeleteKnowledgeSource(
 		fixture.alice.ID, fixture.projectA.ID, value.ID,
 	), ErrConflict)
@@ -482,28 +510,42 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		fixture.alice.ID, fixture.projectA.ID, value.ID,
 	))
 
-	skill, err := fixture.service.PutSkillRelease(
-		fixture.alice.ID,
-		PutSkillReleaseInput{
-			ID: "skill-delete", ProjectID: fixture.projectA.ID, Name: "skill",
-			Version: "1", URI: "file:///skills/delete", SHA256: checksum,
-			Status: RegistryDisabled,
-		},
-	)
+	skillInput := PutSkillReleaseInput{
+		ID: "skill-delete", ProjectID: fixture.projectA.ID, Name: "skill",
+		Version: "1", URI: "file:///skills/delete", SHA256: checksum,
+		Status: RegistryApproved,
+	}
+	skill, err := fixture.service.PutSkillRelease(fixture.alice.ID, skillInput)
+	require.NoError(t, err)
+	skillInput.Status = RegistryDraft
+	_, err = fixture.service.PutSkillRelease(fixture.alice.ID, skillInput)
+	require.ErrorIs(t, err, ErrInvalidTransition)
+	require.ErrorIs(t, fixture.service.DeleteSkillRelease(
+		fixture.alice.ID, fixture.projectA.ID, skill.ID,
+	), ErrConflict)
+	skillInput.Status = RegistryDisabled
+	_, err = fixture.service.PutSkillRelease(fixture.alice.ID, skillInput)
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.DeleteSkillRelease(
 		fixture.alice.ID, fixture.projectA.ID, skill.ID,
 	))
 
-	release, err := fixture.service.PutRunnerRelease(
-		fixture.alice.ID,
-		PutRunnerReleaseInput{
-			ID: "runner-delete", ProjectID: fixture.projectA.ID,
-			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
-			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
-			MinProtocol: "1", Status: RegistryDisabled,
-		},
-	)
+	releaseInput := PutRunnerReleaseInput{
+		ID: "runner-delete", ProjectID: fixture.projectA.ID,
+		Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
+		URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
+		MinProtocol: "1", Status: RegistryApproved,
+	}
+	release, err := fixture.service.PutRunnerRelease(fixture.alice.ID, releaseInput)
+	require.NoError(t, err)
+	releaseInput.Status = RegistryDraft
+	_, err = fixture.service.PutRunnerRelease(fixture.alice.ID, releaseInput)
+	require.ErrorIs(t, err, ErrInvalidTransition)
+	require.ErrorIs(t, fixture.service.DeleteRunnerRelease(
+		fixture.alice.ID, fixture.projectA.ID, release.ID,
+	), ErrConflict)
+	releaseInput.Status = RegistryDisabled
+	_, err = fixture.service.PutRunnerRelease(fixture.alice.ID, releaseInput)
 	require.NoError(t, err)
 	require.NoError(t, fixture.service.DeleteRunnerRelease(
 		fixture.alice.ID, fixture.projectA.ID, release.ID,
@@ -544,6 +586,59 @@ func TestLegacyUnsafeRegistryFailsClosedOnReadAndCompile(t *testing.T) {
 	require.ErrorContains(t, err, "failed schema validation")
 }
 
+func TestLegacyUnsafeUsageMetadataFailsClosedOnList(t *testing.T) {
+	fixture := newTestFixture(t)
+	budget, err := fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		PutTokenBudgetInput{
+			ID: "legacy-usage-budget", ProjectID: fixture.projectA.ID,
+			LimitTokens: 10,
+		},
+	)
+	require.NoError(t, err)
+	event, err := fixture.service.RecordTokenUsage(
+		fixture.alice.ID,
+		RecordTokenUsageInput{
+			ID: "legacy-usage", ProjectID: fixture.projectA.ID,
+			BudgetID: budget.ID, Tokens: 1,
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.store.update(func(st *state) error {
+		key := projectResourceKey(fixture.projectA.ID, event.ID)
+		legacy := st.TokenUsageEvents[key]
+		legacy.Metadata = map[string]string{"provider_token": "legacy-secret"}
+		st.TokenUsageEvents[key] = legacy
+		return nil
+	}))
+
+	_, err = fixture.service.ListTokenUsage(
+		fixture.alice.ID, fixture.projectA.ID, budget.ID,
+	)
+	require.ErrorContains(t, err, "failed metadata schema validation")
+}
+
+func TestStoredContextHashMismatchFailsClosed(t *testing.T) {
+	fixture := newTestFixture(t)
+	bundle, err := fixture.service.CompileContext(
+		fixture.alice.ID,
+		CompileContextInput{ProjectID: fixture.projectA.ID},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.store.update(func(st *state) error {
+		key := projectResourceKey(fixture.projectA.ID, bundle.ID)
+		value := st.ContextBundles[key]
+		value.TargetUserID = fixture.bob.ID
+		st.ContextBundles[key] = value
+		return nil
+	}))
+
+	_, err = fixture.service.ListContextBundles(
+		fixture.alice.ID, fixture.projectA.ID,
+	)
+	require.ErrorContains(t, err, "hash or id does not match")
+}
+
 func TestRegistryCRUDPersistsAcrossReopen(t *testing.T) {
 	root := t.TempDir()
 	fixture := newTestFixtureAt(t, root)
@@ -556,6 +651,26 @@ func TestRegistryCRUDPersistsAcrossReopen(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+	checksum := strings.Repeat("f", 64)
+	skill, err := fixture.service.PutSkillRelease(
+		fixture.alice.ID,
+		PutSkillReleaseInput{
+			ID: "persistent-skill", ProjectID: fixture.projectA.ID,
+			Name: "Persistent", Version: "1", URI: "file:///skills/persistent",
+			SHA256: checksum, Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
+	release, err := fixture.service.PutRunnerRelease(
+		fixture.alice.ID,
+		PutRunnerReleaseInput{
+			ID: "persistent-runner", ProjectID: fixture.projectA.ID,
+			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
+			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
+			MinProtocol: "1", Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
 	reopened, err := Open(root)
 	require.NoError(t, err)
 	got, err := reopened.GetKnowledgeSource(
@@ -563,13 +678,37 @@ func TestRegistryCRUDPersistsAcrossReopen(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, value, got)
+	gotSkill, err := reopened.GetSkillRelease(
+		fixture.alice.ID, fixture.projectA.ID, skill.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, skill, gotSkill)
+	gotRelease, err := reopened.GetRunnerRelease(
+		fixture.alice.ID, fixture.projectA.ID, release.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, release, gotRelease)
 	require.NoError(t, reopened.DeleteKnowledgeSource(
 		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	))
+	require.NoError(t, reopened.DeleteSkillRelease(
+		fixture.alice.ID, fixture.projectA.ID, skill.ID,
+	))
+	require.NoError(t, reopened.DeleteRunnerRelease(
+		fixture.alice.ID, fixture.projectA.ID, release.ID,
 	))
 	reopenedAgain, err := Open(root)
 	require.NoError(t, err)
 	_, err = reopenedAgain.GetKnowledgeSource(
 		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	)
+	require.ErrorIs(t, err, ErrNotFound)
+	_, err = reopenedAgain.GetSkillRelease(
+		fixture.alice.ID, fixture.projectA.ID, skill.ID,
+	)
+	require.ErrorIs(t, err, ErrNotFound)
+	_, err = reopenedAgain.GetRunnerRelease(
+		fixture.alice.ID, fixture.projectA.ID, release.ID,
 	)
 	require.ErrorIs(t, err, ErrNotFound)
 }
@@ -612,13 +751,80 @@ func TestInitialControlPlaneBareKeysMigrateToProjectKeys(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
+	usage, err := fixture.service.RecordTokenUsage(
+		fixture.alice.ID,
+		RecordTokenUsageInput{
+			ID: "legacy-usage", ProjectID: fixture.projectA.ID,
+			BudgetID: budget.ID, Tokens: 1,
+		},
+	)
+	require.NoError(t, err)
+	currentBudgets, err := fixture.service.ListTokenBudgets(
+		fixture.alice.ID, fixture.projectA.ID,
+	)
+	require.NoError(t, err)
+	require.Len(t, currentBudgets, 1)
+	budget = currentBudgets[0]
+	checksum := strings.Repeat("a", 64)
+	knowledge, err := fixture.service.PutKnowledgeSource(
+		fixture.alice.ID,
+		PutKnowledgeSourceInput{
+			ID: "legacy-knowledge", ProjectID: fixture.projectA.ID,
+			Name: "Legacy", URI: "file:///vault/legacy.md", Revision: "1",
+			SHA256: checksum, Status: RegistryApproved,
+		},
+	)
+	require.NoError(t, err)
+	skill, err := fixture.service.PutSkillRelease(
+		fixture.alice.ID,
+		PutSkillReleaseInput{
+			ID: "legacy-skill", ProjectID: fixture.projectA.ID,
+			Name: "legacy", Version: "1", URI: "file:///skills/legacy",
+			SHA256: checksum, Status: RegistryApproved,
+		},
+	)
+	require.NoError(t, err)
+	release, err := fixture.service.PutRunnerRelease(
+		fixture.alice.ID,
+		PutRunnerReleaseInput{
+			ID: "legacy-runner", ProjectID: fixture.projectA.ID,
+			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
+			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
+			MinProtocol: "1",
+		},
+	)
+	require.NoError(t, err)
+	bundle, err := fixture.service.CompileContext(
+		fixture.alice.ID,
+		CompileContextInput{
+			ProjectID: fixture.projectA.ID, BudgetID: budget.ID,
+			KnowledgeIDs: []string{knowledge.ID}, SkillIDs: []string{skill.ID},
+		},
+	)
+	require.NoError(t, err)
 	statePath := filepath.Join(root, stateFileName)
 	data, err := os.ReadFile(statePath)
 	require.NoError(t, err)
 	var stored state
 	require.NoError(t, json.Unmarshal(data, &stored))
-	value := stored.TokenBudgets[projectResourceKey(fixture.projectA.ID, budget.ID)]
-	stored.TokenBudgets = map[string]TokenBudget{budget.ID: value}
+	stored.TokenBudgets = map[string]TokenBudget{
+		budget.ID: stored.TokenBudgets[projectResourceKey(fixture.projectA.ID, budget.ID)],
+	}
+	stored.TokenUsageEvents = map[string]TokenUsageEvent{
+		usage.ID: stored.TokenUsageEvents[projectResourceKey(fixture.projectA.ID, usage.ID)],
+	}
+	stored.KnowledgeSources = map[string]KnowledgeSource{
+		knowledge.ID: stored.KnowledgeSources[projectResourceKey(fixture.projectA.ID, knowledge.ID)],
+	}
+	stored.SkillReleases = map[string]SkillRelease{
+		skill.ID: stored.SkillReleases[projectResourceKey(fixture.projectA.ID, skill.ID)],
+	}
+	stored.RunnerReleases = map[string]RunnerRelease{
+		release.ID: stored.RunnerReleases[projectResourceKey(fixture.projectA.ID, release.ID)],
+	}
+	stored.ContextBundles = map[string]ContextBundle{
+		bundle.ID: stored.ContextBundles[projectResourceKey(fixture.projectA.ID, bundle.ID)],
+	}
 	legacy, err := json.Marshal(stored)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(statePath, legacy, 0o600))
@@ -631,4 +837,108 @@ func TestInitialControlPlaneBareKeysMigrateToProjectKeys(t *testing.T) {
 	require.Contains(t, reopened.store.state.TokenBudgets, projectResourceKey(
 		fixture.projectA.ID, budget.ID,
 	))
+	require.Contains(t, reopened.store.state.TokenUsageEvents, projectResourceKey(
+		fixture.projectA.ID, usage.ID,
+	))
+	require.Contains(t, reopened.store.state.KnowledgeSources, projectResourceKey(
+		fixture.projectA.ID, knowledge.ID,
+	))
+	require.Contains(t, reopened.store.state.SkillReleases, projectResourceKey(
+		fixture.projectA.ID, skill.ID,
+	))
+	require.Contains(t, reopened.store.state.RunnerReleases, projectResourceKey(
+		fixture.projectA.ID, release.ID,
+	))
+	require.Contains(t, reopened.store.state.ContextBundles, projectResourceKey(
+		fixture.projectA.ID, bundle.ID,
+	))
+	persistedData, err := os.ReadFile(statePath)
+	require.NoError(t, err)
+	var persisted state
+	require.NoError(t, json.Unmarshal(persistedData, &persisted))
+	require.Contains(t, persisted.TokenBudgets, projectResourceKey(
+		fixture.projectA.ID, budget.ID,
+	))
+	require.Contains(t, persisted.TokenUsageEvents, projectResourceKey(
+		fixture.projectA.ID, usage.ID,
+	))
+	require.Contains(t, persisted.KnowledgeSources, projectResourceKey(
+		fixture.projectA.ID, knowledge.ID,
+	))
+	require.Contains(t, persisted.SkillReleases, projectResourceKey(
+		fixture.projectA.ID, skill.ID,
+	))
+	require.Contains(t, persisted.RunnerReleases, projectResourceKey(
+		fixture.projectA.ID, release.ID,
+	))
+	require.Contains(t, persisted.ContextBundles, projectResourceKey(
+		fixture.projectA.ID, bundle.ID,
+	))
+}
+
+func TestLegacyProjectBudgetAboveJavaScriptSafeIntegerFailsLoad(t *testing.T) {
+	root := t.TempDir()
+	fixture := newTestFixtureAt(t, root)
+	statePath := filepath.Join(root, stateFileName)
+	data, err := os.ReadFile(statePath)
+	require.NoError(t, err)
+	var stored state
+	require.NoError(t, json.Unmarshal(data, &stored))
+	for index := 0; index < 10; index++ {
+		id := fmt.Sprintf("legacy-overflow-%d", index)
+		budget := TokenBudget{
+			ID: id, ProjectID: fixture.projectA.ID,
+			LimitTokens: MaxTokenBudget,
+		}
+		stored.TokenBudgets[id] = budget
+	}
+	legacy, err := json.Marshal(stored)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(statePath, legacy, 0o600))
+
+	_, err = Open(root)
+	require.ErrorContains(t, err, "JavaScript safe integer")
+}
+
+func TestLegacyCompositeKeyMigrationCollisionFailsLoad(t *testing.T) {
+	root := t.TempDir()
+	fixture := newTestFixtureAt(t, root)
+	statePath := filepath.Join(root, stateFileName)
+	data, err := os.ReadFile(statePath)
+	require.NoError(t, err)
+	var stored state
+	require.NoError(t, json.Unmarshal(data, &stored))
+	value := TokenBudget{
+		ID: "duplicate", ProjectID: fixture.projectA.ID, LimitTokens: 10,
+	}
+	stored.TokenBudgets = map[string]TokenBudget{
+		"legacy-a": value,
+		"legacy-b": value,
+	}
+	legacy, err := json.Marshal(stored)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(statePath, legacy, 0o600))
+
+	_, err = Open(root)
+	require.ErrorContains(t, err, "multiple resources normalize")
+	after, readErr := os.ReadFile(statePath)
+	require.NoError(t, readErr)
+	require.Equal(t, legacy, after)
+}
+
+func TestExistingStatePermissionsFailClosed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose Unix state-file permission bits")
+	}
+	root := t.TempDir()
+	fixture := newTestFixtureAt(t, root)
+	statePath := filepath.Join(root, stateFileName)
+	require.NoError(t, os.Chmod(statePath, 0o644))
+
+	_, err := Open(root)
+	require.ErrorContains(t, err, "permissions")
+	require.NoError(t, os.Chmod(statePath, 0o600))
+	_, err = Open(root)
+	require.NoError(t, err)
+	_ = fixture
 }

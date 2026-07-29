@@ -279,6 +279,13 @@ func validateStoredPolicy(policy PolicyBundle) error {
 	if _, err := canonicalRules(policy.Rules); err != nil {
 		return fmt.Errorf("stored policy %q failed schema validation: %w", policy.ID, err)
 	}
+	hash, err := hashPolicyBundle(policy)
+	if err != nil {
+		return fmt.Errorf("stored policy %q failed hash validation: %w", policy.ID, err)
+	}
+	if hash != policy.Hash {
+		return fmt.Errorf("stored policy %q hash does not match canonical content", policy.ID)
+	}
 	return nil
 }
 

@@ -1,11 +1,14 @@
 package teamcontrol
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -34,6 +37,19 @@ func openFileStore(path string) (*fileStore, error) {
 	if err := os.MkdirAll(filepath.Dir(absolute), 0o700); err != nil {
 		return nil, fmt.Errorf("create teamcontrol directory: %w", err)
 	}
+	if info, statErr := os.Lstat(absolute); statErr == nil {
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("teamcontrol state must be a regular file")
+		}
+		if runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0 {
+			return nil, fmt.Errorf(
+				"teamcontrol state permissions %04o are too broad; require 0600",
+				info.Mode().Perm(),
+			)
+		}
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return nil, fmt.Errorf("inspect teamcontrol state: %w", statErr)
+	}
 
 	store := &fileStore{path: absolute}
 	data, err := os.ReadFile(absolute)
@@ -48,8 +64,21 @@ func openFileStore(path string) (*fileStore, error) {
 				store.state.SchemaVersion,
 			)
 		}
+		beforeNormalize, err := json.Marshal(store.state)
+		if err != nil {
+			return nil, fmt.Errorf("encode pre-normalized teamcontrol state: %w", err)
+		}
 		if err := normalizeState(&store.state); err != nil {
 			return nil, fmt.Errorf("normalize teamcontrol state: %w", err)
+		}
+		afterNormalize, err := json.Marshal(store.state)
+		if err != nil {
+			return nil, fmt.Errorf("encode normalized teamcontrol state: %w", err)
+		}
+		if !bytes.Equal(beforeNormalize, afterNormalize) {
+			if err := writeStateAtomic(absolute, store.state); err != nil {
+				return nil, fmt.Errorf("persist normalized teamcontrol state: %w", err)
+			}
 		}
 	case errors.Is(err, os.ErrNotExist):
 		store.state = newState()
@@ -100,7 +129,7 @@ func (s *fileStore) updateWithChange(
 	if err != nil {
 		return err
 	}
-	if !changed {
+	if !changed || reflect.DeepEqual(s.state, next) {
 		return nil
 	}
 	next.SchemaVersion = SchemaVersion
@@ -210,6 +239,9 @@ func normalizeState(value *state) error {
 	if err != nil {
 		return fmt.Errorf("token budgets: %w", err)
 	}
+	if err := validateStoredBudgetTotals(value.TokenBudgets); err != nil {
+		return err
+	}
 	value.TokenUsageEvents, err = normalizeProjectMap(
 		value.TokenUsageEvents,
 		func(item TokenUsageEvent) (string, string) { return item.ProjectID, item.ID },
@@ -250,6 +282,27 @@ func normalizeState(value *state) error {
 
 func projectResourceKey(projectID, id string) string {
 	return projectID + "/" + id
+}
+
+func validateStoredBudgetTotals(values map[string]TokenBudget) error {
+	totals := make(map[string]int64)
+	for _, budget := range values {
+		if budget.LimitTokens <= 0 || budget.LimitTokens > MaxTokenBudget {
+			return fmt.Errorf("token budget %q has an invalid limit", budget.ID)
+		}
+		if budget.UsedTokens < 0 || budget.UsedTokens > budget.LimitTokens {
+			return fmt.Errorf("token budget %q has invalid usage", budget.ID)
+		}
+		total := totals[budget.ProjectID]
+		if budget.LimitTokens > MaxProjectTokenTotal-total {
+			return fmt.Errorf(
+				"project %q token budget total exceeds JavaScript safe integer",
+				budget.ProjectID,
+			)
+		}
+		totals[budget.ProjectID] = total + budget.LimitTokens
+	}
+	return nil
 }
 
 func normalizeProjectMap[T any](

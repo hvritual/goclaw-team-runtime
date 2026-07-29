@@ -80,3 +80,24 @@
 - `TC-EVID-W01-003` 进入 collecting；下一步推送 exact implementation SHA，
   由独立 code/security/docs reviewer 验收；
 - 在三路均 P0=0/P1=0 前，`TC-W01` 保持 active，`RN-W01` 保持 planned。
+
+## 2026-07-29 — r003 exact review 1 BLOCK
+
+- reviewed exact remote commit `86f6823544c72c4c8f070fe851ac3d4cd4e5f1b3`，
+  tree `b2d1675c1c98927e311d30e7255f90cc40ce3e0a`；
+- code P0=0/P1=4/P2=2，security P0=0/P1=2/P2=3，
+  docs P0=0/P1=2/P2=1；
+- `TC-EVID-W01-004` 保存失败结论；不重写该 commit；
+- P1 聚焦 Registry 状态机、legacy usage/预算、UNC URI、metadata collision、
+  migration/CRUD Evidence 和完整 JSON 合同；
+- findings 均在 r003 frozen scope 内，继续前向修复；新 exact SHA 必须重新
+  运行 Gate 与三路独立 review。
+
+## 2026-07-29 — r003 review remediation 2 Gate 通过
+
+- Registry transition、legacy usage/预算、UNC URI、metadata collision、
+  六类 migration、三类 CRUD/RBAC/persistence 和 JSON 合同 P1 已修复；
+- 同时补齐 Context no-op、migration 持久化、Policy/Context hash 和 state
+  文件权限防御；
+- 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
+- `TC-EVID-W01-005` collecting，等待新的远端 exact SHA 和三路重新验收。

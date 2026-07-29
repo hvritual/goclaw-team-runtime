@@ -118,6 +118,12 @@ func validateRegistryURI(value, field string) (string, error) {
 	if strings.ContainsAny(value, "?#") {
 		return "", fmt.Errorf("%s must not contain query or fragment data", field)
 	}
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(value, "//") || strings.HasPrefix(value, `\\`) ||
+		strings.HasPrefix(lower, `\\?\`) || strings.HasPrefix(lower, `\\.\`) ||
+		strings.Contains(lower, "://") && windowsAbsolutePathPattern.MatchString(value) {
+		return "", fmt.Errorf("%s must not use a UNC, device, or scheme-like local path", field)
+	}
 	if filepath.IsAbs(value) || windowsAbsolutePathPattern.MatchString(value) {
 		return value, nil
 	}
@@ -214,6 +220,9 @@ func cleanTypedMetadata(
 		key := strings.ToLower(strings.TrimSpace(rawKey))
 		if !allowed[key] {
 			return nil, fmt.Errorf("unsupported metadata key %q", rawKey)
+		}
+		if _, exists := result[key]; exists {
+			return nil, fmt.Errorf("metadata key %q duplicates canonical key %q", rawKey, key)
 		}
 		value, err := validate(key, rawValue)
 		if err != nil {

@@ -238,6 +238,18 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := handler.registry.Call(
+		"runner.release.put",
+		session,
+		map[string]interface{}{
+			"id": "runner-rpc", "project_id": fixture.project.ID,
+			"channel": "pilot", "version": "1", "os": "linux", "arch": "amd64",
+			"uri":    "https://example.invalid/runner.tar.gz",
+			"sha256": checksum, "min_protocol": "1", "status": "approved",
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
 	compiled, err := handler.registry.Call(
 		"context.compile",
 		session,
@@ -326,6 +338,135 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 		},
 	); err != nil {
 		t.Fatal(err)
+	}
+
+	for _, registry := range []struct {
+		getMethod    string
+		putMethod    string
+		deleteMethod string
+		idParam      string
+		id           string
+		put          map[string]interface{}
+	}{
+		{
+			getMethod: "skill.release.get", putMethod: "skill.release.put",
+			deleteMethod: "skill.release.delete", idParam: "skill_id", id: "skill-rpc",
+			put: map[string]interface{}{
+				"id": "skill-rpc", "project_id": fixture.project.ID,
+				"name": "rpc-skill", "version": "1", "uri": "file:///skills/rpc",
+				"sha256": checksum, "status": "disabled",
+			},
+		},
+		{
+			getMethod: "runner.release.get", putMethod: "runner.release.put",
+			deleteMethod: "runner.release.delete", idParam: "runner_release_id",
+			id: "runner-rpc",
+			put: map[string]interface{}{
+				"id": "runner-rpc", "project_id": fixture.project.ID,
+				"channel": "pilot", "version": "1", "os": "linux", "arch": "amd64",
+				"uri":    "https://example.invalid/runner.tar.gz",
+				"sha256": checksum, "min_protocol": "1", "status": "disabled",
+			},
+		},
+	} {
+		params := map[string]interface{}{
+			"project_id": fixture.project.ID, registry.idParam: registry.id,
+		}
+		if _, err := handler.registry.Call(registry.getMethod, session, params); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handler.registry.Call(
+			registry.deleteMethod, session, params,
+		); !errors.Is(err, teamcontrol.ErrConflict) {
+			t.Fatalf("%s approved delete error = %v, want conflict", registry.id, err)
+		}
+		if _, err := handler.registry.Call(
+			registry.getMethod,
+			teamSessionID(fixture.viewer.ID),
+			params,
+		); !errors.Is(err, teamcontrol.ErrForbidden) {
+			t.Fatalf("%s cross-project read error = %v, want forbidden", registry.id, err)
+		}
+		otherParams := map[string]interface{}{
+			"project_id": fixture.other.ID, registry.idParam: registry.id,
+		}
+		if _, err := handler.registry.Call(
+			registry.getMethod, session, otherParams,
+		); !errors.Is(err, teamcontrol.ErrNotFound) {
+			t.Fatalf("%s wrong-project read error = %v, want not found", registry.id, err)
+		}
+		if _, err := handler.registry.Call(registry.putMethod, session, registry.put); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handler.registry.Call(registry.deleteMethod, session, params); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestLegacyUnsafeUsageMetadataDoesNotEscapeRPC(t *testing.T) {
+	fixture := newGatewayTeamFixture(t)
+	budget, err := fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		teamcontrol.PutTokenBudgetInput{
+			ID: "legacy-rpc-budget", ProjectID: fixture.project.ID,
+			LimitTokens: 10,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fixture.service.RecordTokenUsage(
+		fixture.alice.ID,
+		teamcontrol.RecordTokenUsageInput{
+			ID: "legacy-rpc-usage", ProjectID: fixture.project.ID,
+			BudgetID: budget.ID, Tokens: 1,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	statePath := filepath.Join(fixture.service.Config().Root, "teamcontrol.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(data, &document); err != nil {
+		t.Fatal(err)
+	}
+	var events map[string]map[string]interface{}
+	if err := json.Unmarshal(document["token_usage_events"], &events); err != nil {
+		t.Fatal(err)
+	}
+	for key, event := range events {
+		event["metadata"] = map[string]string{"provider_token": "synthetic-legacy"}
+		events[key] = event
+	}
+	document["token_usage_events"], err = json.Marshal(events)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(statePath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := teamcontrol.Open(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := &Handler{registry: NewMethodRegistry()}
+	handler.SetTeamControlService(reopened)
+	_, err = handler.registry.Call(
+		"budget.usage.list",
+		teamSessionID(fixture.alice.ID),
+		map[string]interface{}{"project_id": fixture.project.ID},
+	)
+	if err == nil || !strings.Contains(err.Error(), "metadata schema validation") {
+		t.Fatalf("legacy usage metadata RPC error = %v, want fail-closed", err)
 	}
 }
 

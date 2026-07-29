@@ -136,11 +136,93 @@ goclaw-team-control team rpc knowledge.source.get --params knowledge-get.json
 goclaw-team-control team rpc knowledge.source.delete --params knowledge-get.json
 goclaw-team-control team rpc skill.release.put --params skill.json
 goclaw-team-control team rpc skill.release.get --params skill-get.json
+goclaw-team-control team rpc skill.release.list --params project.json
 goclaw-team-control team rpc skill.release.delete --params skill-get.json
 goclaw-team-control team rpc runner.release.put --params runner-release.json
 goclaw-team-control team rpc runner.release.get --params runner-get.json
+goclaw-team-control team rpc runner.release.list --params project.json
 goclaw-team-control team rpc runner.release.delete --params runner-get.json
 ```
+
+引用文件的完整内容：
+
+```json
+{"project_id":"project-alpha"}
+```
+
+`project.json` 使用上式。三个 get/delete 文件分别是：
+
+```json
+{"project_id":"project-alpha","knowledge_id":"knowledge-architecture-v3"}
+```
+
+```json
+{"project_id":"project-alpha","skill_id":"skill-go-style-v2"}
+```
+
+```json
+{"project_id":"project-alpha","runner_release_id":"runner-0.8.1-darwin-arm64"}
+```
+
+Knowledge、Skill、Runner 的 get/put 响应分别使用以下完整 presenter-safe
+对象；list 响应是同类对象数组。注意输入 metadata 被中央存储验证，但
+Gateway 有意不返回 `metadata`：
+
+```json
+{
+  "id": "knowledge-architecture-v3",
+  "project_id": "project-alpha",
+  "name": "Architecture",
+  "uri": "file:///srv/knowledge/project-alpha/architecture.md",
+  "revision": "git:0123456789abcdef",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "approved",
+  "created_by": "alice",
+  "updated_by": "alice",
+  "created_at": "2026-07-29T08:00:00Z",
+  "updated_at": "2026-07-29T08:00:00Z"
+}
+```
+
+```json
+{
+  "id": "skill-go-style-v2",
+  "project_id": "project-alpha",
+  "name": "go-style",
+  "version": "2.0.0",
+  "uri": "git+https://github.com/example/team-skills",
+  "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "min_runner_version": "0.8.0",
+  "status": "approved",
+  "created_by": "alice",
+  "updated_by": "alice",
+  "created_at": "2026-07-29T08:00:00Z",
+  "updated_at": "2026-07-29T08:00:00Z"
+}
+```
+
+```json
+{
+  "id": "runner-0.8.1-darwin-arm64",
+  "project_id": "project-alpha",
+  "channel": "pilot",
+  "version": "0.8.1",
+  "os": "darwin",
+  "arch": "arm64",
+  "uri": "https://downloads.example.invalid/goclaw-runner-0.8.1-darwin-arm64.tar.gz",
+  "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "min_protocol": "1",
+  "status": "approved",
+  "created_by": "alice",
+  "updated_by": "alice",
+  "created_at": "2026-07-29T08:00:00Z",
+  "updated_at": "2026-07-29T08:00:00Z"
+}
+```
+
+成功删除响应统一为
+`{"id":"对应资源 ID","deleted":true}`。删除不存在或其他项目的 ID 返回
+not found；没有项目权限先返回 forbidden，不能据此探测资源是否存在。
 
 `draft`、`approved`、`disabled` 是合法状态。只有 `approved` 且 SHA-256
 完整的 Knowledge/Skill 能进入 Context Bundle。`approved` 资源不能直接
@@ -198,6 +280,59 @@ goclaw-team-control team context-compile \
 和 canonical SHA-256。项目级预算的 `budget_user_id` 为空，但
 `target_user_id` 始终保留，因此同一项目预算用于不同成员时会生成不同
 Bundle ID/hash。
+
+完整响应示例（时间与 hash 为格式示例，不是可复用校验值）：
+
+```json
+{
+  "id": "ctx-dddddddddddddddddddddddddddddddd",
+  "project_id": "project-alpha",
+  "repository_id": "repo-alpha",
+  "target_user_id": "alice",
+  "compiler_version": "goclaw-context/v1",
+  "policy": {
+    "project_id": "project-alpha",
+    "repository_id": "repo-alpha",
+    "bundle_ids": ["policy-project-alpha-v1"],
+    "bundle_hashes": [
+      "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    ],
+    "rules": {
+      "code_style": "gofmt",
+      "max_files": 40,
+      "require_race_test": true
+    },
+    "hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  },
+  "budget": {
+    "budget_id": "budget-alice-month",
+    "budget_user_id": "alice",
+    "limit_tokens": 2000000,
+    "used_tokens": 18420
+  },
+  "knowledge": [
+    {
+      "id": "knowledge-architecture-v3",
+      "name": "Architecture",
+      "version": "git:0123456789abcdef",
+      "uri": "file:///srv/knowledge/project-alpha/architecture.md",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "skills": [
+    {
+      "id": "skill-go-style-v2",
+      "name": "go-style",
+      "version": "2.0.0",
+      "uri": "git+https://github.com/example/team-skills",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "created_by": "alice",
+  "created_at": "2026-07-29T08:00:00Z"
+}
+```
 
 ## 5. Team Web Console
 

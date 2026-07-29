@@ -16,6 +16,17 @@ const ContextCompilerVersion = "goclaw-context/v1"
 const MaxTokenBudget int64 = 1_000_000_000_000_000
 const MaxProjectTokenTotal int64 = 9_007_199_254_740_991
 
+type contextCanonicalMaterial struct {
+	CompilerVersion string                `json:"compiler_version"`
+	ProjectID       string                `json:"project_id"`
+	RepositoryID    string                `json:"repository_id,omitempty"`
+	TargetUserID    string                `json:"target_user_id,omitempty"`
+	Policy          ResolvedPolicy        `json:"policy"`
+	Budget          ContextBudgetSnapshot `json:"budget"`
+	Knowledge       []ContextResourceRef  `json:"knowledge"`
+	Skills          []ContextResourceRef  `json:"skills"`
+}
+
 func (s *Service) PutTokenBudget(
 	actorID string,
 	input PutTokenBudgetInput,
@@ -215,6 +226,9 @@ func (s *Service) ListTokenUsage(
 		for _, value := range st.TokenUsageEvents {
 			if value.ProjectID == projectID &&
 				(budgetID == "" || value.BudgetID == budgetID) {
+				if err := validateStoredTokenUsageEvent(st, value); err != nil {
+					return err
+				}
 				result = append(result, value)
 			}
 		}
@@ -261,6 +275,9 @@ func (s *Service) PutKnowledgeSource(
 				existing.URI != uri || existing.Revision != revision ||
 				existing.SHA256 != checksum {
 				return conflict("knowledge source id %q identifies different immutable content", id)
+			}
+			if err := validateRegistryTransition(existing.Status, status); err != nil {
+				return err
 			}
 			existing.Status = status
 			existing.Metadata = metadata
@@ -375,6 +392,9 @@ func (s *Service) PutSkillRelease(
 				existing.SHA256 != checksum ||
 				existing.MinRunnerVersion != minRunner {
 				return conflict("skill release id %q identifies different immutable content", id)
+			}
+			if err := validateRegistryTransition(existing.Status, status); err != nil {
+				return err
 			}
 			existing.Status = status
 			existing.Metadata = metadata
@@ -512,6 +532,9 @@ func (s *Service) PutRunnerRelease(
 				existing.Arch != arch || existing.URI != uri ||
 				existing.SHA256 != checksum || existing.MinProtocol != minProtocol {
 				return conflict("runner release id %q identifies different immutable content", id)
+			}
+			if err := validateRegistryTransition(existing.Status, status); err != nil {
+				return err
 			}
 			existing.Status = status
 			existing.UpdatedBy = actorID
@@ -694,30 +717,22 @@ func (s *Service) CompileContext(
 		if err != nil {
 			return err
 		}
-		material := struct {
-			CompilerVersion string                `json:"compiler_version"`
-			ProjectID       string                `json:"project_id"`
-			RepositoryID    string                `json:"repository_id,omitempty"`
-			TargetUserID    string                `json:"target_user_id,omitempty"`
-			Policy          ResolvedPolicy        `json:"policy"`
-			Budget          ContextBudgetSnapshot `json:"budget"`
-			Knowledge       []ContextResourceRef  `json:"knowledge"`
-			Skills          []ContextResourceRef  `json:"skills"`
-		}{
+		material := contextCanonicalMaterial{
 			CompilerVersion: ContextCompilerVersion,
 			ProjectID:       projectID, RepositoryID: repositoryID,
 			TargetUserID: targetUserID,
 			Policy:       policy, Budget: budget, Knowledge: knowledge, Skills: skills,
 		}
-		canonical, err := json.Marshal(material)
+		hash, err := hashContextMaterial(material)
 		if err != nil {
 			return err
 		}
-		sum := sha256.Sum256(canonical)
-		hash := hex.EncodeToString(sum[:])
 		id := "ctx-" + hash[:32]
 		key := projectResourceKey(projectID, id)
 		if existing, ok := st.ContextBundles[key]; ok {
+			if err := validateStoredContextBundle(existing); err != nil {
+				return err
+			}
 			if existing.Hash != hash {
 				return conflict("context bundle id collision")
 			}
@@ -813,6 +828,32 @@ func requireSHA256(value string) (string, error) {
 	return value, nil
 }
 
+func validateRegistryTransition(from, to RegistryStatus) error {
+	if from == to {
+		return nil
+	}
+	switch from {
+	case RegistryDraft:
+		if to == RegistryApproved || to == RegistryDisabled {
+			return nil
+		}
+	case RegistryApproved:
+		if to == RegistryDisabled {
+			return nil
+		}
+	case RegistryDisabled:
+		if to == RegistryApproved {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"%w: registry status cannot transition from %q to %q",
+		ErrInvalidTransition,
+		from,
+		to,
+	)
+}
+
 func resolvePolicySnapshot(
 	st state,
 	project Project,
@@ -864,6 +905,37 @@ func validateStoredKnowledgeSource(value KnowledgeSource) error {
 	)
 	if err != nil {
 		return fmt.Errorf("stored knowledge source %q failed schema validation: %w", value.ID, err)
+	}
+	return nil
+}
+
+func validateStoredTokenUsageEvent(st state, value TokenUsageEvent) error {
+	if _, err := requireID(value.ProjectID, "project_id"); err != nil {
+		return fmt.Errorf("stored usage event %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireID(value.ID, "event_id"); err != nil {
+		return fmt.Errorf("stored usage event %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireID(value.BudgetID, "budget_id"); err != nil {
+		return fmt.Errorf("stored usage event %q failed schema validation: %w", value.ID, err)
+	}
+	if value.Tokens <= 0 {
+		return fmt.Errorf("stored usage event %q has non-positive tokens", value.ID)
+	}
+	if value.TaskID != "" {
+		if _, err := requireID(value.TaskID, "task_id"); err != nil {
+			return fmt.Errorf("stored usage event %q failed schema validation: %w", value.ID, err)
+		}
+	}
+	if _, ok := st.TokenBudgets[projectResourceKey(value.ProjectID, value.BudgetID)]; !ok {
+		return fmt.Errorf("stored usage event %q references a missing project budget", value.ID)
+	}
+	metadata, err := cleanUsageMetadata(value.Metadata)
+	if err != nil || !maps.Equal(metadata, value.Metadata) {
+		if err == nil {
+			err = fmt.Errorf("metadata is not canonical")
+		}
+		return fmt.Errorf("stored usage event %q failed metadata schema validation: %w", value.ID, err)
 	}
 	return nil
 }
@@ -930,13 +1002,53 @@ func validateStoredContextBundle(value ContextBundle) error {
 	if _, err := requireID(value.ID, "context_id"); err != nil {
 		return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
 	}
+	if value.CompilerVersion != ContextCompilerVersion {
+		return fmt.Errorf("stored context bundle %q uses an unsupported compiler", value.ID)
+	}
+	for field, id := range map[string]string{
+		"repository_id":  value.RepositoryID,
+		"target_user_id": value.TargetUserID,
+		"budget_id":      value.Budget.BudgetID,
+		"budget_user_id": value.Budget.BudgetUserID,
+	} {
+		if id == "" {
+			continue
+		}
+		if _, err := requireID(id, field); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
+	}
+	if value.Budget.LimitTokens < 0 || value.Budget.UsedTokens < 0 ||
+		value.Budget.UsedTokens > value.Budget.LimitTokens {
+		return fmt.Errorf("stored context bundle %q has an invalid budget snapshot", value.ID)
+	}
 	if _, err := canonicalRules(value.Policy.Rules); err != nil {
 		return fmt.Errorf("stored context bundle %q failed policy schema validation: %w", value.ID, err)
+	}
+	policyHash, err := hashResolvedPolicy(value.Policy)
+	if err != nil || policyHash != value.Policy.Hash {
+		if err == nil {
+			err = fmt.Errorf("resolved policy hash mismatch")
+		}
+		return fmt.Errorf("stored context bundle %q failed policy hash validation: %w", value.ID, err)
+	}
+	if value.Policy.ProjectID != value.ProjectID ||
+		value.Policy.RepositoryID != value.RepositoryID {
+		return fmt.Errorf("stored context bundle %q has a cross-scope policy", value.ID)
 	}
 	for _, resource := range append(
 		append([]ContextResourceRef(nil), value.Knowledge...),
 		value.Skills...,
 	) {
+		if _, err := requireID(resource.ID, "context resource id"); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
+		if _, err := requireText(resource.Name, "context resource name", 200); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
+		if _, err := requireText(resource.Version, "context resource version", 200); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
 		if _, err := validateRegistryURI(resource.URI, "context resource uri"); err != nil {
 			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
 		}
@@ -944,7 +1056,32 @@ func validateStoredContextBundle(value ContextBundle) error {
 			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
 		}
 	}
+	hash, err := hashContextMaterial(contextCanonicalMaterial{
+		CompilerVersion: value.CompilerVersion,
+		ProjectID:       value.ProjectID,
+		RepositoryID:    value.RepositoryID,
+		TargetUserID:    value.TargetUserID,
+		Policy:          value.Policy,
+		Budget:          value.Budget,
+		Knowledge:       value.Knowledge,
+		Skills:          value.Skills,
+	})
+	if err != nil {
+		return fmt.Errorf("stored context bundle %q failed hash validation: %w", value.ID, err)
+	}
+	if value.Hash != hash || value.ID != "ctx-"+hash[:32] {
+		return fmt.Errorf("stored context bundle %q hash or id does not match canonical content", value.ID)
+	}
 	return nil
+}
+
+func hashContextMaterial(material contextCanonicalMaterial) (string, error) {
+	canonical, err := json.Marshal(material)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(canonical)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (s *Service) deleteRegistry(
