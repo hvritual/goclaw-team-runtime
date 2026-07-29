@@ -26,3 +26,11 @@
   修订，Team Control 无法选择或约束 delegated profile；
 - 保留 r002 activation/freeze 和已授权 workstation/runner 工作，不改写
   历史；r003 前向补充最小 Gateway/CLI scope，重新 Freeze 后继续。
+
+## 2026-07-29 — r003 Task Freeze
+
+- Task r003 从远端 activation exact `ebced0ac55176e67a9ae28351c43255d170bab86` /
+  tree `bfa32ace1e6ec1af3c8f7aa006b21524842c73b6` 冻结；
+- Policy manifest `3/3`，SHA-256 `5d06456c...`；
+- 后继实现必须使用 r003 tuple；r002 产品改动尚未提交，可在本授权下前向
+  完成。
