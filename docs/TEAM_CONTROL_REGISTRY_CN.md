@@ -233,8 +233,9 @@ Registry URI 只允许绝对本地路径、`file`、`https`、`git+https`，并�
 userinfo、query、fragment、opaque URI、明文 HTTP、未知 scheme、Windows
 设备路径和 Unix `/dev`、`/proc`、`/sys` 伪文件系统路径。raw path 与
 `file:` 解码路径均在词法折叠 `.`/`..` 后复用同一边界；URI 最长 4096
-bytes。校验错误不会回显不受信任的 scheme、URI、metadata key/value 或
-policy key。Metadata
+bytes 且不能包含控制字符。所有 rooted path 都逐段拒绝 DOS device name，
+不依赖 Team Control 宿主操作系统，并拒绝旧式 `C|` drive。校验错误不会
+回显不受信任的 scheme、URI、metadata key/value 或 policy key。Metadata
 只允许上例字段以及非秘密的 `secret_ref` 标识；Gateway 响应不回显 metadata。
 实际凭据必须由 Runner 本机安全存储解析，不能写进 JSON、Vault、URI 或
 Context Bundle。

@@ -172,6 +172,15 @@ func TestProjectIsolationAndRoleAuthorization(t *testing.T) {
 			action,
 		))
 	}
+	for _, role := range []ProjectRole{
+		ProjectOwner,
+		ProjectMaintainer,
+		ProjectDeveloper,
+		ProjectReviewer,
+		ProjectViewer,
+	} {
+		require.False(t, roleAllows(role, Action("future.unknown")))
+	}
 }
 
 func TestIssueLifecycleRequiresFixEvidenceAndTracksReopen(t *testing.T) {

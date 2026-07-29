@@ -638,6 +638,9 @@ func authorizeProject(st *state, userID, projectID string, action Action) error 
 }
 
 func roleAllows(role ProjectRole, action Action) bool {
+	if !isKnownProjectAction(action) {
+		return false
+	}
 	if role == ProjectOwner {
 		return true
 	}
@@ -661,6 +664,43 @@ func roleAllows(role ProjectRole, action Action) bool {
 		}
 	}
 	return false
+}
+
+func isKnownProjectAction(action Action) bool {
+	switch action {
+	case ActionProjectRead,
+		ActionProjectManage,
+		ActionRepositoryRead,
+		ActionRepositoryManage,
+		ActionIssueRead,
+		ActionIssueWrite,
+		ActionIssueAssign,
+		ActionIssueTransition,
+		ActionWorkItemRead,
+		ActionWorkItemWrite,
+		ActionWorkItemAssign,
+		ActionArtifactRead,
+		ActionArtifactWrite,
+		ActionDocumentRead,
+		ActionDocumentWrite,
+		ActionComponentRead,
+		ActionComponentWrite,
+		ActionPolicyRead,
+		ActionPolicyWrite,
+		ActionBudgetRead,
+		ActionBudgetWrite,
+		ActionKnowledgeRead,
+		ActionKnowledgeWrite,
+		ActionSkillRead,
+		ActionSkillWrite,
+		ActionRunnerReleaseRead,
+		ActionRunnerReleaseWrite,
+		ActionContextRead,
+		ActionContextCompile:
+		return true
+	default:
+		return false
+	}
 }
 
 func isProjectReadAction(action Action) bool {

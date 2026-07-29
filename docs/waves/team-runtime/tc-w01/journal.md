@@ -176,3 +176,21 @@
 - 全仓 Go test/vet、关键 race、UI `10/10` 与 build、Policy manifest
   `3/3` 全部通过；
 - `TC-EVID-W01-011` collecting，等待 exact remote candidate 三路验收。
+
+## 2026-07-29 — r004 exact review 5 BLOCK
+
+- reviewed exact `325448250b0fd5279b02fb6c2db95912cfe83466`，
+  tree `bdf472767dbba2d4fb2e68fbe1c3c00b316e84fd`；
+- code P0=0/P1=0/P2=3 PASS，security P0=0/P1=1/P2=5 BLOCK，
+  docs P0=0/P1=0/P2=0 PASS；
+- `/NUL`、`/vault/COM1.txt`、`file:///vault/LPT².log` 和旧式 `C|`
+  drive 在非 Windows 控制面宿主上仍可绕过 DOS device 判断；
+- `TC-EVID-W01-012` 保留失败结果，`TC-EVID-W01-011` superseded。
+
+## 2026-07-29 — r004 review remediation 6 target Gate 通过
+
+- 所有 rooted raw/decoded local path 逐段扫描 DOS device；
+- 旧式 `C|` drive、Registry URI 控制字符和未知 Action 均失败关闭；
+- TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
+  `10/10` 与 build、Policy manifest `3/3` 全部通过；
+- `TC-EVID-W01-013` collecting，等待新 exact SHA 与三路 review。

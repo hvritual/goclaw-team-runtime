@@ -481,6 +481,11 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		`C:\vault\COM¹.txt`,
 		`C:\vault\LPT².log`,
 		"file:///C:/vault/COM%C2%B9.txt",
+		"/NUL",
+		"/vault/COM1.txt",
+		"file:///NUL",
+		"file:///vault/LPT².log",
+		"file:///C|/NUL",
 	} {
 		input := base
 		input.URI = uri
@@ -507,6 +512,12 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		strings.Repeat("x", maximumRegistryURILength)
 	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
 	require.ErrorContains(t, err, "exceeds the maximum length")
+	for _, uri := range []string{"/vault/line\nsecret-value", "/vault/\x00secret-value"} {
+		input.URI = uri
+		_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "secret-value")
+	}
 
 	created, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, base)
 	require.NoError(t, err)

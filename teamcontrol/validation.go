@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -121,6 +122,9 @@ func validateRegistryURI(value, field string) (string, error) {
 	if len(value) > maximumRegistryURILength {
 		return "", fmt.Errorf("%s exceeds the maximum length", field)
 	}
+	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("%s contains a control character", field)
+	}
 	if strings.ContainsAny(value, "?#") {
 		return "", fmt.Errorf("%s must not contain query or fragment data", field)
 	}
@@ -181,10 +185,21 @@ func unsafeLocalPath(value string) bool {
 		return true
 	}
 	candidate := strings.TrimPrefix(lower, "/")
-	if !windowsAbsolutePathPattern.MatchString(candidate) {
+	rooted := strings.HasPrefix(normalized, "/") ||
+		windowsAbsolutePathPattern.MatchString(candidate)
+	if !rooted {
 		return false
 	}
-	for _, segment := range strings.Split(candidate[3:], "/") {
+	if len(candidate) >= 3 &&
+		candidate[1] == '|' &&
+		candidate[2] == '/' &&
+		candidate[0] >= 'a' && candidate[0] <= 'z' {
+		return true
+	}
+	if windowsAbsolutePathPattern.MatchString(candidate) {
+		candidate = candidate[3:]
+	}
+	for _, segment := range strings.Split(candidate, "/") {
 		segment = strings.TrimRight(segment, " .")
 		if index := strings.IndexAny(segment, ".:"); index >= 0 {
 			segment = segment[:index]
