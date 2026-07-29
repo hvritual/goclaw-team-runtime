@@ -50,3 +50,20 @@
   base→candidate docs scope 和 `git diff --check`；
 - 旧验证器与失败输出保留为旧路线历史，新验证器不得为产品 tree 或六域
   功能验收背书。
+
+## 2026-07-29 — BACKUP-VERIFIED PASS
+
+- backup ref：`codex/backup-goclaw-pre-multica-20260729`；
+- verified commit：
+  `d6211a45bb99aa98cb645ff1cf1ddf0747ac7346`；
+- verified tree：
+  `f87a806f325bae0e8229afcfc33ccadcac3b2e41`；
+- backup 与替换前 HEAD diff 为空；
+- 独立 detached worktree 干净检出，并确认存在 MC-W01 Plan 与
+  `teamcontrol/service.go`；
+- `git fsck --no-dangling` PASS；
+- `BACKUP-VERIFIED` 硬门禁通过，允许进入 MC-W01-S03；main、origin、
+  远端均未修改或推送。
+
+| 2026-07-29 | `MC-W01-S02` | `active → complete` | BACKUP-VERIFIED PASS | 冻结 upstream 后替换目标 tree |
+| 2026-07-29 | `MC-W01-S03` | `planned → active` | 等待 exact upstream tuple | 创建目标分支 |
