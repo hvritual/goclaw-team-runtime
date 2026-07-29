@@ -54,3 +54,5 @@ flowchart LR
 1. `pnpm verify:six-domains` 检查六域边界清单、受跟踪文件和关键路由/事件。
 2. Go 窄测覆盖工作区与成员权限、项目校验、issue 路由、执行任务状态机和 skill bundle。
 3. TypeScript 窄测覆盖 query/mutation、共享页面与执行记录；全仓 `pnpm typecheck`、`pnpm test` 和 `make test` 用于最终回归。
+
+本次基线的实际检查结果和暂缓项记录在 [`six-domain-verification.md`](six-domain-verification.md)。

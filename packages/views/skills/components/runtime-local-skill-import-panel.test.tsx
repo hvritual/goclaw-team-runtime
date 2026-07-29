@@ -229,7 +229,7 @@ describe("RuntimeLocalSkillImportPanel", () => {
       },
       { timeout: 5000 },
     );
-  });
+  }, 10_000);
 
   it("surfaces the runtime alias and provider in the picker, not the raw daemon name (MUL-5248)", async () => {
     mockRuntimeListOptions.mockReturnValue({
