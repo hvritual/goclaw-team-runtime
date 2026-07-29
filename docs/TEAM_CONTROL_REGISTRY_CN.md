@@ -236,8 +236,8 @@ userinfo、query、fragment、opaque URI、明文 HTTP、未知 scheme、Windows
 bytes 且不能包含控制字符。所有 rooted path 都逐段拒绝 DOS device name，
 不依赖 Team Control 宿主操作系统，并拒绝旧式 `C|` drive、NTFS ADS、
 Win32 尾空格/尾点别名和非法 UTF-8；远端 URI 解码路径也复查字符边界。
-校验错误不会回显不受信任的 scheme、URI、metadata key/value 或 policy
-key。Metadata
+raw URI 的首尾空白直接拒绝，不做静默 trim。校验错误不会回显不受信任的
+scheme、URI、metadata key/value 或 policy key。Metadata
 只允许上例字段以及非秘密的 `secret_ref` 标识；Gateway 响应不回显 metadata。
 实际凭据必须由 Runner 本机安全存储解析，不能写进 JSON、Vault、URI 或
 Context Bundle。

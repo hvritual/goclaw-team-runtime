@@ -230,3 +230,19 @@
 - TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
   `10/10` 与 build、Policy manifest `3/3` 全部通过；
 - `TC-EVID-W01-017` collecting，等待新 exact SHA 与三路 review。
+
+## 2026-07-29 — r004 exact review 8 BLOCK
+
+- reviewed exact `e07276efdbff81742bbbd5b31cb3f12c00588ca7`，
+  tree `3602f9ba749dbdfe2e84435435cbdcb2977514b2`；
+- code P0=0/P1=1/P2=0 BLOCK，security P0=0/P1=0/P2=3 PASS，
+  docs P0=0/P1=0/P2=2 PASS；
+- Registry/relative path 首尾空白在检查前被 trim 是本 exact P1；
+- `TC-EVID-W01-018` 保留失败结果，`TC-EVID-W01-017` superseded。
+
+## 2026-07-29 — r004 review remediation 9 target Gate 通过
+
+- Registry URI 与 repository relative path 首尾空白已改为失败关闭；
+- TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
+  `10/10` 与 build、Policy manifest `3/3` 全部通过；
+- `TC-EVID-W01-019` collecting，等待新 exact SHA 与三路 review。

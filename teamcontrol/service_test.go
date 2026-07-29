@@ -201,6 +201,9 @@ func TestRelativePathsAreCrossPlatformSafe(t *testing.T) {
 		`safe\.. \outside`,
 		"services./api",
 		"services/api.",
+		"services/api ",
+		`services\api `,
+		" services/api",
 		"services/\xff/api",
 	} {
 		_, err := validateRelativePath(value, "root_path")

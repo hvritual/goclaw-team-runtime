@@ -117,7 +117,9 @@ func validateRegistryURI(value, field string) (string, error) {
 	if !safePathText(value) {
 		return "", fmt.Errorf("%s contains an invalid character", field)
 	}
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value {
+		return "", fmt.Errorf("%s contains leading or trailing whitespace", field)
+	}
 	if value == "" {
 		return "", fmt.Errorf("%s is required", field)
 	}
@@ -354,7 +356,10 @@ func validateRelativePath(value, field string) (string, error) {
 	if !safePathText(value) {
 		return "", fmt.Errorf("%s must remain inside its repository", field)
 	}
-	normalized := strings.ReplaceAll(strings.TrimSpace(value), `\`, "/")
+	if strings.TrimSpace(value) != value {
+		return "", fmt.Errorf("%s must remain inside its repository", field)
+	}
+	normalized := strings.ReplaceAll(value, `\`, "/")
 	if normalized == "" {
 		return "", nil
 	}

@@ -503,6 +503,10 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		`\vault\ambiguous`,
 		`C:\vault\safe. `,
 		"/vault/safe.",
+		`C:\vault\safe `,
+		"/vault/safe ",
+		" /vault/safe",
+		"file:///vault/safe%20",
 	} {
 		input := base
 		input.URI = uri
