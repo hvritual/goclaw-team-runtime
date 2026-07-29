@@ -53,3 +53,14 @@
 - 该合并不构成 TR-W00 acceptance；r001 Evidence 保持 collecting，
   `TR-ISSUE-002` 进入 fixing；
 - r002 只允许前向修复，三路 P1 清零前不激活 TC-W01。
+
+## 2026-07-29 — r002 Task Freeze
+
+- activation commit：`4625c16e01f03f3b8f90c3b22ef71fa56388e6e0`；
+- activation tree：`a088e1fbe120ab1819c0c71f9baf4b181631a922`；
+- Task：`TR-W00-ACCEPTANCE-002` r002；
+- Policy manifest SHA-256：
+  `c8a370406594da4b7f5f6bfa1dbc1bcfb9a775bf989521291fdfde143f5e4815`；
+- branch：`agent/tr-w00-acceptance-fixes-002`；
+- freeze 后才允许修改 build、credential Gate、Codex read-deny、入口测试、
+  root README 和 systemd hardening 范围。
