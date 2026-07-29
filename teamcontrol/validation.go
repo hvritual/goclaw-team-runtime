@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/mail"
 	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -28,6 +29,8 @@ var idPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 var keyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 var gitCommitPattern = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
 var windowsAbsolutePathPattern = regexp.MustCompile(`^[A-Za-z]:[\\/]`)
+
+const maximumRegistryURILength = 4096
 
 func newID(prefix string) string {
 	return prefix + "-" + uuid.NewString()
@@ -115,6 +118,9 @@ func validateRegistryURI(value, field string) (string, error) {
 	if value == "" {
 		return "", fmt.Errorf("%s is required", field)
 	}
+	if len(value) > maximumRegistryURILength {
+		return "", fmt.Errorf("%s exceeds the maximum length", field)
+	}
 	if strings.ContainsAny(value, "?#") {
 		return "", fmt.Errorf("%s must not contain query or fragment data", field)
 	}
@@ -128,7 +134,7 @@ func validateRegistryURI(value, field string) (string, error) {
 	}
 	parsed, err := url.Parse(value)
 	if err != nil {
-		return "", fmt.Errorf("%s is invalid: %w", field, err)
+		return "", fmt.Errorf("%s is invalid", field)
 	}
 	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
 		parsed.Opaque != "" {
@@ -161,14 +167,17 @@ func validateRegistryURI(value, field string) (string, error) {
 
 func unsafeLocalPath(value string) bool {
 	normalized := strings.ReplaceAll(value, `\`, "/")
-	lower := strings.ToLower(normalized)
+	rawLower := strings.ToLower(normalized)
 	if strings.HasPrefix(normalized, "//") ||
-		lower == "/dev" || strings.HasPrefix(lower, "/dev/") ||
+		strings.HasPrefix(rawLower, "/??/") ||
+		strings.HasPrefix(rawLower, "/device/") ||
+		strings.HasPrefix(rawLower, "/globalroot/") {
+		return true
+	}
+	lower := strings.ToLower(path.Clean(normalized))
+	if lower == "/dev" || strings.HasPrefix(lower, "/dev/") ||
 		lower == "/proc" || strings.HasPrefix(lower, "/proc/") ||
-		lower == "/sys" || strings.HasPrefix(lower, "/sys/") ||
-		strings.HasPrefix(lower, "/??/") ||
-		strings.HasPrefix(lower, "/device/") ||
-		strings.HasPrefix(lower, "/globalroot/") {
+		lower == "/sys" || strings.HasPrefix(lower, "/sys/") {
 		return true
 	}
 	candidate := strings.TrimPrefix(lower, "/")
@@ -184,15 +193,21 @@ func unsafeLocalPath(value string) bool {
 		case "con", "prn", "aux", "nul", "conin$", "conout$":
 			return true
 		}
-		if len(segment) == 4 {
-			prefix, digit := segment[:3], segment[3]
+		runes := []rune(segment)
+		if len(runes) == 4 {
+			prefix, digit := string(runes[:3]), runes[3]
 			if (prefix == "com" || prefix == "lpt") &&
-				digit >= '1' && digit <= '9' {
+				isDOSDeviceDigit(digit) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func isDOSDeviceDigit(value rune) bool {
+	return value >= '1' && value <= '9' ||
+		value == '¹' || value == '²' || value == '³'
 }
 
 func cleanUsageMetadata(values map[string]string) (map[string]string, error) {
@@ -232,7 +247,7 @@ func cleanRegistryMetadata(values map[string]string) (map[string]string, error) 
 			case "obsidian", "git", "file", "package", "documentation":
 				return value, nil
 			default:
-				return "", fmt.Errorf("unsupported registry metadata source_kind %q", value)
+				return "", fmt.Errorf("unsupported registry metadata source_kind")
 			}
 		case "content_type":
 			value, err := requireText(value, "registry metadata content_type", 100)

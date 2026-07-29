@@ -473,6 +473,14 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		"file:///dev/zero",
 		"/proc/self/environ",
 		"file:///sys/kernel",
+		"/tmp/../dev/zero",
+		"file:///tmp/../dev/zero",
+		"/var/../proc/self/environ",
+		"file:///opt/../sys/kernel",
+		"file:///tmp/%2e%2e/proc/self/environ",
+		`C:\vault\COM¹.txt`,
+		`C:\vault\LPT².log`,
+		"file:///C:/vault/COM%C2%B9.txt",
 	} {
 		input := base
 		input.URI = uri
@@ -486,6 +494,19 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 	input.Metadata = map[string]string{"source_kind": "git", "SOURCE_KIND": "file"}
 	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
 	require.ErrorContains(t, err, "duplicates canonical key")
+	input.Metadata = map[string]string{"source_kind": "secret-value"}
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "secret-value")
+	input = base
+	input.URI = "https://example.invalid/%zz-secret"
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+	require.Error(t, err)
+	require.NotContains(t, err.Error(), "%zz-secret")
+	input.URI = "https://example.invalid/" +
+		strings.Repeat("x", maximumRegistryURILength)
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+	require.ErrorContains(t, err, "exceeds the maximum length")
 
 	created, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, base)
 	require.NoError(t, err)

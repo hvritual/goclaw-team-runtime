@@ -159,6 +159,19 @@ func TestProjectIsolationAndRoleAuthorization(t *testing.T) {
 		fixture.projectA.ID,
 		ActionIssueWrite,
 	), ErrForbidden)
+	for _, action := range []Action{
+		ActionBudgetRead,
+		ActionKnowledgeRead,
+		ActionSkillRead,
+		ActionRunnerReleaseRead,
+		ActionContextRead,
+	} {
+		require.NoError(t, fixture.service.Authorize(
+			fixture.mallory.ID,
+			fixture.projectA.ID,
+			action,
+		))
+	}
 }
 
 func TestIssueLifecycleRequiresFixEvidenceAndTracksReopen(t *testing.T) {

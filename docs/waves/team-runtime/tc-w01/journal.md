@@ -164,3 +164,15 @@
   `38b77d31e09806aafbc6b301e82f2f46b77aa9fa03de93c3283ee44d7ddeb41b`；
 - freeze 后只允许 exact scope 内的路径/RBAC provenance 修复和 Evidence；
   RN/INT/REL 不进入实现。
+
+## 2026-07-29 — r004 S10 deterministic Gate 通过
+
+- local path 在 raw namespace 检查后做平台中立 lexical clean，再统一检查
+  Unix pseudo-filesystem 和 Windows DOS device；
+- traversal、percent-encoded traversal、superscript `¹²³`、malformed/
+  overlong URI 与 error redaction 回归通过；
+- `service.go` read-action helper 在 r004 授权范围内前向实现，五类中央控制
+  read authorization 回归通过；
+- 全仓 Go test/vet、关键 race、UI `10/10` 与 build、Policy manifest
+  `3/3` 全部通过；
+- `TC-EVID-W01-011` collecting，等待 exact remote candidate 三路验收。

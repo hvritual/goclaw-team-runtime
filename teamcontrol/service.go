@@ -641,20 +641,7 @@ func roleAllows(role ProjectRole, action Action) bool {
 	if role == ProjectOwner {
 		return true
 	}
-	readAction := action == ActionProjectRead ||
-		action == ActionRepositoryRead ||
-		action == ActionIssueRead ||
-		action == ActionWorkItemRead ||
-		action == ActionArtifactRead ||
-		action == ActionDocumentRead ||
-		action == ActionComponentRead ||
-		action == ActionPolicyRead ||
-		action == ActionBudgetRead ||
-		action == ActionKnowledgeRead ||
-		action == ActionSkillRead ||
-		action == ActionRunnerReleaseRead ||
-		action == ActionContextRead
-	if readAction {
+	if isProjectReadAction(action) {
 		return true
 	}
 	switch role {
@@ -674,6 +661,27 @@ func roleAllows(role ProjectRole, action Action) bool {
 		}
 	}
 	return false
+}
+
+func isProjectReadAction(action Action) bool {
+	switch action {
+	case ActionProjectRead,
+		ActionRepositoryRead,
+		ActionIssueRead,
+		ActionWorkItemRead,
+		ActionArtifactRead,
+		ActionDocumentRead,
+		ActionComponentRead,
+		ActionPolicyRead,
+		ActionBudgetRead,
+		ActionKnowledgeRead,
+		ActionSkillRead,
+		ActionRunnerReleaseRead,
+		ActionContextRead:
+		return true
+	default:
+		return false
+	}
 }
 
 func findTeamMembership(st *state, teamID, userID string) *TeamMembership {
