@@ -245,3 +245,39 @@ func TestSQLiteLocalMemberCannotDeleteWorkspace(t *testing.T) {
 	member.token = memberLogin["token"].(string)
 	member.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string), nil, http.StatusForbidden)
 }
+
+func TestSQLiteLocalBrowserCookieLogin(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	body := bytes.NewBufferString(`{"email":"browser@example.com","code":"888888"}`)
+	verifyReq := httptest.NewRequest(http.MethodPost, "/auth/verify-code", body)
+	verifyReq.Header.Set("Content-Type", "application/json")
+	verifyRec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(verifyRec, verifyReq)
+	if verifyRec.Code != http.StatusOK {
+		t.Fatalf("verify code: got status %d; body=%s", verifyRec.Code, verifyRec.Body.String())
+	}
+
+	var authCookie *http.Cookie
+	for _, cookie := range verifyRec.Result().Cookies() {
+		if cookie.Name == "multica_auth" {
+			authCookie = cookie
+			break
+		}
+	}
+	if authCookie == nil {
+		t.Fatal("verify code did not set browser auth cookie")
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(authCookie)
+	meRec := httptest.NewRecorder()
+	app.Handler().ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("cookie-authenticated /api/me: got status %d; body=%s", meRec.Code, meRec.Body.String())
+	}
+}

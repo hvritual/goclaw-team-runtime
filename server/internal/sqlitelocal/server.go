@@ -31,7 +31,10 @@ import (
 //go:embed schema.sql
 var schema string
 
-const defaultVerificationCode = "888888"
+const (
+	defaultVerificationCode = "888888"
+	authCookieName          = "multica_auth"
+)
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
@@ -177,12 +180,18 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 func (s *Server) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
-		if !strings.HasPrefix(auth, "Bearer ") {
+		token := ""
+		if strings.HasPrefix(auth, "Bearer ") {
+			token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+		} else if cookie, err := r.Cookie(authCookieName); err == nil {
+			token = strings.TrimSpace(cookie.Value)
+		}
+		if token == "" {
 			writeError(w, http.StatusUnauthorized, "authentication required")
 			return
 		}
 		var userID string
-		err := s.db.QueryRowContext(r.Context(), `SELECT user_id FROM auth_tokens WHERE token = ?`, strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))).Scan(&userID)
+		err := s.db.QueryRowContext(r.Context(), `SELECT user_id FROM auth_tokens WHERE token = ?`, token).Scan(&userID)
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "invalid token")
 			return
@@ -314,17 +323,40 @@ func (s *Server) verifyCode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create token")
 		return
 	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   7 * 24 * 60 * 60,
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+	})
 	writeJSON(w, http.StatusOK, map[string]any{"token": token, "user": user.response()})
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	auth := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	if auth == "" {
+		if cookie, err := r.Cookie(authCookieName); err == nil {
+			auth = strings.TrimSpace(cookie.Value)
+		}
+	}
 	if auth != "" {
 		if _, err := s.db.ExecContext(r.Context(), `DELETE FROM auth_tokens WHERE token = ?`, auth); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to revoke token")
 			return
 		}
 	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+		Expires:  time.Unix(1, 0),
+	})
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -24,6 +24,7 @@ MULTICA_SERVER_URL ?= ws://localhost:$(PORT)/ws
 LOCAL_UPLOAD_BASE_URL ?= http://localhost:$(PORT)
 SQLITE_DATABASE_PATH ?= $(CURDIR)/data/multica-local.db
 SQLITE_DEV_CODE ?= 888888
+SQLITE_LISTEN_ADDRESS ?= 127.0.0.1
 
 export
 
@@ -314,7 +315,7 @@ setup-sqlite: ## Prepare dependencies for SQLite local mode (no Docker or Postgr
 
 start-sqlite: ## Start the SQLite local backend and web app
 	@echo "SQLite database: $(SQLITE_DATABASE_PATH)"
-	@echo "Backend: http://localhost:$(PORT)"
+	@echo "Backend: http://$(SQLITE_LISTEN_ADDRESS):$(PORT)"
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
 	@echo "Local login code: $(SQLITE_DEV_CODE)"
 	@echo "Agent execution and cloud-only endpoints are disabled in this mode."
@@ -322,12 +323,13 @@ start-sqlite: ## Start the SQLite local backend and web app
 		(cd server && \
 			SQLITE_DATABASE_PATH="$(SQLITE_DATABASE_PATH)" \
 			MULTICA_DEV_VERIFICATION_CODE="$(SQLITE_DEV_CODE)" \
+			SQLITE_LISTEN_ADDRESS="$(SQLITE_LISTEN_ADDRESS)" \
 			FRONTEND_ORIGIN="$(FRONTEND_ORIGIN)" \
 			PORT="$(PORT)" \
 			go run ./cmd/sqlite-server) & \
-		REMOTE_API_URL="http://localhost:$(PORT)" \
-		NEXT_PUBLIC_API_URL="http://localhost:$(PORT)" \
-		NEXT_PUBLIC_WS_URL="ws://localhost:$(PORT)/ws" \
+		REMOTE_API_URL="http://$(SQLITE_LISTEN_ADDRESS):$(PORT)" \
+		NEXT_PUBLIC_API_URL="" \
+		NEXT_PUBLIC_WS_URL="" \
 		BACKEND_PORT="$(PORT)" \
 		pnpm dev:web & \
 		wait
@@ -347,6 +349,7 @@ server-sqlite: ## Run only the local SQLite API server
 	cd server && \
 		SQLITE_DATABASE_PATH="$(SQLITE_DATABASE_PATH)" \
 		MULTICA_DEV_VERIFICATION_CODE="$(SQLITE_DEV_CODE)" \
+		SQLITE_LISTEN_ADDRESS="$(SQLITE_LISTEN_ADDRESS)" \
 		FRONTEND_ORIGIN="$(FRONTEND_ORIGIN)" \
 		PORT="$(PORT)" \
 		go run ./cmd/sqlite-server
