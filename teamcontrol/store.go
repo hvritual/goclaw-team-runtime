@@ -37,6 +37,19 @@ func openFileStore(path string) (*fileStore, error) {
 	if err := os.MkdirAll(filepath.Dir(absolute), 0o700); err != nil {
 		return nil, fmt.Errorf("create teamcontrol directory: %w", err)
 	}
+	parentInfo, err := os.Lstat(filepath.Dir(absolute))
+	if err != nil {
+		return nil, fmt.Errorf("inspect teamcontrol directory: %w", err)
+	}
+	if !parentInfo.IsDir() || parentInfo.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("teamcontrol state directory must be a real directory")
+	}
+	if runtime.GOOS != "windows" && parentInfo.Mode().Perm()&0o022 != 0 {
+		return nil, fmt.Errorf(
+			"teamcontrol directory permissions %04o allow non-owner writes",
+			parentInfo.Mode().Perm(),
+		)
+	}
 	if info, statErr := os.Lstat(absolute); statErr == nil {
 		if !info.Mode().IsRegular() {
 			return nil, fmt.Errorf("teamcontrol state must be a regular file")

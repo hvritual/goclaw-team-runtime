@@ -462,6 +462,10 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		`\\attacker\share\knowledge`,
 		"x://attacker/share/knowledge",
 		`\\?\C:\vault\knowledge`,
+		"file:////attacker/share/knowledge",
+		"file://localhost//attacker/share/knowledge",
+		"file:////./PIPE/goclaw",
+		"file:////%3F/C:/vault/knowledge",
 	} {
 		input := base
 		input.URI = uri
@@ -940,5 +944,9 @@ func TestExistingStatePermissionsFailClosed(t *testing.T) {
 	require.NoError(t, os.Chmod(statePath, 0o600))
 	_, err = Open(root)
 	require.NoError(t, err)
+	require.NoError(t, os.Chmod(root, 0o777))
+	_, err = Open(root)
+	require.ErrorContains(t, err, "allow non-owner writes")
+	require.NoError(t, os.Chmod(root, 0o700))
 	_ = fixture
 }

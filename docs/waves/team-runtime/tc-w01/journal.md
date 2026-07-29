@@ -101,3 +101,19 @@
   文件权限防御；
 - 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
 - `TC-EVID-W01-005` collecting，等待新的远端 exact SHA 和三路重新验收。
+
+## 2026-07-29 — r003 exact review 2 BLOCK
+
+- reviewed exact `961a93291e6867adc977b930e6c483b49a1f7861`，
+  tree `c560545338cdde96dd7939e15d858273ba93f4f3`；
+- code P0=0/P1=0 PASS；security P0=0/P1=1 BLOCK；overall 已 BLOCK，
+  因此未启动 docs final；
+- parsed `file:` URI 的 UNC/device 编码变体仍可绕过 raw boundary；
+- `TC-EVID-W01-006` 保留失败结果；继续最小前向修复并对新 SHA 重跑三路。
+
+## 2026-07-29 — r003 review remediation 3 Gate 通过
+
+- `file:` parse/unescape 后的 UNC/device 变体已拒绝并加入回归；
+- 父目录 real-directory 与 Unix non-owner-write boundary 已加入；
+- 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
+- `TC-EVID-W01-007` collecting，等待第三个 exact SHA 完整三路验收。

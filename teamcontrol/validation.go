@@ -119,8 +119,7 @@ func validateRegistryURI(value, field string) (string, error) {
 		return "", fmt.Errorf("%s must not contain query or fragment data", field)
 	}
 	lower := strings.ToLower(value)
-	if strings.HasPrefix(value, "//") || strings.HasPrefix(value, `\\`) ||
-		strings.HasPrefix(lower, `\\?\`) || strings.HasPrefix(lower, `\\.\`) ||
+	if unsafeLocalPath(value) ||
 		strings.Contains(lower, "://") && windowsAbsolutePathPattern.MatchString(value) {
 		return "", fmt.Errorf("%s must not use a UNC, device, or scheme-like local path", field)
 	}
@@ -143,6 +142,13 @@ func validateRegistryURI(value, field string) (string, error) {
 		if !filepath.IsAbs(parsed.Path) {
 			return "", fmt.Errorf("%s file URI must contain an absolute path", field)
 		}
+		decodedPath, err := url.PathUnescape(parsed.EscapedPath())
+		if err != nil {
+			return "", fmt.Errorf("%s file URI contains an invalid escaped path", field)
+		}
+		if unsafeLocalPath(decodedPath) {
+			return "", fmt.Errorf("%s file URI must not resolve to a UNC or device path", field)
+		}
 	case "https", "git+https":
 		if parsed.Host == "" {
 			return "", fmt.Errorf("%s must contain a host", field)
@@ -151,6 +157,11 @@ func validateRegistryURI(value, field string) (string, error) {
 		return "", fmt.Errorf("%s uses unsupported scheme %q", field, parsed.Scheme)
 	}
 	return value, nil
+}
+
+func unsafeLocalPath(value string) bool {
+	normalized := strings.ReplaceAll(value, `\`, "/")
+	return strings.HasPrefix(normalized, "//")
 }
 
 func cleanUsageMetadata(values map[string]string) (map[string]string, error) {
