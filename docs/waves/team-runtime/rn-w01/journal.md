@@ -81,3 +81,13 @@
   或后续 Wave；
 - r005 activation 与 Task Freeze 分离提交。冻结 base 必须包含本 plan、
   Registry 和 policy manifest，之后才提交验收修复。
+
+## 2026-07-29 — r005 Task Freeze
+
+- r005 activation 已推送到 remote exact
+  `40e79693cf25eb24d6b0728956684d2491f21247` /
+  tree `1e630b831808cec32ee0a89e7b4844de03ac3eed`；
+- Policy manifest `3/3`，SHA-256
+  `cf62089d3659605c2050949d26a73d16927039a91228edbf4497ea7f27c73b76`；
+- Task `RN-W01-LIFECYCLE-001` 前向冻结为 r005。后继产品修复必须使用
+  r005 tuple，并以该 remote activation exact 为 base。
