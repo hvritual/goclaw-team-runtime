@@ -82,3 +82,23 @@
 - base 已包含 r002 Plan/Registry/Policy 和 r001 failed Evidence；
 - freeze 后只允许 `docs/waves/**` 内关闭 r001 review findings、运行
   base→candidate Gate 和重做三路 review。
+
+## 2026-07-29 — r002 S07 review remediation and deterministic PASS
+
+- MCP audience 加入 exact ExecutionPack hash、lease generation/nonce；
+- citation v1 冻结 canonical identity、UTF-8 byte range、checksum 和 resolve；
+- global mandatory/global knowledge 使用独立 global authority 和审批角色；
+- resource refs 改为 typed opaque ID，并逐次做传递授权与脱敏；
+- backup/restore 加入 signed monotonic epoch、完整 event replay 和
+  non-executable recovery；
+- Knowledge successor activation 冻结 single-active atomic CAS；
+- feedback idempotency 绑定签名 envelope，canonical hash 使用
+  domain-separated RFC 8785 JCS 与 golden vectors；
+- 当前 RPC/CLI/Agent tool 已逐项映射，W04 candidate scope 纳入最小
+  Workstation binding，TC-W03–W06 draft 补齐模板结构；
+- validator 改为强制 frozen base/candidate commit、clean worktree、非空
+  diff、exact links/scope/journal 检查；
+- exact base `d2df5fd...` 到 candidate `df47a8b...` 的 Policy 3/3、
+  validator、diff/check、product-code-empty 全部 PASS；
+- `TC-EVID-W02-004` passed；下一步对包含 Evidence 的 final candidate 重跑
+  Gate 与 architecture/security/docs review。

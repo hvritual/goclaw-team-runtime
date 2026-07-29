@@ -1,6 +1,6 @@
 # TC-W02 S04 Deterministic Verification
 
-状态：`collecting`
+状态：`superseded`
 
 验证基线：
 
@@ -26,5 +26,7 @@
 | formatting | `git diff --check` 通过 | pending final run |
 | product code | 本次产品代码 diff 为空 | pending final run |
 
-最终命令、输出摘要和 artifact SHA-256 在独立复核修正完成后前向追加；失败
-结果不得覆盖。
+r001 validator 在 commit 后可能得到 0-file vacuous PASS，未满足 frozen
+base→candidate 证明要求，因此本记录 superseded，不能作为 passed
+Evidence。修正后的 r002 结果见
+[`s07-r002-deterministic-verification.md`](s07-r002-deterministic-verification.md)。
