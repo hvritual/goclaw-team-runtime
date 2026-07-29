@@ -172,6 +172,29 @@ for (const id of ['TC-W03', 'TC-W04', 'TC-W05', 'TC-W06']) {
   }
 }
 
+const successorDecisionMap = {
+  'TC-W03': 'TC-DEC-005',
+  'TC-W04': 'TC-DEC-004',
+  'TC-W05': 'TC-DEC-006',
+  'TC-W06': 'TC-DEC-007',
+};
+for (const [id, decisionId] of Object.entries(successorDecisionMap)) {
+  const wave = registry.waves.find((item) => item.id === id);
+  const content = readAt(path.join('docs/waves', wave.document));
+  check(content.includes(`\`${decisionId}\``), `${id} must reference ${decisionId}`);
+}
+const tcw03Draft = readAt('docs/waves/team-runtime/tc-w03/plan-r001.md');
+check(
+  tcw03Draft.includes('non-executable shadow') &&
+    tcw03Draft.includes('旧 Catalog 继续作为唯一 runtime writer'),
+  'TC-W03 must not claim runtime authority cutover',
+);
+const decisionLog = readAt('docs/waves/decision-log.md');
+check(
+  decisionLog.includes('TC-DEC-007：客户端仅为投影，知识迁移分阶段且切换独立授权'),
+  'TC-DEC-007 projection/migration decision missing',
+);
+
 const rel = registry.waves.find((wave) => wave.id === 'REL-W01');
 check(JSON.stringify(rel?.depends_on) === JSON.stringify(['TC-W06']), 'REL-W01 must depend on TC-W06');
 check(rel?.document === 'team-runtime/rel-w01/plan-r002.md', 'REL-W01 must point to r002');

@@ -118,7 +118,7 @@ migration、backup、restore、rollback 运维路径，同时保持真实数据�
 
 | 日期 | Decision ID | 决策 | 原因与影响 |
 |---|---|---|---|
-| 2026-07-29 | `TC-DEC-006` | UI/CLI/Obsidian 仅为 projection；迁移分 inventory/shadow/compare/cutover | 避免客户端或迁移器成为第二权威 |
+| 2026-07-29 | `TC-DEC-007` | UI/CLI/Obsidian 仅为 projection；迁移分 inventory/shadow/compare/cutover | 避免客户端或迁移器成为第二权威；真实切换仍需独立 operator Task |
 
 ## Plan revision
 

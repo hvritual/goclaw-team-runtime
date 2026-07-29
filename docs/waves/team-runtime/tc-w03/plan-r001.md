@@ -29,8 +29,9 @@ non-goals、Gate 和回滚见
 
 ## 目标
 
-在不迁移真实数据的前提下，建立 Team Control 唯一的 Knowledge lifecycle/
-approval 权威、唯一可迁移的 content-addressed 正文边界和可重建索引合同。
+在不迁移真实数据、不切换读写路径的前提下，建立 Team Control 目标
+Knowledge lifecycle/approval authority、唯一可迁移的 content-addressed
+正文边界和可重建索引实现，并只以 non-executable shadow state 验证它们。
 
 ## 权威输入
 
@@ -75,7 +76,7 @@ approval 权威、唯一可迁移的 content-addressed 正文边界和可重建�
 | 影响面 | 当前契约 | 计划变化 | 兼容/迁移风险 |
 |---|---|---|---|
 | UI | 多入口展示/编辑 | 本 Wave 不改 UI，只冻结 projection contract | 旧 UI 误写 active |
-| RPC/API | Team Control 与 Catalog 分离 | candidate/approval/authority 统一入口 | legacy caller 行为变化 |
+| RPC/API | Team Control 与 Catalog 分离 | 新 authority 入口只用于 non-executable shadow validation | legacy caller 被误切换 |
 | 权限 | project 与 `"*"` shared 混合 | server-derived project/global authority | global 越权 |
 | 数据 | 两套正文/状态边界 | 单一 content store；index 可重建 | 错误归类或双写 |
 | 部署 | 无迁移 checkpoint contract | shadow-only adapter 与 rollback gate | 提前 cutover |
@@ -109,9 +110,11 @@ approval 权威、唯一可迁移的 content-addressed 正文边界和可重建�
 
 ## 退出门禁
 
-- [ ] Team Control 是 knowledge lifecycle/approval 的唯一逻辑权威。
-- [ ] 正文只有一个 content-addressed boundary，index 可从事件重建。
-- [ ] 旧 Catalog active writer 可显式关闭，真实库仍未迁移。
+- [ ] Team Control 目标 knowledge lifecycle/approval authority 已在
+  non-executable shadow state 通过验证，但尚未成为运行时写权威。
+- [ ] shadow 正文只有一个 content-addressed boundary，index 可从事件重建。
+- [ ] 旧 Catalog 继续作为唯一 runtime writer；本 Wave 未 disable writer、
+  未 read cutover、未迁移真实库。
 - [ ] migration dry-run/rollback 和三路独立复核 P0/P1=0。
 - [ ] Evidence 已登记，未解决风险已进入后继 Wave。
 - [ ] TC-W04 仍未激活。
@@ -120,7 +123,7 @@ approval 权威、唯一可迁移的 content-addressed 正文边界和可重建�
 
 | 日期 | Decision ID | 决策 | 原因与影响 |
 |---|---|---|---|
-| 2026-07-29 | `TC-DEC-003` | Team Control 管理知识身份/lifecycle；正文单一、索引可重建 | 消除第二权威源；真实迁移留待独立授权 |
+| 2026-07-29 | `TC-DEC-005` | Team Control 管理知识身份/lifecycle；正文单一、索引可重建 | 本 Wave 只验证 non-executable shadow；运行时切换留待后续授权 |
 
 ## Plan revision
 

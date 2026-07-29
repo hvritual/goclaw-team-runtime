@@ -134,3 +134,15 @@
   假阳性；
 - 这些 draft 仍是 `proposed`、`product_code_changes_allowed=false`，不会
   因模板补全获得实现授权。
+
+## 2026-07-29 — r002 S08 architecture semantic corrections
+
+- final-candidate architecture review 报告 P0=0/P1=2/P2=0；
+- TC-W03 改为只验证 non-executable shadow authority/content/index；旧
+  Catalog 在 runtime cutover 前仍是唯一 writer，W03 不 disable、不切换；
+- successor plan 决策引用修正为 Knowledge=`TC-DEC-005`、
+  MCP/feedback=`TC-DEC-006`；
+- append `TC-DEC-007` 冻结 client projection 与 staged migration 路线，
+  runtime cutover 必须由 TC-W06 新 approved revision、synthetic Gate 和
+  operator-owned Task 共同授权；
+- findings 仍须在新的 exact candidate 上独立复审关闭。

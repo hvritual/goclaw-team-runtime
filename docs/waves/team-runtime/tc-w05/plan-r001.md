@@ -118,7 +118,7 @@ Runner update。approved revision 必须冻结精确工具和文件。
 
 | 日期 | Decision ID | 决策 | 原因与影响 |
 |---|---|---|---|
-| 2026-07-29 | `TC-DEC-005` | MCP 只读且逐次授权；Runner 反馈只能创建 candidate | 保持 active 人工审批和服务器端项目隔离 |
+| 2026-07-29 | `TC-DEC-006` | MCP 只读且逐次授权；Runner 反馈只能创建 candidate | 保持 active 人工审批和服务器端项目隔离 |
 
 ## Plan revision
 

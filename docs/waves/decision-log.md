@@ -311,3 +311,26 @@
 - 回滚：feedback ingestion 可停用且保留 Evidence；任何 P1 保持 TC-W05
   active/blocked，不切换 MCP read path。
 - 关联：`TC-W05`、`TC-W02 target-contracts.md`。
+
+## 2026-07-29 — TC-DEC-007：客户端仅为投影，知识迁移分阶段且切换独立授权
+
+- 状态：`active`。
+- 触发：目标要求 Console、CLI 与 Obsidian 展示 effective policy、知识版本、
+  citation usage、候选和审批，同时不能成为 active state 或项目授权来源；
+  旧 KnowledgeSource/Catalog 又必须可回滚地迁移。
+- 决策：Web/CLI/Obsidian 只读取服务器端 project/global entitlement 派生的
+  projection，并通过受控 command 提交候选/审批；迁移严格分 inventory、
+  non-executable shadow import、dual-read compare、read cutover 和 retirement。
+  TC-W03 只建立并验证 shadow authority/content/index，不 disable 旧 writer；
+  runtime old-writer disable/read cutover 只允许在 TC-W06 的新 approved
+  revision、synthetic Gate 通过且另有 operator-owned Task 时执行。
+- 否决方案：拒绝客户端参数扩大 scope 或直接写 active；拒绝 TC-W03 在无
+  真实迁移授权时宣称成为 runtime 唯一 writer；拒绝回退到未 replay 的旧
+  snapshot。
+- 影响：TC-W06 必须覆盖 loading/empty/denied/error/conflict/stale、
+  server-side authorization、migration comparison 和 monotonic recovery；
+  本规划阶段不迁移真实数据。
+- 回滚：停止 mutation，验证 signed monotonic checkpoint，replay/reconcile
+  cutover 后 authority events；缺失或倒退时只能 non-executable recovery。
+- 关联：`TC-W03`、`TC-W06`、`TC-ISSUE-002`、
+  `TC-W02 migration-and-wave-roadmap.md`。
