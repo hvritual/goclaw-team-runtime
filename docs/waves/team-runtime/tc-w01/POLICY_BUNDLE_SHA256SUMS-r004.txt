@@ -1,3 +1,0 @@
-258b8d2f5d98503041c28b4a9d532c3590f3a5fa6d376dda252a1b4db2b34e6b  AGENTS.md
-59019e55f8adefcf5ee6e7c5515f48cff4109b9e34028242767551f2c34deaed  docs/waves/team-runtime/tc-w01/plan-r004.md
-fdd52c33fe96cc2fb79bbc65cbe7e12fc087ff54a68a6ba50fa38dfe0c47650c  docs/waves/wave-registry.json

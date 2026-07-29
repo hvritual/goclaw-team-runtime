@@ -1,6 +1,0 @@
-goclaw.example.com {
-  encode zstd gzip
-
-  @team_console path /dashboard /dashboard/* /assets/* /auth/session /rpc /ws /health
-  reverse_proxy @team_console 127.0.0.1:28789
-}

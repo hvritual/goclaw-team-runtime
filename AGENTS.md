@@ -1,73 +1,54 @@
-# GoClaw Team Engineering Policy
+# Repository Guidelines
 
-These rules apply to every human and Codex change in this repository.
+This file provides guidance to AI agents when working with code in this repository.
 
-## Wave planning gate
+> **Single source of truth:** This file is a concise pointer document.
+> All authoritative architecture, coding rules, and conventions
+> live in **CLAUDE.md** at the project root. Read that file first.
+> Use `Makefile`, `package.json`, and `pnpm-workspace.yaml` as the
+> source of truth for the full command list.
 
-- Every staged, multi-step, or multi-module update must have an entry in
-  `docs/waves/wave-registry.json` and an approved revisioned plan under
-  `docs/waves/` before product code is changed.
-- Update the plan before implementation. A frozen task must reference the
-  `Wave-ID`, `Issue-ID`, exact plan revision, and step ID that authorize its
-  scope.
-- Product code may change only when the registry marks that Wave `active`, the
-  active plan permits product changes, and the file/contract is inside its
-  allowed scope. `FE-W00` and any other discovery-only Wave are documentation
-  and diagnostic work only.
-- A reported or statically suspected problem is not a confirmed defect. It may
-  enter a repair Wave only after reproduction evidence records the environment,
-  role, project, action, expected result, actual result, and sanitized logs.
-- An approved plan revision is immutable. Material scope, contract, gate, risk,
-  or rollback changes require a new plan revision before implementation
-  continues. Append status, decisions, and evidence to the Wave journal; do not
-  rewrite history.
-- Do not activate a later Wave while its dependencies are incomplete. Do not
-  mark a Wave complete without indexed verification evidence and independent
-  review.
-- In Team mode, the runtime resolves the requested Wave step from the active
-  registry at the registered repository's exact base commit, freezes the plan
-  revision and hashes, and revalidates them at freeze, enqueue, and acceptance.
-  Repository work outside that path must still follow this policy manually; do
-  not describe an unbound local task as Wave-governed.
+## Quick Reference
 
-## Traceability
+### Architecture
 
-- Work only from a frozen task with a project, repository, assignee, base commit,
-  policy bundle hash, acceptance criteria, and deterministic verification.
-- Keep each change in its task worktree and revision-specific branch.
-- Every commit must include `Task-ID`, `Project-ID`, `Task-Revision`, and
-  `Work-Item` trailers. Include `Wave-ID`, `Wave-Revision`, `Wave-Step`,
-  `Issue`, and `Policy-Bundle` when present.
-- Do not mix unrelated fixes into one task or pull request.
+Go backend + monorepo frontend (pnpm workspaces + Turborepo) with shared packages.
 
-## Reuse first
+- `server/` - Go backend (Chi router, sqlc, gorilla/websocket)
+- `apps/web/` - Next.js frontend (App Router)
+- `apps/desktop/` - Electron desktop app
+- `packages/core/` - Headless business logic (Zustand stores, React Query hooks, API client)
+- `packages/ui/` - Atomic UI components (shadcn/Base UI, zero business logic)
+- `packages/views/` - Shared business pages/components
+- `packages/tsconfig/` - Shared TypeScript config
 
-- Search existing packages, components, APIs, schemas, templates, and the
-  Component Registry before introducing a new abstraction.
-- Extend a compatible shared component instead of copying it.
-- New shared components require a clear owner, compatibility contract, tests,
-  usage example, and deprecation policy.
+### State Management (critical)
 
-## Go
+- **React Query** owns all server state (issues, members, agents, inbox, workspace list)
+- **Zustand** owns client/view state (view filters, drafts, modals, desktop tab state); current workspace identity is route-driven and only mirrored for platform plumbing
+- All Zustand stores live in `packages/core/` - never in `packages/views/` or app directories
+- WS events update React Query for server data; store writes are only for clearing client-owned pointers with a single responder/self-event guard
 
-- Run `gofmt` on changed Go files.
-- Prefer small packages with explicit dependencies and constructor validation.
-- Wrap errors with operation context; never log or persist credentials.
-- Use table-driven tests for state transitions and authorization matrices.
-- File-backed services must use atomic writes and be safe for concurrent use.
+### Package Boundaries (hard rules)
 
-## TypeScript and Obsidian
+- `packages/core/` - zero react-dom, zero localStorage, zero process.env
+- `packages/ui/` - zero `@multica/core` imports
+- `packages/views/` - zero `next/*`, zero `react-router-dom`, use `NavigationAdapter` for routing
+- `apps/web/platform/` - only place for Next.js APIs
 
-- Keep gateway contracts typed and project-scoped.
-- Render explicit loading, empty, denied, and error states.
-- Do not put access tokens, reviewer tokens, or device secrets into the Vault.
-- Views are projections; task, issue, runner, and policy state belongs to the
-  central control plane.
+### Database Migrations (hard rules)
 
-## Governance
+- Never add database foreign keys or cascading actions. Enforce relationships and perform dependent cleanup explicitly in the application layer, using transactions when the operation must be atomic.
+- Every index created by a migration, including unique indexes and indexes on new tables, must use `CREATE [UNIQUE] INDEX CONCURRENTLY`. Keep each concurrent index build in its own single-statement migration file.
 
-- Deterministic checks precede model review.
-- A creator or assignee cannot perform final acceptance of their own work.
-- Project and repository authorization is resolved server-side.
-- Documentation, regression evidence, and issue links are part of DoneGate when
-  required by the frozen task.
+### Commands
+
+```bash
+make dev              # Auto-setup + start everything
+pnpm typecheck        # TypeScript check
+pnpm test             # TS unit tests (Vitest)
+make test             # Go tests
+make check            # Full verification pipeline
+```
+
+See CLAUDE.md for the authoritative rules and common commands.

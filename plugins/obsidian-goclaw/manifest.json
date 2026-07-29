@@ -1,9 +1,0 @@
-{
-  "id": "goclaw-project-console",
-  "name": "GoClaw Project Console",
-  "version": "0.6.0",
-  "minAppVersion": "1.8.0",
-  "description": "Chat with GoClaw and operate a project-scoped team, task, issue, runner, policy, document and component console.",
-  "author": "GoClaw Better Harness",
-  "isDesktopOnly": true
-}

@@ -1,408 +1,358 @@
-.PHONY: help all build build-team-control build-runner build-apps test test-race test-coverage test-verbose lint fmt fmt-check vet clean deps tidy check install-tools benchmark build-ui build-full setup-tauri build-tauri dev-tauri prepare-sidecar prepare-tauri-sidecar release-tauri-macos notarize-tauri-macos staple-tauri-macos verify-tauri-macos
+.PHONY: help makehelp dev server daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
 
-# Variables
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
-GOMOD=$(GOCMD) mod
-GOFMT=gofmt
-GOVET=$(GOCMD) vet
-BINARY_NAME=goclaw
-BUILD_DIR=.
-VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-DOCKER_IMAGE=goclaw
-DOCKER_TAG=$(VERSION)
-COVERAGE_FILE=coverage.out
-COVERAGE_HTML=coverage.html
-GO_CACHE_DIR=$(CURDIR)/.gocache
-MACOS_SIGNING_IDENTITY?=
-APPLE_ID?=
-APPLE_PASSWORD?=
-APPLE_TEAM_ID?=
-TAURI_BUNDLE_DIR=$(CURDIR)/src-tauri/target/release/bundle
-TAURI_MACOS_APP=$(firstword $(wildcard $(TAURI_BUNDLE_DIR)/macos/*.app))
-TAURI_MACOS_DMG=$(firstword $(wildcard $(TAURI_BUNDLE_DIR)/dmg/*.dmg))
+MAIN_ENV_FILE ?= .env
+WORKTREE_ENV_FILE ?= .env.worktree
+ENV_FILE ?= $(if $(wildcard $(MAIN_ENV_FILE)),$(MAIN_ENV_FILE),$(if $(wildcard $(WORKTREE_ENV_FILE)),$(WORKTREE_ENV_FILE),$(MAIN_ENV_FILE)))
 
-# Colors for terminal output
-COLOR_RESET=\033[0m
-COLOR_BOLD=\033[1m
-COLOR_GREEN=\033[32m
-COLOR_YELLOW=\033[33m
-COLOR_BLUE=\033[34m
+ifneq ($(wildcard $(ENV_FILE)),)
+include $(ENV_FILE)
+endif
 
-# Default target
-all: clean fmt lint test build
+POSTGRES_DB ?= multica
+POSTGRES_USER ?= multica
+POSTGRES_PASSWORD ?= multica
+POSTGRES_PORT ?= 5432
+PORT := $(or $(BACKEND_PORT),$(API_PORT),$(SERVER_PORT),$(PORT),8080)
+FRONTEND_PORT ?= 3000
+FRONTEND_ORIGIN ?= http://localhost:$(FRONTEND_PORT)
+MULTICA_APP_URL ?= $(FRONTEND_ORIGIN)
+DATABASE_URL ?= postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable
+NEXT_PUBLIC_API_URL ?= http://localhost:$(PORT)
+NEXT_PUBLIC_WS_URL ?= ws://localhost:$(PORT)/ws
+GOOGLE_REDIRECT_URI ?= $(FRONTEND_ORIGIN)/auth/callback
+MULTICA_SERVER_URL ?= ws://localhost:$(PORT)/ws
+LOCAL_UPLOAD_BASE_URL ?= http://localhost:$(PORT)
 
-## help: Display this help message
-help:
-	@echo "$(COLOR_BOLD)GoClaw - Makefile Commands$(COLOR_RESET)"
+export
+
+MULTICA_ARGS ?= $(ARGS)
+
+COMPOSE := docker compose
+
+define REQUIRE_ENV
+	@if [ ! -f "$(ENV_FILE)" ]; then \
+		echo "Missing env file: $(ENV_FILE)"; \
+		echo "Create .env from .env.example, or run 'make worktree-env' and use .env.worktree."; \
+		exit 1; \
+	fi
+endef
+
+# Self-hosting requires the Docker Compose CLI plugin (`docker compose`).
+# The self-host compose files use compose-spec syntax (top-level `name:`, no
+# `version:`) that the legacy v1 `docker-compose` standalone cannot parse, so we
+# fail early with an actionable message instead of a cryptic CLI parse error
+# (e.g. "unknown shorthand flag: 'f' in -f") when the plugin is missing or v1.
+# Keep the message short and OS-agnostic: per-OS install steps belong in docs.
+define REQUIRE_COMPOSE
+	@if ! compose_version=$$($(COMPOSE) version --short 2>/dev/null); then \
+		echo "Docker Compose ('docker compose') was not found."; \
+		echo "Self-hosting requires the Compose CLI plugin; legacy 'docker-compose' v1 is not supported."; \
+		echo "Install Docker Compose from https://docs.docker.com/compose/install/ and verify with: docker compose version"; \
+		exit 1; \
+	fi; \
+	case "$$compose_version" in \
+		1.*|v1.*) \
+			echo "'$(COMPOSE)' is legacy Docker Compose v1 ($$compose_version)."; \
+			echo "Self-hosting requires the Compose CLI plugin; legacy 'docker-compose' v1 is not supported."; \
+			echo "Install Docker Compose from https://docs.docker.com/compose/install/ and verify with: docker compose version"; \
+			exit 1; \
+			;; \
+	esac
+endef
+
+# Default target changed from selfhost to help: bare `make` now prints this help
+# instead of launching a full Docker Compose build, which is safer for onboarding.
+.DEFAULT_GOAL := help
+
+##@ Help
+
+help: ## Show available make targets and common local workflows
+	@awk 'BEGIN {FS = ":.*## "; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nQuick start:\n  \033[36mmake dev\033[0m          Bootstrap the current checkout and start everything\n  \033[36mmake check\033[0m        Run the full local verification pipeline\n\nCheckout modes:\n  Main checkout uses \033[36m.env\033[0m\n  Worktrees use \033[36m.env.worktree\033[0m (generate with \033[36mmake worktree-env\033[0m)\n\n"} \
+		/^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
+		/^[a-zA-Z0-9_.-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+makehelp: help ## Alias for `make help`
+
+# ---------- Self-hosting (Docker Compose) ----------
+##@ Self-hosting
+
+selfhost: ## Create .env if needed, then pull and start the official self-hosted images
+	$(REQUIRE_COMPOSE)
+	@if [ ! -f .env ]; then \
+		echo "==> Creating .env from .env.example..."; \
+		cp .env.example .env; \
+		JWT=$$(openssl rand -hex 32); \
+		PGPASS=$$(openssl rand -hex 24); \
+		VCSKEY=$$(openssl rand -base64 32); \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
+			sed -i '' "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$$PGPASS/" .env; \
+			sed -i '' -E "s#^(DATABASE_URL=postgres://[^:]+:)[^@]*(@.*)#\1$$PGPASS\2#" .env; \
+			sed -i '' "s#^MULTICA_VCS_SECRET_KEY=.*#MULTICA_VCS_SECRET_KEY=$$VCSKEY#" .env; \
+		else \
+			sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
+			sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$$PGPASS/" .env; \
+			sed -i -E "s#^(DATABASE_URL=postgres://[^:]+:)[^@]*(@.*)#\1$$PGPASS\2#" .env; \
+			sed -i "s#^MULTICA_VCS_SECRET_KEY=.*#MULTICA_VCS_SECRET_KEY=$$VCSKEY#" .env; \
+		fi; \
+		echo "==> Generated random JWT_SECRET, POSTGRES_PASSWORD, and MULTICA_VCS_SECRET_KEY"; \
+	fi
+	@echo "==> Pulling official Multica images..."
+	@if ! $(COMPOSE) -f docker-compose.selfhost.yml pull; then \
+		echo ""; \
+		echo "Official images for tag '$${MULTICA_IMAGE_TAG:-latest}' are not published yet."; \
+		echo "If this is before the first GHCR release, build from the current checkout:"; \
+		echo "  make selfhost-build"; \
+		exit 1; \
+	fi
+	@echo "==> Starting Multica via Docker Compose..."
+	$(COMPOSE) -f docker-compose.selfhost.yml up -d
+	@echo "==> Waiting for backend to be ready..."
+	@for i in $$(seq 1 30); do \
+		if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
+			break; \
+		fi; \
+		sleep 2; \
+	done
+	@if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
+		echo ""; \
+		echo "✓ Multica is running!"; \
+		echo "  Frontend: http://localhost:$${FRONTEND_PORT:-3000}"; \
+		echo "  Backend:  http://localhost:$${PORT:-8080}"; \
+		echo ""; \
+		echo "Images: $${MULTICA_BACKEND_IMAGE:-ghcr.io/multica-ai/multica-backend}:$${MULTICA_IMAGE_TAG:-latest}"; \
+		echo "        $${MULTICA_WEB_IMAGE:-ghcr.io/multica-ai/multica-web}:$${MULTICA_IMAGE_TAG:-latest}"; \
+		echo ""; \
+		echo "Log in: configure RESEND_API_KEY in .env for email codes,"; \
+		echo "        or read the generated code from backend logs when Resend is unset."; \
+		echo ""; \
+		echo "Next — install the CLI and connect your machine:"; \
+		echo "  brew install multica-ai/tap/multica"; \
+		echo "  multica setup self-host"; \
+	else \
+		echo ""; \
+		echo "Services are still starting. Check logs:"; \
+		echo "  $(COMPOSE) -f docker-compose.selfhost.yml logs"; \
+	fi
+
+selfhost-build: ## Build backend/web from the current checkout and start the self-hosted stack
+	$(REQUIRE_COMPOSE)
+	@if [ ! -f .env ]; then \
+		echo "==> Creating .env from .env.example..."; \
+		cp .env.example .env; \
+		JWT=$$(openssl rand -hex 32); \
+		PGPASS=$$(openssl rand -hex 24); \
+		VCSKEY=$$(openssl rand -base64 32); \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			sed -i '' "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
+			sed -i '' "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$$PGPASS/" .env; \
+			sed -i '' -E "s#^(DATABASE_URL=postgres://[^:]+:)[^@]*(@.*)#\1$$PGPASS\2#" .env; \
+			sed -i '' "s#^MULTICA_VCS_SECRET_KEY=.*#MULTICA_VCS_SECRET_KEY=$$VCSKEY#" .env; \
+		else \
+			sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$$JWT/" .env; \
+			sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$$PGPASS/" .env; \
+			sed -i -E "s#^(DATABASE_URL=postgres://[^:]+:)[^@]*(@.*)#\1$$PGPASS\2#" .env; \
+			sed -i "s#^MULTICA_VCS_SECRET_KEY=.*#MULTICA_VCS_SECRET_KEY=$$VCSKEY#" .env; \
+		fi; \
+		echo "==> Generated random JWT_SECRET, POSTGRES_PASSWORD, and MULTICA_VCS_SECRET_KEY"; \
+	fi
+	@echo "==> Building Multica from the current checkout..."
+	$(COMPOSE) -f docker-compose.selfhost.yml -f docker-compose.selfhost.build.yml up -d --build
+	@echo "==> Waiting for backend to be ready..."
+	@for i in $$(seq 1 30); do \
+		if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
+			break; \
+		fi; \
+		sleep 2; \
+	done
+	@if curl -sf http://localhost:$${PORT:-8080}/health > /dev/null 2>&1; then \
+		echo ""; \
+		echo "✓ Multica is running!"; \
+		echo "  Frontend: http://localhost:$${FRONTEND_PORT:-3000}"; \
+		echo "  Backend:  http://localhost:$${PORT:-8080}"; \
+		echo ""; \
+		echo "Log in: configure RESEND_API_KEY in .env for email codes,"; \
+		echo "        or read the generated code from backend logs when Resend is unset."; \
+		echo ""; \
+		echo "Built images locally via docker-compose.selfhost.build.yml."; \
+		echo "Local tags: multica-backend:dev and multica-web:dev."; \
+		echo ""; \
+		echo "Next — install the CLI and connect your machine:"; \
+		echo "  brew install multica-ai/tap/multica"; \
+		echo "  multica setup self-host"; \
+	else \
+		echo ""; \
+		echo "Services are still starting. Check logs:"; \
+		echo "  $(COMPOSE) -f docker-compose.selfhost.yml logs"; \
+	fi
+
+selfhost-stop: ## Stop the self-hosted Docker Compose stack
+	$(REQUIRE_COMPOSE)
+	@echo "==> Stopping Multica services..."
+	$(COMPOSE) -f docker-compose.selfhost.yml down
+	@echo "✓ All services stopped."
+
+# ---------- One-click commands ----------
+##@ One-click
+
+setup: ## Prepare the current checkout from its env file: install deps, ensure DB, run migrations
+	$(REQUIRE_ENV)
+	@echo "==> Using env file: $(ENV_FILE)"
+	@echo "==> Installing dependencies..."
+	pnpm install
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@echo "==> Running migrations..."
+	cd server && go run ./cmd/migrate up
 	@echo ""
-	@echo "$(COLOR_BOLD)Usage:$(COLOR_RESET)"
-	@echo "  make $(COLOR_GREEN)<target>$(COLOR_RESET)"
+	@echo "✓ Setup complete! Run 'make start' to launch the app."
+
+start: ## Start backend and frontend for the current checkout and run migrations first
+	$(REQUIRE_ENV)
+	@echo "Using env file: $(ENV_FILE)"
+	@echo "Backend: http://localhost:$(PORT)"
+	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@echo "Running migrations..."
+	cd server && go run ./cmd/migrate up
+	@echo "Starting backend and frontend..."
+	@trap 'kill 0' EXIT; \
+		(cd server && go run ./cmd/server) & \
+		pnpm dev:web & \
+		wait
+
+stop: ## Stop backend and frontend processes for the current checkout
+	$(REQUIRE_ENV)
+	@echo "Stopping services..."
+	@-lsof -ti:$(PORT) | xargs kill -9 2>/dev/null
+	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null
+	@case "$(DATABASE_URL)" in \
+		""|*@localhost:*|*@localhost/*|*@127.0.0.1:*|*@127.0.0.1/*|*@\[::1\]:*|*@\[::1\]/*) \
+			echo "✓ App processes stopped. Shared PostgreSQL is still running on localhost:$(POSTGRES_PORT)." ;; \
+		*) \
+			echo "✓ App processes stopped. Remote PostgreSQL was not affected." ;; \
+	esac
+
+check: ## Run typecheck, TS tests, Go tests, and Playwright E2E for the current checkout
+	$(REQUIRE_ENV)
+	@ENV_FILE="$(ENV_FILE)" bash scripts/check.sh
+
+db-up: ## Start the shared PostgreSQL container used by main and worktrees
+	@$(COMPOSE) up -d postgres
+
+db-down: ## Stop the shared PostgreSQL container without removing its Docker volume
+	@$(COMPOSE) down
+
+# Drop + recreate the current env's database, then run all migrations.
+# Use for a clean slate in local dev. Only affects the DB named in
+# ENV_FILE (POSTGRES_DB); the shared postgres container and other
+# worktree DBs are untouched. Refuses to run against a remote host.
+db-reset: ## Drop and recreate the current env's database, then re-run all migrations
+	$(REQUIRE_ENV)
+	@case "$(DATABASE_URL)" in \
+		""|*@localhost:*|*@localhost/*|*@127.0.0.1:*|*@127.0.0.1/*|*@\[::1\]:*|*@\[::1\]/*) ;; \
+		*) echo "Refusing to reset: DATABASE_URL points at a remote host."; exit 1 ;; \
+	esac
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	@echo "==> Dropping and recreating database '$(POSTGRES_DB)'..."
+	@$(COMPOSE) exec -T postgres psql -U $(POSTGRES_USER) -d postgres -v ON_ERROR_STOP=1 \
+		-c "DROP DATABASE IF EXISTS \"$(POSTGRES_DB)\" WITH (FORCE);" \
+		-c "CREATE DATABASE \"$(POSTGRES_DB)\";"
+	@echo "==> Running migrations..."
+	cd server && go run ./cmd/migrate up
 	@echo ""
-	@echo "$(COLOR_BOLD)Available targets:$(COLOR_RESET)"
-	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## /  $(COLOR_GREEN)/' | sed 's/:/ $(COLOR_RESET)-/'
-	@echo ""
+	@echo "✓ Database '$(POSTGRES_DB)' reset. Run 'make start' to launch the app."
 
-## build: Build the project
-build:
-	@echo "$(COLOR_BLUE)Building $(BINARY_NAME)...$(COLOR_RESET)"
-	@mkdir -p $(BUILD_DIR)
-	@mkdir -p $(GO_CACHE_DIR)
-	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/$(BINARY_NAME) .
+worktree-env: ## Generate .env.worktree with a unique DB name and app ports for this worktree
+	@bash scripts/init-worktree-env.sh .env.worktree
 
-## build-team-control: Build the dedicated Team Control application
-build-team-control:
-	@mkdir -p $(GO_CACHE_DIR)
-	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/goclaw-team-control ./cmd/team-control
+setup-main: ## Prepare the main checkout using .env
+	@$(MAKE) setup ENV_FILE=$(MAIN_ENV_FILE)
 
-## build-runner: Build the dedicated Runner application
-build-runner:
-	@mkdir -p $(GO_CACHE_DIR)
-	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/goclaw-runner ./cmd/runner
+start-main: ## Start the main checkout using .env
+	@$(MAKE) start ENV_FILE=$(MAIN_ENV_FILE)
 
-## build-apps: Cross-build Team Control, Runner, and compatibility binaries
-build-apps:
-	VERSION=$(VERSION) ./scripts/build-apps.sh --output $(BUILD_DIR)/dist/apps
+stop-main: ## Stop the main checkout processes defined by .env
+	@$(MAKE) stop ENV_FILE=$(MAIN_ENV_FILE)
 
-## build-ui: Build the UI frontend
-build-ui:
-	@echo "$(COLOR_BLUE)Building UI frontend...$(COLOR_RESET)"
-	@cd ui && npm install && npm run build
-	@echo "$(COLOR_GREEN)UI built successfully$(COLOR_RESET)"
+check-main: ## Run the full verification pipeline for the main checkout
+	@ENV_FILE=$(MAIN_ENV_FILE) bash scripts/check.sh
 
-## build-full: Build UI and then build the binary (embeds UI)
-build-full: build-ui
-	@echo "$(COLOR_BLUE)Copying UI to gateway/ui_dist...$(COLOR_RESET)"
-	@rm -rf gateway/ui_dist && cp -r ui/dist gateway/ui_dist
-	@echo "$(COLOR_BLUE)Building $(BINARY_NAME) with embedded UI...$(COLOR_RESET)"
-	@mkdir -p $(BUILD_DIR)
-	@mkdir -p $(GO_CACHE_DIR)
-	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/$(BINARY_NAME) .
-	@echo "$(COLOR_GREEN)Build complete! Binary: $(BUILD_DIR)/$(BINARY_NAME)$(COLOR_RESET)"
+setup-worktree: ## Ensure .env.worktree exists, then prepare this worktree
+	@if [ ! -f "$(WORKTREE_ENV_FILE)" ]; then \
+		echo "==> Generating $(WORKTREE_ENV_FILE) with unique ports..."; \
+		bash scripts/init-worktree-env.sh $(WORKTREE_ENV_FILE); \
+	else \
+		echo "==> Using existing $(WORKTREE_ENV_FILE)"; \
+	fi
+	@$(MAKE) setup ENV_FILE=$(WORKTREE_ENV_FILE)
 
-## test: Run all tests
-test:
-	@echo "$(COLOR_BLUE)Running tests...$(COLOR_RESET)"
-	$(GOTEST) -v ./...
+start-worktree: ## Start this worktree using .env.worktree
+	@$(MAKE) start ENV_FILE=$(WORKTREE_ENV_FILE)
 
-## test-short: Run tests in short mode
-test-short:
-	@echo "$(COLOR_BLUE)Running tests (short mode)...$(COLOR_RESET)"
-	$(GOTEST) -short ./...
+stop-worktree: ## Stop this worktree's backend and frontend processes
+	@$(MAKE) stop ENV_FILE=$(WORKTREE_ENV_FILE)
 
-## test-race: Run tests with race detector
-test-race:
-	@echo "$(COLOR_BLUE)Running tests with race detector...$(COLOR_RESET)"
-	$(GOTEST) -race ./...
+check-worktree: ## Run the full verification pipeline for this worktree
+	@ENV_FILE=$(WORKTREE_ENV_FILE) bash scripts/check.sh
 
-## test-coverage: Run tests with coverage report
-test-coverage:
-	@echo "$(COLOR_BLUE)Running tests with coverage...$(COLOR_RESET)"
-	$(GOTEST) -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...
-	@echo "$(COLOR_GREEN)Coverage report generated: $(COVERAGE_FILE)$(COLOR_RESET)"
-	$(GOCMD) tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
-	@echo "$(COLOR_GREEN)HTML coverage report: $(COVERAGE_HTML)$(COLOR_RESET)"
+# ---------- Individual commands ----------
+##@ Individual commands
 
-## test-verbose: Run tests with verbose output
-test-verbose:
-	@echo "$(COLOR_BLUE)Running tests (verbose)...$(COLOR_RESET)"
-	$(GOTEST) -v -count=1 ./...
+dev: ## Bootstrap this checkout end-to-end: create env if needed, ensure DB, migrate, start services
+	@bash scripts/dev.sh
 
-## benchmark: Run benchmarks
-benchmark:
-	@echo "$(COLOR_BLUE)Running benchmarks...$(COLOR_RESET)"
-	$(GOTEST) -bench=. -benchmem ./...
+server: ## Run only the Go server for the current checkout
+	$(REQUIRE_ENV)
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && go run ./cmd/server
 
-## lint: Run golangci-lint
-lint:
-	@echo "$(COLOR_BLUE)Running linter...$(COLOR_RESET)"
-	@which golangci-lint > /dev/null || (echo "$(COLOR_YELLOW)golangci-lint not found. Run 'make install-tools'$(COLOR_RESET)" && exit 1)
-	golangci-lint run ./...
+daemon: ## Restart the local agent daemon using the CLI's stored auth/session
+	@$(MAKE) multica MULTICA_ARGS="daemon restart --profile local"
 
-## lint-fix: Auto-fix lint issues
-lint-fix:
-	@echo "$(COLOR_BLUE)Auto-fixing lint issues...$(COLOR_RESET)"
-	@which golangci-lint > /dev/null || (echo "$(COLOR_YELLOW)golangci-lint not found. Run 'make install-tools'$(COLOR_RESET)" && exit 1)
-	golangci-lint run --fix ./...
-	@echo "$(COLOR_GREEN)Lint fixes applied$(COLOR_RESET)"
+cli: ## Run the multica CLI with ARGS or MULTICA_ARGS from source
+	@$(MAKE) multica MULTICA_ARGS="$(MULTICA_ARGS)"
 
-## fmt: Format all Go files
-fmt:
-	@echo "$(COLOR_BLUE)Formatting code...$(COLOR_RESET)"
-	$(GOFMT) -s -w .
-	@echo "$(COLOR_GREEN)Code formatted successfully$(COLOR_RESET)"
+multica: ## Run the multica CLI entrypoint directly from the Go source tree
+	cd server && go run -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" ./cmd/multica $(MULTICA_ARGS)
 
-## fmt-check: Check if code is formatted
-fmt-check:
-	@echo "$(COLOR_BLUE)Checking code formatting...$(COLOR_RESET)"
-	@test -z "$$($(GOFMT) -l .)" || (echo "$(COLOR_YELLOW)The following files need formatting:$(COLOR_RESET)" && $(GOFMT) -l . && exit 1)
-	@echo "$(COLOR_GREEN)All files are properly formatted$(COLOR_RESET)"
+VERSION ?= $(shell git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo dev)
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+DATE    ?= $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-## vet: Run go vet
-vet:
-	@echo "$(COLOR_BLUE)Running go vet...$(COLOR_RESET)"
-	$(GOVET) ./...
+build: ## Build the server, CLI, and migrate binaries into server/bin
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT)" -o bin/server ./cmd/server
+	cd server && go build -ldflags "-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)" -o bin/multica ./cmd/multica
+	cd server && go build -o bin/migrate ./cmd/migrate
 
-## check: Run fmt-check, vet, and lint
-check: fmt-check vet lint
-	@echo "$(COLOR_GREEN)All checks passed!$(COLOR_RESET)"
+test: ## Run Go tests after ensuring the target DB exists and migrations are applied
+	$(REQUIRE_ENV)
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && go run ./cmd/migrate up
+	bash scripts/test-go.sh --race
 
-## clean: Clean build artifacts and test cache
-clean:
-	@echo "$(COLOR_BLUE)Cleaning...$(COLOR_RESET)"
-	$(GOCLEAN)
-	rm -f $(COVERAGE_FILE) $(COVERAGE_HTML)
-	rm -f $(BUILD_DIR)/$(BINARY_NAME) $(BUILD_DIR)/goclaw-team-control $(BUILD_DIR)/goclaw-runner
-	rm -rf $(BUILD_DIR)/dist/apps
-	rm -rf ui/dist
-	rm -rf gateway/ui_dist
-	@echo "$(COLOR_GREEN)Clean complete$(COLOR_RESET)"
+# Database
+##@ Database
 
-## deps: Download dependencies
-deps:
-	@echo "$(COLOR_BLUE)Downloading dependencies...$(COLOR_RESET)"
-	$(GOMOD) download
-	@echo "$(COLOR_GREEN)Dependencies downloaded$(COLOR_RESET)"
+migrate-up: ## Create the target DB if needed, then apply database migrations
+	$(REQUIRE_ENV)
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && go run ./cmd/migrate up
 
-## tidy: Tidy and verify dependencies
-tidy:
-	@echo "$(COLOR_BLUE)Tidying dependencies...$(COLOR_RESET)"
-	$(GOMOD) tidy
-	$(GOMOD) verify
-	@echo "$(COLOR_GREEN)Dependencies tidied$(COLOR_RESET)"
+migrate-down: ## Create the target DB if needed, then roll back database migrations
+	$(REQUIRE_ENV)
+	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
+	cd server && go run ./cmd/migrate down
 
-## install-tools: Install development tools
-install-tools:
-	@echo "$(COLOR_BLUE)Installing development tools...$(COLOR_RESET)"
-	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	@echo "$(COLOR_GREEN)Tools installed$(COLOR_RESET)"
+sqlc: ## Regenerate sqlc code
+	cd server && sqlc generate
 
-## run: Run the application
-run:
-	@echo "$(COLOR_BLUE)Running $(BINARY_NAME)...$(COLOR_RESET)"
-	$(GOCMD) run .
+# Cleanup
+##@ Cleanup
 
-## install: Install the binary to GOPATH/bin
-install:
-	@echo "$(COLOR_BLUE)Installing $(BINARY_NAME)...$(COLOR_RESET)"
-	$(GOCMD) install
-
-## docs: Generate documentation
-docs:
-	@echo "$(COLOR_BLUE)Generating documentation...$(COLOR_RESET)"
-	@echo "Open http://localhost:6060/pkg/github.com/smallnest/goclaw/ in your browser"
-	godoc -http=:6060
-
-## ci: Run continuous integration checks
-ci: deps check test-race test-coverage
-	@echo "$(COLOR_GREEN)CI checks passed!$(COLOR_RESET)"
-
-## pre-commit: Run pre-commit checks (fmt, vet, lint, test)
-pre-commit: fmt vet lint test
-	@echo "$(COLOR_GREEN)Pre-commit checks passed!$(COLOR_RESET)"
-
-## update-deps: Update all dependencies to latest versions
-update-deps:
-	@echo "$(COLOR_BLUE)Updating dependencies...$(COLOR_RESET)"
-	$(GOGET) -u ./...
-	$(GOMOD) tidy
-	@echo "$(COLOR_GREEN)Dependencies updated$(COLOR_RESET)"
-
-## version: Display Go version
-version:
-	@$(GOCMD) version
-
-## info: Display project information
-info:
-	@echo "$(COLOR_BOLD)Project Information$(COLOR_RESET)"
-	@echo "  Name: GoClaw"
-	@echo "  Module: github.com/smallnest/goclaw/"
-	@echo "  Go Version: $$($(GOCMD) version | cut -d' ' -f3)"
-	@echo "  Version: $(VERSION)"
-	@echo "  Packages: $$(find . -name '*.go' -not -path './vendor/*' | xargs dirname | sort -u | wc -l | tr -d ' ')"
-	@echo "  Lines of Code: $$(find . -name '*.go' -not -path './vendor/*' | xargs wc -l | tail -1 | awk '{print $$1}')"
-
-## setup: Setup development environment
-setup:
-	@echo "$(COLOR_BLUE)Setting up development environment...$(COLOR_RESET)"
-	@mkdir -p .goclaw/workspace .goclaw/sessions
-	@cp .env.example .env 2>/dev/null || echo "Please copy .env.example to .env and configure"
-	@echo "$(COLOR_GREEN)Setup complete. Edit .env with your configuration.$(COLOR_RESET)"
-
-# Docker targets
-## docker-build: Build Docker image
-docker-build:
-	@echo "$(COLOR_BLUE)Building Docker image...$(COLOR_RESET)"
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
-	docker tag $(DOCKER_IMAGE):$(DOCKER_TAG) $(DOCKER_IMAGE):latest
-	@echo "$(COLOR_GREEN)Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)$(COLOR_RESET)"
-
-## docker-run: Run Docker container
-docker-run:
-	@echo "$(COLOR_BLUE)Running Docker container...$(COLOR_RESET)"
-	docker run --rm -it \
-		-p 8080:8080 \
-		-v $(PWD)/config.json:/home/goclaw/.goclaw/config.json:ro \
-		$(DOCKER_IMAGE):latest
-
-## docker-compose-up: Start services with docker-compose
-docker-compose-up:
-	@echo "$(COLOR_BLUE)Starting services with docker-compose...$(COLOR_RESET)"
-	docker-compose up -d
-
-## docker-compose-down: Stop services
-docker-compose-down:
-	@echo "$(COLOR_BLUE)Stopping services...$(COLOR_RESET)"
-	docker-compose down
-
-## docker-compose-logs: Show logs from services
-docker-compose-logs:
-	@echo "$(COLOR_BLUE)Showing logs...$(COLOR_RESET)"
-	docker-compose logs -f
-
-## docker-compose-ps: Show running services
-docker-compose-ps:
-	@echo "$(COLOR_BLUE)Showing running services...$(COLOR_RESET)"
-	docker-compose ps
-
-## docker-shell: Open shell in container
-docker-shell:
-	@echo "$(COLOR_BLUE)Opening shell in container...$(COLOR_RESET)"
-	docker-compose exec goclaw sh
-
-## dev: Start development environment
-dev: docker-compose-up docker-compose-logs
-
-## release-check: Check goreleaser configuration
-release-check:
-	@which goreleaser > /dev/null || (echo "goreleaser not found. Install with: brew install goreleaser" && exit 1)
-	@echo "$(COLOR_BLUE)Checking goreleaser configuration...$(COLOR_RESET)"
-	goreleaser check
-
-## release-snapshot: Build snapshot release (no publishing)
-release-snapshot:
-	@which goreleaser > /dev/null || (echo "goreleaser not found. Install with: brew install goreleaser" && exit 1)
-	@echo "$(COLOR_BLUE)Building snapshot release...$(COLOR_RESET)"
-	goreleaser build --snapshot --clean
-	@echo "$(COLOR_GREEN)Snapshot release built in dist/$(COLOR_RESET)"
-
-## release-test: Test goreleaser release process (no publishing)
-release-test:
-	@which goreleaser > /dev/null || (echo "goreleaser not found. Install with: brew install goreleaser" && exit 1)
-	@echo "$(COLOR_BLUE)Testing goreleaser release...$(COLOR_RESET)"
-	goreleaser release --snapshot --clean --skip=publish
-	@echo "$(COLOR_GREEN)Release test complete. Artifacts in dist/$(COLOR_RESET)"
-
-## release: Create and publish a new release (requires tag)
-release:
-	@echo "$(COLOR_YELLOW)To create a release:$(COLOR_RESET)"
-	@echo "  1. Create a git tag: git tag v1.0.0"
-	@echo "  2. Push the tag: git push origin v1.0.0"
-	@echo "  3. GitHub Actions will automatically build and publish"
-
-## release-notes: Generate release notes
-release-notes:
-	@which goreleaser > /dev/null || (echo "goreleaser not found. Install with: brew install goreleaser" && exit 1)
-	@echo "$(COLOR_BLUE)Generating release notes...$(COLOR_RESET)"
-	goreleaser release --release-notes=release-notes.txt --skip=publish --skip=validate --skip=announce
-
-# Tauri Desktop App targets
-# Helper to get Rust target triple
-TAURI_TARGET=$(shell rustc -vV | grep host | cut -d' ' -f2)
-
-## setup-tauri: Install Tauri CLI and dependencies
-setup-tauri:
-	@echo "$(COLOR_BLUE)Installing Tauri CLI...$(COLOR_RESET)"
-	@which cargo > /dev/null || (echo "$(COLOR_YELLOW)Rust/Cargo not found. Install from https://rustup.rs$(COLOR_RESET)" && exit 1)
-	cargo install tauri-cli --version "^1.5" || echo "Tauri CLI already installed"
-	@echo "$(COLOR_GREEN)Tauri setup complete$(COLOR_RESET)"
-	@echo "Run 'make dev-tauri' to start development mode"
-	@echo "Run 'make build-tauri' to build the desktop app"
-
-## prepare-sidecar: Build and prepare the goclaw binary for sidecar
-prepare-sidecar: build-full
-	@echo "$(COLOR_BLUE)Preparing sidecar binary...$(COLOR_RESET)"
-	@mkdir -p src-tauri/binaries
-	@cp $(BINARY_NAME) src-tauri/binaries/goclaw-$(TAURI_TARGET)
-	@echo "$(COLOR_GREEN)Sidecar binary prepared$(COLOR_RESET)"
-
-## prepare-tauri-sidecar: Build embedded UI and sidecar binary for the current platform
-prepare-tauri-sidecar: prepare-sidecar
-	@echo "$(COLOR_GREEN)Tauri sidecar is ready$(COLOR_RESET)"
-
-## dev-tauri: Start Tauri development mode
-dev-tauri:
-	@echo "$(COLOR_BLUE)Starting Tauri development mode...$(COLOR_RESET)"
-	@which cargo > /dev/null || (echo "$(COLOR_YELLOW)Rust/Cargo not found. Install from https://rustup.rs$(COLOR_RESET)" && exit 1)
-	@$(MAKE) prepare-tauri-sidecar
-	cargo tauri dev
-
-## build-tauri: Build Tauri desktop application
-build-tauri:
-	@echo "$(COLOR_BLUE)Building Tauri desktop application...$(COLOR_RESET)"
-	@which cargo > /dev/null || (echo "$(COLOR_YELLOW)Rust/Cargo not found. Install from https://rustup.rs$(COLOR_RESET)" && exit 1)
-	@$(MAKE) build-full
-	@# Create sidecar binaries for all platforms (for release builds)
-	@mkdir -p src-tauri/binaries
-	@echo "$(COLOR_BLUE)Creating sidecar binaries...$(COLOR_RESET)"
-	@# For macOS (Intel and Apple Silicon)
-	@mkdir -p $(GO_CACHE_DIR)
-	GOCACHE=$(GO_CACHE_DIR) GOOS=darwin GOARCH=amd64 $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o src-tauri/binaries/goclaw-x86_64-apple-darwin .
-	GOCACHE=$(GO_CACHE_DIR) GOOS=darwin GOARCH=arm64 $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o src-tauri/binaries/goclaw-aarch64-apple-darwin .
-	@# For Linux
-	GOCACHE=$(GO_CACHE_DIR) GOOS=linux GOARCH=amd64 $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o src-tauri/binaries/goclaw-x86_64-unknown-linux-gnu .
-	@# For Windows
-	GOCACHE=$(GO_CACHE_DIR) GOOS=windows GOARCH=amd64 $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o src-tauri/binaries/goclaw-x86_64-pc-windows-msvc.exe .
-	cargo tauri build
-	@echo "$(COLOR_GREEN)Tauri build complete!$(COLOR_RESET)"
-	@echo "Find the application in src-tauri/target/release/bundle/"
-
-## build-tauri-current: Build Tauri app for current platform only (faster)
-build-tauri-current:
-	@echo "$(COLOR_BLUE)Building Tauri for current platform...$(COLOR_RESET)"
-	@which cargo > /dev/null || (echo "$(COLOR_YELLOW)Rust/Cargo not found. Install from https://rustup.rs$(COLOR_RESET)" && exit 1)
-	@$(MAKE) prepare-tauri-sidecar
-	cargo tauri build
-	@echo "$(COLOR_GREEN)Tauri build complete for current platform$(COLOR_RESET)"
-
-## release-tauri-macos: Build signed macOS release bundles (.app/.dmg)
-release-tauri-macos:
-	@echo "$(COLOR_BLUE)Building signed macOS Tauri bundle...$(COLOR_RESET)"
-	@test -n "$(MACOS_SIGNING_IDENTITY)" || (echo "$(COLOR_YELLOW)Set MACOS_SIGNING_IDENTITY first$(COLOR_RESET)" && exit 1)
-	@$(MAKE) prepare-tauri-sidecar
-	cargo tauri build --config '{"tauri":{"bundle":{"macOS":{"signingIdentity":"$(MACOS_SIGNING_IDENTITY)"}}}}'
-	@echo "$(COLOR_GREEN)Signed macOS bundle built$(COLOR_RESET)"
-	@echo "App: $(TAURI_BUNDLE_DIR)/macos/"
-	@echo "DMG: $(TAURI_BUNDLE_DIR)/dmg/"
-
-## notarize-tauri-macos: Submit built DMG to Apple notarization
-notarize-tauri-macos:
-	@echo "$(COLOR_BLUE)Submitting DMG for notarization...$(COLOR_RESET)"
-	@test -n "$(APPLE_ID)" || (echo "$(COLOR_YELLOW)Set APPLE_ID first$(COLOR_RESET)" && exit 1)
-	@test -n "$(APPLE_PASSWORD)" || (echo "$(COLOR_YELLOW)Set APPLE_PASSWORD first$(COLOR_RESET)" && exit 1)
-	@test -n "$(APPLE_TEAM_ID)" || (echo "$(COLOR_YELLOW)Set APPLE_TEAM_ID first$(COLOR_RESET)" && exit 1)
-	@test -n "$(TAURI_MACOS_DMG)" || (echo "$(COLOR_YELLOW)No DMG found under $(TAURI_BUNDLE_DIR)/dmg$(COLOR_RESET)" && exit 1)
-	xcrun notarytool submit "$(TAURI_MACOS_DMG)" --apple-id "$(APPLE_ID)" --password "$(APPLE_PASSWORD)" --team-id "$(APPLE_TEAM_ID)" --wait
-	@echo "$(COLOR_GREEN)Notarization completed$(COLOR_RESET)"
-
-## staple-tauri-macos: Staple notarization ticket to built app and DMG
-staple-tauri-macos:
-	@echo "$(COLOR_BLUE)Stapling notarization ticket...$(COLOR_RESET)"
-	@test -n "$(TAURI_MACOS_APP)" || (echo "$(COLOR_YELLOW)No app found under $(TAURI_BUNDLE_DIR)/macos$(COLOR_RESET)" && exit 1)
-	@test -n "$(TAURI_MACOS_DMG)" || (echo "$(COLOR_YELLOW)No DMG found under $(TAURI_BUNDLE_DIR)/dmg$(COLOR_RESET)" && exit 1)
-	xcrun stapler staple "$(TAURI_MACOS_APP)"
-	xcrun stapler staple "$(TAURI_MACOS_DMG)"
-	@echo "$(COLOR_GREEN)Stapling completed$(COLOR_RESET)"
-
-## verify-tauri-macos: Verify app signature and Gatekeeper assessment
-verify-tauri-macos:
-	@echo "$(COLOR_BLUE)Verifying macOS bundle...$(COLOR_RESET)"
-	@test -n "$(TAURI_MACOS_APP)" || (echo "$(COLOR_YELLOW)No app found under $(TAURI_BUNDLE_DIR)/macos$(COLOR_RESET)" && exit 1)
-	codesign -dv --verbose=4 "$(TAURI_MACOS_APP)"
-	spctl -a -vv "$(TAURI_MACOS_APP)"
-	@if [ -n "$(TAURI_MACOS_DMG)" ]; then spctl -a -vv "$(TAURI_MACOS_DMG)"; fi
-	@echo "$(COLOR_GREEN)Verification completed$(COLOR_RESET)"
+clean: ## Remove build caches, generated binaries, and temp files
+	rm -rf server/bin server/tmp
+	rm -rf apps/*/.next apps/*/.source apps/*/.expo
+	rm -rf apps/*/out apps/*/dist apps/*/dist-electron packages/*/dist
+	rm -rf .turbo apps/*/.turbo packages/*/.turbo
+	rm -rf apps/*/*.tsbuildinfo packages/*/*.tsbuildinfo
+	@echo "✓ Clean complete."

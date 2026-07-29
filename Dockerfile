@@ -1,51 +1,43 @@
-# Build stage
-FROM golang:1.25-alpine AS builder
+# --- Build stage ---
+FROM golang:1.26-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git
 
-# Set working directory
+WORKDIR /src
+
+# Cache dependencies
+COPY server/go.mod server/go.sum ./server/
+RUN cd server && go mod download
+
+# Copy server source
+COPY server/ ./server/
+
+# Build binaries
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG DATE=unknown
+RUN cd server && CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" -o bin/server ./cmd/server
+RUN cd server && CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o bin/multica ./cmd/multica
+RUN cd server && CGO_ENABLED=0 go build -ldflags "-s -w" -o bin/migrate ./cmd/migrate
+RUN cd server && CGO_ENABLED=0 go build -ldflags "-s -w" -o bin/backfill_task_usage_hourly ./cmd/backfill_task_usage_hourly
+RUN cd server && CGO_ENABLED=0 go build -ldflags "-s -w" -o bin/backfill_codex_usage_cache ./cmd/backfill_codex_usage_cache
+
+# --- Runtime stage ---
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates tzdata
+
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
+COPY --from=builder /src/server/bin/server .
+COPY --from=builder /src/server/bin/multica .
+COPY --from=builder /src/server/bin/migrate .
+COPY --from=builder /src/server/bin/backfill_task_usage_hourly .
+COPY --from=builder /src/server/bin/backfill_codex_usage_cache .
+COPY server/migrations/ ./migrations/
+COPY docker/entrypoint.sh .
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
-# Copy source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o goclaw .
-
-# Final stage
-FROM alpine:latest
-
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates tzdata
-
-# Create app user
-RUN addgroup -g 1000 goclaw && \
-    adduser -D -u 1000 -G goclaw goclaw
-
-# Set working directory
-WORKDIR /home/goclaw
-
-# Copy binary from builder
-COPY --from=builder /app/goclaw .
-
-# Create directories
-RUN mkdir -p .goclaw/workspace .goclaw/sessions && \
-    chown -R goclaw:goclaw /home/goclaw
-
-# Switch to non-root user
-USER goclaw
-
-# Expose health check and webhooks
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
-# Run the application
-CMD ["./goclaw", "start"]
+ENTRYPOINT ["./entrypoint.sh"]
