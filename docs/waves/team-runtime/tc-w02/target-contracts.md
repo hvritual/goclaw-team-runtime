@@ -457,7 +457,7 @@ ExecutionPack hash。Evidence 仍由 Runner device key 签名，控制面先验�
 - 冷备份必须在 maintenance lock 下包含 Team Control state/database、
   content object manifest/blobs、index generation watermark、Evidence refs 和
   canonical checksum manifest、完整 append-only audit log 和由控制面签名的
-  单调 authority epoch/checkpoint；
+  单调 `monotonic authority` epoch/checkpoint；
 - 恢复到新 root，先验证 manifest/hash/project referential integrity，再
   验证 checkpoint 不低于已知最新 epoch，并重放 snapshot 后的全部 policy/
   approval/withdrawal/expiry/audit events，再重建 index；任何缺 event、epoch
