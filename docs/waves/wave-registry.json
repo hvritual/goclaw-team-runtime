@@ -150,33 +150,17 @@
       "id": "TC-W01",
       "title": "Team Control Registries, Budgets, and Context Compiler",
       "status": "active",
-      "document": "team-runtime/tc-w01/plan-r003.md",
+      "document": "team-runtime/tc-w01/plan-r004.md",
       "depends_on": [
         "TR-W00"
       ],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
-        "teamcontrol/types.go",
-        "teamcontrol/inputs.go",
-        "teamcontrol/store.go",
-        "teamcontrol/validation.go",
-        "teamcontrol/policy.go",
-        "teamcontrol/policy_test.go",
-        "teamcontrol/queries.go",
-        "teamcontrol/controlplane.go",
-        "teamcontrol/controlplane_test.go",
+        "teamcontrol/service.go",
         "teamcontrol/service_test.go",
-        "gateway/team_control.go",
-        "gateway/team_runtime_test.go",
-        "gateway/server_auth_test.go",
-        "cli/team.go",
-        "cli/system.go",
-        "ui/src/team/TeamPage.tsx",
-        "ui/src/team/types.ts",
-        "ui/src/team/client.ts",
-        "ui/src/team/control-summary-state.ts",
-        "ui/tests/**"
+        "teamcontrol/validation.go",
+        "teamcontrol/controlplane_test.go"
       ],
       "product_code_changes_allowed": true
     },

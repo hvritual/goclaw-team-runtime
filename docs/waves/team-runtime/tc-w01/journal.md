@@ -136,3 +136,18 @@
 - Policy canonical marshal 使用 trim 后的字段值；
 - 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
 - `TC-EVID-W01-009` collecting，等待新的 exact SHA 完整三路验收。
+
+## 2026-07-29 — r003 exact review 4 BLOCK，激活 r004
+
+- reviewed exact `e879b0e2b7194d256d29955d554c464fd12d72bf`，
+  tree `7caff593f58b0d6bfeb6358e88eecaac45ccc521`；
+- code P0=0/P1=1/P2=2，security P0=0/P1=2/P2=2，
+  docs P0=0/P1=1/P2=1，三路均 BLOCK；
+- lexical `..`、percent-encoded traversal 和 Windows superscript DOS
+  device 是代码/安全 P1；
+- docs review 发现 r002 修改 `teamcontrol/service.go`，但 r002 Plan/Task
+  scope 未授权，RBAC provenance 是治理 P1；
+- `TC-EVID-W01-010` 保留失败结果；`TC-EVID-W01-005/007/009` 标记为
+  superseded，不修改其历史正文；
+- 激活 `TC-W01 r004`，先推送 activation，再以远端 exact SHA 冻结 Task；
+  RN-W01 继续 planned。

@@ -228,3 +228,18 @@
   r002 Evidence。
 - 关联：`TC-EVID-W01-002`、`TC-ISSUE-001`、后续
   `Task-ID TC-W01-ACCEPTANCE-004`。
+
+## 2026-07-29 — TC-DEC-002：r003 路径与 RBAC provenance 升级 r004
+
+- 状态：`active`。
+- 触发：r003 exact `e879b0e2...` 三路 review 均 BLOCK；除路径 traversal
+  和 superscript device 外，docs review 发现 r002 的
+  `teamcontrol/service.go` 修改从未被 Plan/Task scope 授权。
+- 决策：不改写 r002/r003；创建 r004，显式纳入 `service.go`、路径校验和
+  回归文件。activation 推送后再以远端 exact SHA 冻结 Task，冻结后以等价
+  RBAC helper 前向建立 provenance。
+- 安全边界：raw/decoded path 使用同一平台中立 lexical boundary；
+  Registry error 不回显不受信任内容且 URI 限长。
+- 回滚：任一 P1 未关闭，TC 保持 active，RN 不激活；不 force-push、不把
+  历史 failed Evidence 改为 passed。
+- 关联：`TC-EVID-W01-010`、`TC-ISSUE-001`、`TC-W01 r004`。
