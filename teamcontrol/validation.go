@@ -8,7 +8,6 @@ import (
 	"net/mail"
 	"net/url"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -115,8 +114,8 @@ func validateURI(value, field string) (string, error) {
 // rejected because signed URLs and access tokens must never enter durable
 // control-plane state.
 func validateRegistryURI(value, field string) (string, error) {
-	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
-		return "", fmt.Errorf("%s contains a control character", field)
+	if !safePathText(value) {
+		return "", fmt.Errorf("%s contains an invalid character", field)
 	}
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -133,7 +132,7 @@ func validateRegistryURI(value, field string) (string, error) {
 		strings.Contains(lower, "://") && windowsAbsolutePathPattern.MatchString(value) {
 		return "", fmt.Errorf("%s must not use a UNC, device, or scheme-like local path", field)
 	}
-	if filepath.IsAbs(value) || windowsAbsolutePathPattern.MatchString(value) {
+	if isPortableAbsoluteLocalPath(value) {
 		return value, nil
 	}
 	parsed, err := url.Parse(value)
@@ -149,15 +148,15 @@ func validateRegistryURI(value, field string) (string, error) {
 		if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
 			return "", fmt.Errorf("%s file URI must be local", field)
 		}
-		if !filepath.IsAbs(parsed.Path) {
-			return "", fmt.Errorf("%s file URI must contain an absolute path", field)
-		}
 		decodedPath, err := url.PathUnescape(parsed.EscapedPath())
 		if err != nil {
 			return "", fmt.Errorf("%s file URI contains an invalid escaped path", field)
 		}
-		if strings.IndexFunc(decodedPath, unicode.IsControl) >= 0 {
-			return "", fmt.Errorf("%s file URI contains a control character", field)
+		if !safePathText(decodedPath) {
+			return "", fmt.Errorf("%s file URI contains an invalid character", field)
+		}
+		if !isPortableAbsoluteLocalPath(decodedPath) {
+			return "", fmt.Errorf("%s file URI must contain an absolute path", field)
 		}
 		if unsafeLocalPath(decodedPath) {
 			return "", fmt.Errorf("%s file URI must not resolve to a UNC or device path", field)
@@ -166,13 +165,32 @@ func validateRegistryURI(value, field string) (string, error) {
 		if parsed.Host == "" {
 			return "", fmt.Errorf("%s must contain a host", field)
 		}
+		decodedPath, err := url.PathUnescape(parsed.EscapedPath())
+		if err != nil || !safePathText(decodedPath) {
+			return "", fmt.Errorf("%s contains an invalid escaped path", field)
+		}
 	default:
 		return "", fmt.Errorf("%s uses an unsupported scheme", field)
 	}
 	return value, nil
 }
 
+func safePathText(value string) bool {
+	return utf8.ValidString(value) &&
+		strings.IndexFunc(value, unicode.IsControl) < 0
+}
+
+func isPortableAbsoluteLocalPath(value string) bool {
+	normalized := strings.ReplaceAll(value, `\`, "/")
+	candidate := strings.TrimPrefix(normalized, "/")
+	return strings.HasPrefix(normalized, "/") ||
+		windowsAbsolutePathPattern.MatchString(candidate)
+}
+
 func unsafeLocalPath(value string) bool {
+	if strings.HasPrefix(value, `\`) && !strings.HasPrefix(value, `\\`) {
+		return true
+	}
 	normalized := strings.ReplaceAll(value, `\`, "/")
 	rawLower := strings.ToLower(normalized)
 	if strings.HasPrefix(normalized, "//") ||
@@ -208,6 +226,13 @@ func containsDOSDevicePath(value string) bool {
 		candidate = candidate[3:]
 	}
 	for _, segment := range strings.Split(candidate, "/") {
+		if strings.Contains(segment, ":") {
+			return true
+		}
+		if segment != "." && segment != ".." &&
+			strings.TrimRight(segment, " .") != segment {
+			return true
+		}
 		if index := strings.IndexAny(segment, ".:"); index >= 0 {
 			segment = segment[:index]
 		}
@@ -326,7 +351,7 @@ func validateOptionalSHA256(value string) (string, error) {
 }
 
 func validateRelativePath(value, field string) (string, error) {
-	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
+	if !safePathText(value) {
 		return "", fmt.Errorf("%s must remain inside its repository", field)
 	}
 	normalized := strings.ReplaceAll(strings.TrimSpace(value), `\`, "/")
@@ -335,6 +360,12 @@ func validateRelativePath(value, field string) (string, error) {
 	}
 	if strings.ContainsAny(normalized, `<>:"|?*`) {
 		return "", fmt.Errorf("%s must remain inside its repository", field)
+	}
+	for _, segment := range strings.Split(normalized, "/") {
+		if segment != "." && segment != ".." &&
+			strings.TrimRight(segment, " .") != segment {
+			return "", fmt.Errorf("%s must remain inside its repository", field)
+		}
 	}
 	clean := path.Clean(normalized)
 	candidate := strings.TrimPrefix(strings.ToLower(clean), "/")

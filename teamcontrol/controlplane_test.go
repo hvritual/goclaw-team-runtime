@@ -496,6 +496,13 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		"file:///vault/%09secret-value",
 		"file:///vault/%7fsecret-value",
 		"file:///vault/%C2%85secret-value",
+		`C:\safe.txt:stream`,
+		`C:\vault\safe.txt::$DATA`,
+		"file:///C:/safe.txt:stream",
+		"file:///C:/vault/safe.txt::$DATA",
+		`\vault\ambiguous`,
+		`C:\vault\safe. `,
+		"/vault/safe.",
 	} {
 		input := base
 		input.URI = uri
@@ -526,6 +533,15 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		"/vault/line\nsecret-value",
 		"/vault/\x00secret-value",
 		"/vault/secret-value\n",
+	} {
+		input.URI = uri
+		_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+		require.Error(t, err)
+		require.NotContains(t, err.Error(), "secret-value")
+	}
+	for _, uri := range []string{
+		"https://example.invalid/vault/%00secret-value",
+		"git+https://example.invalid/vault/%C2%85secret-value",
 	} {
 		input.URI = uri
 		_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)

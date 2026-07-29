@@ -196,6 +196,12 @@ func TestRelativePathsAreCrossPlatformSafe(t *testing.T) {
 		"safe/file:stream",
 		"safe/\x00outside",
 		"safe/outside\n",
+		"safe/.. /outside",
+		"safe/. /outside",
+		`safe\.. \outside`,
+		"services./api",
+		"services/api.",
+		"services/\xff/api",
 	} {
 		_, err := validateRelativePath(value, "root_path")
 		require.Error(t, err, value)

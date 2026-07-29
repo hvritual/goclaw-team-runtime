@@ -213,3 +213,20 @@
 - TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
   `10/10` 与 build、Policy manifest `3/3` 全部通过；
 - `TC-EVID-W01-015` collecting，等待新 exact SHA 与三路 review。
+
+## 2026-07-29 — r004 exact review 7 BLOCK
+
+- reviewed exact `a7dd4b27be22948053cdc84888f80ef41256f677`，
+  tree `ebba9a4b8cce6546877638c0c7f6a7e4b6b8d466`；
+- code P0=0/P1=2/P2=1，security P0=0/P1=2/P2=3，
+  docs P0=0/P1=0/P2=1 PASS；
+- host-dependent absolute、ADS、Win32 alias 与 invalid UTF-8 是本 exact P1；
+- `TC-EVID-W01-016` 保留失败结果，`TC-EVID-W01-015` superseded。
+
+## 2026-07-29 — r004 review remediation 8 target Gate 通过
+
+- portable absolute、ADS、Win32 trailing alias、raw/decoded UTF-8/control
+  boundary 已加入；
+- TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
+  `10/10` 与 build、Policy manifest `3/3` 全部通过；
+- `TC-EVID-W01-017` collecting，等待新 exact SHA 与三路 review。
