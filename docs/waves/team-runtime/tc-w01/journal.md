@@ -46,3 +46,14 @@
 - 全仓 Go test/vet、关键包 race、UI 9/9 与 build 通过；
 - `TC-EVID-W01-001` 进入 collecting；`S02`–`S04` complete，`S05`
   deterministic passed、independent final pending。
+
+## 2026-07-29 — r002 三路独立验收 BLOCK
+
+- reviewed exact commit：
+  `6aab01f2508a4c162147da20b399172e01a83d7d`；
+- code P0=0/P1=2/P2=3，security P0=0/P1=2/P2=0，
+  docs/governance P0=0/P1=3/P2=1；
+- 主要 P1 为跨项目裸 ID、Context target user 丢失、URI/metadata/policy
+  secret channel、CRUD/UI Evidence 缺口与 Work-Item trailer 偏差；
+- r002 implementation 保留为 `TC-EVID-W01-002` failed，不 amend/rebase；
+- 激活 r003 做前向修复，RN-W01 继续 planned。

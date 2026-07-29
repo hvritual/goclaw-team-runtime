@@ -213,3 +213,18 @@
   TR 的历史 acceptance 与 PR 偏差只读保留。
 - 关联：`TR-EVID-W00-003`、`TC-ISSUE-001`、
   `TC-EVID-W01-001`、后续 `Task-ID TC-W01-CONTROL-003`。
+
+## 2026-07-29 — TC-DEC-001：r002 失败证据前向升级 r003
+
+- 状态：`active`。
+- 触发：TC r002 exact `6aab01f...` 三路独立复核均 BLOCK。
+- 决策：不 rewrite 已推送 commit；以 r003 修复项目复合身份、Context target
+  identity、显式 secret-safe schema、CRUD、UI 五状态和 traceability。
+- 否决方案：不以关键词扫描代替显式 schema，不把裸 ID conflict 当作安全
+  隔离，不把静态源码正则当作 UI 行为测试。
+- 影响：TC 保持唯一 active；RN/INT/REL 不激活；legacy unsafe state
+  失败关闭并要求管理员显式迁移。
+- 回滚：migration/schema Gate 或任一 P1 失败时保持 TC active，不覆盖
+  r002 Evidence。
+- 关联：`TC-EVID-W01-002`、`TC-ISSUE-001`、后续
+  `Task-ID TC-W01-ACCEPTANCE-004`。
