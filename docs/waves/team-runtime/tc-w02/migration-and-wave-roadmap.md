@@ -18,7 +18,7 @@
 
 | 旧记录 | 新 scope | 处理 |
 |---|---|---|
-| `project_id="*"` 且来源/owner 明确、批准有效 | `scope_kind=global` + fixed global authority ID | 生成 candidate，独立 global `memory_approve` 后才能 active |
+| `project_id="*"` 且来源/owner 明确、批准有效 | `scope_kind=global` + fixed global authority ID | 生成 candidate，独立 `global_memory_approve` 后才能 active |
 | `project_id="*"` 但实际只适用部分项目 | 对每个明确项目创建 project-scoped candidate | 不保留隐式 shared |
 | `project_id="*"` 且来源、owner、checksum 或可见性不明确 | quarantined/pending | 不索引、不编译 |
 | 普通 project record | `scope_kind=project` + 原 project ID | 验证 membership/source/checksum 后 shadow import |
@@ -75,7 +75,7 @@ global visibility 由服务器按 policy 和 project entitlement 计算；Runner
 | inventory | 旧系统不变 | 旧路径 | 记录数/checksum/scope/status/source 全清单 | 无产品变更 |
 | shadow import | 旧系统仍是唯一写者 | 旧路径；新域不可执行 | 每条映射、对象 checksum、关系和审批对账 | 丢弃 shadow state |
 | dual-read compare | 旧系统仍写；禁止双写 active | 用户仍读旧；验证器对比新 | 查询集合、citation、expiry/visibility 无未解释差异 | 关闭 shadow read |
-| read cutover | Team Control 新域唯一写者 | Team Control + MCP；旧库只读 | Context/MCP/Evidence/backup/restore Gate | 切回旧 read snapshot，保留新 audit |
+| read cutover | Team Control 新域唯一写者 | Team Control + MCP；旧库只读 | Context/MCP/Evidence/backup/restore Gate | 先停止 mutation；验证 signed monotonic checkpoint，并把 cutover 后全部 authority event replay/reconcile 到兼容 reader；缺失、倒退或未对账时只进入 non-executable recovery，不得直接读取未重放的旧 snapshot |
 | retirement | Team Control | 新路径 | observation window、无旧 writer、恢复演练 | 继续保留只读归档 |
 
 ## 后继 Wave 路线

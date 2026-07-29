@@ -262,9 +262,18 @@ active status 或扩大后的 resource refs。
 - created_by 与 created_at（只有定义为 material 的字段进入 hash）；
 - secret scan result 与 mandatory validation result。
 
-`ContextBundle` 是 Manifest + immutable resource payload/envelopes。Bundle 可
-内联小正文或引用 content store，但无论哪种都必须由 Manifest checksum
-验证。
+Runner 可见的 `ContextBundle` 只能是 Manifest 加 immutable、typed opaque
+resource refs；它不得内联知识正文，也不得包含可由 Runner 直接解引用的
+object-store ref、local path、presigned URL 或 secret URI。每个知识 ref
+都必须在 Manifest 中绑定 ID/revision/checksum，并只能经 lease-scoped MCP
+读取，因此 lease 失效、取消、requeue、audience 撤销或 entitlement 变化后，
+Runner 不能依靠已交付 Bundle 绕过逐次权威校验。
+
+Context Compiler 可以在受控进程内使用一个独立命名的
+`CompilerMaterialEnvelope` 临时承载已授权正文，以完成选择、预算和 checksum
+校验。该 envelope 不属于 `ContextBundle` wire contract，不得序列化进
+`ExecutionPack`、不得返回 Runner，也不得持久化为 Runner 可访问的 evidence；
+编译结束即丢弃正文，只保留 Manifest 中的 opaque ref 与 checksum。
 
 稳定序列化：
 
@@ -300,8 +309,11 @@ CitationV1 {
 - `citation_id = "kcit-" + first32(sha256(domain("knowledge-citation",1) ||
   JCS(CitationV1)))`；
 - wire string 固定为
-  `goclaw:knowledge:<knowledge_id>@<revision>?sha256=<knowledge_checksum>&fragment=<whole|start-end>&fsha256=<fragment_checksum>`，
-  query key lexical order、hex lowercase、range 十进制无前导零；
+  `goclaw:knowledge:<knowledge_id>@<revision>?fragment=<whole|start-end>&fsha256=<fragment_checksum>&sha256=<knowledge_checksum>`；
+  该顺序就是 query key lexical order；hex lowercase、range 十进制无前导零。
+  固定向量 `knowledge_id=k-01`、`revision=7`、Whole、
+  `knowledge_checksum=<64 个小写 a>` 的 wire 必须是
+  `goclaw:knowledge:k-01@7?fragment=whole&fsha256=<64 个小写 a>&sha256=<64 个小写 a>`；
 - `citation.resolve` 必须在当前 MCP audience 下重新授权 knowledge revision，
   实算 body/fragment checksum，并返回完全相同 CitationV1；任何 alias、
   superseding revision 或 display source 都不能改变原 citation 的含义；

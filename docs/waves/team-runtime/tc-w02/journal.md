@@ -102,3 +102,23 @@
   validator、diff/check、product-code-empty 全部 PASS；
 - `TC-EVID-W02-004` passed；下一步对包含 Evidence 的 final candidate 重跑
   Gate 与 architecture/security/docs review。
+
+## 2026-07-29 — r002 S08 security re-review correction
+
+- security re-review 关闭既有 finding 后仍发现 P1：Runner-visible
+  ContextBundle 内联正文会在 lease/audience 被撤销后绕过 MCP 逐次授权；
+- 前向修正 Runner wire contract 为 Manifest + typed opaque refs only；
+- 只允许受控编译器内部的 `CompilerMaterialEnvelope` 临时持有正文；它不进入
+  ExecutionPack、不返回 Runner、不成为 Runner 可访问 Evidence，编译后丢弃；
+- 该 P1 必须经 exact candidate deterministic Gate 和独立复审关闭。
+
+## 2026-07-29 — r002 S08 architecture re-review corrections
+
+- architecture re-review 报告 P0=0/P1=2/P2=1；
+- CitationV1 wire query 改为唯一 lexical 顺序，并冻结 Whole golden
+  representation；
+- read-cutover rollback 不再允许直接切回 stale snapshot；必须 quiesce
+  mutation、验证 monotonic checkpoint 并 replay/reconcile 全部 authority
+  event，失败时只能 non-executable recovery；
+- global knowledge 迁移审批角色统一为 `global_memory_approve`；
+- 上述 findings 必须经 exact candidate deterministic Gate 和独立复审关闭。
