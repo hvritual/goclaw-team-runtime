@@ -389,7 +389,7 @@ goclaw runner update --id runner-dev-01-laptop --enable
 
 Runner 使用本机 Codex OAuth，在 revision/attempt 独立 worktree 中生成 diff 和签名 EvidenceBundle。它不会自动 commit、push、创建 PR、等待 CI、merge 或发布。完整命令、安全边界与故障恢复见 [`WORKSTATION_RUNNER_CN.md`](WORKSTATION_RUNNER_CN.md)。
 
-Codex、内部 Git 和 verifier wrapper 都从最小环境白名单启动。Codex 每次运行使用独立 HOME/XDG/runtime/tmp，仅通过 `CODEX_HOME` 读取本机订阅 OAuth。GoClaw Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，`--allow-env` 不能覆盖；它只把其他显式变量交给 Codex，不会交给内部 Git 或冻结 verifier。Linux bubblewrap wrapper 断网、遮蔽 host home/run/tmp，并只让 worktree 与临时 HOME 可写。不要用日常管理员账户常驻 Runner；VM/容器也只挂载当前授权仓库、work root、device key 和 Codex OAuth，不得挂载整个 Home。
+Codex、内部 Git 和 verifier wrapper 都从最小环境白名单启动。Codex 主进程通过 `CODEX_HOME` 使用本机订阅 OAuth；模型命令使用 named permission profile 对该目录 `deny`，并在模型调用前运行 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，`--allow-env` 不能覆盖；它只把其他显式变量交给 Codex，不会交给内部 Git 或冻结 verifier。Linux bubblewrap wrapper 断网、遮蔽 host home/run/tmp，并只让 worktree 与临时 HOME 可写。不要用日常管理员账户常驻 Runner；VM/容器也只挂载当前授权仓库、work root、device key 和 Codex OAuth，不得挂载整个 Home。
 
 冻结任务完成四审和 freeze 后，由服务器构造可信 ExecutionPack：
 
@@ -830,7 +830,7 @@ goclaw dev list --project project-alpha --json
 28. 用稳定 task ID 重试同一 create，确认不重复事件；同 ID 不同请求冲突，`dev list` 缺 `--project` 时拒绝。
 29. 入队一个冻结测试任务，确认零个/多个 active WorkItem owner、owner≠assignee、或 WorkItem 已绑定另一开发任务都被拒绝；合法 revision 的队列 ID/幂等键由 revision + bundle 派生，只有项目/capability/owner 匹配的 Runner 能 claim。
 30. 缺少 `--verification-sandbox` 与 `--unsafe-host-verification` 时确认 `runner work` 失败，两者同时提供也失败；wrapper 非绝对、不可执行或可被 group/other 写时也拒绝。验证 bubblewrap 内无网络、host home/run/tmp 被遮蔽，只有 worktree 与临时 HOME 可写。
-31. 验证 Codex 只看到最小环境、隔离 HOME/XDG 与指定 `CODEX_HOME`；普通 `--allow-env` 测试变量只对 Codex 可见，内部 Git/verifier 不可见；GoClaw Token、SSH agent、Docker/Kube/云凭据路径即使加入 allowlist 也不可见。
+31. 验证 Codex 主进程只看到最小环境；模型命令的 permission profile 对指定 `CODEX_HOME` read-deny，执行前 canary 通过；普通 `--allow-env` 测试变量只对 Codex 可见，内部 Git/verifier 不可见；GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kube/云凭据路径即使加入 allowlist 也不可见。
 32. 中断测试 Runner，确认 lease 过期后按尝试次数重新排队或失败，且 Runner 最终显示离线。
 33. 确认 runner cancel 只接受 queued/failed，leased 明确拒绝；旧 revision queued/leased 时 revise 同样拒绝。
 34. 从 in_progress/verifying 发起 repair，确认 WorkItem 先 blocked，新 revision 重新四审/freeze/enqueue 后才回到 in_progress，且过期 `expected_revision` 不会重复加 revision。

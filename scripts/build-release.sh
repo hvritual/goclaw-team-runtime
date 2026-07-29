@@ -55,6 +55,7 @@ if [[ -n "${SOURCE_DATE_EPOCH:-}" &&
 fi
 source_date_epoch="${commit_epoch}"
 export SOURCE_DATE_EPOCH="${source_date_epoch}"
+release_ldflags="-s -w -X main.Version=${release_version} -X main.Commit=${release_commit} -X main.Date=${source_date_epoch}"
 
 if [[ -n "$(git -C "${repo_dir}" status --porcelain --untracked-files=all)" ]]; then
   fail_release "release builds require a clean Git worktree"
@@ -215,6 +216,29 @@ file_has_credential_material() {
     file_has_raw_credential_assignment "${file}"
 }
 
+scan_runtime_secret_values() {
+  local artifact
+  local secret_name
+  local secret_value
+  for secret_name in \
+    GOCLAW_USER_TOKEN GOCLAW_GATEWAY_TOKEN GOCLAW_REVIEWER_TOKEN \
+    GOCLAW_RUNNER_DEVICE_KEY CODEX_ACCESS_TOKEN CODEX_REFRESH_TOKEN \
+    GH_TOKEN GITHUB_TOKEN; do
+    secret_value="${!secret_name:-}"
+    if [[ -z "${secret_value}" ]]; then
+      continue
+    fi
+    while IFS= read -r artifact; do
+      if grep -aFq -- "${secret_value}" "${artifact}"; then
+        fail_release "candidate binary contains ${secret_name}: ${artifact}"
+      fi
+    done < <(
+      find "${work_dir}" -maxdepth 2 -type f \
+        \( -name 'goclaw*' -o -name 'control-*' \) -print
+    )
+  done
+}
+
 validate_source_file() {
   local file="$1"
   local display_path="$2"
@@ -285,15 +309,15 @@ if [[ "${source_only}" == "0" ]]; then
       runner_binary="${work_dir}/bin/goclaw-runner-linux-${release_arch}"
       CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o "${binary}" .
       CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o "${team_control_binary}" ./cmd/team-control
       CGO_ENABLED=0 GOOS=linux GOARCH="${release_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o "${runner_binary}" ./cmd/runner
       go version -m "${binary}" \
         > "${work_dir}/linux-${release_arch}.buildinfo"
@@ -317,23 +341,24 @@ if [[ "${source_only}" == "0" ]]; then
       fi
       CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o \
         "${work_dir}/control-${control_os}-${control_arch}${control_suffix}" .
       CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o \
         "${work_dir}/goclaw-team-control-${control_os}-${control_arch}${control_suffix}" \
         ./cmd/team-control
       CGO_ENABLED=0 GOOS="${control_os}" GOARCH="${control_arch}" \
         go build -buildvcs=false -trimpath \
-        -ldflags="-s -w -X main.Version=${release_version}" \
+        -ldflags="${release_ldflags}" \
         -o \
         "${work_dir}/goclaw-runner-${control_os}-${control_arch}${control_suffix}" \
         ./cmd/runner
     done
   )
+  scan_runtime_secret_values
 fi
 
 if [[ "${source_only}" == "0" &&
@@ -488,7 +513,7 @@ fi
     AGENTS.md CHANGE-HANDOFF.md CHANGELOG.md Dockerfile LICENSE Makefile
     README.md THIRD_PARTY_NOTICES.md config.json.example go.mod go.sum main.go
     signal_default.go signal_windows.go
-    agent bus channels cli config cron deploy docker docs errors gateway
+    agent bus channels cli cmd config cron deploy docker docs errors gateway
     governance harness integration internal memory orchestratorlite ouroboros
     pairing plugins providers scripts session src-tauri teamcontrol third_party
     ui workstation
@@ -558,6 +583,20 @@ fi
     "${source_expected}" \
     "goclaw-${release_version}" \
     "${work_dir}/source-archive-check"
+
+  source_check_root="$(
+    printf '%s/source-archive-check/goclaw-%s' \
+      "${work_dir}" "${release_version}"
+  )"
+  [[ -f "${source_check_root}/cmd/team-control/main.go" ]] ||
+    fail_release "source archive lost cmd/team-control/main.go"
+  [[ -f "${source_check_root}/cmd/runner/main.go" ]] ||
+    fail_release "source archive lost cmd/runner/main.go"
+  (
+    cd "${source_check_root}"
+    GOCACHE="${work_dir}/source-archive-gocache" \
+      go build -buildvcs=false ./cmd/team-control ./cmd/runner
+  ) || fail_release "source archive cannot rebuild dedicated applications"
 
   while IFS= read -r source_file; do
     validate_source_file \

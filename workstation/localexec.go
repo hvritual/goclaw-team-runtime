@@ -10,11 +10,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const maxLocalCommandOutputBytes = 16 * 1024 * 1024
+const codexRunnerPermissionProfile = "goclaw-runner"
 
 type LocalExecConfig struct {
 	RunnerID               string            `mapstructure:"runner_id" json:"runner_id" yaml:"runner_id"`
@@ -518,11 +520,6 @@ func (e *LocalExecutor) runCodex(
 		"Run focused checks while working; the workstation will independently run frozen verification argv.",
 		"\nEXECUTION_PACK:\n" + string(packJSON),
 	}, "\n")
-	args := []string{"--ask-for-approval", "never", "exec", "--json", "--sandbox", "workspace-write"}
-	if strings.TrimSpace(e.cfg.CodexModel) != "" && e.cfg.CodexModel != "default" {
-		args = append(args, "--model", e.cfg.CodexModel)
-	}
-	args = append(args, "-")
 	runtimeHome := filepath.Join(runtimeRoot, "codex-runtime-home")
 	cacheHome := filepath.Join(runtimeHome, ".cache")
 	configHome := filepath.Join(runtimeHome, ".config")
@@ -539,25 +536,90 @@ func (e *LocalExecutor) runCodex(
 			return localCommandResult{ExitCode: -1}, err
 		}
 	}
+	codexEnvironment := []string{
+		"HOME=" + runtimeHome,
+		"CODEX_HOME=" + e.codexHome,
+		"XDG_CACHE_HOME=" + cacheHome,
+		"XDG_CONFIG_HOME=" + configHome,
+		"XDG_RUNTIME_DIR=" + runtimeDir,
+		"TMPDIR=" + tempDir,
+		"TMP=" + tempDir,
+		"TEMP=" + tempDir,
+		"PATH=" + runnerSafePath,
+		"GIT_TERMINAL_PROMPT=0",
+	}
+	if err := e.verifyCodexCredentialIsolation(
+		ctx,
+		worktree,
+		codexEnvironment,
+	); err != nil {
+		return localCommandResult{ExitCode: -1}, err
+	}
+	args := []string{"--ask-for-approval", "never", "--strict-config"}
+	args = append(args, codexPermissionProfileArgs(e.codexHome)...)
+	args = append(args, "exec", "--ignore-user-config", "--ephemeral", "--json")
+	if strings.TrimSpace(e.cfg.CodexModel) != "" && e.cfg.CodexModel != "default" {
+		args = append(args, "--model", e.cfg.CodexModel)
+	}
+	args = append(args, "-")
 	return e.command(
 		ctx,
 		worktree,
 		prompt,
-		[]string{
-			"HOME=" + runtimeHome,
-			"CODEX_HOME=" + e.codexHome,
-			"XDG_CACHE_HOME=" + cacheHome,
-			"XDG_CONFIG_HOME=" + configHome,
-			"XDG_RUNTIME_DIR=" + runtimeDir,
-			"TMPDIR=" + tempDir,
-			"TMP=" + tempDir,
-			"TEMP=" + tempDir,
-			"PATH=" + runnerSafePath,
-			"GIT_TERMINAL_PROMPT=0",
-		},
+		codexEnvironment,
 		e.cfg.CodexCommand,
 		args...,
 	)
+}
+
+func codexPermissionProfileArgs(codexHome string) []string {
+	profile := strconv.Quote(codexRunnerPermissionProfile)
+	deniedPath := strconv.Quote(filepath.Clean(codexHome))
+	return []string{
+		"-c", "default_permissions=" + profile,
+		"-c", "permissions." + codexRunnerPermissionProfile +
+			".extends=" + strconv.Quote(":workspace"),
+		"-c", "permissions." + codexRunnerPermissionProfile +
+			".filesystem." + deniedPath + "=" + strconv.Quote("deny"),
+		"-c", "permissions." + codexRunnerPermissionProfile +
+			".network.enabled=false",
+	}
+}
+
+func (e *LocalExecutor) verifyCodexCredentialIsolation(
+	ctx context.Context,
+	worktree string,
+	environment []string,
+) error {
+	args := []string{"--strict-config"}
+	args = append(args, codexPermissionProfileArgs(e.codexHome)...)
+	args = append(
+		args,
+		"sandbox", "linux",
+		"--permissions-profile", codexRunnerPermissionProfile,
+		"--",
+		"/bin/sh", "-c",
+		`if command ls -la -- "$1" >/dev/null 2>&1; then exit 97; fi
+if command head -c 1 -- "$1/auth.json" >/dev/null 2>&1; then exit 98; fi
+exit 0`,
+		"goclaw-codex-home-canary",
+		e.codexHome,
+	)
+	result, err := e.command(
+		ctx,
+		worktree,
+		"",
+		environment,
+		e.cfg.CodexCommand,
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"Codex credential isolation canary failed closed: %s",
+			commandFailure(err, result),
+		)
+	}
+	return nil
 }
 
 func (e *LocalExecutor) git(
@@ -991,6 +1053,9 @@ func resolveLocalCodexHome() (string, error) {
 func protectedControlPlaneEnvironment(name string) bool {
 	return name == "GOCLAW_USER_TOKEN" ||
 		name == "GOCLAW_GATEWAY_TOKEN" ||
+		name == "GOCLAW_REVIEWER_TOKEN" ||
+		name == "CODEX_ACCESS_TOKEN" ||
+		name == "CODEX_REFRESH_TOKEN" ||
 		strings.HasPrefix(name, "GOSKILLS_GATEWAY_") ||
 		strings.HasPrefix(name, "GOCLAW_RUNNER_")
 }

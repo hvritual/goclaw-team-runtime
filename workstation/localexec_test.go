@@ -274,8 +274,11 @@ func TestSanitizedLocalEnvironmentProtectsControlPlaneSecrets(t *testing.T) {
 		"HOME=/home/alice",
 		"GOCLAW_USER_TOKEN=user-secret",
 		"GOCLAW_GATEWAY_TOKEN=gateway-secret",
+		"GOCLAW_REVIEWER_TOKEN=reviewer-secret",
 		"GOCLAW_RUNNER_KEY_FILE=/run/secrets/runner.key",
 		"GOCLAW_RUNNER_DEVICE_KEY=device-secret",
+		"CODEX_ACCESS_TOKEN=codex-access-secret",
+		"CODEX_REFRESH_TOKEN=codex-refresh-secret",
 		"GOSKILLS_GATEWAY_WEBSOCKET_AUTH_TOKEN=legacy-secret",
 		"GITHUB_TOKEN=github-secret",
 		"NPM_TOKEN=npm-secret",
@@ -292,6 +295,9 @@ func TestSanitizedLocalEnvironmentProtectsControlPlaneSecrets(t *testing.T) {
 		[]string{
 			"NPM_TOKEN",
 			"GOCLAW_USER_TOKEN",
+			"GOCLAW_REVIEWER_TOKEN",
+			"CODEX_ACCESS_TOKEN",
+			"CODEX_REFRESH_TOKEN",
 			"PUBLIC_VALUE",
 			"SSH_AUTH_SOCK",
 			"LD_PRELOAD",
@@ -311,8 +317,11 @@ func TestSanitizedLocalEnvironmentProtectsControlPlaneSecrets(t *testing.T) {
 	for _, forbidden := range []string{
 		"GOCLAW_USER_TOKEN",
 		"GOCLAW_GATEWAY_TOKEN",
+		"GOCLAW_REVIEWER_TOKEN",
 		"GOCLAW_RUNNER_KEY_FILE",
 		"GOCLAW_RUNNER_DEVICE_KEY",
+		"CODEX_ACCESS_TOKEN",
+		"CODEX_REFRESH_TOKEN",
 		"GOSKILLS_GATEWAY_WEBSOCKET_AUTH_TOKEN",
 		"GITHUB_TOKEN",
 		"HOME=/home/alice",
@@ -367,6 +376,61 @@ func TestVerificationCommandUsesIsolatedEnvironment(t *testing.T) {
 		filepath.Join(verificationHome, ".codex") + "|"
 	if result.Stdout != expected {
 		t.Fatalf("verifier environment = %q, want %q", result.Stdout, expected)
+	}
+}
+
+func TestCodexPermissionProfileDeniesCredentialHome(t *testing.T) {
+	codexHome := filepath.Join(string(filepath.Separator), "sensitive", "codex-home")
+	joined := strings.Join(codexPermissionProfileArgs(codexHome), "\n")
+	for _, expected := range []string{
+		`default_permissions="goclaw-runner"`,
+		`permissions.goclaw-runner.extends=":workspace"`,
+		`permissions.goclaw-runner.filesystem."` + codexHome + `"="deny"`,
+		`permissions.goclaw-runner.network.enabled=false`,
+	} {
+		if !strings.Contains(joined, expected) {
+			t.Fatalf("permission profile missing %q: %s", expected, joined)
+		}
+	}
+	if strings.Contains(joined, "sandbox_mode") {
+		t.Fatalf("legacy sandbox setting disables permission profiles: %s", joined)
+	}
+}
+
+func TestCodexCredentialCanaryFailsClosedBeforeModelCall(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell fixture is not portable to Windows")
+	}
+	runtimeRoot := t.TempDir()
+	modelMarker := filepath.Join(runtimeRoot, "model-called")
+	fakeCodex := writeExecutable(t, "fake-codex-canary-failure", `#!/bin/sh
+case " $* " in
+  *" sandbox linux "*) exit 23 ;;
+esac
+printf '%s\n' called > "$MODEL_MARKER"
+`)
+	executor := &LocalExecutor{
+		cfg: LocalExecConfig{
+			CodexCommand:   fakeCodex,
+			TimeoutSeconds: 30,
+		},
+		codexHome: filepath.Join(runtimeRoot, "real-codex-home"),
+	}
+	t.Setenv("MODEL_MARKER", modelMarker)
+	result, err := executor.runCodex(
+		context.Background(),
+		runtimeRoot,
+		runtimeRoot,
+		ExecutionPack{},
+	)
+	if err == nil {
+		t.Fatalf("credential canary unexpectedly passed: %#v", result)
+	}
+	if !strings.Contains(err.Error(), "credential isolation canary failed closed") {
+		t.Fatalf("unexpected canary failure: %v", err)
+	}
+	if _, statErr := os.Stat(modelMarker); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("model command ran after canary failure: %v", statErr)
 	}
 }
 

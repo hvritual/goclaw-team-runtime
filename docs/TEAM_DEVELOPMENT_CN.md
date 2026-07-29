@@ -505,7 +505,7 @@ goclaw team project-member-add \
 - Team 模式的 `dev.task.run/repair/resume` 无条件禁用，即使 `development.gateway_allow_execution=true` 也不能调用；该开关仅适用于未启用 TeamControl 的单用户模式。团队只能通过 `dev enqueue` → Workstation 持久队列执行。
 - 每个 Runner 同时只持有一个活动 lease；device key 仅在 Runner 空闲时允许轮换。
 - 冻结任务的 `assignee_id` 会强制匹配 Runner owner；`business_domain` 和容量当前用于计划、校验与看板，不参与自动排程优化。
-- Codex 子进程只继承最小工具链环境，使用每次 run 独立 HOME/XDG，仅通过显式 `CODEX_HOME` 读取本机订阅 OAuth。GoClaw Token、SSH agent、Docker/Kubernetes socket/context、云凭据路径等宿主能力变量永久拒绝，`--allow-env` 也不能放行。
+- Codex 主进程只继承最小工具链环境，并通过显式 `CODEX_HOME` 使用本机订阅 OAuth；模型命令的 named permission profile 对真实目录设置 `deny`，每次模型调用前还必须通过 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kubernetes socket/context、云凭据路径等宿主能力变量永久拒绝，`--allow-env` 也不能放行。
 - 冻结 verifier 不再直接运行于宿主环境。`runner work` 必须指定绝对、受审、不可由 Runner 用户篡改的 `--verification-sandbox`；Linux 基线 wrapper 使用 bubblewrap 断网、遮蔽 host home/run/tmp，并只给 worktree 与临时 HOME 写权限。只有整个 Runner 已运行在一次性隔离 VM/容器时，才能显式使用与前者互斥的 `--unsafe-host-verification`。
 - Production 必须使用专用用户并安装 root-owned `0755` verifier wrapper；VM/容器仍是 Codex Hand 和整体 Runner 的纵深隔离。device key 是控制面与工作站共享的 HMAC 秘密，不是 TPM attestation、公钥设备证书或不可抵赖签名；中央凭据泄露者能够伪造该 Runner 的证据。
 - 组件目录不会自动发现重复实现；文档目录不会自动证明内容正确。

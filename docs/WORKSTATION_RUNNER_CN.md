@@ -333,7 +333,7 @@ goclaw runner work \
 | `--once` | false | 最多处理一个任务；空队列时立即返回 |
 | `--project` | 必填 | 领取的项目队列 |
 
-Codex、内部 Git 和 wrapper 启动都从固定安全 PATH 和最小环境白名单构造，不再继承完整宿主环境。Codex 与 verifier 每次 run 都使用隔离的 HOME/XDG/TMP；只有 `CODEX_HOME` 指向该成员已有的本机订阅 OAuth。上下文取消、超时或 lease 心跳失败会杀死整个 Unix 进程组，不只杀直接子进程。`GOCLAW_USER_TOKEN`、`GOCLAW_GATEWAY_TOKEN`、`GOSKILLS_GATEWAY_*`、`GOCLAW_RUNNER_*`，以及 SSH agent/Git askpass、Docker socket/context、Kubernetes config、Google/AWS/Azure/Cloud SDK 凭据路径、Kerberos cache 和 Vault 宿主能力变量始终剥离；即使写进 `--allow-env` 也不能放行。其他包含 `TOKEN`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`、`PRIVATE_KEY`、`API_KEY` 或 `AUTH` 的变量默认剥离，确有必要时才可用 `--allow-env NAME` 只交给 Codex。allowlist 永不进入内部 Git 或冻结 verifier。
+Codex、内部 Git 和 wrapper 启动都从固定安全 PATH 和最小环境白名单构造，不再继承完整宿主环境。Codex 与 verifier 每次 run 都使用隔离的 HOME/XDG/TMP；Codex 主进程通过 `CODEX_HOME` 使用该成员已有的本机订阅 OAuth，模型命令的 named permission profile 对真实目录设置 `deny`，并在模型调用前运行不访问模型的 read-deny canary。profile 或 OS sandbox 不支持时任务失败关闭。上下文取消、超时或 lease 心跳失败会杀死整个 Unix 进程组，不只杀直接子进程。`GOCLAW_USER_TOKEN`、`GOCLAW_GATEWAY_TOKEN`、`GOCLAW_REVIEWER_TOKEN`、`GOCLAW_RUNNER_*`、`CODEX_ACCESS_TOKEN`、`CODEX_REFRESH_TOKEN`、`GOSKILLS_GATEWAY_*`，以及 SSH agent/Git askpass、Docker socket/context、Kubernetes config、Google/AWS/Azure/Cloud SDK 凭据路径、Kerberos cache 和 Vault 宿主能力变量始终剥离；即使写进 `--allow-env` 也不能放行。其他包含 `TOKEN`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`、`PRIVATE_KEY`、`API_KEY` 或 `AUTH` 的变量默认剥离，确有必要时才可用 `--allow-env NAME` 只交给 Codex。allowlist 永不进入内部 Git 或冻结 verifier。
 
 ## 10. Claim、lease 与 heartbeat
 
@@ -459,7 +459,7 @@ goclaw dev link-pr TASK_ID \
 生产工作站应使用操作系统服务管理器运行 `goclaw runner work`，并满足：
 
 - 进程用户就是执行过 `codex login` 的用户。
-- 在服务环境中把 `CODEX_HOME` 明确设为该用户执行 `codex login` 后的绝对目录；每次 Codex run 使用另一个隔离 HOME/XDG，只把此 `CODEX_HOME` 作为订阅 OAuth 来源。
+- 在服务环境中把 `CODEX_HOME` 明确设为该用户执行 `codex login` 后的绝对目录；Codex 主进程把它作为订阅 OAuth 来源，模型命令由 named permission profile 和每次执行前 canary 拒绝读取该目录。
 - Linux 将发布包中的 `scripts/verify-sandbox-bwrap.sh` 安装到 `/usr/local/libexec/goclaw/verify-sandbox-bwrap.sh`，保持 `root:root 0755`，并在 systemd `ExecStart` 中传 `--verification-sandbox`。
 - systemd unit 的 `ExecStartPre` 运行 `runner doctor`，`KillMode=control-group`
   配合 Runner 自身的 Unix 进程组取消，避免停机留下孙进程。

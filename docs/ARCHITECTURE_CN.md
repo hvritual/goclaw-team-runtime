@@ -190,7 +190,7 @@ Ouroboros 不能直接调用开发 Hand。它只把人工批准的 active Seed �
 - Runner 只执行内容寻址、无秘密的 ExecutionPack，并把 task、lease、attempt、diff、验证和 policy hash 写入签名 EvidenceBundle。
 - Runner 先完成全部冻结验证，再对最终工作树计算 changed files/diff、scope policy 与 no-commit，避免验证命令改动文件后证据过时。
 - Runner 如果检测到 Codex 自动创建 commit 会失败；commit、push、创建/批准/merge PR、CI 和 release 仍是外部人工或既有平台流程。验收后的 `dev link-pr` 只校验本地可见 commit 并登记关联，不会 fetch 或改变远端平台。
-- Runner 的 Codex 子进程从最小环境白名单构造，每次运行使用独立 HOME/XDG/runtime/tmp，只通过 `CODEX_HOME` 读取本机订阅 OAuth。GoClaw Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，`--allow-env` 不能覆盖；内部 Git 与冻结 verifier 也不接收该 allowlist。
+- Runner 的 Codex 主进程从最小环境白名单构造并通过 `CODEX_HOME` 使用本机订阅 OAuth；模型命令采用 worktree-write/network-off 的 named permission profile，同时对真实 `CODEX_HOME` 设置 `deny`，并由执行前 read-deny canary 失败关闭。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，`--allow-env` 不能覆盖；内部 Git 与冻结 verifier 也不接收该 allowlist。
 - `runner work` 默认失败关闭，必须提供绝对、受审且不可由 Runner 用户篡改的 `--verification-sandbox`。Linux 发布包的 bubblewrap wrapper 断网、遮蔽 host home/run/tmp，只让任务 worktree 与临时 HOME 可写；它应安装为 root-owned `0755`。只有整个 Runner 已位于一次性隔离 VM/容器时，才可使用与 wrapper 互斥的 `--unsafe-host-verification`。
 - 受控知识目录应加入通用文件工具 `denied_paths`。
 - 受控知识只能由三个专用工具读取、检索或创建提案。

@@ -1,8 +1,14 @@
-# goclaw (🐾 狗爪)
+# GoClaw Team Runtime（🐾 狗爪）
 
-Go 语言版本的 OpenClaw - 一个功能强大的 AI Agent 框架。
+这是 `hvritual/goclaw-team-runtime` 团队运行时 fork，基于 GoClaw，
+把中央治理与工作站执行拆成 `goclaw-team-control` 和 `goclaw-runner`
+两个独立应用；兼容入口 `goclaw` 暂时保留。
 
-> `0.8.0-pilot.1` 是三人技术试点候选：一个中央单写者、一个项目、三名
+> 当前已恢复、可追溯的 release 是 `0.8.0-pilot.1-recovered.1`。
+> TR-W00 双应用实现属于后续 Wave candidate，在三路独立验收和新的
+> release Gate 完成前不是稳定发布声明。
+>
+> `0.8.0-pilot.1` 的试点合同是一个中央单写者、一个项目、三名
 > 成员与三台 Linux substrate Runner，并加入失败关闭的 Wave 绑定、
 > 一致性检查和 age 冷备/恢复 Gate。它不是生产放行声明；真机
 > bwrap/WSL2/Lima、ChatGPT Workspace、飞书和 Obsidian 仍需部署现场补证。
@@ -84,7 +90,7 @@ Runner 完成后，Gateway 把证据导入 Orchestrator Lite，重新校验冻�
 
 Team 模式对 RPC 采用拒绝优先：旧的 process-global 配置、日志、渠道、会话、Browser 和 Cron 方法默认禁用；Harness、Memory Catalog 与 Ouroboros 按项目 RBAC 授权。Team 模式的 `dev.task.run/repair/resume` **无条件禁用**，`development.gateway_allow_execution` 只对未启用 TeamControl 的单用户模式有效；团队执行唯一入口是 `dev enqueue` → Workstation 持久队列。
 
-Runner 的 Codex 子进程使用最小环境白名单、每次运行独立 HOME/XDG，并只通过 `CODEX_HOME` 读取该成员本机的订阅 OAuth。GoClaw Token、SSH agent、Docker/Kubernetes 和云凭据路径永不透传，`--allow-env` 不能覆盖这些宿主能力边界。冻结 verifier 默认失败关闭，`runner work` 必须提供 `--verification-sandbox /absolute/reviewed-wrapper`；Linux 发布包附带无网络 bubblewrap wrapper。通用 Runner 只有已位于一次性隔离 VM/容器时才能显式改用互斥的 `--unsafe-host-verification`；三人试点 Gate 固定要求 `isolation_backend=bwrap`，不接受该降级。
+Runner 的 Codex 主进程使用最小环境白名单并通过 `CODEX_HOME` 使用该成员本机订阅 OAuth；模型命令的 named permission profile 对真实目录设置 `deny`，每次模型调用前运行 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kubernetes 和云凭据路径永不透传，`--allow-env` 不能覆盖这些宿主能力边界。冻结 verifier 默认失败关闭，`runner work` 必须提供 `--verification-sandbox /absolute/reviewed-wrapper`；Linux 发布包附带无网络 bubblewrap wrapper。通用 Runner 只有已位于一次性隔离 VM/容器时才能显式改用互斥的 `--unsafe-host-verification`；三人试点 Gate 固定要求 `isolation_backend=bwrap`，不接受该降级。
 
 Team Web Console 是中央状态的默认交互窗口。浏览器只持有 HttpOnly 短期会话，个人 Team Token 和 Gateway Token 不写入 LocalStorage、SessionStorage 或 Markdown。Obsidian 只在确有桌面笔记需求时作为可选适配器安装。受治理 Markdown 可位于普通目录或 Git 工作树；任何同步方式都不得承载队列、lease、Token、device key 或 Codex OAuth。飞书按 `channel/account/chat` 路由项目，但路由本身不是授权。
 
@@ -270,22 +276,27 @@ goclaw/
 ### 安装
 
 ```bash
-# 克隆仓库
-git clone https://github.com/smallnest/goclaw.git
-cd goclaw
+# 需要具备私有仓库访问权限
+git clone https://github.com/hvritual/goclaw-team-runtime.git
+cd goclaw-team-runtime
 
-# 安装依赖
-go mod tidy
+# 构建两个独立应用和兼容入口
+make build-team-control
+make build-runner
+make build
 
-# 仅编译 Go 程序
-go build -o goclaw .
+# 查看各自命令面
+./goclaw-team-control --help
+./goclaw-runner --help
 
-# 完整构建（包含 UI，推荐）
+# 控制面需要最新嵌入式 UI 时
 make build-full
-
-# 或直接运行
-go run main.go start
 ```
+
+完整 Linux/macOS/Windows 构建、部署、迁移和安全边界见
+[Team Control / Runner 应用指南](docs/TEAM_CONTROL_RUNNER_APPS_CN.md)。
+当前原生 macOS/Windows 只作为控制/注册客户端，开发任务执行仍限定在
+Linux、WSL2 或 Lima Linux guest；完整原生打包由 `REL-W01` 验收。
 
 本地可以访问 dashboard:
 ```

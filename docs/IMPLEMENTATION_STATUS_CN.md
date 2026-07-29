@@ -77,7 +77,7 @@ ChatGPT Workspace、飞书租户、Obsidian Desktop 和灾备介质仍必须在�
   - secret-free ExecutionPack 固定项目、仓库、任务 revision、Issue/WorkItem、base commit、策略哈希、路径和验证 argv。
   - `dev.task.enqueue` 只从服务器端冻结任务构造 ExecutionPack；queue ID 和幂等键由 revision + execution bundle 在服务器派生，客户端无入队幂等参数；每个 WorkItem 必须恰有一个 active owner 且等于 task assignee，并校验 team/project/repository、base commit 和策略漂移，拒绝客户端伪造执行包。
   - revision/attempt 隔离 worktree、本地 Codex 执行；先跑完全部冻结验证，再从最终工作树收集 diff、范围和 no-commit 结果，最后生成 HMAC-SHA256 EvidenceBundle。
-  - Codex、内部 Git 和 verifier wrapper 都从最小环境白名单启动；Codex 每次运行使用独立 HOME/XDG/runtime/tmp，只通过 `CODEX_HOME` 读取本机订阅 OAuth。
+  - Codex、内部 Git 和 verifier wrapper 都从最小环境白名单启动；Codex 主进程通过 `CODEX_HOME` 使用本机订阅 OAuth，模型命令使用 named permission profile 对该目录 `deny`，并在模型调用前运行 read-deny canary。
   - GoClaw Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，显式 `--allow-env` 不能覆盖；allowlist 只交给 Codex，不进入内部 Git 或冻结 verifier。
   - `runner work` 默认失败关闭：必须提供绝对、受审且不可由 Runner 用户篡改的 `--verification-sandbox`，或仅在 Runner 整体已位于一次性隔离 VM/容器时显式使用互斥的 `--unsafe-host-verification`。Linux 包附带 bubblewrap wrapper，断网并遮蔽 host home/run/tmp，只让 worktree 与临时 HOME 可写。
   - 完成证据自动导入 Orchestrator Lite，重新校验 revision/bundle/base/head/diff/路径/冻结检查，重算范围与独立审查并运行 DoneGate；最终 `dev.task.accept` 再防漂移验收并关闭当前 WorkItem，共享 Issue 仅在所有 Task/WorkItem 都为 `done` 后 resolve。

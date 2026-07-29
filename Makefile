@@ -155,7 +155,8 @@ clean:
 	@echo "$(COLOR_BLUE)Cleaning...$(COLOR_RESET)"
 	$(GOCLEAN)
 	rm -f $(COVERAGE_FILE) $(COVERAGE_HTML)
-	rm -f $(BUILD_DIR)/$(BINARY_NAME)
+	rm -f $(BUILD_DIR)/$(BINARY_NAME) $(BUILD_DIR)/goclaw-team-control $(BUILD_DIR)/goclaw-runner
+	rm -rf $(BUILD_DIR)/dist/apps
 	rm -rf ui/dist
 	rm -rf gateway/ui_dist
 	@echo "$(COLOR_GREEN)Clean complete$(COLOR_RESET)"

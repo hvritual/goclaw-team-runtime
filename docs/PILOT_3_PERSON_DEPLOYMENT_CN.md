@@ -342,10 +342,11 @@ codex login status
 
 完整模板见 [`deploy/lima/README_CN.md`](../deploy/lima/README_CN.md)。
 
-三台机器的 OAuth 不同步到中央、Vault、Git、飞书或彼此。Runner 给每次
-Codex 执行创建独立 HOME/XDG/TMP，只用显式 `CODEX_HOME` 读取本人的订阅
-登录。GoClaw/Reviewer Token、SSH agent、Docker/Kubernetes 与云凭据不会
-传入 Codex 或 verifier。
+三台机器的 OAuth 不同步到中央、Vault、Git、飞书或彼此。Codex 主进程
+创建独立 HOME/XDG/TMP，并通过显式 `CODEX_HOME` 使用本人的订阅登录；
+模型命令的 named permission profile 对真实目录 `deny`，每次模型调用前
+必须通过 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH
+agent、Docker/Kubernetes 与云凭据不会传入模型命令或 verifier。
 
 ## 7. 安装 wrapper、注册、Doctor、启动
 

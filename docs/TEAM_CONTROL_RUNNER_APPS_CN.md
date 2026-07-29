@@ -35,6 +35,11 @@ go build -buildvcs=false -o goclaw-runner ./cmd/runner
 
 ## 3. 一次构建全部平台
 
+本节是从 Linux/Bash 主机构建六个 `GOOS/GOARCH` 目标的交叉编译证明，
+不是原生 Windows PowerShell installer、macOS `.pkg/.dmg` 或签名/公证
+流程。原生安装、签名、升级与回滚归 `REL-W01`。输出目录必须不存在或
+为空；脚本在同级 task-specific staging 中完成精确清单验证后才发布。
+
 ```bash
 ./scripts/build-apps.sh \
   --output /tmp/goclaw-apps \
@@ -52,8 +57,9 @@ go build -buildvcs=false -o goclaw-runner ./cmd/runner
 - 一个覆盖全部二进制的 `SHA256SUMS`。
 
 Windows 文件带 `.exe`。构建脚本设置 `CGO_ENABLED=0`，不会把本地配置、
-OAuth 或 Token 主动写入产物；若进程环境存在常见 GoClaw/GitHub Token，
-脚本还会拒绝包含其原值的 binary。
+OAuth 或 Token 主动写入产物；若进程环境存在 Team/Gateway/Reviewer、
+Runner device key、Codex access/refresh 或 GitHub Token，脚本会逐
+candidate binary 拒绝包含其原值的产物。
 
 ## 4. Team Control 部署
 
@@ -142,9 +148,13 @@ goclaw-runner runner work \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh
 ```
 
-Runner 只读取本机 `CODEX_HOME` 的 ChatGPT/Codex OAuth；控制面不接收 OAuth
-文件。个人 Team Token、Gateway Token 和 device key 应通过 Secret Store、
-systemd credential 或权限为 `0600` 的环境文件注入。
+Runner 只让 Codex 主进程使用本机 `CODEX_HOME` 的 ChatGPT/Codex OAuth；
+控制面不接收 OAuth 文件。模型生成的命令使用 named permission profile：
+worktree 可写、命令网络关闭、真实 `CODEX_HOME` 为 OS sandbox `deny`。
+每次调用模型前，Runner 先执行不访问模型的 read-deny canary；Codex CLI
+不支持 permission profile、sandbox 启动失败或 canary 能读取该目录时，
+任务失败关闭。个人 Team Token、Gateway Token 和 device key 应通过
+Secret Store、systemd credential 或权限为 `0600` 的环境文件注入。
 
 ## 6. 命令面验证
 
