@@ -217,7 +217,19 @@ make dev
 
 `make dev` auto-detects your environment (main checkout or worktree), creates the env file, installs dependencies, sets up the database, runs migrations, and starts all services.
 
+For a local-only six-domain environment (Workspace, Member, Project, Issue,
+Task, and Skill) without Docker or PostgreSQL, run:
+
+```bash
+make dev-sqlite
+```
+
+This stores data in `data/multica-local.db`, starts the web app at
+`http://localhost:3000`, and uses the local login code `888888`. Agent
+execution, cloud integrations, analytics, and advanced scheduling are
+intentionally unavailable in this mode. PostgreSQL remains the default for
+the full product.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow, worktree support, testing, and troubleshooting.
 
 An iOS mobile client lives in [`apps/mobile/`](apps/mobile/) — see its [README](apps/mobile/README.md) for how to build it onto your own iPhone.
-

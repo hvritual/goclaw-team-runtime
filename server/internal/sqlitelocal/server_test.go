@@ -1,0 +1,247 @@
+package sqlitelocal
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"testing"
+)
+
+type testClient struct {
+	t     *testing.T
+	app   *Server
+	token string
+	slug  string
+}
+
+func (c *testClient) request(method, path string, body any, wantStatus int) map[string]any {
+	c.t.Helper()
+
+	var payload []byte
+	if body != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+			c.t.Fatal(err)
+		}
+	}
+
+	req := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	if c.slug != "" {
+		req.Header.Set("X-Workspace-Slug", c.slug)
+	}
+	rec := httptest.NewRecorder()
+	c.app.Handler().ServeHTTP(rec, req)
+	if rec.Code != wantStatus {
+		c.t.Fatalf("%s %s: got status %d, want %d; body=%s", method, path, rec.Code, wantStatus, rec.Body.String())
+	}
+	if rec.Body.Len() == 0 {
+		return nil
+	}
+	var result map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		c.t.Fatalf("%s %s: decode response: %v; body=%s", method, path, err, rec.Body.String())
+	}
+	return result
+}
+
+func (c *testClient) requestList(method, path string, wantStatus int) []map[string]any {
+	c.t.Helper()
+
+	req := httptest.NewRequest(method, path, nil)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	if c.slug != "" {
+		req.Header.Set("X-Workspace-Slug", c.slug)
+	}
+	rec := httptest.NewRecorder()
+	c.app.Handler().ServeHTTP(rec, req)
+	if rec.Code != wantStatus {
+		c.t.Fatalf("%s %s: got status %d, want %d; body=%s", method, path, rec.Code, wantStatus, rec.Body.String())
+	}
+	var result []map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		c.t.Fatalf("%s %s: decode response: %v; body=%s", method, path, err, rec.Body.String())
+	}
+	return result
+}
+
+func TestSQLiteLocalSixDomainAPI(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodGet, "/health", nil, http.StatusOK)
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Local Team",
+		"slug": "local-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+
+	members := client.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/members", http.StatusOK)
+	if len(members) != 1 || members[0]["role"] != "owner" {
+		t.Fatalf("owner membership not created: %#v", members)
+	}
+
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title":    "SQLite integration",
+		"status":   "in_progress",
+		"priority": "high",
+	}, http.StatusCreated)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":      "Persist six domains",
+		"project_id": project["id"],
+		"priority":   "high",
+	}, http.StatusCreated)
+	if issue["identifier"] != "LOC-1" {
+		t.Fatalf("unexpected issue identifier: %#v", issue["identifier"])
+	}
+
+	task := client.request(http.MethodPost, "/api/tasks", map[string]any{
+		"issue_id": issue["id"],
+		"status":   "queued",
+		"priority": 10,
+	}, http.StatusCreated)
+	client.request(http.MethodPost, "/api/tasks/"+task["id"].(string)+"/messages", map[string]any{
+		"role":    "user",
+		"content": "Run locally without an agent process",
+	}, http.StatusCreated)
+
+	skill := client.request(http.MethodPost, "/api/skills", map[string]any{
+		"name":        "sqlite-local",
+		"description": "Local SQLite workflow",
+		"content":     "# SQLite Local",
+		"files": []map[string]any{
+			{"path": "references/notes.md", "content": "local only"},
+		},
+	}, http.StatusCreated)
+
+	if got := client.request(http.MethodGet, "/api/projects", nil, http.StatusOK); got["total"] != float64(1) {
+		t.Fatalf("project list total: %#v", got)
+	}
+	if got := client.request(http.MethodGet, "/api/issues", nil, http.StatusOK); got["total"] != float64(1) {
+		t.Fatalf("issue list total: %#v", got)
+	}
+	if got := client.requestList(http.MethodGet, "/api/issues/"+issue["id"].(string)+"/task-runs", http.StatusOK); len(got) != 1 {
+		t.Fatalf("task list: %#v", got)
+	}
+	if got := client.requestList(http.MethodGet, "/api/tasks/"+task["id"].(string)+"/messages", http.StatusOK); len(got) != 1 || got[0]["type"] != "text" {
+		t.Fatalf("task messages: %#v", got)
+	}
+	if got := client.request(http.MethodGet, "/api/skills/"+skill["id"].(string), nil, http.StatusOK); len(got["files"].([]any)) != 1 {
+		t.Fatalf("skill files: %#v", got)
+	}
+
+	cancelled := client.request(http.MethodPost, "/api/tasks/"+task["id"].(string)+"/cancel", nil, http.StatusOK)
+	if cancelled["status"] != "cancelled" {
+		t.Fatalf("task not cancelled: %#v", cancelled)
+	}
+
+	unsupported := client.request(http.MethodGet, "/api/dashboard/usage", nil, http.StatusNotImplemented)
+	if unsupported["code"] != "sqlite_local_unsupported" {
+		t.Fatalf("unsupported response: %#v", unsupported)
+	}
+}
+
+func TestSQLiteLocalPersistsAcrossRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Persistent", "slug": "persistent"}, http.StatusCreated)
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	client.app = reopened
+
+	workspaces := client.requestList(http.MethodGet, "/api/workspaces", http.StatusOK)
+	if len(workspaces) != 1 || workspaces[0]["slug"] != "persistent" {
+		t.Fatalf("workspace did not persist: %#v", workspaces)
+	}
+}
+
+func TestSQLiteLocalRejectsCrossWorkspaceRelationships(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+
+	first := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "First", "slug": "first"}, http.StatusCreated)
+	client.slug = first["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "First project"}, http.StatusCreated)
+
+	second := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Second", "slug": "second"}, http.StatusCreated)
+	client.slug = second["slug"].(string)
+	client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":      "Cross-workspace issue",
+		"project_id": project["id"],
+	}, http.StatusBadRequest)
+
+	client.slug = first["slug"].(string)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{"title": "First issue"}, http.StatusCreated)
+	client.slug = second["slug"].(string)
+	client.request(http.MethodPost, "/api/tasks", map[string]any{
+		"issue_id": issue["id"],
+		"status":   "queued",
+	}, http.StatusBadRequest)
+}
+
+func TestSQLiteLocalMemberCannotDeleteWorkspace(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	owner.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	owner.token = login["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Protected", "slug": "protected"}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+	owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "member@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+
+	member := &testClient{t: t, app: app, slug: owner.slug}
+	member.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "member@example.com"}, http.StatusNoContent)
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "member@example.com", "code": "888888"}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	member.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string), nil, http.StatusForbidden)
+}

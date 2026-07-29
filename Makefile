@@ -1,4 +1,4 @@
-.PHONY: help makehelp dev server daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
+.PHONY: help makehelp dev dev-sqlite setup-sqlite start-sqlite stop-sqlite server server-sqlite daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -22,6 +22,8 @@ NEXT_PUBLIC_WS_URL ?= ws://localhost:$(PORT)/ws
 GOOGLE_REDIRECT_URI ?= $(FRONTEND_ORIGIN)/auth/callback
 MULTICA_SERVER_URL ?= ws://localhost:$(PORT)/ws
 LOCAL_UPLOAD_BASE_URL ?= http://localhost:$(PORT)
+SQLITE_DATABASE_PATH ?= $(CURDIR)/data/multica-local.db
+SQLITE_DEV_CODE ?= 888888
 
 export
 
@@ -67,7 +69,7 @@ endef
 ##@ Help
 
 help: ## Show available make targets and common local workflows
-	@awk 'BEGIN {FS = ":.*## "; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nQuick start:\n  \033[36mmake dev\033[0m          Bootstrap the current checkout and start everything\n  \033[36mmake check\033[0m        Run the full local verification pipeline\n\nCheckout modes:\n  Main checkout uses \033[36m.env\033[0m\n  Worktrees use \033[36m.env.worktree\033[0m (generate with \033[36mmake worktree-env\033[0m)\n\n"} \
+	@awk 'BEGIN {FS = ":.*## "; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nQuick start:\n  \033[36mmake dev\033[0m          Bootstrap the PostgreSQL checkout and start everything\n  \033[36mmake dev-sqlite\033[0m   Start the local-only SQLite app without Docker\n  \033[36mmake check\033[0m        Run the full local verification pipeline\n\nCheckout modes:\n  Main checkout uses \033[36m.env\033[0m\n  Worktrees use \033[36m.env.worktree\033[0m (generate with \033[36mmake worktree-env\033[0m)\n\n"} \
 		/^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
 		/^[a-zA-Z0-9_.-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -301,10 +303,53 @@ check-worktree: ## Run the full verification pipeline for this worktree
 dev: ## Bootstrap this checkout end-to-end: create env if needed, ensure DB, migrate, start services
 	@bash scripts/dev.sh
 
+dev-sqlite: setup-sqlite start-sqlite ## Install dependencies and start the local-only SQLite backend and web app
+
+setup-sqlite: ## Prepare dependencies for SQLite local mode (no Docker or PostgreSQL)
+	@echo "==> Installing frontend dependencies..."
+	pnpm install --frozen-lockfile
+	@echo "==> Downloading Go dependencies..."
+	cd server && go mod download
+	@echo "✓ SQLite local mode is ready."
+
+start-sqlite: ## Start the SQLite local backend and web app
+	@echo "SQLite database: $(SQLITE_DATABASE_PATH)"
+	@echo "Backend: http://localhost:$(PORT)"
+	@echo "Frontend: http://localhost:$(FRONTEND_PORT)"
+	@echo "Local login code: $(SQLITE_DEV_CODE)"
+	@echo "Agent execution and cloud-only endpoints are disabled in this mode."
+	@trap 'kill 0' EXIT; \
+		(cd server && \
+			SQLITE_DATABASE_PATH="$(SQLITE_DATABASE_PATH)" \
+			MULTICA_DEV_VERIFICATION_CODE="$(SQLITE_DEV_CODE)" \
+			FRONTEND_ORIGIN="$(FRONTEND_ORIGIN)" \
+			PORT="$(PORT)" \
+			go run ./cmd/sqlite-server) & \
+		REMOTE_API_URL="http://localhost:$(PORT)" \
+		NEXT_PUBLIC_API_URL="http://localhost:$(PORT)" \
+		NEXT_PUBLIC_WS_URL="ws://localhost:$(PORT)/ws" \
+		BACKEND_PORT="$(PORT)" \
+		pnpm dev:web & \
+		wait
+
+stop-sqlite: ## Stop the SQLite local backend and web app
+	@echo "Stopping SQLite local services..."
+	@-lsof -ti:$(PORT) | xargs kill -9 2>/dev/null
+	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null
+	@echo "✓ SQLite data remains at $(SQLITE_DATABASE_PATH)."
+
 server: ## Run only the Go server for the current checkout
 	$(REQUIRE_ENV)
 	@bash scripts/ensure-postgres.sh "$(ENV_FILE)"
 	cd server && go run ./cmd/server
+
+server-sqlite: ## Run only the local SQLite API server
+	cd server && \
+		SQLITE_DATABASE_PATH="$(SQLITE_DATABASE_PATH)" \
+		MULTICA_DEV_VERIFICATION_CODE="$(SQLITE_DEV_CODE)" \
+		FRONTEND_ORIGIN="$(FRONTEND_ORIGIN)" \
+		PORT="$(PORT)" \
+		go run ./cmd/sqlite-server
 
 daemon: ## Restart the local agent daemon using the CLI's stored auth/session
 	@$(MAKE) multica MULTICA_ARGS="daemon restart --profile local"
