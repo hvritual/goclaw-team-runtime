@@ -15,6 +15,7 @@ import {
 import {
   TeamAssignment,
   TeamComponentsSummary,
+  TeamControlSummary,
   TeamDocsSummary,
   TeamIssue,
   TeamMember,
@@ -34,6 +35,7 @@ interface TeamData {
   policy: TeamPolicyStatus;
   docs: TeamDocsSummary;
   components: TeamComponentsSummary;
+  control: TeamControlSummary;
 }
 
 const selectStyle = {
@@ -62,7 +64,7 @@ export function TeamPage() {
   const projectRef = useRef(projectID);
   projectRef.current = projectID;
   const load = useCallback(async (): Promise<TeamData> => {
-    const [members, work, issues, assignments, runners, policy, docs, components] =
+    const [members, work, issues, assignments, runners, policy, docs, components, control] =
       await Promise.all([
         client.rpc<TeamMember[]>('team.members', { project_id: projectID }),
         client.rpc<TeamWorkItem[]>('work.items', { project_id: projectID, limit: 60 }),
@@ -72,8 +74,9 @@ export function TeamPage() {
         client.rpc<TeamPolicyStatus>('policy.status', { project_id: projectID }),
         client.rpc<TeamDocsSummary>('docs.summary', { project_id: projectID, limit: 10 }),
         client.rpc<TeamComponentsSummary>('components.summary', { project_id: projectID, limit: 10 }),
+        client.rpc<TeamControlSummary>('control.summary', { project_id: projectID }),
       ]);
-    return { members, work, issues, assignments, runners, policy, docs, components };
+    return { members, work, issues, assignments, runners, policy, docs, components, control };
   }, [client, projectID]);
   const state = useAsyncData(load, [load]);
 
@@ -143,7 +146,7 @@ export function TeamPage() {
 
   if (state.loading && !state.data) return <Loading label="加载成员、任务、Runner 与工程资产…" />;
   if (state.error || !state.data) return <ErrorState error={state.error} onRetry={state.reload} />;
-  const { members, work, issues, assignments, runners, policy, docs, components } = state.data;
+  const { members, work, issues, assignments, runners, policy, docs, components, control } = state.data;
   const names = new Map(members.map((member) => [member.id, member.display_name]));
   const openIssues = issues.filter((item) =>
     !['resolved', 'closed', 'cancelled'].includes(item.status));
@@ -246,6 +249,21 @@ export function TeamPage() {
             <span><small>层数</small><strong>{policy.layers?.length ?? 0}</strong></span>
           </div>
           {(policy.layers ?? []).map((layer) => <div className="stack-item compact" key={layer.id}><span>{layer.scope} · {layer.id}@{layer.version}</span><Status tone={layer.compliant === false ? 'danger' : 'success'}>{layer.compliant === false ? '漂移' : '一致'}</Status></div>)}
+        </Section>
+        <Section title="中央上下文治理">
+          <div className="fact-strip vertical">
+            <span><small>Token 预算</small><strong>{control.used_tokens.toLocaleString()} / {control.limit_tokens.toLocaleString()}</strong></span>
+            <span><small>批准知识</small><strong>{control.approved_knowledge} / {control.knowledge_count}</strong></span>
+            <span><small>批准 Skill</small><strong>{control.approved_skills} / {control.skill_count}</strong></span>
+            <span><small>Runner release</small><strong>{control.runner_release_count}</strong></span>
+            <span><small>Context Bundle</small><strong>{control.context_bundle_count}</strong></span>
+          </div>
+          {control.budget_count === 0 &&
+            control.knowledge_count === 0 &&
+            control.skill_count === 0 &&
+            control.runner_release_count === 0
+            ? <Empty title="尚未登记中央预算、知识、Skill 或 Runner release" />
+            : null}
         </Section>
 
         <Section title="活动任务" className="span-two">

@@ -325,6 +325,15 @@ func validPolicyScope(value PolicyScope) bool {
 	}
 }
 
+func validRegistryStatus(value RegistryStatus) bool {
+	switch value {
+	case RegistryDraft, RegistryApproved, RegistryDisabled:
+		return true
+	default:
+		return false
+	}
+}
+
 func entityNotFound(kind, id string) error {
 	return fmt.Errorf("%w: %s %q", ErrNotFound, kind, id)
 }

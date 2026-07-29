@@ -57,25 +57,35 @@ const (
 type Action string
 
 const (
-	ActionProjectRead      Action = "project.read"
-	ActionProjectManage    Action = "project.manage"
-	ActionRepositoryRead   Action = "repository.read"
-	ActionRepositoryManage Action = "repository.manage"
-	ActionIssueRead        Action = "issue.read"
-	ActionIssueWrite       Action = "issue.write"
-	ActionIssueAssign      Action = "issue.assign"
-	ActionIssueTransition  Action = "issue.transition"
-	ActionWorkItemRead     Action = "work_item.read"
-	ActionWorkItemWrite    Action = "work_item.write"
-	ActionWorkItemAssign   Action = "work_item.assign"
-	ActionArtifactRead     Action = "artifact.read"
-	ActionArtifactWrite    Action = "artifact.write"
-	ActionDocumentRead     Action = "document.read"
-	ActionDocumentWrite    Action = "document.write"
-	ActionComponentRead    Action = "component.read"
-	ActionComponentWrite   Action = "component.write"
-	ActionPolicyRead       Action = "policy.read"
-	ActionPolicyWrite      Action = "policy.write"
+	ActionProjectRead        Action = "project.read"
+	ActionProjectManage      Action = "project.manage"
+	ActionRepositoryRead     Action = "repository.read"
+	ActionRepositoryManage   Action = "repository.manage"
+	ActionIssueRead          Action = "issue.read"
+	ActionIssueWrite         Action = "issue.write"
+	ActionIssueAssign        Action = "issue.assign"
+	ActionIssueTransition    Action = "issue.transition"
+	ActionWorkItemRead       Action = "work_item.read"
+	ActionWorkItemWrite      Action = "work_item.write"
+	ActionWorkItemAssign     Action = "work_item.assign"
+	ActionArtifactRead       Action = "artifact.read"
+	ActionArtifactWrite      Action = "artifact.write"
+	ActionDocumentRead       Action = "document.read"
+	ActionDocumentWrite      Action = "document.write"
+	ActionComponentRead      Action = "component.read"
+	ActionComponentWrite     Action = "component.write"
+	ActionPolicyRead         Action = "policy.read"
+	ActionPolicyWrite        Action = "policy.write"
+	ActionBudgetRead         Action = "budget.read"
+	ActionBudgetWrite        Action = "budget.write"
+	ActionKnowledgeRead      Action = "knowledge.read"
+	ActionKnowledgeWrite     Action = "knowledge.write"
+	ActionSkillRead          Action = "skill.read"
+	ActionSkillWrite         Action = "skill.write"
+	ActionRunnerReleaseRead  Action = "runner_release.read"
+	ActionRunnerReleaseWrite Action = "runner_release.write"
+	ActionContextRead        Action = "context.read"
+	ActionContextCompile     Action = "context.compile"
 )
 
 type User struct {
@@ -472,6 +482,114 @@ type ResolvedPolicy struct {
 	Hash         string                     `json:"hash"`
 }
 
+type RegistryStatus string
+
+const (
+	RegistryDraft    RegistryStatus = "draft"
+	RegistryApproved RegistryStatus = "approved"
+	RegistryDisabled RegistryStatus = "disabled"
+)
+
+type TokenBudget struct {
+	ID          string    `json:"id"`
+	ProjectID   string    `json:"project_id"`
+	UserID      string    `json:"user_id,omitempty"`
+	LimitTokens int64     `json:"limit_tokens"`
+	UsedTokens  int64     `json:"used_tokens"`
+	CreatedBy   string    `json:"created_by"`
+	UpdatedBy   string    `json:"updated_by"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type TokenUsageEvent struct {
+	ID         string            `json:"id"`
+	ProjectID  string            `json:"project_id"`
+	BudgetID   string            `json:"budget_id"`
+	Tokens     int64             `json:"tokens"`
+	TaskID     string            `json:"task_id,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
+	RecordedBy string            `json:"recorded_by"`
+	RecordedAt time.Time         `json:"recorded_at"`
+}
+
+type KnowledgeSource struct {
+	ID        string            `json:"id"`
+	ProjectID string            `json:"project_id"`
+	Name      string            `json:"name"`
+	URI       string            `json:"uri"`
+	Revision  string            `json:"revision"`
+	SHA256    string            `json:"sha256"`
+	Status    RegistryStatus    `json:"status"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	CreatedBy string            `json:"created_by"`
+	UpdatedBy string            `json:"updated_by"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type SkillRelease struct {
+	ID               string            `json:"id"`
+	ProjectID        string            `json:"project_id"`
+	Name             string            `json:"name"`
+	Version          string            `json:"version"`
+	URI              string            `json:"uri"`
+	SHA256           string            `json:"sha256"`
+	MinRunnerVersion string            `json:"min_runner_version,omitempty"`
+	Status           RegistryStatus    `json:"status"`
+	Metadata         map[string]string `json:"metadata,omitempty"`
+	CreatedBy        string            `json:"created_by"`
+	UpdatedBy        string            `json:"updated_by"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+}
+
+type RunnerRelease struct {
+	ID          string         `json:"id"`
+	ProjectID   string         `json:"project_id"`
+	Channel     string         `json:"channel"`
+	Version     string         `json:"version"`
+	OS          string         `json:"os"`
+	Arch        string         `json:"arch"`
+	URI         string         `json:"uri"`
+	SHA256      string         `json:"sha256"`
+	MinProtocol string         `json:"min_protocol"`
+	Status      RegistryStatus `json:"status"`
+	CreatedBy   string         `json:"created_by"`
+	UpdatedBy   string         `json:"updated_by"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+}
+
+type ContextResourceRef struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	URI     string `json:"uri"`
+	SHA256  string `json:"sha256"`
+}
+
+type ContextBudgetSnapshot struct {
+	BudgetID    string `json:"budget_id,omitempty"`
+	UserID      string `json:"user_id,omitempty"`
+	LimitTokens int64  `json:"limit_tokens,omitempty"`
+	UsedTokens  int64  `json:"used_tokens,omitempty"`
+}
+
+type ContextBundle struct {
+	ID              string                `json:"id"`
+	ProjectID       string                `json:"project_id"`
+	RepositoryID    string                `json:"repository_id,omitempty"`
+	CompilerVersion string                `json:"compiler_version"`
+	Policy          ResolvedPolicy        `json:"policy"`
+	Budget          ContextBudgetSnapshot `json:"budget"`
+	Knowledge       []ContextResourceRef  `json:"knowledge"`
+	Skills          []ContextResourceRef  `json:"skills"`
+	Hash            string                `json:"hash"`
+	CreatedBy       string                `json:"created_by"`
+	CreatedAt       time.Time             `json:"created_at"`
+}
+
 type state struct {
 	SchemaVersion      int                          `json:"schema_version"`
 	Revision           uint64                       `json:"revision"`
@@ -490,6 +608,12 @@ type state struct {
 	Documents          map[string]Document          `json:"documents"`
 	Components         map[string]Component         `json:"components"`
 	Policies           map[string]PolicyBundle      `json:"policies"`
+	TokenBudgets       map[string]TokenBudget       `json:"token_budgets"`
+	TokenUsageEvents   map[string]TokenUsageEvent   `json:"token_usage_events"`
+	KnowledgeSources   map[string]KnowledgeSource   `json:"knowledge_sources"`
+	SkillReleases      map[string]SkillRelease      `json:"skill_releases"`
+	RunnerReleases     map[string]RunnerRelease     `json:"runner_releases"`
+	ContextBundles     map[string]ContextBundle     `json:"context_bundles"`
 	UpdatedAt          time.Time                    `json:"updated_at"`
 }
 
@@ -511,6 +635,12 @@ func newState() state {
 		Documents:          make(map[string]Document),
 		Components:         make(map[string]Component),
 		Policies:           make(map[string]PolicyBundle),
+		TokenBudgets:       make(map[string]TokenBudget),
+		TokenUsageEvents:   make(map[string]TokenUsageEvent),
+		KnowledgeSources:   make(map[string]KnowledgeSource),
+		SkillReleases:      make(map[string]SkillRelease),
+		RunnerReleases:     make(map[string]RunnerRelease),
+		ContextBundles:     make(map[string]ContextBundle),
 		UpdatedAt:          time.Now().UTC(),
 	}
 }

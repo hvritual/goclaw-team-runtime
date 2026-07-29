@@ -34,6 +34,9 @@ func newTeamCommand() *cobra.Command {
 		newProjectCreateCommand(),
 		newProjectMemberAddCommand(),
 		newRepositoryCreateCommand(),
+		newTokenBudgetPutCommand(),
+		newControlSummaryCommand(),
+		newContextCompileCommand(),
 		newTeamRPCCommand(),
 	)
 	return command
@@ -347,6 +350,70 @@ func newRepositoryCreateCommand() *cobra.Command {
 	_ = command.MarkFlagRequired("project")
 	_ = command.MarkFlagRequired("id")
 	_ = command.MarkFlagRequired("name")
+	return command
+}
+
+func newTokenBudgetPutCommand() *cobra.Command {
+	var projectID, id, userID string
+	var limit int64
+	command := &cobra.Command{
+		Use:   "budget-put",
+		Short: "Create or update a project/member token budget",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return callTeamRPC("budget.put", map[string]any{
+				"id": id, "project_id": projectID,
+				"user_id": userID, "limit_tokens": limit,
+			})
+		},
+	}
+	command.Flags().StringVar(&projectID, "project", "", "Project id")
+	command.Flags().StringVar(&id, "id", "", "Stable budget id")
+	command.Flags().StringVar(&userID, "user", "", "Optional project member id")
+	command.Flags().Int64Var(&limit, "limit", 0, "Hard token limit")
+	_ = command.MarkFlagRequired("project")
+	_ = command.MarkFlagRequired("id")
+	_ = command.MarkFlagRequired("limit")
+	return command
+}
+
+func newControlSummaryCommand() *cobra.Command {
+	var projectID string
+	command := &cobra.Command{
+		Use:   "control-summary",
+		Short: "Show budget, knowledge, skill, Runner release and context totals",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return callTeamRPC(
+				"control.summary",
+				map[string]any{"project_id": projectID},
+			)
+		},
+	}
+	command.Flags().StringVar(&projectID, "project", "", "Project id")
+	_ = command.MarkFlagRequired("project")
+	return command
+}
+
+func newContextCompileCommand() *cobra.Command {
+	var projectID, repositoryID, userID, budgetID string
+	var knowledgeIDs, skillIDs []string
+	command := &cobra.Command{
+		Use:   "context-compile",
+		Short: "Compile an immutable project context bundle from approved inputs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return callTeamRPC("context.compile", map[string]any{
+				"project_id": projectID, "repository_id": repositoryID,
+				"user_id": userID, "budget_id": budgetID,
+				"knowledge_ids": knowledgeIDs, "skill_ids": skillIDs,
+			})
+		},
+	}
+	command.Flags().StringVar(&projectID, "project", "", "Project id")
+	command.Flags().StringVar(&repositoryID, "repository", "", "Optional repository id")
+	command.Flags().StringVar(&userID, "user", "", "Optional target project member")
+	command.Flags().StringVar(&budgetID, "budget", "", "Optional budget id")
+	command.Flags().StringSliceVar(&knowledgeIDs, "knowledge", nil, "Approved knowledge source id; repeat as needed")
+	command.Flags().StringSliceVar(&skillIDs, "skill", nil, "Approved skill release id; repeat as needed")
+	_ = command.MarkFlagRequired("project")
 	return command
 }
 

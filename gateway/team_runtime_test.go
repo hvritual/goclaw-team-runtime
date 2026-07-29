@@ -189,6 +189,96 @@ func TestTeamPersonalTokenAuthenticationLayers(t *testing.T) {
 	}
 }
 
+func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
+	fixture := newGatewayTeamFixture(t)
+	handler := &Handler{registry: NewMethodRegistry()}
+	handler.SetTeamControlService(&fixture.service)
+	session := teamSessionID(fixture.alice.ID)
+	checksum := strings.Repeat("a", 64)
+
+	if _, err := handler.registry.Call(
+		"budget.put",
+		session,
+		map[string]interface{}{
+			"id": "budget-rpc", "project_id": fixture.project.ID,
+			"user_id": fixture.bob.ID, "limit_tokens": 500,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handler.registry.Call(
+		"knowledge.source.put",
+		session,
+		map[string]interface{}{
+			"id": "knowledge-rpc", "project_id": fixture.project.ID,
+			"name": "RPC knowledge", "uri": "file:///vault/rpc.md",
+			"revision": "1", "sha256": checksum, "status": "approved",
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handler.registry.Call(
+		"skill.release.put",
+		session,
+		map[string]interface{}{
+			"id": "skill-rpc", "project_id": fixture.project.ID,
+			"name": "rpc-skill", "version": "1", "uri": "file:///skills/rpc",
+			"sha256": checksum, "status": "approved",
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := handler.registry.Call(
+		"context.compile",
+		session,
+		map[string]interface{}{
+			"project_id":    fixture.project.ID,
+			"repository_id": fixture.repo.ID,
+			"user_id":       fixture.bob.ID,
+			"budget_id":     "budget-rpc",
+			"knowledge_ids": []string{"knowledge-rpc"},
+			"skill_ids":     []string{"skill-rpc"},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, ok := compiled.(teamcontrol.ContextBundle)
+	if !ok || bundle.Hash == "" {
+		t.Fatalf("unexpected context bundle: %#v", compiled)
+	}
+	summary, err := handler.registry.Call(
+		"control.summary",
+		session,
+		map[string]interface{}{"project_id": fixture.project.ID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summaryMap, ok := summary.(map[string]interface{})
+	if !ok || summaryMap["context_bundle_count"] != 1 {
+		t.Fatalf("unexpected control summary: %#v", summary)
+	}
+
+	if _, err := handler.registry.Call(
+		"budget.list",
+		teamSessionID(fixture.viewer.ID),
+		map[string]interface{}{"project_id": fixture.project.ID},
+	); err == nil {
+		t.Fatal("cross-project viewer read was allowed")
+	}
+	if _, err := handler.registry.Call(
+		"budget.put",
+		teamSessionID(fixture.bob.ID),
+		map[string]interface{}{
+			"id": "developer-budget", "project_id": fixture.project.ID,
+			"limit_tokens": 1,
+		},
+	); err == nil {
+		t.Fatal("developer budget mutation was allowed")
+	}
+}
+
 func TestTeamTokenRPCDoesNotExposeCredentialDigest(t *testing.T) {
 	fixture := newGatewayTeamFixture(t)
 	handler := &Handler{registry: NewMethodRegistry()}

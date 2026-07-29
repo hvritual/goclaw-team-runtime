@@ -112,6 +112,9 @@ goclaw-team-control team repository-create ...
 
 完整参数以 `goclaw-team-control team --help` 为准。
 
+中央预算、Knowledge/Skill/Runner release Registry 与 Context Bundle
+操作见 [`Team Control Registry、预算与 Context Bundle`](TEAM_CONTROL_REGISTRY_CN.md)。
+
 ## 5. Runner 部署
 
 原生 Windows/macOS 可运行 Runner 管理命令，但开发任务执行必须位于受支持的

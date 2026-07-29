@@ -153,6 +153,24 @@ func normalizeState(value *state) {
 	if value.Policies == nil {
 		value.Policies = make(map[string]PolicyBundle)
 	}
+	if value.TokenBudgets == nil {
+		value.TokenBudgets = make(map[string]TokenBudget)
+	}
+	if value.TokenUsageEvents == nil {
+		value.TokenUsageEvents = make(map[string]TokenUsageEvent)
+	}
+	if value.KnowledgeSources == nil {
+		value.KnowledgeSources = make(map[string]KnowledgeSource)
+	}
+	if value.SkillReleases == nil {
+		value.SkillReleases = make(map[string]SkillRelease)
+	}
+	if value.RunnerReleases == nil {
+		value.RunnerReleases = make(map[string]RunnerRelease)
+	}
+	if value.ContextBundles == nil {
+		value.ContextBundles = make(map[string]ContextBundle)
+	}
 }
 
 func writeStateAtomic(path string, value state) error {

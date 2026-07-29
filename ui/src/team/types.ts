@@ -181,6 +181,19 @@ export interface TeamPolicyStatus {
   violations?: Array<{ code: string; message: string; severity?: 'error' | 'warning' }>;
 }
 
+export interface TeamControlSummary {
+  project_id: string;
+  budget_count: number;
+  limit_tokens: number;
+  used_tokens: number;
+  knowledge_count: number;
+  approved_knowledge: number;
+  skill_count: number;
+  approved_skills: number;
+  runner_release_count: number;
+  context_bundle_count: number;
+}
+
 export interface TeamDocument {
   id: string;
   title: string;

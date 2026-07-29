@@ -648,7 +648,12 @@ func roleAllows(role ProjectRole, action Action) bool {
 		action == ActionArtifactRead ||
 		action == ActionDocumentRead ||
 		action == ActionComponentRead ||
-		action == ActionPolicyRead
+		action == ActionPolicyRead ||
+		action == ActionBudgetRead ||
+		action == ActionKnowledgeRead ||
+		action == ActionSkillRead ||
+		action == ActionRunnerReleaseRead ||
+		action == ActionContextRead
 	if readAction {
 		return true
 	}

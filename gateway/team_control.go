@@ -62,6 +62,20 @@ func (h *Handler) registerTeamControlMethods() {
 	h.registry.Register("policy.list", h.rpcListPolicies)
 	h.registry.Register("policy.resolve", h.rpcResolvePolicy)
 	h.registry.Register("policy.status", h.rpcPolicyStatus)
+
+	h.registry.Register("budget.put", h.rpcPutTokenBudget)
+	h.registry.Register("budget.list", h.rpcListTokenBudgets)
+	h.registry.Register("budget.usage.record", h.rpcRecordTokenUsage)
+	h.registry.Register("budget.usage.list", h.rpcListTokenUsage)
+	h.registry.Register("knowledge.source.put", h.rpcPutKnowledgeSource)
+	h.registry.Register("knowledge.source.list", h.rpcListKnowledgeSources)
+	h.registry.Register("skill.release.put", h.rpcPutSkillRelease)
+	h.registry.Register("skill.release.list", h.rpcListSkillReleases)
+	h.registry.Register("runner.release.put", h.rpcPutRunnerRelease)
+	h.registry.Register("runner.release.list", h.rpcListRunnerReleases)
+	h.registry.Register("context.compile", h.rpcCompileContext)
+	h.registry.Register("context.list", h.rpcListContextBundles)
+	h.registry.Register("control.summary", h.rpcControlSummary)
 }
 
 func (h *Handler) rpcCreateTeamUser(
@@ -772,6 +786,230 @@ func (h *Handler) rpcResolvePolicy(
 		stringParam(params["repository_id"]),
 		stringParam(params["component_id"]),
 	)
+}
+
+func (h *Handler) rpcPutTokenBudget(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.PutTokenBudgetInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.PutTokenBudget(actorID, input)
+}
+
+func (h *Handler) rpcListTokenBudgets(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListTokenBudgets(userID, stringParam(params["project_id"]))
+}
+
+func (h *Handler) rpcRecordTokenUsage(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.RecordTokenUsageInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.RecordTokenUsage(actorID, input)
+}
+
+func (h *Handler) rpcListTokenUsage(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListTokenUsage(
+		userID,
+		stringParam(params["project_id"]),
+		stringParam(params["budget_id"]),
+	)
+}
+
+func (h *Handler) rpcPutKnowledgeSource(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.PutKnowledgeSourceInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.PutKnowledgeSource(actorID, input)
+}
+
+func (h *Handler) rpcListKnowledgeSources(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListKnowledgeSources(userID, stringParam(params["project_id"]))
+}
+
+func (h *Handler) rpcPutSkillRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.PutSkillReleaseInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.PutSkillRelease(actorID, input)
+}
+
+func (h *Handler) rpcListSkillReleases(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListSkillReleases(userID, stringParam(params["project_id"]))
+}
+
+func (h *Handler) rpcPutRunnerRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.PutRunnerReleaseInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.PutRunnerRelease(actorID, input)
+}
+
+func (h *Handler) rpcListRunnerReleases(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListRunnerReleases(userID, stringParam(params["project_id"]))
+}
+
+func (h *Handler) rpcCompileContext(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var input teamcontrol.CompileContextInput
+	if err := decodeDomainParams(params, &input); err != nil {
+		return nil, err
+	}
+	return h.teamSvc.CompileContext(actorID, input)
+}
+
+func (h *Handler) rpcListContextBundles(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.ListContextBundles(userID, stringParam(params["project_id"]))
+}
+
+func (h *Handler) rpcControlSummary(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	projectID := stringParam(params["project_id"])
+	budgets, err := h.teamSvc.ListTokenBudgets(userID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	knowledge, err := h.teamSvc.ListKnowledgeSources(userID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	skills, err := h.teamSvc.ListSkillReleases(userID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	releases, err := h.teamSvc.ListRunnerReleases(userID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	contexts, err := h.teamSvc.ListContextBundles(userID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	var limit, used int64
+	for _, budget := range budgets {
+		if budget.LimitTokens > math.MaxInt64-limit ||
+			budget.UsedTokens > math.MaxInt64-used {
+			return nil, fmt.Errorf("budget summary overflow")
+		}
+		limit += budget.LimitTokens
+		used += budget.UsedTokens
+	}
+	approvedKnowledge := 0
+	for _, value := range knowledge {
+		if value.Status == teamcontrol.RegistryApproved {
+			approvedKnowledge++
+		}
+	}
+	approvedSkills := 0
+	for _, value := range skills {
+		if value.Status == teamcontrol.RegistryApproved {
+			approvedSkills++
+		}
+	}
+	return map[string]interface{}{
+		"project_id":           projectID,
+		"budget_count":         len(budgets),
+		"limit_tokens":         limit,
+		"used_tokens":          used,
+		"knowledge_count":      len(knowledge),
+		"approved_knowledge":   approvedKnowledge,
+		"skill_count":          len(skills),
+		"approved_skills":      approvedSkills,
+		"runner_release_count": len(releases),
+		"context_bundle_count": len(contexts),
+	}, nil
 }
 
 func (h *Handler) rpcTeamMembers(

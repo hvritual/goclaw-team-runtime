@@ -155,3 +155,64 @@ type PutPolicyBundleInput struct {
 	Enabled  bool
 	Rules    map[string]json.RawMessage
 }
+
+type PutTokenBudgetInput struct {
+	ID          string
+	ProjectID   string
+	UserID      string
+	LimitTokens int64
+}
+
+type RecordTokenUsageInput struct {
+	ID        string
+	ProjectID string
+	BudgetID  string
+	Tokens    int64
+	TaskID    string
+	Metadata  map[string]string
+}
+
+type PutKnowledgeSourceInput struct {
+	ID        string
+	ProjectID string
+	Name      string
+	URI       string
+	Revision  string
+	SHA256    string
+	Status    RegistryStatus
+	Metadata  map[string]string
+}
+
+type PutSkillReleaseInput struct {
+	ID               string
+	ProjectID        string
+	Name             string
+	Version          string
+	URI              string
+	SHA256           string
+	MinRunnerVersion string
+	Status           RegistryStatus
+	Metadata         map[string]string
+}
+
+type PutRunnerReleaseInput struct {
+	ID          string
+	ProjectID   string
+	Channel     string
+	Version     string
+	OS          string
+	Arch        string
+	URI         string
+	SHA256      string
+	MinProtocol string
+	Status      RegistryStatus
+}
+
+type CompileContextInput struct {
+	ProjectID    string
+	RepositoryID string
+	UserID       string
+	BudgetID     string
+	KnowledgeIDs []string
+	SkillIDs     []string
+}

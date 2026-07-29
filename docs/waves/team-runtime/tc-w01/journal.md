@@ -31,3 +31,18 @@
 - branch：`agent/tc-w01-control-003`；
 - freeze 后只允许实现中央 Registry、预算、Context Bundle 和冻结的
   Gateway/CLI/UI projection，不进入 RN/INT/REL 范围。
+
+## 2026-07-29 — S02–S04 实现与 S05 确定性验证
+
+- 新增 Token Budget/hard limit、幂等 usage ledger 和 overflow Gate；
+- 新增 Knowledge Source、Skill Release、Runner Release Registry；
+- 新增 `goclaw-context/v1` canonical Context Bundle，输入和 budget snapshot
+  进入稳定 hash；
+- 新 map 对旧 state 文件向前初始化，file store atomic write 合同不变；
+- Gateway RPC、`team budget-put/control-summary/context-compile` CLI、
+  Team Web Console central summary 和操作文档已接入；
+- project RBAC、跨项目、checksum/status、并发、幂等、旧 state、hash
+  determinism 正负例通过；
+- 全仓 Go test/vet、关键包 race、UI 9/9 与 build 通过；
+- `TC-EVID-W01-001` 进入 collecting；`S02`–`S04` complete，`S05`
+  deterministic passed、independent final pending。
