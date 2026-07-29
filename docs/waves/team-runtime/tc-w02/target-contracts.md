@@ -66,6 +66,17 @@ global defaults
 - owner/approval/source；
 - violation code 与安全脱敏消息。
 
+mandatory set 由独立的 global authority 管理：
+
+- 只有 server-resolved `global_policy_admin` 可创建 candidate；
+- activation/disable 必须由与创建者不同的 `global_policy_approve` 人工角色
+  compare-and-swap 批准，项目/team policy 管理员没有该权限；
+- 每个 revision 不可变，不能原地替换或删除；disable 也是带理由、反方论点
+  和 Evidence 的新治理事件；
+- 控制面维护单调 `mandatory_set_epoch`，完整 set 的 ordered
+  ID/revision/checksum 和 epoch 一起冻结进 ResolvedPolicy；
+- 缺 set、epoch 倒退、revision/checksum 不匹配或审批链不完整均失败关闭。
+
 ### ResolvedPolicy
 
 输出必须 canonical serialize，并包含：
@@ -75,6 +86,7 @@ global defaults
 - 每个最终 rule 的 value 与 winning source；
 - 被覆盖来源的有序 refs；
 - mandatory constraint refs；
+- `mandatory_set_epoch` 和完整 ordered set hash；
 - validation result（`valid` 或 fail-closed error；invalid 不生成可执行
   Context）；
 - resolver version、resolved hash、resolved_at（不进入 hash 的观察字段须
@@ -84,9 +96,23 @@ global defaults
 
 ```text
 resolved_policy_id = "rpol-" + first32(
-  sha256(canonical_resolved_policy_material)
+  sha256(domain("resolved-policy", schema_version) ||
+         canonical_resolved_policy_material)
 )
 ```
+
+所有目标 hash 共用规范算法：
+
+- canonical bytes 使用 RFC 8785 JSON Canonicalization Scheme（JCS）；
+- material schema 明确列出允许字段，未知字段、重复 key、非 UTF-8、非有限数
+  和非规范 timestamp 一律拒绝；
+- hash 输入是
+  `UTF8("goclaw:" + domain + ":v" + schema_version + "\u0000") ||
+  JCS(material)`，不同对象域不可复用 digest；
+- observation fields（如 `resolved_at`、display label）明确排除，所有授权、
+  scope、revision、checksum、budget 和 resource refs 必须纳入；
+- Go/TypeScript/其他实现共享 committed golden vectors，包含 Unicode、数字、
+  map/list ordering、空值、错误输入和 cross-domain negative cases。
 
 ### 冲突矩阵
 
@@ -134,6 +160,19 @@ resolved_policy_id = "rpol-" + first32(
 正文、checksum、scope、source、relations 或 evidence 发生变化必须创建新
 revision，不能原地覆盖。
 
+同一 KnowledgeRecord 最多一个 active revision。successor activation 必须
+在一个原子 compare-and-swap 事务中完成：
+
+1. 校验 expected record generation、expected current active revision/checksum
+   和 candidate decision；
+2. 将旧 active 标为 superseded；
+3. 将 successor 标为 active；
+4. 更新 current active pointer 和 generation；
+5. 追加不可变 approval/supersession audit event。
+
+任何一步失败全部回滚；两个并发 successor 只能一个成功，另一个返回
+conflict 并保持 pending。
+
 ### 状态机
 
 统一状态：
@@ -176,11 +215,18 @@ revision 同时满足才可入选：
 
 - Runner、lease holder、candidate creator、原任务执行者不能审批自己的
   candidate；
-- reviewer 必须持有 `memory_approve`，且服务器端验证项目 scope；
+- project-scoped revision 的 reviewer 必须持有 server-resolved
+  `memory_approve` 且属于目标项目；
+- global revision 必须由独立的 `global_memory_approve` 审批；任何 project/
+  team scoped role 都不能激活 global knowledge；
 - approval 输入包含 rationale、counterargument、evidence refs、expected
   candidate checksum/revision；
 - compare-and-swap 失败时返回 conflict，不覆盖新状态；
 - 没有批量 auto-promote；模型审查永远在确定性检查之后，且不能替代人工。
+
+客户端传入 `project_id="*"` 或请求 global approval 一律拒绝。global
+compatibility projection 只能由服务器从 explicit global scope 派生，按
+目标项目 entitlement/visibility 过滤，只读并记录 audit event。
 
 ## Context Compiler 合同
 
@@ -211,7 +257,7 @@ active status 或扩大后的 resource refs。
 - resolved policy ref + provenance refs；
 - budget snapshot；
 - ordered Knowledge/Skill resource refs；
-- 每个知识 ref 的 ID/revision/checksum/media type/citation base/visibility；
+- 每个知识 ref 的 ID/revision/checksum/media type/citation/visibility；
 - MCP audience template；
 - created_by 与 created_at（只有定义为 material 的字段进入 hash）；
 - secret scan result 与 mandatory validation result。
@@ -228,6 +274,39 @@ active status 或扩大后的 resource refs。
 - timestamps UTC RFC3339Nano；
 - 禁止 NaN/Infinity、重复 key、非规范数字和不明确 null；
 - ID 从 material hash 派生，重复编译相同 material 得到相同 ID/hash。
+
+这里的 canonical JSON 和 ID 必须使用上文 domain-separated JCS 合同，
+domain 分别为 `context-manifest` 和 `context-bundle`；两个域即使 material
+偶然相同也不能得到可互换 hash。
+
+### Stable citation v1
+
+Citation 是不可变结构，不是展示字符串：
+
+```text
+CitationV1 {
+  schema: "goclaw-citation/v1",
+  knowledge_id,
+  revision,
+  knowledge_checksum,
+  fragment: Whole | UTF8ByteRange{start_inclusive,end_exclusive},
+  fragment_checksum
+}
+```
+
+- byte range 针对 checksum 已验证正文的 canonical UTF-8 bytes，范围必须在
+  body 内；Whole 的 fragment checksum 等于 knowledge checksum；
+- fragment checksum 是选中 bytes 的 SHA-256；
+- `citation_id = "kcit-" + first32(sha256(domain("knowledge-citation",1) ||
+  JCS(CitationV1)))`；
+- wire string 固定为
+  `goclaw:knowledge:<knowledge_id>@<revision>?sha256=<knowledge_checksum>&fragment=<whole|start-end>&fsha256=<fragment_checksum>`，
+  query key lexical order、hex lowercase、range 十进制无前导零；
+- `citation.resolve` 必须在当前 MCP audience 下重新授权 knowledge revision，
+  实算 body/fragment checksum，并返回完全相同 CitationV1；任何 alias、
+  superseding revision 或 display source 都不能改变原 citation 的含义；
+- source/rule provenance 是 resolve 响应，不进入 citation identity；未经
+  当前 audience 授权时只返回 denied，不泄露是否存在。
 
 ### 明确禁止字段
 
@@ -250,11 +329,14 @@ MCP session 由服务器根据有效 lease、ExecutionPack 和 ContextManifest
 
 ```text
 audience = project_id + task_id + task_revision + attempt +
-           runner_id + lease_id + context_manifest_hash
+           runner_id + lease_id + lease_generation + lease_nonce +
+           execution_pack_sha256 + context_manifest_hash
 ```
 
 lease 过期、任务取消/requeue、attempt 改变、manifest hash 不匹配时立即
-失效。Runner 参数只能收窄查询；服务端每次调用重新校验 audience。
+失效。ExecutionPack hash、lease generation/nonce 任一变化也立即失效。
+Runner 参数只能收窄查询；服务端每次调用都从权威 Task/Lease 重新比对完整
+tuple，不信任 session cache 或客户端回传字段。
 
 ### 只读工具
 
@@ -270,7 +352,7 @@ lease 过期、任务取消/requeue、attempt 改变、manifest hash 不匹配�
 
 - knowledge ID/revision/checksum；
 - stable citation；
-- source ref；
+- 经授权和脱敏的 source ref；
 - applicable policy/rule provenance；
 - result event ID 和 remaining budget；
 - stale/conflict warning（若合同允许返回但禁止用于执行，则明确
@@ -283,6 +365,14 @@ MCP 不提供：
 - 修改 visibility/policy/scope；
 - 任意文件、secret 或跨项目 URI 读取；
 - 接受客户端自报角色/项目扩大 audience。
+
+所有 body/source/evidence/resource reference 使用 typed opaque ID，不返回
+raw local path、presigned URL、credential-bearing URI 或 secret URI。
+`citation.resolve`、`knowledge.read` 和任何 provenance/evidence dereference
+都分别执行 audience、classification、project/global entitlement 和
+manifest allowlist 授权；global knowledge 引用 project-private Evidence 时，
+未获该项目权限的 audience 只能得到脱敏 provenance。正文只能经 MCP 按
+checksum 读取，Runner 不能直接 dereference object-store ref。
 
 ## Evidence 与反馈闭环
 
@@ -312,7 +402,9 @@ ExecutionPack hash。Evidence 仍由 Runner device key 签名，控制面先验�
 
 共同字段：
 
-- feedback ID/idempotency key；
+- feedback ID/idempotency key；idempotency key 必须在 Runner 签名 envelope
+  内，并以 project/task/revision/attempt/runner/lease/context/type/original
+  ref/normalized claim hash 构成 namespace；
 - source task/revision/attempt/runner/lease/trace；
 - original ContextManifest 和原知识 ref；
 - evidence/artifact/result citations；
@@ -328,7 +420,9 @@ ExecutionPack hash。Evidence 仍由 Runner device key 签名，控制面先验�
 2. 服务器解析 project，并拒绝客户端 scope 扩大；
 3. 验证原 knowledge revision/checksum 与 citation；
 4. 规范化、限长、secret scan、source/evidence existence；
-5. 以 project + type + original ref + normalized claim hash 去重；
+5. 在单写事务中以签名 envelope 的完整 idempotency namespace 建唯一索引；
+   相同 key+payload 返回原 receipt，不同 payload 冲突；不同可信来源的相同
+   claim 聚合 provenance/evidence，不能让低信任重复项压制后续证据；
 6. 创建 candidate/pending 和 audit event；
 7. 通知审批队列；
 8. 等待独立 `memory_approve`；绝不在 ingestion/complete transaction 中
@@ -362,9 +456,13 @@ ExecutionPack hash。Evidence 仍由 Runner device key 签名，控制面先验�
   revision、decision、evidence、trace 和 timestamp；
 - 冷备份必须在 maintenance lock 下包含 Team Control state/database、
   content object manifest/blobs、index generation watermark、Evidence refs 和
-  canonical checksum manifest；
+  canonical checksum manifest、完整 append-only audit log 和由控制面签名的
+  单调 authority epoch/checkpoint；
 - 恢复到新 root，先验证 manifest/hash/project referential integrity，再
-  重建 index；任何歧义阻止 Context compile/MCP；
-- rollback 只切回前一兼容 schema/read path 或恢复先前 snapshot，不删除
-  新 Evidence/candidate audit；
+  验证 checkpoint 不低于已知最新 epoch，并重放 snapshot 后的全部 policy/
+  approval/withdrawal/expiry/audit events，再重建 index；任何缺 event、epoch
+  倒退或歧义都进入 non-executable recovery，阻止 Context compile/MCP；
+- rollback 只切回前一兼容 schema/read path；若恢复先前 snapshot，必须先
+  完成上述 checkpoint 验证与 event replay，不能让 withdrawn knowledge 或
+  弱化 mandatory set 复活，也不能删除新 Evidence/candidate audit；
 - active revision rollback 仍需 governed approval，不能由运维直接改布尔值。

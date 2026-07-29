@@ -1,27 +1,99 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, normalize } from 'node:path';
+import { posix as path } from 'node:path';
 
 const root = execFileSync('git', ['rev-parse', '--show-toplevel'], {
   encoding: 'utf8',
 }).trim();
-const registryPath = join(root, 'docs/waves/wave-registry.json');
-const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
 const failures = [];
 
 function check(condition, message) {
   if (!condition) failures.push(message);
 }
 
-function read(relative) {
-  return readFileSync(join(root, relative), 'utf8');
+function git(args, options = {}) {
+  return execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    ...options,
+  });
+}
+
+function arg(name) {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : '';
+}
+
+const baseInput = arg('--base');
+const candidateInput = arg('--candidate');
+check(Boolean(baseInput), '--base <frozen-base-commit> is required');
+check(Boolean(candidateInput), '--candidate <candidate-commit> is required');
+
+let base = '';
+let candidate = '';
+try {
+  base = git(['rev-parse', '--verify', `${baseInput}^{commit}`]).trim();
+} catch {
+  failures.push(`base is not a commit: ${baseInput}`);
+}
+try {
+  candidate = git(['rev-parse', '--verify', `${candidateInput}^{commit}`]).trim();
+} catch {
+  failures.push(`candidate is not a commit: ${candidateInput}`);
+}
+
+if (base && candidate) {
+  try {
+    git(['merge-base', '--is-ancestor', base, candidate]);
+  } catch {
+    failures.push('candidate does not descend from frozen base');
+  }
+}
+
+const dirty = git(['status', '--porcelain=v1', '--untracked-files=all']).trim();
+check(dirty === '', 'working tree must be clean for exact candidate verification');
+
+function existsAt(relative) {
+  try {
+    git(['cat-file', '-e', `${candidate}:${relative}`]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readAt(relative) {
+  return git(['show', `${candidate}:${relative}`]);
 }
 
 function frontmatterValue(content, key) {
   const match = content.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, 'm'));
   return match ? match[1].trim().replace(/^["']|["']$/g, '') : '';
+}
+
+let changed = [];
+if (base && candidate) {
+  changed = git(['diff', '--name-only', `${base}...${candidate}`])
+    .trim()
+    .split('\n')
+    .filter(Boolean);
+}
+check(changed.length > 0, 'base→candidate diff must be non-empty');
+for (const relative of changed) {
+  check(relative.startsWith('docs/waves/'), `change outside docs/waves/**: ${relative}`);
+}
+
+let registry = { waves: [] };
+if (candidate && existsAt('docs/waves/wave-registry.json')) {
+  try {
+    registry = JSON.parse(readAt('docs/waves/wave-registry.json'));
+  } catch (error) {
+    failures.push(`wave-registry.json is not valid JSON: ${error.message}`);
+  }
+} else {
+  failures.push('candidate does not contain docs/waves/wave-registry.json');
 }
 
 const active = registry.waves.filter((wave) => wave.status === 'active');
@@ -33,10 +105,10 @@ const ids = new Set();
 for (const wave of registry.waves) {
   check(!ids.has(wave.id), `duplicate Wave ID ${wave.id}`);
   ids.add(wave.id);
-  const documentPath = join(root, 'docs/waves', wave.document);
-  check(existsSync(documentPath), `${wave.id} document does not exist: ${wave.document}`);
-  if (!existsSync(documentPath)) continue;
-  const content = readFileSync(documentPath, 'utf8');
+  const relative = path.join('docs/waves', wave.document);
+  check(existsAt(relative), `${wave.id} document does not exist: ${wave.document}`);
+  if (!existsAt(relative)) continue;
+  const content = readAt(relative);
   check(frontmatterValue(content, 'wave_id') === wave.id, `${wave.id} document wave_id mismatch`);
   if (['active', 'planned', 'proposed'].includes(wave.status)) {
     check(
@@ -45,11 +117,12 @@ for (const wave of registry.waves) {
     );
   }
   for (const dependency of wave.depends_on ?? []) {
-    check(registry.waves.some((candidate) => candidate.id === dependency), `${wave.id} missing dependency ${dependency}`);
+    check(registry.waves.some((item) => item.id === dependency), `${wave.id} missing dependency ${dependency}`);
   }
 }
 
 const tcw02 = registry.waves.find((wave) => wave.id === 'TC-W02');
+check(tcw02?.document === 'team-runtime/tc-w02/plan-r002.md', 'TC-W02 must point to r002');
 check(tcw02?.product_code_changes_allowed === false, 'TC-W02 must forbid product code changes');
 check(
   JSON.stringify(tcw02?.allowed_change_scope) === JSON.stringify(['docs/waves/**']),
@@ -72,20 +145,31 @@ check(
 );
 
 for (const id of ['TC-W03', 'TC-W04', 'TC-W05', 'TC-W06']) {
-  const wave = registry.waves.find((candidate) => candidate.id === id);
+  const wave = registry.waves.find((item) => item.id === id);
   check(wave?.status === 'proposed', `${id} must remain proposed`);
   check(wave?.product_code_changes_allowed === false, `${id} must forbid product changes`);
+  const content = existsAt(path.join('docs/waves', wave?.document ?? ''))
+    ? readAt(path.join('docs/waves', wave.document))
+    : '';
+  for (const heading of [
+    '## 权威输入',
+    '## 范围与 non-goals',
+    '## 分步计划',
+    '## 验证与证据',
+    '## 风险与回滚',
+    '## 退出门禁',
+  ]) {
+    check(content.includes(heading), `${id} draft missing ${heading}`);
+  }
 }
 
 const rel = registry.waves.find((wave) => wave.id === 'REL-W01');
-check(
-  JSON.stringify(rel?.depends_on) === JSON.stringify(['TC-W06']),
-  'REL-W01 must depend on TC-W06',
-);
+check(JSON.stringify(rel?.depends_on) === JSON.stringify(['TC-W06']), 'REL-W01 must depend on TC-W06');
 check(rel?.document === 'team-runtime/rel-w01/plan-r002.md', 'REL-W01 must point to r002');
 check(rel?.product_code_changes_allowed === false, 'REL-W01 r002 must forbid product changes');
 
-const plan = read('docs/waves/team-runtime/tc-w02/plan-r001.md');
+const planR1 = readAt('docs/waves/team-runtime/tc-w02/plan-r001.md');
+const planR2 = readAt('docs/waves/team-runtime/tc-w02/plan-r002.md');
 for (const heading of [
   '## 目标',
   '## 权威输入',
@@ -97,23 +181,33 @@ for (const heading of [
   '## 停止条件',
   '## 退出门禁',
 ]) {
-  check(plan.includes(heading), `TC-W02 plan missing ${heading}`);
+  check(planR1.includes(heading), `TC-W02 r001 missing inherited ${heading}`);
 }
+check(planR2.includes('## Review findings 与必须修复'), 'TC-W02 r002 missing review findings');
+check(planR2.includes('--base <frozen-base-commit>'), 'TC-W02 r002 missing exact validator base');
+check(planR2.includes('--candidate <candidate-commit>'), 'TC-W02 r002 missing exact validator candidate');
 
-const contracts = read('docs/waves/team-runtime/tc-w02/target-contracts.md');
+const contracts = readAt('docs/waves/team-runtime/tc-w02/target-contracts.md');
 for (const phrase of [
   'global defaults',
   'global mandatory constraints',
+  'mandatory_set_epoch',
+  'global_policy_approve',
+  'global_memory_approve',
+  'RFC 8785',
+  'Stable citation v1',
+  'execution_pack_sha256',
+  'typed opaque ID',
+  'monotonic',
   '## Knowledge 合同',
   '## Context Compiler 合同',
   '## Team Control MCP 合同',
   '## Evidence 与反馈闭环',
-  'memory_approve',
 ]) {
   check(contracts.includes(phrase), `target contracts missing ${phrase}`);
 }
 
-const matrix = read('docs/waves/team-runtime/tc-w02/current-state-responsibility-matrix.md');
+const matrix = readAt('docs/waves/team-runtime/tc-w02/current-state-responsibility-matrix.md');
 for (const phrase of [
   'KnowledgeSource',
   'PolicyBundle',
@@ -121,66 +215,57 @@ for (const phrase of [
   'ExecutionPack',
   'EvidenceBundle',
   'Memory Catalog',
-  'Gateway',
-  'Team Web',
-  'CLI',
+  '## 当前 RPC/命令到目标合同的逐项映射',
+  '`memory.catalog.candidate.approve`',
+  '`knowledge.source.delete`',
+  '`context.compile`',
+  '`propose_project_memory`',
 ]) {
   check(matrix.includes(phrase), `current-state matrix missing ${phrase}`);
 }
 
-const migration = read('docs/waves/team-runtime/tc-w02/migration-and-wave-roadmap.md');
+const migration = readAt('docs/waves/team-runtime/tc-w02/migration-and-wave-roadmap.md');
 for (const phrase of [
   '`project_id="*"`',
+  '一律拒绝',
   '### TC-W03',
   '### TC-W04',
   '### TC-W05',
   '### TC-W06',
-  'inventory',
+  '`workstation/types.go`',
   'shadow import',
   'read cutover',
 ]) {
   check(migration.includes(phrase), `migration roadmap missing ${phrase}`);
 }
 
-const statusLines = execFileSync(
-  'git',
-  ['status', '--porcelain=v1', '--untracked-files=all'],
-  {
-    cwd: root,
-    encoding: 'utf8',
-  },
-).split('\n').filter(Boolean);
-const changed = statusLines.map((line) => {
-  const path = line.slice(3);
-  const renameTarget = path.includes(' -> ') ? path.split(' -> ').at(-1) : path;
-  return renameTarget.replace(/^"|"$/g, '');
-});
-for (const path of changed) {
-  check(path.startsWith('docs/waves/'), `change outside docs/waves/**: ${path}`);
+let journalDiff = '';
+if (base && candidate) {
+  journalDiff = git([
+    'diff',
+    '--unified=0',
+    `${base}...${candidate}`,
+    '--',
+    'docs/waves/**/journal.md',
+  ]);
 }
-
-const journalDiff = execFileSync(
-  'git',
-  ['diff', '--unified=0', 'HEAD', '--', 'docs/waves/**/journal.md'],
-  { cwd: root, encoding: 'utf8' },
-);
 for (const line of journalDiff.split('\n')) {
   if (line.startsWith('-') && !line.startsWith('---')) {
     failures.push(`journal is not append-only: ${line.slice(0, 120)}`);
   }
 }
 
-const markdownFiles = changed.filter((path) => path.endsWith('.md'));
+const markdownFiles = changed.filter((relative) => relative.endsWith('.md') && existsAt(relative));
 const linkPattern = /\[[^\]]+\]\(([^)]+)\)/g;
 for (const relative of markdownFiles) {
-  const content = read(relative);
+  const content = readAt(relative);
   for (const match of content.matchAll(linkPattern)) {
     const target = match[1].trim();
     if (!target || target.startsWith('#') || /^[a-z]+:\/\//i.test(target)) continue;
     const withoutAnchor = target.split('#')[0];
     if (!withoutAnchor) continue;
-    const resolved = normalize(join(root, dirname(relative), withoutAnchor));
-    check(existsSync(resolved), `${relative} has broken link ${target}`);
+    const resolved = path.normalize(path.join(path.dirname(relative), withoutAnchor));
+    check(existsAt(resolved), `${relative} has broken link ${target}`);
   }
 }
 
@@ -190,6 +275,7 @@ if (failures.length > 0) {
 }
 
 process.stdout.write(
-  `PASS: ${registry.waves.length} Waves, one active (${registry.active_wave}), ` +
+  `PASS: base ${base.slice(0, 12)} → candidate ${candidate.slice(0, 12)}; ` +
+  `${registry.waves.length} Waves; one active (${registry.active_wave}); ` +
   `${changed.length} changed files all under docs/waves/**\n`,
 );

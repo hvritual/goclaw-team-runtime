@@ -7,6 +7,20 @@
 
 ## 当前权威与存储
 
+关键源码定位：
+
+- Team Control 类型/状态：`teamcontrol/types.go:446-619`；
+- Policy 写入/解析/hash：`teamcontrol/policy.go:15-455`；
+- KnowledgeSource/Context compiler：`teamcontrol/controlplane.go:243-781`；
+- Catalog schema/lifecycle/search/usage：`memory/catalog/types.go`、
+  `memory/catalog/service.go`；
+- Gateway Team Control/Catalog auth 与 RPC：`gateway/team_control.go`、
+  `gateway/memory_catalog.go`、`gateway/team_guard.go`；
+- Agent 自动注入与工具：`agent/context.go`、`agent/orchestrator.go:389-459`、
+  `agent/tools/catalog_memory.go`；
+- Runner pack/evidence/lease：`workstation/types.go:80-280`、
+  `workstation/evidence.go`、`workstation/queue.go`。
+
 | 能力 | 当前类型/入口 | 当前存储与权威 | 已有保护 | 与目标差距 | 目标处置 |
 |---|---|---|---|---|---|
 | Policy layer | `teamcontrol.PolicyBundle`、`PutPolicyBundle`、`ResolvePolicy` | Team Control file state `Policies` | scope 授权、canonical JSON、bundle/resolved hash、项目/仓库/组件归属 | 无显式 global defaults；无 mandatory 终验层；resolved rule 没有逐条来源 | 保留 Team Control 为唯一权威，扩展成五层解析和 mandatory validation |
@@ -81,6 +95,47 @@
 | `goclaw team` CLI | 经 Gateway token 调 policy/context/control RPC | authenticated Team operation | 保留为受控操作面，扩展 inspect/resolve/compile；客户端不能扩大 scope |
 | `goclaw memory catalog` CLI | 直接打开本地 SQLite，能 ingest/approve/reject/withdraw | local governance config | Team mode 禁止作为 active 写入口；迁移后只允许 export/import candidate 或经 Gateway |
 | Obsidian plugin | 直连 Catalog RPC 展示/审批 | project params + Gateway guard | 继续作为 projection；不能保存 token/active truth 到 Vault |
+
+## 当前 RPC/命令到目标合同的逐项映射
+
+| 当前入口 | 当前语义 | 目标处置 |
+|---|---|---|
+| `policy.put` | 写四层 PolicyBundle | versioned adapter → `policy.layer.candidate.create/approve`；global mandatory 使用独立 global authority，禁止直接 active put |
+| `policy.list` | 列项目适用 layers | → `policy.layer.list`，返回 revision/checksum/scope/approval |
+| `policy.resolve` | 四层 merge | → `policy.resolve` v2，五层 + mandatory final validation + rule provenance |
+| `policy.status` | effective hash/compliance projection | → `policy.resolution.status`，增加 mandatory set epoch/hash、drift/conflict |
+| `knowledge.source.put` | 创建/更新 source registry status | compatibility candidate adapter；不能映射 active，审批进入统一 KnowledgeCandidate |
+| `knowledge.source.get` | 按 project + ID 读 source | compatibility projection → `knowledge.source.get` typed descriptor |
+| `knowledge.source.list` | 列项目 sources | compatibility projection；explicit global 由服务器 entitlement 合并 |
+| `knowledge.source.delete` | 删除未批准/未引用 registry item | 只允许从未批准且未引用的 legacy draft；新 revision 不硬删除，改 governed withdraw |
+| `context.compile` | 手选 source/Skill 生成 v1 Bundle | → `context.manifest.compile` v2；输入由 frozen task/server authority 构建 |
+| `context.list` | 列项目 v1 bundles | → `context.manifest.list`；v1 只读历史且不授予 MCP |
+| `control.summary` | 计数 projection | → authority/resolution/manifest/candidate/usage health projection |
+| `memory.catalog.status` | Catalog project stats | → `knowledge.status`，由 Team Control lifecycle/index watermark 计算 |
+| `memory.catalog.list` | 按 project/status 列正文记录 | → `knowledge.list`；正文默认不内联，global 由服务器过滤 |
+| `memory.catalog.get` | 按裸 record ID 取正文 | → `knowledge.revision.get` typed project/global ref + transitive authorization |
+| `memory.catalog.search` | active 默认，可 `include_shared` | → MCP/Gateway `knowledge.search`；拒绝客户端 `*`/shared 扩权，限定 manifest/entitlement |
+| `memory.catalog.candidate.create` | Gateway proposal 直写 Catalog pending | → `knowledge.candidate.create`；结构化 source/evidence/idempotency/secret scan |
+| `memory.catalog.candidate.approve` | `memory_approve` 激活 | → project `memory_approve` 或 global `global_memory_approve` CAS；原子 single-active |
+| `memory.catalog.candidate.reject` | pending → rejected | → unified candidate decision，保留 audit |
+| `memory.catalog.withdraw` | active → withdrawn | → governed KnowledgeRevision withdrawal；触发 manifest/index invalidation |
+| `memory.catalog.review.renew` | 延后 review_at | → governed revalidation event；expected revision/checksum CAS |
+| `memory.catalog.usage` | 记录 record/project/trace event | → signed/authorized KnowledgeUsageEvent；Runner usage 必须绑定 task/attempt/lease/context/result |
+| `memory.authority.list` | 列 project + `*` authorities | → scoped authority list；explicit global server projection |
+| `memory.authority.resolve` | label/alias 解析 | → typed authority resolve，按 current audience 授权 |
+| `memory.authority.upsert` | local Catalog authority governance | → Team Control authority candidate/approval |
+| `memory.authority.merge` | Catalog authority redirect | → governed merge CAS + revisioned redirect/audit |
+| `knowledge.proposals` | Harness proposal list | compatibility adapter → unified candidate list，必须带 project scope |
+| `knowledge.proposal.get` | Harness proposal get | → unified candidate get + project authorization |
+| `knowledge.proposal.create` | target path/content/reason | → source-adapter candidate；target path 不是 active identity |
+| `knowledge.proposal.approve` | Harness approval | 不再直接写 active target；转换为统一 pending，仍需适用 `memory_approve` |
+| `knowledge.proposal.reject` | Harness rejection | → unified rejected decision/audit |
+| `goclaw memory catalog status/list/search` | CLI 直接打开 local SQLite | Team mode 改为 Gateway read；personal mode 明确隔离 |
+| `goclaw memory catalog ingest` | CLI 扫 Markdown 创建 pending | Team mode 只上传/登记 candidate manifest；不能直接写 active store |
+| `goclaw memory catalog approve/reject/withdraw/renew` | local governance 直接 mutation | Team mode 禁止 direct DB；只经 Team Control authenticated RPC |
+| `goclaw memory catalog authority *` | local authority mutation/read | Team mode 经 Team Control；本地只 export/dry-run |
+| `search_project_memory` | Agent 直读 Catalog | Team mode 替换为 lease-scoped MCP `knowledge.search` |
+| `propose_project_memory` | Agent 直写 Catalog pending | Team mode 替换为 signed feedback/candidate ingestion |
 
 ## 现有测试责任
 

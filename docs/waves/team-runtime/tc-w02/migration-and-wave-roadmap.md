@@ -22,7 +22,7 @@
 | `project_id="*"` 但实际只适用部分项目 | 对每个明确项目创建 project-scoped candidate | 不保留隐式 shared |
 | `project_id="*"` 且来源、owner、checksum 或可见性不明确 | quarantined/pending | 不索引、不编译 |
 | 普通 project record | `scope_kind=project` + 原 project ID | 验证 membership/source/checksum 后 shadow import |
-| 客户端继续传 `"*"` | 拒绝或 compatibility read-only mapping | 客户端不能创建 global scope |
+| 客户端继续传 `"*"` | 一律拒绝 | compatibility projection 只能由服务器从 explicit global scope 派生、按 entitlement 过滤、只读并审计 |
 
 global visibility 由服务器按 policy 和 project entitlement 计算；Runner 不能
 通过 `include_shared=true` 自行扩大范围。
@@ -106,13 +106,16 @@ revision、成为唯一 active、从其 activation exact commit 冻结 Task。
 - 依赖：TC-W03 complete。
 - 候选路径：
   `teamcontrol/**`、`gateway/team_control.go`、`orchestratorlite/**`、
-  `gateway/development.go`、直接相关 tests/docs。
+  `gateway/development.go`、`workstation/types.go`、`workstation/queue.go`、
+  `workstation/service_test.go`、`gateway/team_runtime_test.go`、直接相关
+  tests/docs。
 - 目标：global defaults/mandatory、rule provenance、canonical resolved
   policy、ContextManifest v2、frozen task/member/knowledge/Skill/budget。
 - 非目标：MCP server、Runner feedback、UI 全功能。
 - 确定性 Gate：冲突矩阵 table tests、canonical golden vectors、hash
   determinism、secret field negative schema、expiry/visibility/checksum、
-  ExecutionPack manifest hash server binding。
+  ExecutionPack manifest hash server binding；W04 只允许最小 pack schema/
+  server binding，不实现 Runner MCP 或 feedback。
 - 独立复核：architecture + security/crypto-boundary + docs，P0/P1=0。
 - 退出：相同输入稳定 manifest；任何 mandatory/secret/scope 错误失败关闭。
 
