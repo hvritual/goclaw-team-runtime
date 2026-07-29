@@ -570,16 +570,18 @@ type ContextResourceRef struct {
 }
 
 type ContextBudgetSnapshot struct {
-	BudgetID    string `json:"budget_id,omitempty"`
-	UserID      string `json:"user_id,omitempty"`
-	LimitTokens int64  `json:"limit_tokens,omitempty"`
-	UsedTokens  int64  `json:"used_tokens,omitempty"`
+	BudgetID     string `json:"budget_id,omitempty"`
+	BudgetUserID string `json:"budget_user_id,omitempty"`
+	LegacyUserID string `json:"user_id,omitempty"`
+	LimitTokens  int64  `json:"limit_tokens,omitempty"`
+	UsedTokens   int64  `json:"used_tokens,omitempty"`
 }
 
 type ContextBundle struct {
 	ID              string                `json:"id"`
 	ProjectID       string                `json:"project_id"`
 	RepositoryID    string                `json:"repository_id,omitempty"`
+	TargetUserID    string                `json:"target_user_id,omitempty"`
 	CompilerVersion string                `json:"compiler_version"`
 	Policy          ResolvedPolicy        `json:"policy"`
 	Budget          ContextBudgetSnapshot `json:"budget"`

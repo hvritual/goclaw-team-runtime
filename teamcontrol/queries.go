@@ -190,6 +190,9 @@ func (s *Service) ListPolicyBundles(userID, projectID string) ([]PolicyBundle, e
 	err := s.readProject(userID, projectID, ActionPolicyRead, func(st state, project Project) error {
 		for _, policy := range st.Policies {
 			if policyAppliesToProject(&st, policy, project) {
+				if err := validateStoredPolicy(policy); err != nil {
+					return err
+				}
 				result = append(result, policy)
 			}
 		}

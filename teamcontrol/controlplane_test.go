@@ -27,9 +27,16 @@ func TestTokenBudgetUsageIsIdempotentBoundedAndConcurrent(t *testing.T) {
 	}
 	event, err := fixture.service.RecordTokenUsage(fixture.alice.ID, first)
 	require.NoError(t, err)
+	beforeReplay, err := os.ReadFile(fixture.service.store.path)
+	require.NoError(t, err)
+	beforeRevision := fixture.service.store.state.Revision
 	replayed, err := fixture.service.RecordTokenUsage(fixture.alice.ID, first)
 	require.NoError(t, err)
 	require.Equal(t, event, replayed)
+	afterReplay, err := os.ReadFile(fixture.service.store.path)
+	require.NoError(t, err)
+	require.Equal(t, beforeReplay, afterReplay)
+	require.Equal(t, beforeRevision, fixture.service.store.state.Revision)
 
 	conflictInput := first
 	conflictInput.Tokens = 11
@@ -95,6 +102,140 @@ func TestTokenBudgetUsageIsIdempotentBoundedAndConcurrent(t *testing.T) {
 		LimitTokens: MaxTokenBudget + 1,
 	})
 	require.ErrorContains(t, err, "exceeds")
+}
+
+func TestControlResourcesUseProjectCompositeIdentity(t *testing.T) {
+	fixture := newTestFixture(t)
+	checksum := strings.Repeat("a", 64)
+	for _, project := range []Project{fixture.projectA, fixture.projectB} {
+		budget, err := fixture.service.PutTokenBudget(
+			fixture.alice.ID,
+			PutTokenBudgetInput{
+				ID: "shared-budget", ProjectID: project.ID, LimitTokens: 10,
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, budget.ProjectID)
+		usage, err := fixture.service.RecordTokenUsage(
+			fixture.alice.ID,
+			RecordTokenUsageInput{
+				ID: "shared-usage", ProjectID: project.ID,
+				BudgetID: budget.ID, Tokens: 1,
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, usage.ProjectID)
+		knowledge, err := fixture.service.PutKnowledgeSource(
+			fixture.alice.ID,
+			PutKnowledgeSourceInput{
+				ID: "shared-source", ProjectID: project.ID, Name: project.Name,
+				URI: "file:///vault/shared.md", Revision: "1", SHA256: checksum,
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, knowledge.ProjectID)
+		skill, err := fixture.service.PutSkillRelease(
+			fixture.alice.ID,
+			PutSkillReleaseInput{
+				ID: "shared-skill", ProjectID: project.ID, Name: project.Name,
+				Version: "1", URI: "file:///skills/shared", SHA256: checksum,
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, skill.ProjectID)
+		release, err := fixture.service.PutRunnerRelease(
+			fixture.alice.ID,
+			PutRunnerReleaseInput{
+				ID: "shared-runner", ProjectID: project.ID,
+				Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
+				URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
+				MinProtocol: "1",
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, release.ProjectID)
+	}
+
+	for _, project := range []Project{fixture.projectA, fixture.projectB} {
+		budgets, err := fixture.service.ListTokenBudgets(fixture.alice.ID, project.ID)
+		require.NoError(t, err)
+		require.Len(t, budgets, 1)
+		require.Equal(t, project.ID, budgets[0].ProjectID)
+		usage, err := fixture.service.ListTokenUsage(
+			fixture.alice.ID, project.ID, "shared-budget",
+		)
+		require.NoError(t, err)
+		require.Len(t, usage, 1)
+		require.Equal(t, project.ID, usage[0].ProjectID)
+		source, err := fixture.service.GetKnowledgeSource(
+			fixture.alice.ID, project.ID, "shared-source",
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.Name, source.Name)
+		skill, err := fixture.service.GetSkillRelease(
+			fixture.alice.ID, project.ID, "shared-skill",
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.Name, skill.Name)
+		release, err := fixture.service.GetRunnerRelease(
+			fixture.alice.ID, project.ID, "shared-runner",
+		)
+		require.NoError(t, err)
+		require.Equal(t, project.ID, release.ProjectID)
+	}
+	onlyB, err := fixture.service.PutKnowledgeSource(
+		fixture.alice.ID,
+		PutKnowledgeSourceInput{
+			ID: "only-project-b", ProjectID: fixture.projectB.ID,
+			Name: "Only B", URI: "file:///vault/only-b.md", Revision: "1",
+			SHA256: checksum, Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
+	_, err = fixture.service.GetKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, onlyB.ID,
+	)
+	require.ErrorIs(t, err, ErrNotFound)
+	require.ErrorIs(t, fixture.service.DeleteKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, onlyB.ID,
+	), ErrNotFound)
+	_, err = fixture.service.GetKnowledgeSource(
+		fixture.alice.ID, fixture.projectB.ID, onlyB.ID,
+	)
+	require.NoError(t, err)
+}
+
+func TestProjectBudgetTotalIsJavaScriptSafe(t *testing.T) {
+	fixture := newTestFixture(t)
+	_, err := fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		PutTokenBudgetInput{
+			ID: "safe-a", ProjectID: fixture.projectA.ID,
+			LimitTokens: MaxTokenBudget,
+		},
+	)
+	require.NoError(t, err)
+	for index := 1; index <= 9; index++ {
+		limit := MaxTokenBudget
+		if index == 9 {
+			limit = MaxProjectTokenTotal - 9*MaxTokenBudget
+		}
+		_, err = fixture.service.PutTokenBudget(
+			fixture.alice.ID,
+			PutTokenBudgetInput{
+				ID:        fmt.Sprintf("safe-%d", index),
+				ProjectID: fixture.projectA.ID, LimitTokens: limit,
+			},
+		)
+		require.NoError(t, err)
+	}
+	_, err = fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		PutTokenBudgetInput{
+			ID: "unsafe", ProjectID: fixture.projectA.ID, LimitTokens: 1,
+		},
+	)
+	require.ErrorIs(t, err, ErrConflict)
 }
 
 func TestRegistryAndContextCompilerAreProjectScopedAndDeterministic(t *testing.T) {
@@ -231,6 +372,37 @@ func TestRegistryAndContextCompilerAreProjectScopedAndDeterministic(t *testing.T
 	require.Len(t, bundles, 2)
 }
 
+func TestProjectBudgetContextPreservesTargetUserIdentity(t *testing.T) {
+	fixture := newTestFixture(t)
+	budget, err := fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		PutTokenBudgetInput{
+			ID: "project-budget", ProjectID: fixture.projectA.ID, LimitTokens: 100,
+		},
+	)
+	require.NoError(t, err)
+	bob, err := fixture.service.CompileContext(
+		fixture.alice.ID,
+		CompileContextInput{
+			ProjectID: fixture.projectA.ID,
+			UserID:    fixture.bob.ID, BudgetID: budget.ID,
+		},
+	)
+	require.NoError(t, err)
+	mallory, err := fixture.service.CompileContext(
+		fixture.alice.ID,
+		CompileContextInput{
+			ProjectID: fixture.projectA.ID,
+			UserID:    fixture.mallory.ID, BudgetID: budget.ID,
+		},
+	)
+	require.NoError(t, err)
+	require.Equal(t, fixture.bob.ID, bob.TargetUserID)
+	require.Equal(t, fixture.mallory.ID, mallory.TargetUserID)
+	require.Empty(t, bob.Budget.BudgetUserID)
+	require.NotEqual(t, bob.Hash, mallory.Hash)
+}
+
 func TestRegistryRequiresChecksumAndImmutableIdentity(t *testing.T) {
 	fixture := newTestFixture(t)
 	input := PutKnowledgeSourceInput{
@@ -253,6 +425,153 @@ func TestRegistryRequiresChecksumAndImmutableIdentity(t *testing.T) {
 	input.Revision = "2"
 	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
 	require.ErrorIs(t, err, ErrConflict)
+}
+
+func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
+	fixture := newTestFixture(t)
+	checksum := strings.Repeat("d", 64)
+	base := PutKnowledgeSourceInput{
+		ID: "knowledge-crud", ProjectID: fixture.projectA.ID,
+		Name: "Knowledge", URI: "https://example.invalid/knowledge",
+		Revision: "1", SHA256: checksum, Status: RegistryDraft,
+		Metadata: map[string]string{"source_kind": "documentation"},
+	}
+	for _, uri := range []string{
+		"http://example.invalid/plain",
+		"https://user:secret@example.invalid/knowledge",
+		"https://example.invalid/knowledge?token=secret",
+		"https://example.invalid/knowledge#secret",
+	} {
+		input := base
+		input.URI = uri
+		_, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+		require.Error(t, err, uri)
+	}
+	input := base
+	input.Metadata = map[string]string{"provider_token": "secret"}
+	_, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, input)
+	require.ErrorContains(t, err, "unsupported metadata key")
+
+	created, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, base)
+	require.NoError(t, err)
+	got, err := fixture.service.GetKnowledgeSource(
+		fixture.mallory.ID, fixture.projectA.ID, created.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, created, got)
+	require.NoError(t, fixture.service.DeleteKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, created.ID,
+	))
+	_, err = fixture.service.GetKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, created.ID,
+	)
+	require.ErrorIs(t, err, ErrNotFound)
+
+	approved := base
+	approved.ID = "knowledge-approved"
+	approved.Status = RegistryApproved
+	value, err := fixture.service.PutKnowledgeSource(fixture.alice.ID, approved)
+	require.NoError(t, err)
+	require.ErrorIs(t, fixture.service.DeleteKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	), ErrConflict)
+	approved.Status = RegistryDisabled
+	_, err = fixture.service.PutKnowledgeSource(fixture.alice.ID, approved)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.DeleteKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	))
+
+	skill, err := fixture.service.PutSkillRelease(
+		fixture.alice.ID,
+		PutSkillReleaseInput{
+			ID: "skill-delete", ProjectID: fixture.projectA.ID, Name: "skill",
+			Version: "1", URI: "file:///skills/delete", SHA256: checksum,
+			Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.DeleteSkillRelease(
+		fixture.alice.ID, fixture.projectA.ID, skill.ID,
+	))
+
+	release, err := fixture.service.PutRunnerRelease(
+		fixture.alice.ID,
+		PutRunnerReleaseInput{
+			ID: "runner-delete", ProjectID: fixture.projectA.ID,
+			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
+			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
+			MinProtocol: "1", Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.DeleteRunnerRelease(
+		fixture.alice.ID, fixture.projectA.ID, release.ID,
+	))
+}
+
+func TestLegacyUnsafeRegistryFailsClosedOnReadAndCompile(t *testing.T) {
+	fixture := newTestFixture(t)
+	value, err := fixture.service.PutKnowledgeSource(
+		fixture.alice.ID,
+		PutKnowledgeSourceInput{
+			ID: "legacy-unsafe", ProjectID: fixture.projectA.ID,
+			Name: "Legacy", URI: "file:///vault/legacy.md", Revision: "1",
+			SHA256: strings.Repeat("e", 64), Status: RegistryApproved,
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.store.update(func(st *state) error {
+		key := projectResourceKey(fixture.projectA.ID, value.ID)
+		legacy := st.KnowledgeSources[key]
+		legacy.URI = "https://example.invalid/file?token=legacy"
+		legacy.Metadata = map[string]string{"provider_token": "legacy"}
+		st.KnowledgeSources[key] = legacy
+		return nil
+	}))
+
+	_, err = fixture.service.ListKnowledgeSources(
+		fixture.alice.ID, fixture.projectA.ID,
+	)
+	require.ErrorContains(t, err, "failed schema validation")
+	_, err = fixture.service.CompileContext(
+		fixture.alice.ID,
+		CompileContextInput{
+			ProjectID:    fixture.projectA.ID,
+			KnowledgeIDs: []string{value.ID},
+		},
+	)
+	require.ErrorContains(t, err, "failed schema validation")
+}
+
+func TestRegistryCRUDPersistsAcrossReopen(t *testing.T) {
+	root := t.TempDir()
+	fixture := newTestFixtureAt(t, root)
+	value, err := fixture.service.PutKnowledgeSource(
+		fixture.alice.ID,
+		PutKnowledgeSourceInput{
+			ID: "persistent-source", ProjectID: fixture.projectA.ID,
+			Name: "Persistent", URI: "file:///vault/persistent.md", Revision: "1",
+			SHA256: strings.Repeat("f", 64), Status: RegistryDisabled,
+		},
+	)
+	require.NoError(t, err)
+	reopened, err := Open(root)
+	require.NoError(t, err)
+	got, err := reopened.GetKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, value, got)
+	require.NoError(t, reopened.DeleteKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	))
+	reopenedAgain, err := Open(root)
+	require.NoError(t, err)
+	_, err = reopenedAgain.GetKnowledgeSource(
+		fixture.alice.ID, fixture.projectA.ID, value.ID,
+	)
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestLegacyStateWithoutControlPlaneMapsLoadsLosslessly(t *testing.T) {
@@ -281,4 +600,35 @@ func TestLegacyStateWithoutControlPlaneMapsLoadsLosslessly(t *testing.T) {
 	budgets, err := reopened.ListTokenBudgets(fixture.alice.ID, fixture.projectA.ID)
 	require.NoError(t, err)
 	require.Empty(t, budgets)
+}
+
+func TestInitialControlPlaneBareKeysMigrateToProjectKeys(t *testing.T) {
+	root := t.TempDir()
+	fixture := newTestFixtureAt(t, root)
+	budget, err := fixture.service.PutTokenBudget(
+		fixture.alice.ID,
+		PutTokenBudgetInput{
+			ID: "legacy-budget", ProjectID: fixture.projectA.ID, LimitTokens: 10,
+		},
+	)
+	require.NoError(t, err)
+	statePath := filepath.Join(root, stateFileName)
+	data, err := os.ReadFile(statePath)
+	require.NoError(t, err)
+	var stored state
+	require.NoError(t, json.Unmarshal(data, &stored))
+	value := stored.TokenBudgets[projectResourceKey(fixture.projectA.ID, budget.ID)]
+	stored.TokenBudgets = map[string]TokenBudget{budget.ID: value}
+	legacy, err := json.Marshal(stored)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(statePath, legacy, 0o600))
+
+	reopened, err := Open(root)
+	require.NoError(t, err)
+	budgets, err := reopened.ListTokenBudgets(fixture.alice.ID, fixture.projectA.ID)
+	require.NoError(t, err)
+	require.Equal(t, []TokenBudget{budget}, budgets)
+	require.Contains(t, reopened.store.state.TokenBudgets, projectResourceKey(
+		fixture.projectA.ID, budget.ID,
+	))
 }

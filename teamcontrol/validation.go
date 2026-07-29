@@ -27,6 +27,7 @@ var (
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
 var keyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 var gitCommitPattern = regexp.MustCompile(`^[0-9a-fA-F]{7,64}$`)
+var windowsAbsolutePathPattern = regexp.MustCompile(`^[A-Za-z]:[\\/]`)
 
 func newID(prefix string) string {
 	return prefix + "-" + uuid.NewString()
@@ -103,6 +104,124 @@ func validateURI(value, field string) (string, error) {
 		return "", fmt.Errorf("%s must be an absolute path or URI with a scheme", field)
 	}
 	return value, nil
+}
+
+// validateRegistryURI accepts only locations that can be fetched without
+// embedding authority material. Query strings and fragments are intentionally
+// rejected because signed URLs and access tokens must never enter durable
+// control-plane state.
+func validateRegistryURI(value, field string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("%s is required", field)
+	}
+	if strings.ContainsAny(value, "?#") {
+		return "", fmt.Errorf("%s must not contain query or fragment data", field)
+	}
+	if filepath.IsAbs(value) || windowsAbsolutePathPattern.MatchString(value) {
+		return value, nil
+	}
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("%s is invalid: %w", field, err)
+	}
+	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" ||
+		parsed.Opaque != "" {
+		return "", fmt.Errorf("%s must not contain credentials, query, fragment, or opaque data", field)
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "file":
+		if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
+			return "", fmt.Errorf("%s file URI must be local", field)
+		}
+		if !filepath.IsAbs(parsed.Path) {
+			return "", fmt.Errorf("%s file URI must contain an absolute path", field)
+		}
+	case "https", "git+https":
+		if parsed.Host == "" {
+			return "", fmt.Errorf("%s must contain a host", field)
+		}
+	default:
+		return "", fmt.Errorf("%s uses unsupported scheme %q", field, parsed.Scheme)
+	}
+	return value, nil
+}
+
+func cleanUsageMetadata(values map[string]string) (map[string]string, error) {
+	allowed := map[string]bool{
+		"model": true, "provider": true, "operation": true,
+	}
+	return cleanTypedMetadata(values, allowed, func(key, value string) (string, error) {
+		return requireKey(value, "usage metadata "+key)
+	})
+}
+
+func cleanRegistryMetadata(values map[string]string) (map[string]string, error) {
+	allowed := map[string]bool{
+		"content_type":  true,
+		"license":       true,
+		"source_kind":   true,
+		"repository_id": true,
+		"owner_id":      true,
+		"secret_ref":    true,
+		"visibility":    true,
+		"language":      true,
+		"category":      true,
+	}
+	return cleanTypedMetadata(values, allowed, func(key, value string) (string, error) {
+		switch key {
+		case "repository_id", "owner_id", "secret_ref":
+			return requireID(value, "registry metadata "+key)
+		case "visibility":
+			value = strings.ToLower(strings.TrimSpace(value))
+			if value != "project" && value != "team" {
+				return "", fmt.Errorf("registry metadata visibility must be project or team")
+			}
+			return value, nil
+		case "source_kind":
+			value = strings.ToLower(strings.TrimSpace(value))
+			switch value {
+			case "obsidian", "git", "file", "package", "documentation":
+				return value, nil
+			default:
+				return "", fmt.Errorf("unsupported registry metadata source_kind %q", value)
+			}
+		case "content_type":
+			value, err := requireText(value, "registry metadata content_type", 100)
+			if err != nil {
+				return "", err
+			}
+			if strings.ContainsAny(value, "\r\n") {
+				return "", fmt.Errorf("registry metadata content_type contains a line break")
+			}
+			return value, nil
+		default:
+			return requireKey(value, "registry metadata "+key)
+		}
+	})
+}
+
+func cleanTypedMetadata(
+	values map[string]string,
+	allowed map[string]bool,
+	validate func(key, value string) (string, error),
+) (map[string]string, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	result := make(map[string]string, len(values))
+	for rawKey, rawValue := range values {
+		key := strings.ToLower(strings.TrimSpace(rawKey))
+		if !allowed[key] {
+			return nil, fmt.Errorf("unsupported metadata key %q", rawKey)
+		}
+		value, err := validate(key, rawValue)
+		if err != nil {
+			return nil, err
+		}
+		result[key] = value
+	}
+	return result, nil
 }
 
 func validateOptionalSHA256(value string) (string, error) {

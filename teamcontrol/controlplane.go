@@ -14,6 +14,7 @@ import (
 
 const ContextCompilerVersion = "goclaw-context/v1"
 const MaxTokenBudget int64 = 1_000_000_000_000_000
+const MaxProjectTokenTotal int64 = 9_007_199_254_740_991
 
 func (s *Service) PutTokenBudget(
 	actorID string,
@@ -55,9 +56,23 @@ func (s *Service) PutTokenBudget(
 			}
 		}
 		now := time.Now().UTC()
-		existing, exists := st.TokenBudgets[id]
+		key := projectResourceKey(projectID, id)
+		existing, exists := st.TokenBudgets[key]
+		total := input.LimitTokens
+		for storedKey, budget := range st.TokenBudgets {
+			if storedKey == key || budget.ProjectID != projectID {
+				continue
+			}
+			if budget.LimitTokens > MaxProjectTokenTotal-total {
+				return conflict("project token budget total exceeds JavaScript safe integer")
+			}
+			total += budget.LimitTokens
+		}
+		if total > MaxProjectTokenTotal {
+			return conflict("project token budget total exceeds JavaScript safe integer")
+		}
 		if exists {
-			if existing.ProjectID != projectID || existing.UserID != userID {
+			if existing.UserID != userID {
 				return conflict("budget id %q belongs to another scope", id)
 			}
 			if input.LimitTokens < existing.UsedTokens {
@@ -66,7 +81,7 @@ func (s *Service) PutTokenBudget(
 			existing.LimitTokens = input.LimitTokens
 			existing.UpdatedBy = actorID
 			existing.UpdatedAt = now
-			st.TokenBudgets[id] = existing
+			st.TokenBudgets[key] = existing
 			result = existing
 			return nil
 		}
@@ -80,7 +95,7 @@ func (s *Service) PutTokenBudget(
 			CreatedAt:   now,
 			UpdatedAt:   now,
 		}
-		st.TokenBudgets[id] = result
+		st.TokenBudgets[key] = result
 		return nil
 	})
 	return result, err
@@ -115,33 +130,34 @@ func (s *Service) RecordTokenUsage(
 			return TokenUsageEvent{}, err
 		}
 	}
-	metadata, err := cleanStringMap(input.Metadata)
+	metadata, err := cleanUsageMetadata(input.Metadata)
 	if err != nil {
 		return TokenUsageEvent{}, err
 	}
 	var result TokenUsageEvent
-	err = s.store.update(func(st *state) error {
+	err = s.store.updateWithChange(func(st *state) (bool, error) {
 		if err := authorizeProject(st, actorID, projectID, ActionBudgetWrite); err != nil {
-			return err
+			return false, err
 		}
-		budget, ok := st.TokenBudgets[budgetID]
-		if !ok || budget.ProjectID != projectID {
-			return entityNotFound("budget", budgetID)
+		budgetKey := projectResourceKey(projectID, budgetID)
+		budget, ok := st.TokenBudgets[budgetKey]
+		if !ok {
+			return false, entityNotFound("budget", budgetID)
 		}
-		if existing, exists := st.TokenUsageEvents[id]; exists {
-			if existing.ProjectID == projectID &&
-				existing.BudgetID == budgetID &&
+		eventKey := projectResourceKey(projectID, id)
+		if existing, exists := st.TokenUsageEvents[eventKey]; exists {
+			if existing.BudgetID == budgetID &&
 				existing.Tokens == input.Tokens &&
 				existing.TaskID == taskID &&
 				maps.Equal(existing.Metadata, metadata) {
 				result = existing
-				return nil
+				return false, nil
 			}
-			return conflict("usage event id %q identifies a different payload", id)
+			return false, conflict("usage event id %q identifies a different payload", id)
 		}
 		if budget.UsedTokens > budget.LimitTokens ||
 			input.Tokens > budget.LimitTokens-budget.UsedTokens {
-			return conflict("token budget %q would be exceeded", budgetID)
+			return false, conflict("token budget %q would be exceeded", budgetID)
 		}
 		now := time.Now().UTC()
 		result = TokenUsageEvent{
@@ -157,9 +173,9 @@ func (s *Service) RecordTokenUsage(
 		budget.UsedTokens += input.Tokens
 		budget.UpdatedBy = actorID
 		budget.UpdatedAt = now
-		st.TokenBudgets[budgetID] = budget
-		st.TokenUsageEvents[id] = result
-		return nil
+		st.TokenBudgets[budgetKey] = budget
+		st.TokenUsageEvents[eventKey] = result
+		return true, nil
 	})
 	return result, err
 }
@@ -191,8 +207,8 @@ func (s *Service) ListTokenUsage(
 			if budgetID, err = requireID(budgetID, "budget_id"); err != nil {
 				return err
 			}
-			budget, ok := st.TokenBudgets[budgetID]
-			if !ok || budget.ProjectID != projectID {
+			_, ok := st.TokenBudgets[projectResourceKey(projectID, budgetID)]
+			if !ok {
 				return entityNotFound("budget", budgetID)
 			}
 		}
@@ -239,8 +255,9 @@ func (s *Service) PutKnowledgeSource(
 			return err
 		}
 		now := time.Now().UTC()
-		if existing, ok := st.KnowledgeSources[id]; ok {
-			if existing.ProjectID != projectID || existing.Name != name ||
+		key := projectResourceKey(projectID, id)
+		if existing, ok := st.KnowledgeSources[key]; ok {
+			if existing.Name != name ||
 				existing.URI != uri || existing.Revision != revision ||
 				existing.SHA256 != checksum {
 				return conflict("knowledge source id %q identifies different immutable content", id)
@@ -249,7 +266,7 @@ func (s *Service) PutKnowledgeSource(
 			existing.Metadata = metadata
 			existing.UpdatedBy = actorID
 			existing.UpdatedAt = now
-			st.KnowledgeSources[id] = existing
+			st.KnowledgeSources[key] = existing
 			result = existing
 			return nil
 		}
@@ -258,7 +275,7 @@ func (s *Service) PutKnowledgeSource(
 			Revision: revision, SHA256: checksum, Status: status, Metadata: metadata,
 			CreatedBy: actorID, UpdatedBy: actorID, CreatedAt: now, UpdatedAt: now,
 		}
-		st.KnowledgeSources[id] = result
+		st.KnowledgeSources[key] = result
 		return nil
 	})
 	return result, err
@@ -271,6 +288,9 @@ func (s *Service) ListKnowledgeSources(
 	err := s.readProject(userID, projectID, ActionKnowledgeRead, func(st state, _ Project) error {
 		for _, value := range st.KnowledgeSources {
 			if value.ProjectID == projectID {
+				if err := validateStoredKnowledgeSource(value); err != nil {
+					return err
+				}
 				result = append(result, value)
 			}
 		}
@@ -280,6 +300,39 @@ func (s *Service) ListKnowledgeSources(
 		return nil
 	})
 	return result, err
+}
+
+func (s *Service) GetKnowledgeSource(
+	userID, projectID, id string,
+) (KnowledgeSource, error) {
+	id, err := requireID(id, "knowledge_id")
+	if err != nil {
+		return KnowledgeSource{}, err
+	}
+	var result KnowledgeSource
+	err = s.readProject(userID, projectID, ActionKnowledgeRead, func(st state, _ Project) error {
+		value, ok := st.KnowledgeSources[projectResourceKey(projectID, id)]
+		if !ok {
+			return entityNotFound("knowledge source", id)
+		}
+		if err := validateStoredKnowledgeSource(value); err != nil {
+			return err
+		}
+		result = value
+		return nil
+	})
+	return result, err
+}
+
+func (s *Service) DeleteKnowledgeSource(actorID, projectID, id string) error {
+	return s.deleteRegistry(
+		actorID, projectID, id, ActionKnowledgeWrite, "knowledge source",
+		func(st *state, key string) (RegistryStatus, bool) {
+			value, ok := st.KnowledgeSources[key]
+			return value.Status, ok
+		},
+		func(st *state, key string) { delete(st.KnowledgeSources, key) },
+	)
 }
 
 func (s *Service) PutSkillRelease(
@@ -315,8 +368,9 @@ func (s *Service) PutSkillRelease(
 			return err
 		}
 		now := time.Now().UTC()
-		if existing, ok := st.SkillReleases[id]; ok {
-			if existing.ProjectID != projectID || existing.Name != name ||
+		key := projectResourceKey(projectID, id)
+		if existing, ok := st.SkillReleases[key]; ok {
+			if existing.Name != name ||
 				existing.URI != uri || existing.Version != version ||
 				existing.SHA256 != checksum ||
 				existing.MinRunnerVersion != minRunner {
@@ -326,7 +380,7 @@ func (s *Service) PutSkillRelease(
 			existing.Metadata = metadata
 			existing.UpdatedBy = actorID
 			existing.UpdatedAt = now
-			st.SkillReleases[id] = existing
+			st.SkillReleases[key] = existing
 			result = existing
 			return nil
 		}
@@ -336,7 +390,7 @@ func (s *Service) PutSkillRelease(
 			Metadata: metadata, CreatedBy: actorID, UpdatedBy: actorID,
 			CreatedAt: now, UpdatedAt: now,
 		}
-		st.SkillReleases[id] = result
+		st.SkillReleases[key] = result
 		return nil
 	})
 	return result, err
@@ -347,6 +401,9 @@ func (s *Service) ListSkillReleases(userID, projectID string) ([]SkillRelease, e
 	err := s.readProject(userID, projectID, ActionSkillRead, func(st state, _ Project) error {
 		for _, value := range st.SkillReleases {
 			if value.ProjectID == projectID {
+				if err := validateStoredSkillRelease(value); err != nil {
+					return err
+				}
 				result = append(result, value)
 			}
 		}
@@ -356,6 +413,39 @@ func (s *Service) ListSkillReleases(userID, projectID string) ([]SkillRelease, e
 		return nil
 	})
 	return result, err
+}
+
+func (s *Service) GetSkillRelease(
+	userID, projectID, id string,
+) (SkillRelease, error) {
+	id, err := requireID(id, "skill_id")
+	if err != nil {
+		return SkillRelease{}, err
+	}
+	var result SkillRelease
+	err = s.readProject(userID, projectID, ActionSkillRead, func(st state, _ Project) error {
+		value, ok := st.SkillReleases[projectResourceKey(projectID, id)]
+		if !ok {
+			return entityNotFound("skill release", id)
+		}
+		if err := validateStoredSkillRelease(value); err != nil {
+			return err
+		}
+		result = value
+		return nil
+	})
+	return result, err
+}
+
+func (s *Service) DeleteSkillRelease(actorID, projectID, id string) error {
+	return s.deleteRegistry(
+		actorID, projectID, id, ActionSkillWrite, "skill release",
+		func(st *state, key string) (RegistryStatus, bool) {
+			value, ok := st.SkillReleases[key]
+			return value.Status, ok
+		},
+		func(st *state, key string) { delete(st.SkillReleases, key) },
+	)
 }
 
 func (s *Service) PutRunnerRelease(
@@ -390,7 +480,7 @@ func (s *Service) PutRunnerRelease(
 	if err != nil {
 		return RunnerRelease{}, err
 	}
-	uri, err := validateURI(input.URI, "uri")
+	uri, err := validateRegistryURI(input.URI, "uri")
 	if err != nil {
 		return RunnerRelease{}, err
 	}
@@ -415,8 +505,9 @@ func (s *Service) PutRunnerRelease(
 			return err
 		}
 		now := time.Now().UTC()
-		if existing, ok := st.RunnerReleases[id]; ok {
-			if existing.ProjectID != projectID || existing.Channel != channel ||
+		key := projectResourceKey(projectID, id)
+		if existing, ok := st.RunnerReleases[key]; ok {
+			if existing.Channel != channel ||
 				existing.Version != version || existing.OS != targetOS ||
 				existing.Arch != arch || existing.URI != uri ||
 				existing.SHA256 != checksum || existing.MinProtocol != minProtocol {
@@ -425,7 +516,7 @@ func (s *Service) PutRunnerRelease(
 			existing.Status = status
 			existing.UpdatedBy = actorID
 			existing.UpdatedAt = now
-			st.RunnerReleases[id] = existing
+			st.RunnerReleases[key] = existing
 			result = existing
 			return nil
 		}
@@ -435,7 +526,7 @@ func (s *Service) PutRunnerRelease(
 			MinProtocol: minProtocol, Status: status, CreatedBy: actorID,
 			UpdatedBy: actorID, CreatedAt: now, UpdatedAt: now,
 		}
-		st.RunnerReleases[id] = result
+		st.RunnerReleases[key] = result
 		return nil
 	})
 	return result, err
@@ -448,6 +539,9 @@ func (s *Service) ListRunnerReleases(
 	err := s.readProject(userID, projectID, ActionRunnerReleaseRead, func(st state, _ Project) error {
 		for _, value := range st.RunnerReleases {
 			if value.ProjectID == projectID {
+				if err := validateStoredRunnerRelease(value); err != nil {
+					return err
+				}
 				result = append(result, value)
 			}
 		}
@@ -457,6 +551,39 @@ func (s *Service) ListRunnerReleases(
 		return nil
 	})
 	return result, err
+}
+
+func (s *Service) GetRunnerRelease(
+	userID, projectID, id string,
+) (RunnerRelease, error) {
+	id, err := requireID(id, "runner_release_id")
+	if err != nil {
+		return RunnerRelease{}, err
+	}
+	var result RunnerRelease
+	err = s.readProject(userID, projectID, ActionRunnerReleaseRead, func(st state, _ Project) error {
+		value, ok := st.RunnerReleases[projectResourceKey(projectID, id)]
+		if !ok {
+			return entityNotFound("runner release", id)
+		}
+		if err := validateStoredRunnerRelease(value); err != nil {
+			return err
+		}
+		result = value
+		return nil
+	})
+	return result, err
+}
+
+func (s *Service) DeleteRunnerRelease(actorID, projectID, id string) error {
+	return s.deleteRegistry(
+		actorID, projectID, id, ActionRunnerReleaseWrite, "runner release",
+		func(st *state, key string) (RegistryStatus, bool) {
+			value, ok := st.RunnerReleases[key]
+			return value.Status, ok
+		},
+		func(st *state, key string) { delete(st.RunnerReleases, key) },
+	)
 }
 
 func (s *Service) CompileContext(
@@ -515,25 +642,28 @@ func (s *Service) CompileContext(
 				return fmt.Errorf("%w: context user is not an active project member", ErrForbidden)
 			}
 		}
-		budget := ContextBudgetSnapshot{UserID: targetUserID}
+		budget := ContextBudgetSnapshot{}
 		if budgetID != "" {
-			value, ok := st.TokenBudgets[budgetID]
-			if !ok || value.ProjectID != projectID {
+			value, ok := st.TokenBudgets[projectResourceKey(projectID, budgetID)]
+			if !ok {
 				return entityNotFound("budget", budgetID)
 			}
 			if value.UserID != "" && value.UserID != targetUserID {
 				return conflict("budget user does not match context user")
 			}
 			budget = ContextBudgetSnapshot{
-				BudgetID: value.ID, UserID: value.UserID,
+				BudgetID: value.ID, BudgetUserID: value.UserID,
 				LimitTokens: value.LimitTokens, UsedTokens: value.UsedTokens,
 			}
 		}
 		knowledge := make([]ContextResourceRef, 0, len(knowledgeIDs))
 		for _, id := range knowledgeIDs {
-			value, ok := st.KnowledgeSources[id]
-			if !ok || value.ProjectID != projectID {
+			value, ok := st.KnowledgeSources[projectResourceKey(projectID, id)]
+			if !ok {
 				return entityNotFound("knowledge source", id)
+			}
+			if err := validateStoredKnowledgeSource(value); err != nil {
+				return err
 			}
 			if value.Status != RegistryApproved || value.SHA256 == "" {
 				return conflict("knowledge source %q is not approved with a checksum", id)
@@ -545,9 +675,12 @@ func (s *Service) CompileContext(
 		}
 		skills := make([]ContextResourceRef, 0, len(skillIDs))
 		for _, id := range skillIDs {
-			value, ok := st.SkillReleases[id]
-			if !ok || value.ProjectID != projectID {
+			value, ok := st.SkillReleases[projectResourceKey(projectID, id)]
+			if !ok {
 				return entityNotFound("skill release", id)
+			}
+			if err := validateStoredSkillRelease(value); err != nil {
+				return err
 			}
 			if value.Status != RegistryApproved || value.SHA256 == "" {
 				return conflict("skill release %q is not approved with a checksum", id)
@@ -565,6 +698,7 @@ func (s *Service) CompileContext(
 			CompilerVersion string                `json:"compiler_version"`
 			ProjectID       string                `json:"project_id"`
 			RepositoryID    string                `json:"repository_id,omitempty"`
+			TargetUserID    string                `json:"target_user_id,omitempty"`
 			Policy          ResolvedPolicy        `json:"policy"`
 			Budget          ContextBudgetSnapshot `json:"budget"`
 			Knowledge       []ContextResourceRef  `json:"knowledge"`
@@ -572,7 +706,8 @@ func (s *Service) CompileContext(
 		}{
 			CompilerVersion: ContextCompilerVersion,
 			ProjectID:       projectID, RepositoryID: repositoryID,
-			Policy: policy, Budget: budget, Knowledge: knowledge, Skills: skills,
+			TargetUserID: targetUserID,
+			Policy:       policy, Budget: budget, Knowledge: knowledge, Skills: skills,
 		}
 		canonical, err := json.Marshal(material)
 		if err != nil {
@@ -581,7 +716,8 @@ func (s *Service) CompileContext(
 		sum := sha256.Sum256(canonical)
 		hash := hex.EncodeToString(sum[:])
 		id := "ctx-" + hash[:32]
-		if existing, ok := st.ContextBundles[id]; ok {
+		key := projectResourceKey(projectID, id)
+		if existing, ok := st.ContextBundles[key]; ok {
 			if existing.Hash != hash {
 				return conflict("context bundle id collision")
 			}
@@ -590,11 +726,12 @@ func (s *Service) CompileContext(
 		}
 		result = ContextBundle{
 			ID: id, ProjectID: projectID, RepositoryID: repositoryID,
+			TargetUserID:    targetUserID,
 			CompilerVersion: ContextCompilerVersion, Policy: policy, Budget: budget,
 			Knowledge: knowledge, Skills: skills, Hash: hash,
 			CreatedBy: actorID, CreatedAt: time.Now().UTC(),
 		}
-		st.ContextBundles[id] = result
+		st.ContextBundles[key] = result
 		return nil
 	})
 	return result, err
@@ -607,6 +744,9 @@ func (s *Service) ListContextBundles(
 	err := s.readProject(userID, projectID, ActionContextRead, func(st state, _ Project) error {
 		for _, value := range st.ContextBundles {
 			if value.ProjectID == projectID {
+				if err := validateStoredContextBundle(value); err != nil {
+					return err
+				}
 				result = append(result, value)
 			}
 		}
@@ -636,7 +776,7 @@ func validateRegistryInput(
 	if err != nil {
 		return "", "", "", "", "", "", "", nil, err
 	}
-	uri, err := validateURI(uriValue, "uri")
+	uri, err := validateRegistryURI(uriValue, "uri")
 	if err != nil {
 		return "", "", "", "", "", "", "", nil, err
 	}
@@ -655,7 +795,7 @@ func validateRegistryInput(
 		return "", "", "", "", "", "", "", nil,
 			fmt.Errorf("unsupported registry status %q", status)
 	}
-	metadata, err := cleanStringMap(metadataValue)
+	metadata, err := cleanRegistryMetadata(metadataValue)
 	if err != nil {
 		return "", "", "", "", "", "", "", nil, err
 	}
@@ -700,6 +840,9 @@ func resolvePolicySnapshot(
 		Rules: make(map[string]json.RawMessage),
 	}
 	for _, policy := range candidates {
+		if err := validateStoredPolicy(policy); err != nil {
+			return ResolvedPolicy{}, err
+		}
 		result.BundleIDs = append(result.BundleIDs, policy.ID)
 		result.BundleHashes = append(result.BundleHashes, policy.Hash)
 		for key, value := range policy.Rules {
@@ -712,4 +855,130 @@ func resolvePolicySnapshot(
 	}
 	result.Hash = hash
 	return result, nil
+}
+
+func validateStoredKnowledgeSource(value KnowledgeSource) error {
+	_, _, _, _, _, _, _, _, err := validateRegistryInput(
+		value.ProjectID, value.ID, "knowledge", value.Name, value.URI,
+		value.Revision, value.SHA256, value.Status, value.Metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("stored knowledge source %q failed schema validation: %w", value.ID, err)
+	}
+	return nil
+}
+
+func validateStoredSkillRelease(value SkillRelease) error {
+	_, _, _, _, _, _, _, _, err := validateRegistryInput(
+		value.ProjectID, value.ID, "skill", value.Name, value.URI,
+		value.Version, value.SHA256, value.Status, value.Metadata,
+	)
+	if err != nil {
+		return fmt.Errorf("stored skill release %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := optionalText(value.MinRunnerVersion, "min_runner_version", 100); err != nil {
+		return fmt.Errorf("stored skill release %q failed schema validation: %w", value.ID, err)
+	}
+	return nil
+}
+
+func validateStoredRunnerRelease(value RunnerRelease) error {
+	if _, err := requireID(value.ProjectID, "project_id"); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireID(value.ID, "runner_release_id"); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	validators := []struct {
+		value string
+		field string
+	}{
+		{value.Channel, "channel"},
+		{value.OS, "os"},
+		{value.Arch, "arch"},
+	}
+	for _, validator := range validators {
+		if _, err := requireKey(validator.value, validator.field); err != nil {
+			return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+		}
+	}
+	if _, err := requireText(value.Version, "version", 100); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := validateRegistryURI(value.URI, "uri"); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireSHA256(value.SHA256); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireText(value.MinProtocol, "min_protocol", 100); err != nil {
+		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if !validRegistryStatus(value.Status) {
+		return fmt.Errorf(
+			"stored runner release %q failed schema validation: unsupported status",
+			value.ID,
+		)
+	}
+	return nil
+}
+
+func validateStoredContextBundle(value ContextBundle) error {
+	if _, err := requireID(value.ProjectID, "project_id"); err != nil {
+		return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := requireID(value.ID, "context_id"); err != nil {
+		return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+	}
+	if _, err := canonicalRules(value.Policy.Rules); err != nil {
+		return fmt.Errorf("stored context bundle %q failed policy schema validation: %w", value.ID, err)
+	}
+	for _, resource := range append(
+		append([]ContextResourceRef(nil), value.Knowledge...),
+		value.Skills...,
+	) {
+		if _, err := validateRegistryURI(resource.URI, "context resource uri"); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
+		if _, err := requireSHA256(resource.SHA256); err != nil {
+			return fmt.Errorf("stored context bundle %q failed schema validation: %w", value.ID, err)
+		}
+	}
+	return nil
+}
+
+func (s *Service) deleteRegistry(
+	actorID, projectID, id string,
+	action Action,
+	resourceName string,
+	status func(*state, string) (RegistryStatus, bool),
+	remove func(*state, string),
+) error {
+	actorID, err := requireID(actorID, "actor_id")
+	if err != nil {
+		return err
+	}
+	projectID, err = requireID(projectID, "project_id")
+	if err != nil {
+		return err
+	}
+	id, err = requireID(id, resourceName+"_id")
+	if err != nil {
+		return err
+	}
+	return s.store.update(func(st *state) error {
+		if err := authorizeProject(st, actorID, projectID, action); err != nil {
+			return err
+		}
+		key := projectResourceKey(projectID, id)
+		currentStatus, ok := status(st, key)
+		if !ok {
+			return entityNotFound(resourceName, id)
+		}
+		if currentStatus == RegistryApproved {
+			return conflict("%s %q must be disabled before deletion", resourceName, id)
+		}
+		remove(st, key)
+		return nil
+	})
 }

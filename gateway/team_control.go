@@ -68,11 +68,17 @@ func (h *Handler) registerTeamControlMethods() {
 	h.registry.Register("budget.usage.record", h.rpcRecordTokenUsage)
 	h.registry.Register("budget.usage.list", h.rpcListTokenUsage)
 	h.registry.Register("knowledge.source.put", h.rpcPutKnowledgeSource)
+	h.registry.Register("knowledge.source.get", h.rpcGetKnowledgeSource)
 	h.registry.Register("knowledge.source.list", h.rpcListKnowledgeSources)
+	h.registry.Register("knowledge.source.delete", h.rpcDeleteKnowledgeSource)
 	h.registry.Register("skill.release.put", h.rpcPutSkillRelease)
+	h.registry.Register("skill.release.get", h.rpcGetSkillRelease)
 	h.registry.Register("skill.release.list", h.rpcListSkillReleases)
+	h.registry.Register("skill.release.delete", h.rpcDeleteSkillRelease)
 	h.registry.Register("runner.release.put", h.rpcPutRunnerRelease)
+	h.registry.Register("runner.release.get", h.rpcGetRunnerRelease)
 	h.registry.Register("runner.release.list", h.rpcListRunnerReleases)
+	h.registry.Register("runner.release.delete", h.rpcDeleteRunnerRelease)
 	h.registry.Register("context.compile", h.rpcCompileContext)
 	h.registry.Register("context.list", h.rpcListContextBundles)
 	h.registry.Register("control.summary", h.rpcControlSummary)
@@ -856,7 +862,30 @@ func (h *Handler) rpcPutKnowledgeSource(
 	if err := decodeDomainParams(params, &input); err != nil {
 		return nil, err
 	}
-	return h.teamSvc.PutKnowledgeSource(actorID, input)
+	value, err := h.teamSvc.PutKnowledgeSource(actorID, input)
+	if err != nil {
+		return nil, err
+	}
+	return presentKnowledgeSource(value), nil
+}
+
+func (h *Handler) rpcGetKnowledgeSource(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	value, err := h.teamSvc.GetKnowledgeSource(
+		userID,
+		stringParam(params["project_id"]),
+		stringParam(params["knowledge_id"]),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return presentKnowledgeSource(value), nil
 }
 
 func (h *Handler) rpcListKnowledgeSources(
@@ -867,7 +896,32 @@ func (h *Handler) rpcListKnowledgeSources(
 	if err != nil {
 		return nil, err
 	}
-	return h.teamSvc.ListKnowledgeSources(userID, stringParam(params["project_id"]))
+	values, err := h.teamSvc.ListKnowledgeSources(userID, stringParam(params["project_id"]))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]interface{}, 0, len(values))
+	for _, value := range values {
+		result = append(result, presentKnowledgeSource(value))
+	}
+	return result, nil
+}
+
+func (h *Handler) rpcDeleteKnowledgeSource(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	id := stringParam(params["knowledge_id"])
+	if err := h.teamSvc.DeleteKnowledgeSource(
+		actorID, stringParam(params["project_id"]), id,
+	); err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"id": id, "deleted": true}, nil
 }
 
 func (h *Handler) rpcPutSkillRelease(
@@ -882,7 +936,30 @@ func (h *Handler) rpcPutSkillRelease(
 	if err := decodeDomainParams(params, &input); err != nil {
 		return nil, err
 	}
-	return h.teamSvc.PutSkillRelease(actorID, input)
+	value, err := h.teamSvc.PutSkillRelease(actorID, input)
+	if err != nil {
+		return nil, err
+	}
+	return presentSkillRelease(value), nil
+}
+
+func (h *Handler) rpcGetSkillRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	value, err := h.teamSvc.GetSkillRelease(
+		userID,
+		stringParam(params["project_id"]),
+		stringParam(params["skill_id"]),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return presentSkillRelease(value), nil
 }
 
 func (h *Handler) rpcListSkillReleases(
@@ -893,7 +970,32 @@ func (h *Handler) rpcListSkillReleases(
 	if err != nil {
 		return nil, err
 	}
-	return h.teamSvc.ListSkillReleases(userID, stringParam(params["project_id"]))
+	values, err := h.teamSvc.ListSkillReleases(userID, stringParam(params["project_id"]))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]interface{}, 0, len(values))
+	for _, value := range values {
+		result = append(result, presentSkillRelease(value))
+	}
+	return result, nil
+}
+
+func (h *Handler) rpcDeleteSkillRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	id := stringParam(params["skill_id"])
+	if err := h.teamSvc.DeleteSkillRelease(
+		actorID, stringParam(params["project_id"]), id,
+	); err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"id": id, "deleted": true}, nil
 }
 
 func (h *Handler) rpcPutRunnerRelease(
@@ -908,7 +1010,30 @@ func (h *Handler) rpcPutRunnerRelease(
 	if err := decodeDomainParams(params, &input); err != nil {
 		return nil, err
 	}
-	return h.teamSvc.PutRunnerRelease(actorID, input)
+	value, err := h.teamSvc.PutRunnerRelease(actorID, input)
+	if err != nil {
+		return nil, err
+	}
+	return presentRunnerRelease(value), nil
+}
+
+func (h *Handler) rpcGetRunnerRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	userID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	value, err := h.teamSvc.GetRunnerRelease(
+		userID,
+		stringParam(params["project_id"]),
+		stringParam(params["runner_release_id"]),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return presentRunnerRelease(value), nil
 }
 
 func (h *Handler) rpcListRunnerReleases(
@@ -919,7 +1044,32 @@ func (h *Handler) rpcListRunnerReleases(
 	if err != nil {
 		return nil, err
 	}
-	return h.teamSvc.ListRunnerReleases(userID, stringParam(params["project_id"]))
+	values, err := h.teamSvc.ListRunnerReleases(userID, stringParam(params["project_id"]))
+	if err != nil {
+		return nil, err
+	}
+	result := make([]map[string]interface{}, 0, len(values))
+	for _, value := range values {
+		result = append(result, presentRunnerRelease(value))
+	}
+	return result, nil
+}
+
+func (h *Handler) rpcDeleteRunnerRelease(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	id := stringParam(params["runner_release_id"])
+	if err := h.teamSvc.DeleteRunnerRelease(
+		actorID, stringParam(params["project_id"]), id,
+	); err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"id": id, "deleted": true}, nil
 }
 
 func (h *Handler) rpcCompileContext(
@@ -1464,6 +1614,37 @@ func presentAccessCredential(
 		result["revoked_at"] = credential.RevokedAt
 	}
 	return result
+}
+
+func presentKnowledgeSource(value teamcontrol.KnowledgeSource) map[string]interface{} {
+	return map[string]interface{}{
+		"id": value.ID, "project_id": value.ProjectID, "name": value.Name,
+		"uri": value.URI, "revision": value.Revision, "sha256": value.SHA256,
+		"status": value.Status, "created_by": value.CreatedBy,
+		"updated_by": value.UpdatedBy, "created_at": value.CreatedAt,
+		"updated_at": value.UpdatedAt,
+	}
+}
+
+func presentSkillRelease(value teamcontrol.SkillRelease) map[string]interface{} {
+	return map[string]interface{}{
+		"id": value.ID, "project_id": value.ProjectID, "name": value.Name,
+		"version": value.Version, "uri": value.URI, "sha256": value.SHA256,
+		"min_runner_version": value.MinRunnerVersion, "status": value.Status,
+		"created_by": value.CreatedBy, "updated_by": value.UpdatedBy,
+		"created_at": value.CreatedAt, "updated_at": value.UpdatedAt,
+	}
+}
+
+func presentRunnerRelease(value teamcontrol.RunnerRelease) map[string]interface{} {
+	return map[string]interface{}{
+		"id": value.ID, "project_id": value.ProjectID, "channel": value.Channel,
+		"version": value.Version, "os": value.OS, "arch": value.Arch,
+		"uri": value.URI, "sha256": value.SHA256,
+		"min_protocol": value.MinProtocol, "status": value.Status,
+		"created_by": value.CreatedBy, "updated_by": value.UpdatedBy,
+		"created_at": value.CreatedAt, "updated_at": value.UpdatedAt,
+	}
 }
 
 func presentPolicyScope(scope teamcontrol.PolicyScope) string {

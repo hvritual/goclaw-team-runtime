@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -206,16 +207,25 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := handler.registry.Call(
+	knowledgeResult, err := handler.registry.Call(
 		"knowledge.source.put",
 		session,
 		map[string]interface{}{
 			"id": "knowledge-rpc", "project_id": fixture.project.ID,
 			"name": "RPC knowledge", "uri": "file:///vault/rpc.md",
 			"revision": "1", "sha256": checksum, "status": "approved",
+			"metadata": map[string]string{"source_kind": "documentation"},
 		},
-	); err != nil {
+	)
+	if err != nil {
 		t.Fatal(err)
+	}
+	knowledgeJSON, err := json.Marshal(knowledgeResult)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(knowledgeJSON), "metadata") {
+		t.Fatalf("registry metadata escaped Gateway presenter: %s", knowledgeJSON)
 	}
 	if _, err := handler.registry.Call(
 		"skill.release.put",
@@ -276,6 +286,46 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 		},
 	); err == nil {
 		t.Fatal("developer budget mutation was allowed")
+	}
+
+	if _, err := handler.registry.Call(
+		"knowledge.source.get",
+		session,
+		map[string]interface{}{
+			"project_id": fixture.project.ID, "knowledge_id": "knowledge-rpc",
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handler.registry.Call(
+		"knowledge.source.delete",
+		session,
+		map[string]interface{}{
+			"project_id": fixture.project.ID, "knowledge_id": "knowledge-rpc",
+		},
+	); !errors.Is(err, teamcontrol.ErrConflict) {
+		t.Fatalf("approved registry delete error = %v, want conflict", err)
+	}
+	if _, err := handler.registry.Call(
+		"knowledge.source.put",
+		session,
+		map[string]interface{}{
+			"id": "knowledge-rpc", "project_id": fixture.project.ID,
+			"name": "RPC knowledge", "uri": "file:///vault/rpc.md",
+			"revision": "1", "sha256": checksum, "status": "disabled",
+			"metadata": map[string]string{"source_kind": "documentation"},
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handler.registry.Call(
+		"knowledge.source.delete",
+		session,
+		map[string]interface{}{
+			"project_id": fixture.project.ID, "knowledge_id": "knowledge-rpc",
+		},
+	); err != nil {
+		t.Fatal(err)
 	}
 }
 

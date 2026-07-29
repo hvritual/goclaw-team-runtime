@@ -48,7 +48,9 @@ func openFileStore(path string) (*fileStore, error) {
 				store.state.SchemaVersion,
 			)
 		}
-		normalizeState(&store.state)
+		if err := normalizeState(&store.state); err != nil {
+			return nil, fmt.Errorf("normalize teamcontrol state: %w", err)
+		}
 	case errors.Is(err, os.ErrNotExist):
 		store.state = newState()
 		if err := writeStateAtomic(absolute, store.state); err != nil {
@@ -74,6 +76,19 @@ func (s *fileStore) view(fn func(state) error) error {
 // deep clone and become visible only after the complete JSON snapshot has been
 // fsynced and atomically renamed.
 func (s *fileStore) update(fn func(*state) error) error {
+	return s.updateWithChange(func(next *state) (bool, error) {
+		if err := fn(next); err != nil {
+			return false, err
+		}
+		return true, nil
+	})
+}
+
+// updateWithChange lets idempotent operations avoid changing the revision,
+// timestamp, or on-disk bytes when their canonical payload was already stored.
+func (s *fileStore) updateWithChange(
+	fn func(*state) (bool, error),
+) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -81,8 +96,12 @@ func (s *fileStore) update(fn func(*state) error) error {
 	if err != nil {
 		return err
 	}
-	if err := fn(&next); err != nil {
+	changed, err := fn(&next)
+	if err != nil {
 		return err
+	}
+	if !changed {
+		return nil
 	}
 	next.SchemaVersion = SchemaVersion
 	next.Revision++
@@ -103,11 +122,13 @@ func cloneState(input state) (state, error) {
 	if err := json.Unmarshal(data, &output); err != nil {
 		return state{}, err
 	}
-	normalizeState(&output)
+	if err := normalizeState(&output); err != nil {
+		return state{}, err
+	}
 	return output, nil
 }
 
-func normalizeState(value *state) {
+func normalizeState(value *state) error {
 	if value.Users == nil {
 		value.Users = make(map[string]User)
 	}
@@ -171,6 +192,83 @@ func normalizeState(value *state) {
 	if value.ContextBundles == nil {
 		value.ContextBundles = make(map[string]ContextBundle)
 	}
+	for key, bundle := range value.ContextBundles {
+		if bundle.Budget.LegacyUserID != "" {
+			bundle.Budget.BudgetUserID = bundle.Budget.LegacyUserID
+			if bundle.TargetUserID == "" {
+				bundle.TargetUserID = bundle.Budget.LegacyUserID
+			}
+			bundle.Budget.LegacyUserID = ""
+			value.ContextBundles[key] = bundle
+		}
+	}
+	var err error
+	value.TokenBudgets, err = normalizeProjectMap(
+		value.TokenBudgets,
+		func(item TokenBudget) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("token budgets: %w", err)
+	}
+	value.TokenUsageEvents, err = normalizeProjectMap(
+		value.TokenUsageEvents,
+		func(item TokenUsageEvent) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("token usage events: %w", err)
+	}
+	value.KnowledgeSources, err = normalizeProjectMap(
+		value.KnowledgeSources,
+		func(item KnowledgeSource) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("knowledge sources: %w", err)
+	}
+	value.SkillReleases, err = normalizeProjectMap(
+		value.SkillReleases,
+		func(item SkillRelease) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("skill releases: %w", err)
+	}
+	value.RunnerReleases, err = normalizeProjectMap(
+		value.RunnerReleases,
+		func(item RunnerRelease) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("runner releases: %w", err)
+	}
+	value.ContextBundles, err = normalizeProjectMap(
+		value.ContextBundles,
+		func(item ContextBundle) (string, string) { return item.ProjectID, item.ID },
+	)
+	if err != nil {
+		return fmt.Errorf("context bundles: %w", err)
+	}
+	return nil
+}
+
+func projectResourceKey(projectID, id string) string {
+	return projectID + "/" + id
+}
+
+func normalizeProjectMap[T any](
+	values map[string]T,
+	identity func(T) (projectID, id string),
+) (map[string]T, error) {
+	result := make(map[string]T, len(values))
+	for storedKey, value := range values {
+		projectID, id := identity(value)
+		if projectID == "" || id == "" {
+			return nil, fmt.Errorf("resource %q has an empty project or id", storedKey)
+		}
+		key := projectResourceKey(projectID, id)
+		if _, exists := result[key]; exists {
+			return nil, fmt.Errorf("multiple resources normalize to %q", key)
+		}
+		result[key] = value
+	}
+	return result, nil
 }
 
 func writeStateAtomic(path string, value state) error {

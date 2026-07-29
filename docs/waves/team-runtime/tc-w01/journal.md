@@ -68,3 +68,15 @@
 - Policy manifest SHA-256：
   `c9f6bb4e72166b9faf9511404e3ceca7f31b1aa2e8d73738581395756b7ec6c1`；
 - freeze 后只做 r003 已列 P1/P2 修复，不进入 RN/INT/REL。
+
+## 2026-07-29 — r003 S07 确定性 Gate 通过
+
+- 复合 key、Context target identity、secret-safe schema、Registry CRUD、
+  usage no-op、JS-safe budget 和 UI 五状态均已实现；
+- r002 裸 key 与旧 Context budget user 可前向迁移；legacy unsafe
+  Registry/Policy/Context 在读取或编译前失败关闭；
+- 全仓 Go test/vet、TeamControl/Gateway race、UI `10/10` 与 production
+  build 全部通过；
+- `TC-EVID-W01-003` 进入 collecting；下一步推送 exact implementation SHA，
+  由独立 code/security/docs reviewer 验收；
+- 在三路均 P0=0/P1=0 前，`TC-W01` 保持 active，`RN-W01` 保持 planned。

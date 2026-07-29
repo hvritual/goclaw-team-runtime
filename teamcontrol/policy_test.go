@@ -109,6 +109,50 @@ func TestHierarchicalPolicyResolutionAndStableHash(t *testing.T) {
 		},
 	)
 	require.Error(t, err)
+
+	_, err = fixture.service.PutPolicyBundle(
+		fixture.alice.ID,
+		PutPolicyBundleInput{
+			ID: "secret-policy", Name: "secret", Scope: PolicyProject,
+			ScopeID: fixture.projectA.ID, Version: 1, Enabled: true,
+			Rules: map[string]json.RawMessage{
+				"provider_token": json.RawMessage(`"must-not-persist"`),
+			},
+		},
+	)
+	require.ErrorContains(t, err, "unsupported policy rule")
+}
+
+func TestLegacyUnsafePolicyFailsClosedOnReadAndResolve(t *testing.T) {
+	fixture := newTestFixture(t)
+	policy, err := fixture.service.PutPolicyBundle(
+		fixture.alice.ID,
+		PutPolicyBundleInput{
+			ID: "legacy-policy", Name: "legacy", Scope: PolicyProject,
+			ScopeID: fixture.projectA.ID, Version: 1, Enabled: true,
+			Rules: map[string]json.RawMessage{
+				"style": json.RawMessage(`"gofmt"`),
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, fixture.service.store.update(func(st *state) error {
+		value := st.Policies[policy.ID]
+		value.Rules = map[string]json.RawMessage{
+			"provider_token": json.RawMessage(`"legacy-secret-channel"`),
+		}
+		st.Policies[policy.ID] = value
+		return nil
+	}))
+
+	_, err = fixture.service.ListPolicyBundles(
+		fixture.alice.ID, fixture.projectA.ID,
+	)
+	require.ErrorContains(t, err, "failed schema validation")
+	_, err = fixture.service.ResolvePolicy(
+		fixture.alice.ID, fixture.projectA.ID, "", "",
+	)
+	require.ErrorContains(t, err, "failed schema validation")
 }
 
 func TestCorrelationRejectsWrongArtifactTypeAndCrossProject(t *testing.T) {

@@ -112,6 +112,9 @@ func (s *Service) GetPolicyBundle(
 		if !ok || !policyAppliesToProject(&st, policy, project) {
 			return entityNotFound("policy", policyID)
 		}
+		if err := validateStoredPolicy(policy); err != nil {
+			return err
+		}
 		result = policy
 		return nil
 	})
@@ -185,6 +188,9 @@ func (s *Service) ResolvePolicy(
 			Rules:        make(map[string]json.RawMessage),
 		}
 		for _, policy := range candidates {
+			if err := validateStoredPolicy(policy); err != nil {
+				return err
+			}
 			result.BundleIDs = append(result.BundleIDs, policy.ID)
 			result.BundleHashes = append(result.BundleHashes, policy.Hash)
 			for key, value := range policy.Rules {
@@ -227,6 +233,9 @@ func canonicalRules(input map[string]json.RawMessage) (map[string]json.RawMessag
 			}
 			return nil, fmt.Errorf("policy rule %q has invalid trailing JSON: %w", key, err)
 		}
+		if err := validatePolicyRule(key, value); err != nil {
+			return nil, err
+		}
 		canonical, err := json.Marshal(value)
 		if err != nil {
 			return nil, err
@@ -234,6 +243,43 @@ func canonicalRules(input map[string]json.RawMessage) (map[string]json.RawMessag
 		output[key] = canonical
 	}
 	return output, nil
+}
+
+func validatePolicyRule(key string, value any) error {
+	switch key {
+	case "style", "code_style":
+		text, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("policy rule %q must be a string", key)
+		}
+		if _, err := requireText(text, "policy rule "+key, 100); err != nil {
+			return err
+		}
+	case "max_files", "max_changed_lines":
+		number, ok := value.(json.Number)
+		if !ok {
+			return fmt.Errorf("policy rule %q must be an integer", key)
+		}
+		parsed, err := number.Int64()
+		if err != nil || parsed <= 0 || parsed > 1_000_000 {
+			return fmt.Errorf("policy rule %q must be an integer between 1 and 1000000", key)
+		}
+	case "require_race_test", "require_all_verifications",
+		"require_independent_review":
+		if _, ok := value.(bool); !ok {
+			return fmt.Errorf("policy rule %q must be a boolean", key)
+		}
+	default:
+		return fmt.Errorf("unsupported policy rule %q", key)
+	}
+	return nil
+}
+
+func validateStoredPolicy(policy PolicyBundle) error {
+	if _, err := canonicalRules(policy.Rules); err != nil {
+		return fmt.Errorf("stored policy %q failed schema validation: %w", policy.ID, err)
+	}
+	return nil
 }
 
 func authorizePolicyScope(
