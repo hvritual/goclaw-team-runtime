@@ -168,7 +168,7 @@
       "id": "RN-W01",
       "title": "Runner Lifecycle, Local Execution, and Version Management",
       "status": "active",
-      "document": "team-runtime/rn-w01/plan-r002.md",
+      "document": "team-runtime/rn-w01/plan-r003.md",
       "depends_on": [
         "TC-W01"
       ],
@@ -179,9 +179,13 @@
         "workstation/**",
         "gateway/workstation.go",
         "gateway/workstation_test.go",
+        "gateway/development.go",
+        "gateway/development_wave_test.go",
         "gateway/team_runtime_test.go",
         "cli/runner.go",
         "cli/runner_test.go",
+        "cli/dev.go",
+        "cli/dev_enqueue_test.go",
         "config/**",
         "deploy/**",
         "scripts/**"

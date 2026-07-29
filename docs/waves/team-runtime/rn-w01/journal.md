@@ -17,3 +17,12 @@
   tree `4eeb0a92368f29e9bfa5aa0a7cd9fb2ff62cd8b2` 冻结；
 - Policy manifest `3/3`，SHA-256 `37c0f491...`；
 - 冻结后才允许实现双 profile、跨平台 doctor、版本更新/回滚和并发 Evidence。
+
+## 2026-07-29 — r003 scope correction
+
+- 实现前确认 Team mode 禁止 raw `runner.enqueue`，唯一受信入口是
+  `dev.task.enqueue`；
+- r002 exact scope 遗漏 `gateway/development.go` 与 `cli/dev.go`，若不
+  修订，Team Control 无法选择或约束 delegated profile；
+- 保留 r002 activation/freeze 和已授权 workstation/runner 工作，不改写
+  历史；r003 前向补充最小 Gateway/CLI scope，重新 Freeze 后继续。
