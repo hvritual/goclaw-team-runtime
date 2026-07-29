@@ -16,7 +16,7 @@ const check = (condition, message) => {
 const git = (...gitArgs) =>
   execFileSync('git', gitArgs, { encoding: 'utf8' }).trim();
 const readAt = (revision, file) =>
-  git('show', `${revision}:${file}`);
+  execFileSync('git', ['show', `${revision}:${file}`]);
 const sha256 = (value) =>
   createHash('sha256').update(value).digest('hex');
 
@@ -38,7 +38,7 @@ for (const revision of [base, candidate]) {
 check(git('status', '--porcelain') === '', 'working tree must be clean');
 
 const registry = JSON.parse(
-  readAt(candidate, 'docs/waves/wave-registry.json'),
+  readAt(candidate, 'docs/waves/wave-registry.json').toString('utf8'),
 );
 const active = registry.waves.filter((wave) => wave.status === 'active');
 const mc = registry.waves.find((wave) => wave.id === 'MC-W01');
@@ -53,7 +53,7 @@ check(tc?.status === 'superseded', 'TC-W02 must be superseded');
 check(tc?.superseded_by === 'MC-W01', 'TC-W02 superseded_by mismatch');
 
 const planPath = 'docs/waves/multica-transition/mc-w01/plan-r001.md';
-const plan = readAt(candidate, planPath);
+const plan = readAt(candidate, planPath).toString('utf8');
 for (const value of [
   'plan_status: approved',
   'wave_state: active',
@@ -67,7 +67,7 @@ for (const value of [
 
 const manifestPath =
   'docs/waves/multica-transition/mc-w01/POLICY_BUNDLE_SHA256SUMS-r001.txt';
-const manifest = readAt(candidate, manifestPath);
+const manifest = readAt(candidate, manifestPath).toString('utf8');
 for (const line of manifest.trim().split('\n')) {
   const match = line.match(/^([0-9a-f]{64})  (.+)$/);
   check(Boolean(match), `invalid manifest line: ${line}`);
@@ -79,7 +79,7 @@ for (const line of manifest.trim().split('\n')) {
 
 const freezePath =
   'docs/waves/multica-transition/mc-w01/task-freeze-r001.md';
-const freeze = readAt(candidate, freezePath);
+const freeze = readAt(candidate, freezePath).toString('utf8');
 for (const value of [
   base,
   git('rev-parse', `${base}^{tree}`),
