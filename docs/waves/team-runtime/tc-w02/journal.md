@@ -122,3 +122,15 @@
   event，失败时只能 non-executable recovery；
 - global knowledge 迁移审批角色统一为 `global_memory_approve`；
 - 上述 findings 必须经 exact candidate deterministic Gate 和独立复审关闭。
+
+## 2026-07-29 — r002 S08 documentation re-review correction
+
+- documentation re-review 报告 P0=0/P1=0/P2=1；因 r002 要求文档 P2 关闭，
+  结果仍为 BLOCK；
+- TC-W03–TC-W06 proposed drafts 补齐强制 Wave template 的 `approved_by`、
+  目标、入口门禁、范围、问题事实、影响分析、完整 Step/Evidence/Risk 表、
+  退出清单、决策记录和 Plan revision；
+- validator 同步检查完整 mandatory template surface，避免只检查子集形成
+  假阳性；
+- 这些 draft 仍是 `proposed`、`product_code_changes_allowed=false`，不会
+  因模板补全获得实现授权。

@@ -151,13 +151,22 @@ for (const id of ['TC-W03', 'TC-W04', 'TC-W05', 'TC-W06']) {
   const content = existsAt(path.join('docs/waves', wave?.document ?? ''))
     ? readAt(path.join('docs/waves', wave.document))
     : '';
+  check(/^approved_by:\s*$/m.test(content), `${id} draft missing approved_by`);
   for (const heading of [
+    '## 目标',
     '## 权威输入',
-    '## 范围与 non-goals',
+    '## 入口门禁',
+    '## 范围',
+    '### 包含',
+    '### 不包含',
+    '## 问题与事实',
+    '## 影响分析',
     '## 分步计划',
-    '## 验证与证据',
+    '## 验证与证据计划',
     '## 风险与回滚',
     '## 退出门禁',
+    '## 决策记录',
+    '## Plan revision',
   ]) {
     check(content.includes(heading), `${id} draft missing ${heading}`);
   }
