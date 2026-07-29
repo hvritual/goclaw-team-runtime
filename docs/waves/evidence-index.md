@@ -85,7 +85,7 @@
 | `TC-EVID-W02-003` | `TC-W02` | `TC-ISSUE-002` | r001 independent contract review | exact `e9a4cc0` architecture/security/docs review | [S04 independent review](team-runtime/tc-w02/s04-independent-review.md) | `failed` | architecture P1=4；security P1=5；docs P1=2 |
 | `TC-EVID-W02-004` | `TC-W02` | `TC-ISSUE-002` | r002 review remediation | r001 P1/P2 前向修复；exact base `d2df5fd...` → candidate `df47a8b...` 的 non-vacuous Gate 通过 | [S07 r002 deterministic verification](team-runtime/tc-w02/s07-r002-deterministic-verification.md) | `passed` | Policy 3/3；10 docs/waves files；product code empty |
 | `TC-EVID-W02-005` | `TC-W02` | `TC-ISSUE-002` | r002 final independent review | architecture/security/docs P0=0/P1=0 | 待 r002 final review 产生 | `collecting` | independent reviewers pending |
-| `MC-EVID-W01-001` | `MC-W01` | `MC-ISSUE-001` | backup verification | backup ref/tree/checkout 与替换前治理 commit 相同 | `multica-transition/mc-w01/journal.md` | `planned` | independent recovery check pending |
+| `MC-EVID-W01-001` | `MC-W01` | `MC-ISSUE-001` | backup verification | backup ref/tree/checkout 与替换前治理 commit 相同 | `multica-transition/mc-w01/journal.md` | `collecting` | exact Task frozen；backup check pending |
 | `MC-EVID-W01-002` | `MC-W01` | `MC-ISSUE-001` | Multica tree adoption | 初始目标提交 tree 与 frozen upstream tree 相同 | target branch commit | `planned` | deterministic tree comparison |
 | `MC-EVID-W01-003` | `MC-W01` | `MC-ISSUE-001` | six-domain baseline | 六域数据/API/状态/权限/UI/CLI/测试/依赖映射完整 | target Multica docs | `planned` | architecture review pending |
 | `MC-EVID-W01-004` | `MC-W01` | `MC-ISSUE-001` | deterministic verification | 六域 narrow checks 与 full repo checks 通过或准确记录环境阻塞 | target evidence | `planned` | no real-agent execution |

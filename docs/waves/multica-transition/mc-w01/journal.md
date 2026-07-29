@@ -24,3 +24,19 @@
 | 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
 |---|---|---|---|---|
 | 2026-07-29 | `MC-W01-S01` | `planned → active` | Plan/Registry/Policy activation 编制中 | deterministic docs Gate |
+
+## 2026-07-29 — exact Task Freeze
+
+- activation commit：
+  `dfe8aa4a5d100d5225582c902dfe0f5537790e11`；
+- activation tree：
+  `697cf292bdf0a205a272f6e5dd0817389b6c808c`；
+- Task：`MC-W01-BASELINE-001 r001`；
+- Policy manifest SHA-256：
+  `430ae2d96db863bc261a4544f7bfc30fada092cd7677442af1ee4f3bca8b1324`；
+- target branch：`codex/multica-six-domain-baseline`；
+- backup branch：`codex/backup-goclaw-pre-multica-20260729`；
+- replacement 前必须通过 `BACKUP-VERIFIED`。
+
+| 2026-07-29 | `MC-W01-S01` | `active → complete` | activation exact commit 已冻结 | 创建 backup |
+| 2026-07-29 | `MC-W01-S02` | `planned → active` | Task frozen | BACKUP-VERIFIED |
