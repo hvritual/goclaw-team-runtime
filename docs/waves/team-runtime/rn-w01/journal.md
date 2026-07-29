@@ -41,3 +41,10 @@
 - r003 scope 未授权 `gateway/team_control.go` 投影新增非秘密字段；
 - r004 前向增加完整 artifact identity 与最小 Gateway scope；此前产品
   变更仍未提交，不改写 r002/r003 历史。
+
+## 2026-07-29 — r004 Task Freeze and stop boundary
+
+- Task r004 从远端 activation exact `400c8005a9d3152f083fbd4b51ca2b6253590679` /
+  tree `78da2dfc56586057ac1c583331f77fd0f15659fc` 冻结；
+- Policy manifest `3/3`，SHA-256 `9f01bb43...`；
+- 用户要求完成当前 RN-W01 后暂停；不自动激活 INT/REL，不自动 merge。
