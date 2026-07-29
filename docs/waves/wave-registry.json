@@ -197,9 +197,9 @@
     },
     {
       "id": "TC-W02",
-      "title": "Team Control Knowledge Authority Replan and Contract Baseline",
+      "title": "Team Control Knowledge Authority Contract Review Remediation",
       "status": "active",
-      "document": "team-runtime/tc-w02/plan-r001.md",
+      "document": "team-runtime/tc-w02/plan-r002.md",
       "depends_on": [
         "TC-W01"
       ],

@@ -45,3 +45,26 @@
 | 2026-07-29 | `TC-W02-S01` | `planned → complete` | 静态源码责任盘点完成；未访问真实环境 | 编写目标合同 |
 | 2026-07-29 | `TC-W02-S02` | `planned → complete` | Policy/Knowledge/Context/MCP/Evidence 与迁移路线形成 r001 | 更新治理索引 |
 | 2026-07-29 | `TC-W02-S03` | `planned → active` | 等待 deterministic Gate | 运行 docs Gate |
+
+## 2026-07-29 — r001 exact candidate review BLOCK
+
+- reviewed exact commit：
+  `e9a4cc04cb6113fe98685ac0db809e33739c9277`；
+  tree `dd574e6c65b859f13ef8dcb6ce1859cc28570340`；
+- architecture P0=0/P1=4/P2=1，security P0=0/P1=5/P2=2，
+  docs/governance P0=0/P1=2/P2=2；三路均 BLOCK；
+- r001 candidate 保留为 `TC-EVID-W02-003` failed，不 amend/rebase；
+- P1 聚焦 ExecutionPack-bound MCP audience、citation schema、global mandatory/
+  global knowledge authority、transitive ref authorization、monotonic restore、
+  W04 scope、RPC 逐项映射和 non-vacuous deterministic Gate；
+- docs reviewer 证明 r001 manual freeze 的 plan/policy 不存在于其 base；
+  r001 commit 只按用户直接授权保留为 governance activation candidate，不再
+  声称是 runtime/manual frozen implementation Task；
+- 激活 r002 后，必须从包含 r002 Plan/Registry/Policy 的 exact commit 冻结
+  remediation Task。
+
+## 2026-07-29 — r002 activation
+
+- r002 完整继承 r001 目标和 docs-only boundary，只修复三路 findings；
+- `TC-W02-S05` active；S06 必须等待本 activation commit 后冻结 exact Task；
+- r001 approved plan 和 failed Evidence 保持不变。
