@@ -1,0 +1,25 @@
+[Unit]
+Description=GoClaw Team Control
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+UMask=0077
+User=goclaw
+Group=goclaw
+Environment=HOME=/var/lib/goclaw
+EnvironmentFile=/etc/goclaw/team-control.env
+ExecStart=/usr/local/bin/goclaw-team-control gateway run
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/goclaw
+
+[Install]
+WantedBy=multi-user.target

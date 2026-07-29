@@ -7,13 +7,13 @@ Wants=network-online.target
 Type=simple
 UMask=0077
 EnvironmentFile=%h/.config/goclaw/runner.env
-ExecStartPre=/usr/local/bin/goclaw runner doctor \
+ExecStartPre=/usr/local/bin/goclaw-runner runner doctor \
   --key-file ${GOCLAW_RUNNER_KEY_FILE} \
   --work-root ${GOCLAW_RUNNER_WORK_ROOT} \
   --repo ${GOCLAW_REPOSITORY_ID}=${GOCLAW_REPOSITORY_PATH} \
   --codex-command ${GOCLAW_CODEX_COMMAND} \
   --verification-sandbox ${GOCLAW_VERIFICATION_SANDBOX}
-ExecStart=/usr/local/bin/goclaw runner work \
+ExecStart=/usr/local/bin/goclaw-runner runner work \
   --id ${GOCLAW_RUNNER_ID} \
   --key-file ${GOCLAW_RUNNER_KEY_FILE} \
   --work-root ${GOCLAW_RUNNER_WORK_ROOT} \

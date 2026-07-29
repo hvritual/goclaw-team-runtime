@@ -86,12 +86,13 @@ stateDiagram-v2
 |---|---|---|---:|
 | [`FE-W00`](frontend-stability/fe-w00/plan-r005.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
 | [`MVP-W00`](recovery/mvp-w00/plan-r006.md) | `complete` | 权威源码、可重复发布与可追溯最终验收 | 禁止 |
-| [`FE-W01`](frontend-stability/fe-w01/plan-r012.md) | `active`（执行门禁 blocked） | recovered base 登录、WebSocket、浏览器、ptrace 与凭据闭环 | 仅已复现范围 |
-| [`FE-W02`](frontend-stability/fe-w02/plan-r001.md) | `planned` | 所有页面读取 loader 与 RPC 返回契约 | 受限 |
-| [`FE-W03`](frontend-stability/fe-w03/plan-r001.md) | `planned` | 对话、规格、审批、开发和 Harness 命令链 | 受限 |
-| [`FE-W04`](frontend-stability/fe-w04/plan-r001.md) | `planned` | 状态呈现、响应式、可访问性和恢复体验 | 受限 |
-| [`FE-W05`](frontend-stability/fe-w05/plan-r001.md) | `planned` | 集成、安全、回归和发布就绪 | 禁止新增功能 |
-| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r006.md) | `blocked` | Runner、治理、前端、恢复与三人并发试点 | 禁止 |
+| [`FE-W01`](frontend-stability/fe-w01/plan-r012.md) | `superseded` | 历史浏览器、syscall 与凭据 Evidence 保留 | 禁止 |
+| [`TR-W00`](team-runtime/tr-w00/plan-r001.md) | `active` | Team Control/Runner 双应用边界与构建 | 受限 |
+| [`TC-W01`](team-runtime/tc-w01/plan-r001.md) | `planned` | 控制面 Registry、预算与 Context Compiler | 受限 |
+| [`RN-W01`](team-runtime/rn-w01/plan-r001.md) | `planned` | Runner 生命周期、版本、自更新与本地执行 | 受限 |
+| [`INT-W01`](team-runtime/int-w01/plan-r001.md) | `planned` | MCP、知识、Skill 与 Context 集成 | 受限 |
+| [`REL-W01`](team-runtime/rel-w01/plan-r001.md) | `planned` | 跨平台发行、运维和试点验收 | 受限 |
+| [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r006.md) | `blocked` | 三人真机/真实租户试点 | 禁止 |
 
 顺序是依赖顺序，不是日期承诺。W00 结束前不开始修复；若 W00 证明某个
 问题属于后端契约、部署或数据迁移，仍保留原 Issue ID，但在相应 Wave

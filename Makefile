@@ -1,4 +1,4 @@
-.PHONY: help all build test test-race test-coverage test-verbose lint fmt fmt-check vet clean deps tidy check install-tools benchmark build-ui build-full setup-tauri build-tauri dev-tauri prepare-sidecar prepare-tauri-sidecar release-tauri-macos notarize-tauri-macos staple-tauri-macos verify-tauri-macos
+.PHONY: help all build build-team-control build-runner build-apps test test-race test-coverage test-verbose lint fmt fmt-check vet clean deps tidy check install-tools benchmark build-ui build-full setup-tauri build-tauri dev-tauri prepare-sidecar prepare-tauri-sidecar release-tauri-macos notarize-tauri-macos staple-tauri-macos verify-tauri-macos
 
 # Variables
 GOCMD=go
@@ -52,6 +52,20 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(GO_CACHE_DIR)
 	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/$(BINARY_NAME) .
+
+## build-team-control: Build the dedicated Team Control application
+build-team-control:
+	@mkdir -p $(GO_CACHE_DIR)
+	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/goclaw-team-control ./cmd/team-control
+
+## build-runner: Build the dedicated Runner application
+build-runner:
+	@mkdir -p $(GO_CACHE_DIR)
+	GOCACHE=$(GO_CACHE_DIR) $(GOBUILD) -buildvcs=false -ldflags="-X 'main.Version=$(VERSION)'" -o $(BUILD_DIR)/goclaw-runner ./cmd/runner
+
+## build-apps: Cross-build Team Control, Runner, and compatibility binaries
+build-apps:
+	VERSION=$(VERSION) ./scripts/build-apps.sh --output $(BUILD_DIR)/dist/apps
 
 ## build-ui: Build the UI frontend
 build-ui:

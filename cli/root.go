@@ -180,7 +180,7 @@ func runInstall(cmd *cobra.Command, args []string) {
 
 // runVersion prints version information
 func runVersion(cmd *cobra.Command, args []string) {
-	fmt.Printf("goclaw %s\n", Version)
+	fmt.Printf("%s %s\n", applicationBinaryName(), Version)
 	fmt.Println("Copyright (c) 2024 smallnest")
 	fmt.Println("License: MIT")
 	fmt.Println("https://github.com/smallnest/goclaw")
