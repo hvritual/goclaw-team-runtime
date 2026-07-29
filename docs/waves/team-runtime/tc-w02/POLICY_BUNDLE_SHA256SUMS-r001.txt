@@ -1,0 +1,6 @@
+258b8d2f5d98503041c28b4a9d532c3590f3a5fa6d376dda252a1b4db2b34e6b  AGENTS.md
+b1d2183d192ea8d5aa465b5d7452249de3cbc93eb886690a28d8375fa7d7e700  docs/waves/team-runtime/tc-w02/plan-r001.md
+a508dfa4ef438d85ef07e4690cf91215dcad67e237f4d51b88e6bdd37deff7b0  docs/waves/wave-registry.json
+28a069a334127cddd3276fe9981f28b16296c91d7d3a457e6a96970c1b551b1a  docs/waves/team-runtime/tc-w02/current-state-responsibility-matrix.md
+7fda9c85a60cef152ae166d09b287b38807af81a422f46033e8667f59e0e9ad6  docs/waves/team-runtime/tc-w02/target-contracts.md
+cc263b6e902e1107b594d36c000076d79ae20e6031b9dbc64c0302723777e7c3  docs/waves/team-runtime/tc-w02/migration-and-wave-roadmap.md

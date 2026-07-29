@@ -243,3 +243,71 @@
 - 回滚：任一 P1 未关闭，TC 保持 active，RN 不激活；不 force-push、不把
   历史 failed Evidence 改为 passed。
 - 关联：`TC-EVID-W01-010`、`TC-ISSUE-001`、`TC-W01 r004`。
+
+## 2026-07-29 — TC-DEC-003：以 TC-W02 替代未验收 RN 与宽泛 INT 路线
+
+- 状态：`active`。
+- 触发：用户明确要求 Team Control 成为全局规则、项目规则和项目知识的
+  权威控制面，并要求本阶段只做源码盘点与合同规划。
+- 决策：RN-W01 在已有实现但未完成 independent acceptance 的状态下转为
+  `superseded`，不标记 complete；INT-W01 在未激活、未冻结、未实现时转为
+  `superseded`；只激活 docs-only `TC-W02 r001`。
+- 否决方案：拒绝把 RN 实现提交冒充已验收完成；拒绝直接激活 INT-W01；
+  拒绝同时激活多个 Wave。
+- 影响：替代路线为
+  `TC-W02 → TC-W03 → TC-W04 → TC-W05 → TC-W06 → REL-W01`；
+  TC-W03–W06 先保持 proposed/product-code-false。
+- 回滚：撤销尚未合并的规划提交并恢复 RN-W01 active；不触碰 RN 实现、
+  Evidence 或产品数据。
+- 关联：`TC-ISSUE-002`、`INT-ISSUE-001`、`RN-ISSUE-001`、
+  `TC-EVID-W02-001`、`TC-W02-S01–S04`。
+
+## 2026-07-29 — TC-DEC-004：可覆盖默认值与不可覆盖强制约束分层
+
+- 状态：`active`。
+- 触发：用户继承默认要求
+  `global defaults → team → project → repository → component`，同时要求
+  global mandatory constraints 最终校验且下层不得覆盖。
+- 决策：global defaults 作为第一层可被项目覆盖；global mandatory 不参加
+  普通 merge，而在所有覆盖后验证 resolved result，违反时失败关闭且不生成
+  executable Context。
+- 否决方案：拒绝把 mandatory 放在最前面后被下层覆盖；拒绝把所有 global
+  值都设成不可覆盖，从而消灭项目差异。
+- 影响：ResolvedPolicy 必须带逐 rule provenance、ordered bundle refs、
+  mandatory refs、canonical hash 和 validation result。
+- 回滚：resolver revision 未通过冲突矩阵和 golden hash Gate 时保留现有
+  四层 resolver，不激活 TC-W04。
+- 关联：`TC-W02 target-contracts.md`、`TC-W04`。
+
+## 2026-07-29 — TC-DEC-005：一个逻辑知识权威、一个正文边界、可重建索引
+
+- 状态：`active`。
+- 触发：静态源码证明 Team Control KnowledgeSource 与 SQLite Memory
+  Catalog 独立表达批准知识，Agent 还能绕过 Context Bundle 注入 Catalog。
+- 决策：Team Control 成为 Knowledge identity/revision/approval/visibility
+  的逻辑权威；正文进入一个 content-addressed object store；检索索引只是
+  可丢弃 projection。旧 Catalog/Markdown/Harness/Obsidian 都是 adapter。
+- 否决方案：拒绝长期双写两个 active store；拒绝把正文直接塞入 Team
+  Control registry state；拒绝把索引当作不可重建权威。
+- 影响：`project_id="*"` 迁移为 explicit global scope，所有 legacy active
+  必须先对账 checksum/scope/decision；歧义记录进入 pending/quarantine。
+- 回滚：shadow import 可整体丢弃；read cutover 前旧系统仍是唯一 writer；
+  不删除旧库。
+- 关联：`TC-ISSUE-002`、`TC-W03`、`TC-EVID-W02-001`。
+
+## 2026-07-29 — TC-DEC-006：Runner 只读 MCP，反馈只创建候选
+
+- 状态：`active`。
+- 触发：用户要求 Runner 的使用证据、矛盾、陈旧和修订建议形成闭环，但
+  不能直接修改 active 知识。
+- 决策：MCP audience 绑定 project/task/revision/attempt/runner/lease/
+  Context hash；只提供 manifest/search/read/citation/policy explain。
+  Evidence 先验签、去重、scope 校验，再创建 candidate；独立
+  `memory_approve` 人工审批后才能 active。
+- 否决方案：拒绝 MCP 提供 promote/delete active；拒绝任务完成时自动学习
+  并晋升；拒绝客户端自报 project/role。
+- 影响：ExecutionPack 冻结 Context hash，Evidence 新增知识使用/citation/
+  feedback，但继续 secret-free 与签名；TC-W05 独立实现和复核。
+- 回滚：feedback ingestion 可停用且保留 Evidence；任何 P1 保持 TC-W05
+  active/blocked，不切换 MCP read path。
+- 关联：`TC-W05`、`TC-W02 target-contracts.md`。

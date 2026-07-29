@@ -1,0 +1,47 @@
+# TC-W02 Journal
+
+本文件只追加。当前状态以 Registry 和
+[`plan-r001.md`](plan-r001.md) 为准。
+
+## 2026-07-29 — 用户改变路线并激活 docs-only 重规划
+
+- 用户明确要求 Team Control 成为全局规则、项目规则和项目知识的权威控制
+  面，Runner 通过项目隔离 MCP 只读消费冻结 Context；
+- 当前 base 固定为
+  `d6a166ceb1f445e7098855841d20bf3903f0d3d5` /
+  tree `02698c5cc262b247ac37c53e80fa807ab5cb2c15`；
+- 预检工作树干净，Registry 原先恰好只有 RN-W01 active；
+- 本地 main 比 origin/main 领先 28 个提交，但 base 已存在于远端
+  `origin/agent/rn-w01-lifecycle-001`；本 Wave 只描述当前候选源码；
+- RN-W01 已有产品实现但尚未完成独立验收，因此由 `active` 前向转为
+  `superseded`，不标记 complete、不删除实现或 Evidence；
+- INT-W01 r001 的宽泛集成路线由 TC-W02 合同基线和
+  `TC-W03 → TC-W04 → TC-W05 → TC-W06` 后继路线替代；原 Plan 保持只读；
+- TC-W02 r001 只允许 `docs/waves/**`，产品代码变更明确为 false。
+
+## 2026-07-29 — S01 current-state inventory
+
+- Team Control `KnowledgeSource` 是 project-scoped metadata registry，
+  `PolicyBundle` 支持 team/project/repository/component 后层覆盖，
+  `ContextBundle` 只绑定 policy/budget/手选 KnowledgeSource/Skill；
+- Memory Catalog SQLite 独立持有正文、版本、审批、有效期、关系、citation
+  和 circulation event，并把 `project_id="*"` 当共享知识；
+- Agent 可直接调用 Catalog 自动注入 prompt，ExecutionPack/EvidenceBundle
+  不携带 Context Bundle、知识版本、citation 或检索事件；
+- Gateway 对两套知识 API 分别做项目授权；Web Console 同时展示 Catalog
+  候选和 Harness knowledge proposal，CLI 仍可直接打开本地 Catalog；
+- 以上差距作为规划输入登记，不访问真实运行时，不将其冒充已复现产品缺陷。
+
+## 状态事件
+
+| Seq | 时间 | Actor | From | To | 原因 | Evidence |
+|---:|---|---|---|---|---|---|
+| 1 | 2026-07-29 | user directive / Codex root | `proposed` | `active` | 用户明确改变路线；激活 discovery/contract-only TC-W02 | `TC-EVID-W02-001` collecting |
+
+## 进度事件
+
+| 时间 | Step ID | 状态变化 | 实际结果/阻塞 | 下一动作 |
+|---|---|---|---|---|
+| 2026-07-29 | `TC-W02-S01` | `planned → complete` | 静态源码责任盘点完成；未访问真实环境 | 编写目标合同 |
+| 2026-07-29 | `TC-W02-S02` | `planned → complete` | Policy/Knowledge/Context/MCP/Evidence 与迁移路线形成 r001 | 更新治理索引 |
+| 2026-07-29 | `TC-W02-S03` | `planned → active` | 等待 deterministic Gate | 运行 docs Gate |

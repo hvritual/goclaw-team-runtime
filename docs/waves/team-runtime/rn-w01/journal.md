@@ -48,3 +48,17 @@
   tree `78da2dfc56586057ac1c583331f77fd0f15659fc` 冻结；
 - Policy manifest `3/3`，SHA-256 `9f01bb43...`；
 - 用户要求完成当前 RN-W01 后暂停；不自动激活 INT/REL，不自动 merge。
+
+## 2026-07-29 — superseded by TC-W02 before independent acceptance
+
+- 当前源码 base `d6a166ceb1f445e7098855841d20bf3903f0d3d5` 已包含 RN-W01
+  产品实现，但 r004 的 deterministic Evidence、三路独立验收和完成状态尚未
+  登记；
+- 用户改变路线，要求先把 Team Control 重规划为规则、知识、Context、
+  project-scoped MCP 和 Runner feedback candidate 的权威控制面；
+- RN-W01 从 `active` 前向转为 `superseded`，替代 Wave 为 `TC-W02`；
+- RN-W01 不标记 `complete`，既有 Plan、Task Freeze、实现提交和 Evidence
+  保留，不删除、不改写，也不作为后继实现已验收的前置证明；
+- `RN-ISSUE-001` 转为 deferred；若未来仍需 Runner release/lifecycle
+  收尾，必须由新 active Wave、approved plan revision 和 frozen Task 重新
+  绑定 exact base。

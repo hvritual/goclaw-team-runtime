@@ -3,7 +3,7 @@
   "track_id": "TEAM-RUNTIME-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "RN-W01",
+  "active_wave": "TC-W02",
   "updated_at": "2026-07-29",
   "waves": [
     {
@@ -167,11 +167,13 @@
     {
       "id": "RN-W01",
       "title": "Runner Lifecycle, Local Execution, and Version Management",
-      "status": "active",
+      "status": "superseded",
       "document": "team-runtime/rn-w01/plan-r004.md",
       "depends_on": [
         "TC-W01"
       ],
+      "superseded_by": "TC-W02",
+      "superseded_reason": "The user changed the route before RN-W01 independent acceptance: Team Control knowledge authority, policy resolution, immutable Context, lease-scoped MCP, and candidate-only feedback must be contracted first. Existing RN implementation and evidence remain unfinished history.",
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -191,16 +193,41 @@
         "deploy/**",
         "scripts/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "TC-W02",
+      "title": "Team Control Knowledge Authority Replan and Contract Baseline",
+      "status": "active",
+      "document": "team-runtime/tc-w02/plan-r001.md",
+      "depends_on": [
+        "TC-W01"
+      ],
+      "supersedes_route": [
+        "RN-W01",
+        "INT-W01"
+      ],
+      "allowed_change_scope": [
+        "docs/waves/**"
+      ],
+      "product_code_changes_allowed": false
     },
     {
       "id": "INT-W01",
       "title": "Runner MCP, Knowledge, Skills, and Context Integration",
-      "status": "planned",
+      "status": "superseded",
       "document": "team-runtime/int-w01/plan-r001.md",
       "depends_on": [
         "RN-W01"
       ],
+      "superseded_by": [
+        "TC-W02",
+        "TC-W03",
+        "TC-W04",
+        "TC-W05",
+        "TC-W06"
+      ],
+      "superseded_reason": "The single broad integration Wave did not establish one knowledge authority, mandatory global policy validation, migration ownership, or a signed feedback-candidate lifecycle. Its approved plan remains immutable and is replaced by the staged Team Control route.",
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -215,15 +242,67 @@
         "config/**",
         "plugins/obsidian-goclaw/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "TC-W03",
+      "title": "Knowledge Authority and Storage Convergence",
+      "status": "proposed",
+      "document": "team-runtime/tc-w03/plan-r001.md",
+      "depends_on": [
+        "TC-W02"
+      ],
+      "allowed_change_scope": [
+        "candidate scope only; a new approved revision must freeze exact paths"
+      ],
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "TC-W04",
+      "title": "Policy Resolver and Context Compiler v2",
+      "status": "proposed",
+      "document": "team-runtime/tc-w04/plan-r001.md",
+      "depends_on": [
+        "TC-W03"
+      ],
+      "allowed_change_scope": [
+        "candidate scope only; a new approved revision must freeze exact paths"
+      ],
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "TC-W05",
+      "title": "Lease-scoped MCP and Signed Runner Feedback",
+      "status": "proposed",
+      "document": "team-runtime/tc-w05/plan-r001.md",
+      "depends_on": [
+        "TC-W04"
+      ],
+      "allowed_change_scope": [
+        "candidate scope only; a new approved revision must freeze exact paths"
+      ],
+      "product_code_changes_allowed": false
+    },
+    {
+      "id": "TC-W06",
+      "title": "Console, CLI, Operations, and Controlled Cutover",
+      "status": "proposed",
+      "document": "team-runtime/tc-w06/plan-r001.md",
+      "depends_on": [
+        "TC-W05"
+      ],
+      "allowed_change_scope": [
+        "candidate scope only; a new approved revision must freeze exact paths"
+      ],
+      "product_code_changes_allowed": false
     },
     {
       "id": "REL-W01",
       "title": "Cross-platform Packaging, Operations, and Pilot Release",
       "status": "planned",
-      "document": "team-runtime/rel-w01/plan-r001.md",
+      "document": "team-runtime/rel-w01/plan-r002.md",
       "depends_on": [
-        "INT-W01"
+        "TC-W06"
       ],
       "allowed_change_scope": [
         "docs/waves/**",
@@ -234,7 +313,7 @@
         "Makefile",
         "test-plans/**"
       ],
-      "product_code_changes_allowed": true
+      "product_code_changes_allowed": false
     },
     {
       "id": "PILOT-W00",

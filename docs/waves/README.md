@@ -2,10 +2,12 @@
 
 本文定义 GoClaw 的分波更新规则。它首先用于 Team Web Console 稳定化，
 以后所有需要多个步骤、多个模块或多轮验证的更新也必须遵守同一规则。
-恢复基线 `MVP-W00 r006` 和双应用边界 `TR-W00 r002` 已完成，当前
-机器可读入口是 `TC-W01 r004`。recovered release 仍为
+恢复基线 `MVP-W00 r006`、双应用边界 `TR-W00 r002` 和
+`TC-W01 r004` 已完成，当前机器可读入口是 docs-only
+`TC-W02 r001`。recovered release 仍为
 `0.8.0-pilot.1-recovered.1`；TR-W00 的三路独立验收已 P0=0/P1=0，
-但后继 Registry、Runner lifecycle、MCP 和 release Waves 尚未完成。
+RN-W01 的实现候选尚未完成独立验收即被新路线替代；知识权威、Policy/
+Context、MCP/Evidence 和 release Waves 尚未完成。
 `PILOT-W00` 继续 `blocked`，在 `REL-W01` 完成且真实环境 Gate 通过前
 不得启动三台 Runner 放行。
 
@@ -95,10 +97,15 @@ governance commit 中满足：登记决策与替代原因、激活一个依赖�
 | [`MVP-W00`](recovery/mvp-w00/plan-r006.md) | `complete` | 权威源码、可重复发布与可追溯最终验收 | 禁止 |
 | [`FE-W01`](frontend-stability/fe-w01/plan-r012.md) | `superseded` | 历史浏览器、syscall 与凭据 Evidence 保留 | 禁止 |
 | [`TR-W00`](team-runtime/tr-w00/plan-r002.md) | `complete` | Team Control/Runner 双应用边界与验收修复 | 禁止 |
-| [`TC-W01`](team-runtime/tc-w01/plan-r004.md) | `active` | 控制面路径边界与 RBAC provenance 验收修复 | 受限 |
-| [`RN-W01`](team-runtime/rn-w01/plan-r001.md) | `planned` | Runner 生命周期、版本、自更新与本地执行 | 受限 |
-| [`INT-W01`](team-runtime/int-w01/plan-r001.md) | `planned` | MCP、知识、Skill 与 Context 集成 | 受限 |
-| [`REL-W01`](team-runtime/rel-w01/plan-r001.md) | `planned` | 跨平台发行、运维和试点验收 | 受限 |
+| [`TC-W01`](team-runtime/tc-w01/plan-r004.md) | `complete` | 控制面路径边界与 RBAC provenance 验收修复 | 禁止 |
+| [`RN-W01`](team-runtime/rn-w01/plan-r004.md) | `superseded` | 实现候选与未完成验收历史保留 | 禁止 |
+| [`TC-W02`](team-runtime/tc-w02/plan-r001.md) | `active` | Team Control 知识权威、合同与迁移路线重规划 | 禁止 |
+| [`INT-W01`](team-runtime/int-w01/plan-r001.md) | `superseded` | 原宽泛 MCP/知识集成路线只读保留 | 禁止 |
+| [`TC-W03`](team-runtime/tc-w03/plan-r001.md) | `proposed` | 知识权威与存储收敛 | 禁止 |
+| [`TC-W04`](team-runtime/tc-w04/plan-r001.md) | `proposed` | Policy resolver 与 Context Compiler v2 | 禁止 |
+| [`TC-W05`](team-runtime/tc-w05/plan-r001.md) | `proposed` | lease-scoped MCP 与签名反馈 | 禁止 |
+| [`TC-W06`](team-runtime/tc-w06/plan-r001.md) | `proposed` | Console/CLI/运维与受控 cutover | 禁止 |
+| [`REL-W01`](team-runtime/rel-w01/plan-r002.md) | `planned` | 跨平台发行、运维和试点验收 | 禁止（激活前需新 revision） |
 | [`PILOT-W00`](pilot-readiness/pilot-w00/plan-r006.md) | `blocked` | 三人真机/真实租户试点 | 禁止 |
 
 顺序是依赖顺序，不是日期承诺。Discovery/baseline 类型的 W00 结束前
