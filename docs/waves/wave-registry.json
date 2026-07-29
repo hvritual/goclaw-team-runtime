@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "track_id": "MVP-RECOVERY-2026-07",
+  "track_id": "TEAM-RUNTIME-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "TR-W00",
-  "updated_at": "2026-07-28",
+  "active_wave": "TC-W01",
+  "updated_at": "2026-07-29",
   "waves": [
     {
       "id": "MVP-W00",
@@ -122,7 +122,7 @@
     {
       "id": "TR-W00",
       "title": "Team Control and Runner Application Boundary",
-      "status": "active",
+      "status": "complete",
       "document": "team-runtime/tr-w00/plan-r002.md",
       "depends_on": [
         "MVP-W00"
@@ -149,19 +149,31 @@
     {
       "id": "TC-W01",
       "title": "Team Control Registries, Budgets, and Context Compiler",
-      "status": "planned",
-      "document": "team-runtime/tc-w01/plan-r001.md",
+      "status": "active",
+      "document": "team-runtime/tc-w01/plan-r002.md",
       "depends_on": [
         "TR-W00"
       ],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
-        "teamcontrol/**",
-        "gateway/**",
-        "cli/**",
-        "config/**",
-        "ui/src/team/**",
+        "teamcontrol/types.go",
+        "teamcontrol/inputs.go",
+        "teamcontrol/store.go",
+        "teamcontrol/validation.go",
+        "teamcontrol/policy.go",
+        "teamcontrol/queries.go",
+        "teamcontrol/controlplane.go",
+        "teamcontrol/controlplane_test.go",
+        "teamcontrol/service_test.go",
+        "gateway/team_control.go",
+        "gateway/team_runtime_test.go",
+        "gateway/server_auth_test.go",
+        "cli/team.go",
+        "cli/system.go",
+        "ui/src/team/TeamPage.tsx",
+        "ui/src/team/types.ts",
+        "ui/src/team/client.ts",
         "ui/tests/**"
       ],
       "product_code_changes_allowed": true

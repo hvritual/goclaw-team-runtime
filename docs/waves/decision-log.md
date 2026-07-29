@@ -196,3 +196,20 @@
   不 force-push、不删除 PR #1、不伪造验收先于合并。
 - 关联：`TR-W00-S06`–`S08`、`TR-ISSUE-002`、
   `TR-EVID-W00-002`、`Task-ID TR-W00-ACCEPTANCE-002`。
+
+## 2026-07-29 — TR-DEC-003：TR-W00 验收后单独激活 TC-W01
+
+- 状态：`active`。
+- 触发：exact `60465b59...` 的 code/security/docs final review 均
+  P0=0/P1=0，`TR-EVID-W00-003` 收录确定性 Gate 与目标主机边界。
+- 决策：将 `TR-W00 r002` 标记 complete，只激活其直接后继
+  `TC-W01 r002`；TC 先冻结中央 Registry、预算账本和 deterministic
+  Context Bundle，不提前实现 Runner 更新、MCP 或 installer。
+- 否决方案：不并行激活 RN/INT/REL，不把 reviewer P2 冒充已解决，也不因
+  PR #1 已合并而跳过新的 Task Freeze。
+- 安全影响：Context Compiler 在控制面只编译已批准的元数据与 hash，
+  不读取 Vault 正文，不接收 Codex OAuth；Budget event 必须幂等并防溢出。
+- 回滚：TC schema/RBAC/hash 任一 P1 未关闭则 TC 保持 active，RN 不激活；
+  TR 的历史 acceptance 与 PR 偏差只读保留。
+- 关联：`TR-EVID-W00-003`、`TC-ISSUE-001`、
+  `TC-EVID-W01-001`、后续 `Task-ID TC-W01-CONTROL-003`。

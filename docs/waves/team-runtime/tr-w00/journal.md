@@ -80,3 +80,17 @@
 - focused Go test 和 `git diff --check` 通过；systemd 模板解析到可执行文件
   存在性检查，当前容器没有 `/usr/local/bin/goclaw-runner`，因此真实 unit
   启动 smoke 仍属于目标主机 Gate。
+
+## 2026-07-29 — r002 final acceptance
+
+- reviewed exact commit：
+  `60465b59e559311b406586cf2a50bd6a285e450d`；
+- exact tree：`5dc081a514a2e6bc18b4b6dce0961cb415182b45`；
+- code/security/docs final review 均 PASS，P0=0/P1=0；
+- final systemd/canary delta 后全仓 `go test -count=1 ./...` 与
+  `go vet ./...` 通过；
+- Evidence：`TR-EVID-W00-003`；
+- `TR-ISSUE-001`、`TR-ISSUE-002` 由独立 acceptance 标记 `verified`；
+- `TR-W00-S06`–`S08` complete；Registry 在同一治理过渡中关闭 TR-W00
+  并激活其直接依赖后继 `TC-W01 r002`；
+- PR #2 保持 Draft，merge/release 不由本 Evidence 自动执行。

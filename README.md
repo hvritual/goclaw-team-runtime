@@ -5,8 +5,8 @@
 两个独立应用；兼容入口 `goclaw` 暂时保留。
 
 > 当前已恢复、可追溯的 release 是 `0.8.0-pilot.1-recovered.1`。
-> TR-W00 双应用实现属于后续 Wave candidate，在三路独立验收和新的
-> release Gate 完成前不是稳定发布声明。
+> TR-W00 双应用边界已通过 exact-commit 三路独立验收；TC-W01 及后继
+> Runner/MCP/release Waves 尚未完成，因此仍不是新的稳定发布声明。
 >
 > `0.8.0-pilot.1` 的试点合同是一个中央单写者、一个项目、三名
 > 成员与三台 Linux substrate Runner，并加入失败关闭的 Wave 绑定、
@@ -1010,7 +1010,7 @@ Obsidian/Vault 首次迁移、审批、权威控制、多机同步与备份方�
 - [三人技术试点](docs/PILOT_3_PERSON_DEPLOYMENT_CN.md) - 单中央、三身份、跨平台 Linux Runner、治理、冷备与放行 Gate
 - [十人团队开发闭环](docs/TEAM_DEVELOPMENT_CN.md) - 团队/项目/RBAC、业务域、任务、Bug、策略、组件和关联
 - [Wave 更新管理](docs/waves/README.md) - 分步计划、修订、状态、证据与放行规则
-- [前台稳定性轨道](docs/waves/frontend-stability/index.md) - 当前 FE-W00 到 FE-W05 的计划与进度
+- [历史前台稳定性轨道](docs/waves/frontend-stability/index.md) - 已完成或 superseded 的 FE-W00 到 FE-W05 计划与证据
 - [工作站 Runner](docs/WORKSTATION_RUNNER_CN.md) - 个人 Token、device key、本地 Codex、lease/heartbeat 和证据
 - [部署手册](docs/DEPLOYMENT_CN.md) - MVP、Full Runtime 与 Production 三层部署
 - [架构与数据权威](docs/ARCHITECTURE_CN.md) - 中央单写者、工作站与 Vault 边界
