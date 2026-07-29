@@ -3,7 +3,7 @@
   "track_id": "TEAM-RUNTIME-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "TC-W02",
+  "active_wave": "MC-W01",
   "updated_at": "2026-07-29",
   "waves": [
     {
@@ -198,7 +198,7 @@
     {
       "id": "TC-W02",
       "title": "Team Control Knowledge Authority Contract Review Remediation",
-      "status": "active",
+      "status": "superseded",
       "document": "team-runtime/tc-w02/plan-r002.md",
       "depends_on": [
         "TC-W01"
@@ -207,10 +207,36 @@
         "RN-W01",
         "INT-W01"
       ],
+      "superseded_by": "MC-W01",
+      "superseded_reason": "The user replaced the GoClaw-first Team Control route with a Multica-first product baseline. TC-W02 remains preserved without claiming final independent acceptance.",
       "allowed_change_scope": [
         "docs/waves/**"
       ],
       "product_code_changes_allowed": false
+    },
+    {
+      "id": "MC-W01",
+      "title": "Multica Baseline Adoption and Six-Domain Verification",
+      "status": "active",
+      "document": "multica-transition/mc-w01/plan-r001.md",
+      "depends_on": [
+        "MVP-W00"
+      ],
+      "supersedes_route": [
+        "TC-W02",
+        "TC-W03",
+        "TC-W04",
+        "TC-W05",
+        "TC-W06",
+        "REL-W01",
+        "PILOT-W00"
+      ],
+      "allowed_change_scope": [
+        "docs/waves/**",
+        "all tracked repository paths for one exact Multica upstream tree replacement",
+        "Multica-native six-domain documentation, tests, and confirmed gap fixes"
+      ],
+      "product_code_changes_allowed": true
     },
     {
       "id": "INT-W01",

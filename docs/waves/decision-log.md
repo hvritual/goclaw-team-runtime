@@ -334,3 +334,19 @@
   cutover 后 authority events；缺失或倒退时只能 non-executable recovery。
 - 关联：`TC-W03`、`TC-W06`、`TC-ISSUE-002`、
   `TC-W02 migration-and-wave-roadmap.md`。
+
+## 2026-07-29 — MC-DEC-001：完整 Multica 基线、六域先行、旧树进 backup
+
+- 状态：`active`。
+- 触发：用户要求以 Multica 为主体，先落地 Workspace、Member、Project、
+  Issue、Task、Skill，并保持目标代码树不含 Multica 无关内容。
+- 决策：保留完整 Multica 上游与 Agent/Runtime/Realtime/API 等原生依赖；
+  第一阶段只盘点、验证和补齐六域。当前 GoClaw 源码、计划与 Evidence 在
+  tree replacement 前保存到可恢复本地 backup 分支。
+- 否决方案：不裁剪成六域最小应用；不把 GoClaw TeamControl 作为 sidecar
+  或双写权威；不改写/推送 main 或远端。
+- 影响：`TC-W02` 在 final acceptance 前转为 superseded；`MC-W01` 成为
+  唯一 active Wave，并以 BACKUP-VERIFIED 为 G3 tree replacement 硬门禁。
+- 回滚：任何 backup/tree 校验失败即停止；目标分支可切回 backup，backup
+  在六域独立验收完成前不得删除。
+- 关联：`MC-ISSUE-001`、`MC-W01`、`MC-EVID-W01-001`–`005`。

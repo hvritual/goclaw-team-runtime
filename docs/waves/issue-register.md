@@ -67,6 +67,14 @@
 
 ## 三人试点问题
 
+## Multica 基线转换
+
+| Issue ID | 影响面 | 环境 | 期望结果 | 实际结果 | 严重度 | 状态 | 证据 | Wave | Task |
+|---|---|---|---|---|---|---|---|---|---|
+| `MC-ISSUE-001` | 产品基线/六域 | GoClaw HEAD `3150c9c8`；Multica upstream candidate `beb3e9be`；未访问运行时 | 目标工作线为完整干净 Multica tree，六域合同和验证可复核，旧树可恢复 | 当前工作线仍为 GoClaw tree，尚未创建 backup 或采用 Multica | `S1` | `reproduced` | Git ref/tree 与静态源码盘点 | `MC-W01` | 待 activation 后 freeze |
+
+## 三人试点问题
+
 下列条目来自 2026-07-27 三路只读源码审计。根因均能由当前实现路径直接
 定位，因此进入 `PILOT-W00`；验收证据仍需在修复后独立收集。
 
