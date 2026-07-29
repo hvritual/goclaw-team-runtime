@@ -12,6 +12,7 @@ import (
 	"github.com/smallnest/goclaw/config"
 	"github.com/smallnest/goclaw/governance"
 	dev "github.com/smallnest/goclaw/orchestratorlite"
+	"github.com/smallnest/goclaw/workstation"
 	"github.com/spf13/cobra"
 )
 
@@ -57,6 +58,7 @@ var (
 	devQueuePriority      int
 	devQueueCapabilities  []string
 	devQueueMaxAttempts   int
+	devExecutionProfile   string
 )
 
 var devCmd = &cobra.Command{
@@ -353,10 +355,11 @@ var devEnqueueCmd = &cobra.Command{
 
 func developmentEnqueueParams(taskID string) map[string]any {
 	return map[string]any{
-		"task_id":      taskID,
-		"priority":     devQueuePriority,
-		"capabilities": append([]string(nil), devQueueCapabilities...),
-		"max_attempts": devQueueMaxAttempts,
+		"task_id":           taskID,
+		"priority":          devQueuePriority,
+		"capabilities":      append([]string(nil), devQueueCapabilities...),
+		"max_attempts":      devQueueMaxAttempts,
+		"execution_profile": devExecutionProfile,
 	}
 }
 
@@ -599,6 +602,12 @@ func init() {
 	devEnqueueCmd.Flags().IntVar(&devQueuePriority, "priority", 0, "Queue priority; higher values run first")
 	devEnqueueCmd.Flags().StringSliceVar(&devQueueCapabilities, "capability", []string{"codex"}, "Required workstation capability")
 	devEnqueueCmd.Flags().IntVar(&devQueueMaxAttempts, "max-attempts", 0, "Maximum attempts; zero uses the scheduler default")
+	devEnqueueCmd.Flags().StringVar(
+		&devExecutionProfile,
+		"execution-profile",
+		string(workstation.ExecutionProfileStrict),
+		"Runner execution profile: strict or codex-delegated",
+	)
 
 	devCmd.AddCommand(
 		devInitCmd,

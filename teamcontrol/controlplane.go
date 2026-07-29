@@ -508,6 +508,9 @@ func (s *Service) PutRunnerRelease(
 	if err != nil {
 		return RunnerRelease{}, err
 	}
+	if input.SizeBytes < 0 {
+		return RunnerRelease{}, fmt.Errorf("size_bytes cannot be negative")
+	}
 	minProtocol, err := requireText(input.MinProtocol, "min_protocol", 100)
 	if err != nil {
 		return RunnerRelease{}, err
@@ -530,7 +533,9 @@ func (s *Service) PutRunnerRelease(
 			if existing.Channel != channel ||
 				existing.Version != version || existing.OS != targetOS ||
 				existing.Arch != arch || existing.URI != uri ||
-				existing.SHA256 != checksum || existing.MinProtocol != minProtocol {
+				existing.SHA256 != checksum ||
+				existing.SizeBytes != input.SizeBytes ||
+				existing.MinProtocol != minProtocol {
 				return conflict("runner release id %q identifies different immutable content", id)
 			}
 			if err := validateRegistryTransition(existing.Status, status); err != nil {
@@ -543,10 +548,14 @@ func (s *Service) PutRunnerRelease(
 			result = existing
 			return nil
 		}
+		if input.SizeBytes <= 0 {
+			return fmt.Errorf("size_bytes must be positive for a new runner release")
+		}
 		result = RunnerRelease{
 			ID: id, ProjectID: projectID, Channel: channel, Version: version,
 			OS: targetOS, Arch: arch, URI: uri, SHA256: checksum,
-			MinProtocol: minProtocol, Status: status, CreatedBy: actorID,
+			SizeBytes: input.SizeBytes, MinProtocol: minProtocol,
+			Status: status, CreatedBy: actorID,
 			UpdatedBy: actorID, CreatedAt: now, UpdatedAt: now,
 		}
 		st.RunnerReleases[key] = result
@@ -982,6 +991,12 @@ func validateStoredRunnerRelease(value RunnerRelease) error {
 	}
 	if _, err := requireSHA256(value.SHA256); err != nil {
 		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)
+	}
+	if value.SizeBytes < 0 {
+		return fmt.Errorf(
+			"stored runner release %q failed schema validation: negative size_bytes",
+			value.ID,
+		)
 	}
 	if _, err := requireText(value.MinProtocol, "min_protocol", 100); err != nil {
 		return fmt.Errorf("stored runner release %q failed schema validation: %w", value.ID, err)

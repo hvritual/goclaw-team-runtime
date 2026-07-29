@@ -116,3 +116,87 @@ func cloneExecutionPack(
 	}
 	return result
 }
+
+func TestValidateTeamExecutionProfileFailsClosed(t *testing.T) {
+	noRule := teamcontrol.ResolvedPolicy{Rules: map[string]json.RawMessage{}}
+	if err := validateTeamExecutionProfile(
+		noRule,
+		workstation.ExecutionProfileStrict,
+	); err != nil {
+		t.Fatalf("default strict rejected: %v", err)
+	}
+	if err := validateTeamExecutionProfile(
+		noRule,
+		workstation.ExecutionProfileCodexDelegated,
+	); err == nil {
+		t.Fatal("delegated profile passed without an explicit policy")
+	}
+
+	allowed := teamcontrol.ResolvedPolicy{Rules: map[string]json.RawMessage{
+		"runner.execution_profiles": json.RawMessage(
+			`["strict","codex-delegated"]`,
+		),
+	}}
+	for _, profile := range []workstation.ExecutionProfile{
+		workstation.ExecutionProfileStrict,
+		workstation.ExecutionProfileCodexDelegated,
+	} {
+		if err := validateTeamExecutionProfile(allowed, profile); err != nil {
+			t.Fatalf("allowed profile %q rejected: %v", profile, err)
+		}
+	}
+
+	for name, raw := range map[string]json.RawMessage{
+		"wrong type": json.RawMessage(`"codex-delegated"`),
+		"unknown":    json.RawMessage(`["future-profile"]`),
+		"empty":      json.RawMessage(`[]`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			policy := teamcontrol.ResolvedPolicy{Rules: map[string]json.RawMessage{
+				"runner.execution_profiles": raw,
+			}}
+			if err := validateTeamExecutionProfile(
+				policy,
+				workstation.ExecutionProfileCodexDelegated,
+			); err == nil {
+				t.Fatal("invalid policy unexpectedly allowed execution")
+			}
+		})
+	}
+}
+
+func TestResolveRunnerLifecyclePolicyFailsClosed(t *testing.T) {
+	policy := teamcontrol.ResolvedPolicy{Rules: map[string]json.RawMessage{
+		"runner.target_version":    json.RawMessage(`"0.9.0"`),
+		"runner.target_release_id": json.RawMessage(`"release-090"`),
+		"runner.release_channel":   json.RawMessage(`"pilot"`),
+		"runner.rollout_paused":    json.RawMessage(`true`),
+	}}
+	got, err := resolveRunnerLifecyclePolicy(policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.TargetVersion != "0.9.0" ||
+		got.TargetReleaseID != "release-090" ||
+		got.ReleaseChannel != "pilot" ||
+		!got.Paused {
+		t.Fatalf("lifecycle policy = %#v", got)
+	}
+	for name, raw := range map[string]json.RawMessage{
+		"empty target": json.RawMessage(`""`),
+		"wrong type":   json.RawMessage(`false`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := resolveRunnerLifecyclePolicy(
+				teamcontrol.ResolvedPolicy{
+					Rules: map[string]json.RawMessage{
+						"runner.target_version": raw,
+					},
+				},
+			)
+			if err == nil {
+				t.Fatal("invalid lifecycle policy passed")
+			}
+		})
+	}
+}

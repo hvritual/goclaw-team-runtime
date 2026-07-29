@@ -14,19 +14,20 @@
 
 ## 1. 先确认平台边界
 
-当前版本采用统一的 `goclaw.runner/linux-v1` 执行合同。平台支持矩阵如下：
+当前版本保留 `goclaw.runner/linux-v1` strict 合同，并新增显式降级的
+`codex-delegated`。平台支持矩阵如下：
 
-| 平台 | 构建控制 CLI | 运行 Gateway/TeamControl | 原生 `runner work` | 正确执行面 |
-|---|---:|---:|---:|---|
-| Linux amd64/arm64 | 是 | 是 | 是 | 原生 Linux + bubblewrap |
-| Windows amd64/arm64 | 是 | 不作为试点基线 | 否，失败关闭 | 专用 WSL2 Linux 发行版 |
-| macOS Intel/Apple Silicon | 是 | 不作为试点基线 | 否，失败关闭 | 专用 Lima Linux guest |
+| 平台 | 构建应用 | `strict` | `codex-delegated` |
+|---|---:|---:|---:|
+| Linux amd64/arm64 | 是 | 原生 + bwrap | 原生；无 GoClaw OS sandbox |
+| Windows amd64/arm64 | 是 | WSL2 guest | 原生；无 GoClaw OS sandbox |
+| macOS Intel/Apple Silicon | 是 | Lima guest | 原生；无 GoClaw OS sandbox |
 
 因此：
 
 1. 完整 Team Runtime 发布包应在 Linux、WSL2 或 Linux CI 中构建。
-2. Windows/macOS 原生二进制用于 `team`、`dev`、`runner register/list/update`
-   等控制操作，不用于执行 Codex 开发任务。
+2. Windows/macOS 原生 Runner 只有在 Team Control policy 显式允许
+   `codex-delegated` 时才可执行；它不是 strict 或 sandbox 的替代证明。
 3. Windows 仓库、work root、device key 与 Codex OAuth 必须位于 WSL2
    虚拟磁盘，不得放在 `/mnt/c`。
 4. macOS 的执行资产必须位于 Lima guest 磁盘，不得启用 host mount。
@@ -74,7 +75,7 @@ grep '^go ' go.mod
 
 | 产物 | 用途 | 是否可执行 Runner |
 |---|---|---:|
-| `goclaw`/`goclaw.exe` | Gateway、控制 CLI；Linux 还可作为 Runner | 仅 Linux |
+| `goclaw`/`goclaw.exe` | Gateway、控制 CLI 与 Runner | strict 仅 Linux substrate；delegated 可三平台 |
 | `goclaw-team-runtime-linux-*.tar.gz` | Linux/WSL2/Lima Runner 包 | 是 |
 | `obsidian-goclaw-plugin-*.tar.gz` | Obsidian 侧边栏、审批与进度界面 | 否 |
 
@@ -265,7 +266,28 @@ go test -count=1 `
   ./cli ./cli/commands ./internal/start
 ```
 
-不要在 Windows 原生终端执行 `goclaw.exe runner work`。它会按设计失败。
+Windows 原生 strict 会按设计失败。只有项目已批准 delegated、Runner 以同一
+profile 注册且 Doctor 通过 Windows ACL/reparse/Codex canary 检查时，才可
+显式运行：
+
+```powershell
+.\dist\goclaw-windows-amd64.exe runner doctor `
+  --execution-profile codex-delegated `
+  --key-file C:\secure\goclaw\runner.key `
+  --work-root C:\goclaw\work `
+  --repo repo-alpha=C:\src\alpha
+
+.\dist\goclaw-windows-amd64.exe runner work `
+  --execution-profile codex-delegated `
+  --id alice-alpha-windows `
+  --key-file C:\secure\goclaw\runner.key `
+  --work-root C:\goclaw\work `
+  --repo repo-alpha=C:\src\alpha `
+  --project project-alpha
+```
+
+不要传 `--verification-sandbox` 或 `--unsafe-host-verification`。高风险任务
+继续使用下一节的 WSL2 strict。
 
 ### 5.2 Windows 完整 Runtime 在 WSL2 构建
 
@@ -373,7 +395,9 @@ shasum -a 256 ./dist/goclaw-darwin-arm64
 如修改了 UI，先执行 Linux 章节中的 `npm ci`、`npm test`、`npm run build`
 和 `gateway/ui_dist` 同步，再编译 Go。
 
-macOS 原生 CLI 不能执行 `runner work`。
+macOS 原生 strict 不能执行 `runner work`。项目明确接受 delegated 降级时，
+可在 register/doctor/work 三处传
+`--execution-profile codex-delegated`；高风险任务继续使用 Lima strict。
 
 ### 6.2 可选 Tauri 桌面壳
 
@@ -1427,8 +1451,9 @@ goclaw runner update --id alice-project-alpha-linux --enable
 - [ ] Web Console `npm test` 与 `npm run build` 通过；
 - [ ] 关键 Go 发布测试集通过；
 - [ ] Linux amd64/arm64 构建信息中的 GOOS/GOARCH 正确；
-- [ ] Windows/macOS 控制 CLI 可以执行 `version` 和控制命令；
-- [ ] Windows/macOS 原生 `runner work` 确认失败关闭；
+- [ ] Windows/macOS 应用可以执行 `version` 和控制命令；
+- [ ] Windows/macOS 原生 strict 失败关闭；delegated Doctor 明确 warning，
+      且只在项目 policy/capability 匹配时领取；
 - [ ] 发布包 SHA-256 校验通过；
 - [ ] 源码包不含 `.env`、Token、OAuth、本地 runtime 或二进制。
 
@@ -1455,8 +1480,10 @@ goclaw runner update --id alice-project-alpha-linux --enable
 
 - [ ] WSL2 关闭 interop、Windows PATH 和 automount；
 - [ ] Lima 关闭 host mounts；
-- [ ] 所有执行路径都在 Linux substrate 本地磁盘；
-- [ ] bwrap wrapper 为 `root:root 0755`；
+- [ ] strict 执行路径在 Linux substrate 本地磁盘，bwrap wrapper 为
+      `root:root 0755`；
+- [ ] delegated 使用本机私有目录，Windows ACL/reparse 或 Unix owner/mode
+      检查通过，且风险接受已记录；
 - [ ] `runner doctor --json` 返回 `ready=true`；
 - [ ] 每个并发项目使用独立 Runner ID/key/work root/process；
 - [ ] 没有两个进程复用同一 Runner ID；
@@ -1476,9 +1503,11 @@ goclaw runner update --id alice-project-alpha-linux --enable
 
 ## 17. 常见错误
 
-### Windows/macOS 提示不能执行 Runner
+### Windows/macOS strict 提示不能执行 Runner
 
-这是预期行为。进入 WSL2/Lima，安装 Linux Runtime 后执行。
+这是预期行为。高保证任务进入 WSL2/Lima strict；只有项目明确配置
+`runner.execution_profiles` 且接受无 GoClaw OS sandbox 的边界时，才在
+register/doctor/work 三处显式选择 `codex-delegated`。
 
 ### Runner 一直领不到任务
 
@@ -1522,12 +1551,13 @@ Team 管理员。
 
 ## 18. 当前能力边界
 
-- 支持一个中央控制面协调多个项目、多个成员和多个并发 Linux Runner；
+- 支持一个中央控制面协调多个项目、多个成员和多个并发 Runner；
 - 支持项目级 RBAC、队列、lease、heartbeat、签名证据和人工最终验收；
 - 不支持多个中央 Leader、数据库级分布式事务或自动故障转移；
 - 不自动做容量最优排程，business domain/capacity 主要用于治理和看板；
 - 不自动 commit、push、建 PR、批准、merge 或发布；
-- 不提供原生 Windows/macOS Runner 隔离；
+- 原生 Windows/macOS delegated 可执行，但不提供 GoClaw OS 级进程/网络
+  隔离；strict 仍依赖 WSL2/Lima Linux substrate；
 - device key 是共享 HMAC 秘密，不是 TPM 证明或不可抵赖设备证书；
 - Obsidian 是项目交互和知识投影，不是秘密库、中央任务队列或 Runtime root。
 

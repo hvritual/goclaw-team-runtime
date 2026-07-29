@@ -1641,6 +1641,7 @@ func presentRunnerRelease(value teamcontrol.RunnerRelease) map[string]interface{
 		"id": value.ID, "project_id": value.ProjectID, "channel": value.Channel,
 		"version": value.Version, "os": value.OS, "arch": value.Arch,
 		"uri": value.URI, "sha256": value.SHA256,
+		"size_bytes":   value.SizeBytes,
 		"min_protocol": value.MinProtocol, "status": value.Status,
 		"created_by": value.CreatedBy, "updated_by": value.UpdatedBy,
 		"created_at": value.CreatedAt, "updated_at": value.UpdatedAt,

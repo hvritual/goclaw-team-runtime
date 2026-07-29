@@ -245,7 +245,8 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 			"id": "runner-rpc", "project_id": fixture.project.ID,
 			"channel": "pilot", "version": "1", "os": "linux", "arch": "amd64",
 			"uri":    "https://example.invalid/runner.tar.gz",
-			"sha256": checksum, "min_protocol": "1", "status": "approved",
+			"sha256": checksum, "size_bytes": 1024,
+			"min_protocol": "1", "status": "approved",
 		},
 	); err != nil {
 		t.Fatal(err)
@@ -365,7 +366,8 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 				"id": "runner-rpc", "project_id": fixture.project.ID,
 				"channel": "pilot", "version": "1", "os": "linux", "arch": "amd64",
 				"uri":    "https://example.invalid/runner.tar.gz",
-				"sha256": checksum, "min_protocol": "1", "status": "disabled",
+				"sha256": checksum, "size_bytes": 1024,
+				"min_protocol": "1", "status": "disabled",
 			},
 		},
 	} {
@@ -1911,6 +1913,12 @@ func TestRunnerRoleBoundaryAndFrozenBridgeRejectsTampering(t *testing.T) {
 		"goclaw-runtime-linux-v1",
 	) {
 		t.Fatalf("queue does not require the Linux runtime contract: %+v", queued.RequiredCapabilities)
+	}
+	if queued.ExecutionPack.ExecutionProfile != workstation.ExecutionProfileStrict {
+		t.Fatalf(
+			"default execution profile = %q",
+			queued.ExecutionPack.ExecutionProfile,
+		)
 	}
 	if queued.ExecutionPack.Metadata["wave_id"] != task.Wave.WaveID ||
 		queued.ExecutionPack.Metadata["wave_step"] != task.Wave.StepID ||

@@ -81,6 +81,7 @@ type CommandSpec struct {
 // Its canonical JSON is SHA-256 hashed when the task is enqueued.
 type ExecutionPack struct {
 	SchemaVersion     int               `json:"schema_version"`
+	ExecutionProfile  ExecutionProfile  `json:"execution_profile,omitempty"`
 	TaskID            string            `json:"task_id"`
 	TaskRevision      int               `json:"task_revision"`
 	ProjectID         string            `json:"project_id"`

@@ -41,6 +41,15 @@ func validateRootOwner(path string, info os.FileInfo) error {
 	return nil
 }
 
+func validatePrivateFilePermissions(path string, info os.FileInfo) error {
+	if info.Mode().Perm()&0o077 != 0 {
+		return errors.New(
+			"device_key_path must not be readable or writable by group or others",
+		)
+	}
+	return nil
+}
+
 func validateTrustedPathChain(path string, leafMustBelongToRunner bool) error {
 	absolute, err := filepath.Abs(path)
 	if err != nil {

@@ -1318,6 +1318,7 @@ func (h *Handler) rpcEnqueueDevelopmentTask(
 		Priority            int      `json:"priority"`
 		Capabilities        []string `json:"capabilities"`
 		MaxAttempts         int      `json:"max_attempts"`
+		ExecutionProfile    string   `json:"execution_profile"`
 		ClientExecutionPack any      `json:"execution_pack"`
 	}
 	if err := decodeRPCParams(params, &request); err != nil {
@@ -1408,6 +1409,25 @@ func (h *Handler) rpcEnqueueDevelopmentTask(
 			policy.Hash,
 		)
 	}
+	executionProfile, err := workstation.NormalizeExecutionProfile(
+		request.ExecutionProfile,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateTeamExecutionProfile(policy, executionProfile); err != nil {
+		return nil, err
+	}
+	lifecyclePolicy, err := resolveRunnerLifecyclePolicy(policy)
+	if err != nil {
+		return nil, err
+	}
+	if lifecyclePolicy.Paused {
+		return nil, fmt.Errorf(
+			"%w: project runner rollout is paused",
+			teamcontrol.ErrForbidden,
+		)
+	}
 	if err := h.validateDevelopmentWorkItemStates(userID, task); err != nil {
 		return nil, err
 	}
@@ -1418,6 +1438,13 @@ func (h *Handler) rpcEnqueueDevelopmentTask(
 	if err := validateDevelopmentExecutionPackWave(task, pack); err != nil {
 		return nil, err
 	}
+	pack.ExecutionProfile = executionProfile
+	if pack.Metadata == nil {
+		pack.Metadata = map[string]string{}
+	}
+	pack.Metadata["target_version"] = lifecyclePolicy.TargetVersion
+	pack.Metadata["target_release_id"] = lifecyclePolicy.TargetReleaseID
+	pack.Metadata["release_channel"] = lifecyclePolicy.ReleaseChannel
 	// A frozen task revision has exactly one workstation queue identity. Client
 	// supplied IDs or idempotency keys would allow the same immutable revision
 	// to be executed more than once under alternate names.
@@ -1428,17 +1455,42 @@ func (h *Handler) rpcEnqueueDevelopmentTask(
 		task.Compile.Revision,
 		task.Compile.ExecutionBundleHash,
 	)
+	requiredCapabilities := appendRequiredCapability(
+		request.Capabilities,
+		requiredExecutionProfileCapability(executionProfile),
+	)
+	if lifecyclePolicy.TargetVersion != "" {
+		capability, capabilityErr := workstation.RunnerVersionCapability(
+			lifecyclePolicy.TargetVersion,
+		)
+		if capabilityErr != nil {
+			return nil, capabilityErr
+		}
+		requiredCapabilities = appendRequiredCapability(
+			requiredCapabilities,
+			capability,
+		)
+	}
+	if lifecyclePolicy.TargetReleaseID != "" {
+		capability, capabilityErr := workstation.RunnerReleaseCapability(
+			lifecyclePolicy.TargetReleaseID,
+		)
+		if capabilityErr != nil {
+			return nil, capabilityErr
+		}
+		requiredCapabilities = appendRequiredCapability(
+			requiredCapabilities,
+			capability,
+		)
+	}
 	queued, err := h.runnerSvc.Enqueue(workstation.EnqueueRequest{
-		ID:             queueID,
-		IdempotencyKey: idempotencyKey,
-		ProjectID:      task.ProjectID,
-		Priority:       request.Priority,
-		RequiredCapabilities: appendRequiredCapability(
-			request.Capabilities,
-			"goclaw-runtime-linux-v1",
-		),
-		MaxAttempts:   request.MaxAttempts,
-		ExecutionPack: pack,
+		ID:                   queueID,
+		IdempotencyKey:       idempotencyKey,
+		ProjectID:            task.ProjectID,
+		Priority:             request.Priority,
+		RequiredCapabilities: requiredCapabilities,
+		MaxAttempts:          request.MaxAttempts,
+		ExecutionPack:        pack,
 	})
 	if err != nil {
 		return nil, err
@@ -1457,6 +1509,99 @@ func (h *Handler) rpcEnqueueDevelopmentTask(
 		return nil, err
 	}
 	return queued, nil
+}
+
+type runnerLifecyclePolicy struct {
+	TargetVersion   string
+	TargetReleaseID string
+	ReleaseChannel  string
+	Paused          bool
+}
+
+func resolveRunnerLifecyclePolicy(
+	policy teamcontrol.ResolvedPolicy,
+) (runnerLifecyclePolicy, error) {
+	var result runnerLifecyclePolicy
+	for key, target := range map[string]*string{
+		"runner.target_version":    &result.TargetVersion,
+		"runner.target_release_id": &result.TargetReleaseID,
+		"runner.release_channel":   &result.ReleaseChannel,
+	} {
+		raw, exists := policy.Rules[key]
+		if !exists {
+			continue
+		}
+		if err := json.Unmarshal(raw, target); err != nil ||
+			strings.TrimSpace(*target) == "" {
+			return runnerLifecyclePolicy{}, fmt.Errorf(
+				"resolved policy %s must be a non-empty string",
+				key,
+			)
+		}
+		*target = strings.TrimSpace(*target)
+	}
+	if raw, exists := policy.Rules["runner.rollout_paused"]; exists {
+		if err := json.Unmarshal(raw, &result.Paused); err != nil {
+			return runnerLifecyclePolicy{}, errors.New(
+				"resolved policy runner.rollout_paused must be boolean",
+			)
+		}
+	}
+	return result, nil
+}
+
+func requiredExecutionProfileCapability(
+	profile workstation.ExecutionProfile,
+) string {
+	if profile == workstation.ExecutionProfileCodexDelegated {
+		return workstation.RunnerCodexDelegatedCapability
+	}
+	return workstation.RunnerLinuxCapability
+}
+
+func validateTeamExecutionProfile(
+	policy teamcontrol.ResolvedPolicy,
+	profile workstation.ExecutionProfile,
+) error {
+	raw, configured := policy.Rules["runner.execution_profiles"]
+	if !configured {
+		if profile == workstation.ExecutionProfileStrict {
+			return nil
+		}
+		return fmt.Errorf(
+			"%w: project policy does not allow runner execution profile %q",
+			teamcontrol.ErrForbidden,
+			profile,
+		)
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return fmt.Errorf(
+			"resolved policy runner.execution_profiles must be a string array",
+		)
+	}
+	if len(values) == 0 {
+		return fmt.Errorf(
+			"%w: project policy allows no runner execution profiles",
+			teamcontrol.ErrForbidden,
+		)
+	}
+	for _, value := range values {
+		allowed, err := workstation.NormalizeExecutionProfile(value)
+		if err != nil {
+			return fmt.Errorf(
+				"resolved policy contains an unsupported runner execution profile",
+			)
+		}
+		if allowed == profile {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"%w: project policy does not allow runner execution profile %q",
+		teamcontrol.ErrForbidden,
+		profile,
+	)
 }
 
 func (h *Handler) validateDevelopmentTraceability(

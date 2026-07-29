@@ -49,13 +49,13 @@ func TestDetectRunnerRuntimeSupportMatrix(t *testing.T) {
 		{
 			name:      "native windows is control only",
 			goos:      "windows",
-			substrate: "unsupported-host",
+			substrate: "native-windows",
 			supported: false,
 		},
 		{
 			name:      "native macos is control only",
 			goos:      "darwin",
-			substrate: "unsupported-host",
+			substrate: "native-darwin",
 			supported: false,
 		},
 	}

@@ -67,21 +67,34 @@ ChatGPT Workspace、飞书租户、Obsidian Desktop 和灾备介质仍必须在�
 - Workstation Runner：
   - 每台电脑独立注册 Runner，使用个人 Token 做控制面认证，并生成独立 `0600` device key。
   - 本地 Codex CLI 使用该电脑自己的 ChatGPT/Codex OAuth；控制面不接收 OAuth 文件。
-  - 试点执行合同统一为原生 Linux、WSL2 或 Lima Linux guest；原生 Windows/macOS 仅提供控制 CLI。
-  - `runner doctor` 失败关闭检查 Linux substrate、架构、guest-local 路径、Git 配置、`codex login status`、device key、`CODEX_HOME`、root-owned wrapper 和实际无网络 bwrap 启动。
-  - 持久化排队任务、原子 claim、attempt、lease、heartbeat、幂等 complete/fail 与过期恢复。
+  - 默认 strict 合同使用原生 Linux、WSL2 或 Lima Linux guest；项目策略
+    显式允许的 codex-delegated 可在原生 Windows/macOS/Linux amd64/arm64
+    运行，但不宣称 GoClaw OS 级进程/网络隔离。
+  - `runner doctor` 按 profile 失败关闭检查平台、路径、Git 配置、
+    `codex login status`、device key、`CODEX_HOME` 和 credential canary；
+    strict 额外检查 root-owned wrapper 和实际无网络 bwrap，delegated 明确
+    输出 isolation warning。
+  - 持久化排队任务、带一分钟 priority aging 的无饥饿 claim、attempt、
+    lease、heartbeat、幂等 complete/fail 与过期恢复。
   - `runner.cancel` 以持久 receipt 幂等取消 queued/failed 任务；leased、completed、cancelled 均拒绝。Task assignee 或项目管理者可取消，其他 developer 不可操作。
   - 同一 Runner 最多一个活动 lease；空闲时可通过 CLI/RPC 原子轮换 device key。
   - `goclaw runner update` 可由 owner 修改显示名，或在无活动 lease 时整体替换项目/能力并 disable/enable；Team 模式禁止 wildcard project 并逐项目校验 `work_item.write`。
   - Claim 强制 ExecutionPack 的非空 `assignee_id` 与 Runner owner 一致；空 assignee 的底层任务才允许任意项目/capability 匹配者领取。
   - secret-free ExecutionPack 固定项目、仓库、任务 revision、Issue/WorkItem、base commit、策略哈希、路径和验证 argv。
-  - `dev.task.enqueue` 只从服务器端冻结任务构造 ExecutionPack；queue ID 和幂等键由 revision + execution bundle 在服务器派生，客户端无入队幂等参数；每个 WorkItem 必须恰有一个 active owner 且等于 task assignee，并校验 team/project/repository、base commit 和策略漂移，拒绝客户端伪造执行包。
+  - `dev.task.enqueue` 只从服务器端冻结任务构造 ExecutionPack；profile 缺省
+    strict，delegated 必须由 resolved `runner.execution_profiles` 显式允许并
+    匹配 Runner capability；queue ID 和幂等键由 revision + execution bundle
+    在服务器派生，拒绝客户端伪造执行包。
   - revision/attempt 隔离 worktree、本地 Codex 执行；先跑完全部冻结验证，再从最终工作树收集 diff、范围和 no-commit 结果，最后生成 HMAC-SHA256 EvidenceBundle。
   - Codex、内部 Git 和 verifier wrapper 都从最小环境白名单启动；Codex 主进程通过 `CODEX_HOME` 使用本机订阅 OAuth，模型命令使用 named permission profile 对该目录 `deny`，并在模型调用前运行 read-deny canary。
   - GoClaw Token、SSH agent、Git askpass、Docker/Kubernetes 和云凭据路径等宿主能力变量永久剥离，显式 `--allow-env` 不能覆盖；allowlist 只交给 Codex，不进入内部 Git 或冻结 verifier。
   - `runner work` 默认失败关闭：必须提供绝对、受审且不可由 Runner 用户篡改的 `--verification-sandbox`，或仅在 Runner 整体已位于一次性隔离 VM/容器时显式使用互斥的 `--unsafe-host-verification`。Linux 包附带 bubblewrap wrapper，断网并遮蔽 host home/run/tmp，只让 worktree 与临时 HOME 可写。
   - 完成证据自动导入 Orchestrator Lite，重新校验 revision/bundle/base/head/diff/路径/冻结检查，重算范围与独立审查并运行 DoneGate；最终 `dev.task.accept` 再防漂移验收并关闭当前 WorkItem，共享 Issue 仅在所有 Task/WorkItem 都为 `done` 后 resolve。
-  - 检测并拒绝 Codex 自动 commit；Runner 不 push、建 PR、等 CI、merge 或 release。
+  - 本地 release manager 对 approved Team Control 记录做
+    ID/version/OS/arch/protocol/size/SHA 全匹配，提供 stage、原子 activate、
+    health confirm 与只回到已确认版本的 rollback；不自动 fetch URI、覆盖
+    运行中 binary 或重启服务。
+  - 检测并拒绝 Codex 自动 commit；Runner 不 push、建 PR、等 CI 或 merge。
 - Better Harness：
   - 不可变版本和原子活动指针。
   - 隔离 Candidate 与 Change Manifest。
@@ -216,10 +229,16 @@ ChatGPT Workspace、飞书租户、Obsidian Desktop 和灾备介质仍必须在�
 - 当前任务级互斥和幂等收敛不构成跨 TeamControl、Workstation、Orchestrator Lite 的数据库事务；必须维持单中央写者并对三类状态做一致性备份。
 - Workstation 已有持久任务、Runner、lease/heartbeat 和过期恢复，但 Orchestrator Lite 仍是单实例控制面；这不是分布式调度共识。
 - 没有 GitHub/GitLab/Jira 双向同步。外部 commit/PR 的本地内容校验与关联登记已实现，但不会 fetch/push、创建/批准/merge PR、读取远端 PR/CI 状态或回写外部对象。
-- Runner 不自动 commit、push、创建 Pull Request、等待 CI、执行 merge、发布或回滚；自动 commit 会被证据门拒绝。
+- Runner 不自动 commit、push、创建 Pull Request、等待 CI 或执行 merge；
+  release 生命周期只管理 operator 提供的本地 artifact 与选择状态，不自动
+  下载、重启或进行平台签名。
 - 冻结开发任务的 assignee 会约束 Runner owner；`business_domain` 和容量仍不参与自动排程优化，只用于计划、校验与看板。
-- Runner 的 frozen verifier 必须经 `--verification-sandbox` wrapper 执行；Linux 基线 bubblewrap wrapper 禁网、遮蔽 host home/run/tmp 并限制可写面。`--unsafe-host-verification` 只适合 Runner 本身已在一次性隔离 VM/容器中；当前没有系统强制的 microVM 网络隔离。
-- 当前构建与确定性测试不能证明目标真机的 bwrap、WSL2 或 Lima 配置；
+- Strict 的 frozen verifier 必须经 `--verification-sandbox` wrapper 执行；
+  Linux bwrap 基线禁网并限制可写面。`--unsafe-host-verification` 只适合外层
+  一次性隔离。codex-delegated 不提供 GoClaw OS 级网络/进程隔离，只能由
+  项目显式接受。
+- 当前交叉构建与确定性测试不能证明目标真机的 bwrap、WSL2、Lima、
+  Windows ACL/process-tree cancel、macOS permissions 或真实 Codex CLI；
   每一种实际 substrate 都必须用同参数 Doctor 和受控任务补现场证据。
 - Runner device key 是控制面和工作站共享的 HMAC 秘密，不是 TPM attestation、公钥设备证书或不可抵赖签名；中央凭据泄露者可以伪造相应 Runner 证据。
 - Catalog 的多语种神经语义检索；当前使用本地字段加权词法检索，builtin 另有无 Key 哈希嵌入，QMD 可作为可选内容发现索引。

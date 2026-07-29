@@ -10,7 +10,7 @@
 | Token Budget | 项目/成员、hard limit、累计 usage、幂等 event | ChatGPT/Codex OAuth、provider token |
 | Knowledge Source | 安全 URI、revision、SHA-256、批准状态、typed metadata | Vault 正文、同步凭据 |
 | Skill Release | URI、version、SHA-256、兼容版本、批准状态 | 执行时 secret |
-| Runner Release | channel、平台、版本、URI、SHA-256、最小协议 | 下载后的 binary、签名私钥 |
+| Runner Release | channel、平台、版本、URI、size、SHA-256、最小协议 | 下载后的 binary、签名私钥 |
 | Context Bundle | policy、budget snapshot、批准资源引用、canonical hash | OAuth、device key、知识正文 |
 
 Context Bundle 使用 `goclaw-context/v1` 编译器。相同输入得到相同 ID/hash；
@@ -124,6 +124,7 @@ Runner Release 完整输入：
   "arch": "arm64",
   "uri": "https://downloads.example.invalid/goclaw-runner-0.8.1-darwin-arm64.tar.gz",
   "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "size_bytes": 48234496,
   "min_protocol": "1",
   "status": "draft"
 }
@@ -211,6 +212,7 @@ Gateway 有意不返回 `metadata`：
   "arch": "arm64",
   "uri": "https://downloads.example.invalid/goclaw-runner-0.8.1-darwin-arm64.tar.gz",
   "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "size_bytes": 48234496,
   "min_protocol": "1",
   "status": "approved",
   "created_by": "alice",

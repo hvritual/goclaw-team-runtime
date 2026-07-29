@@ -553,6 +553,7 @@ type RunnerRelease struct {
 	Arch        string         `json:"arch"`
 	URI         string         `json:"uri"`
 	SHA256      string         `json:"sha256"`
+	SizeBytes   int64          `json:"size_bytes,omitempty"`
 	MinProtocol string         `json:"min_protocol"`
 	Status      RegistryStatus `json:"status"`
 	CreatedBy   string         `json:"created_by"`

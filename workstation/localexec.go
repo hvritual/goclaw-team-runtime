@@ -20,6 +20,7 @@ const codexRunnerPermissionProfile = "goclaw-runner"
 
 type LocalExecConfig struct {
 	RunnerID               string            `mapstructure:"runner_id" json:"runner_id" yaml:"runner_id"`
+	ExecutionProfile       ExecutionProfile  `mapstructure:"execution_profile" json:"execution_profile,omitempty" yaml:"execution_profile,omitempty"`
 	DeviceKeyPath          string            `mapstructure:"device_key_path" json:"device_key_path" yaml:"device_key_path"`
 	WorkRoot               string            `mapstructure:"work_root" json:"work_root" yaml:"work_root"`
 	RepositoryPaths        map[string]string `mapstructure:"repository_paths" json:"repository_paths" yaml:"repository_paths"`
@@ -45,7 +46,12 @@ type LocalExecutor struct {
 
 func NewLocalExecutor(cfg LocalExecConfig) (*LocalExecutor, error) {
 	runtimeInfo := CurrentRunnerRuntime()
-	if err := ValidateRunnerExecutionRuntime(runtimeInfo); err != nil {
+	profile, err := NormalizeExecutionProfile(string(cfg.ExecutionProfile))
+	if err != nil {
+		return nil, err
+	}
+	cfg.ExecutionProfile = profile
+	if err := ValidateRunnerExecutionProfile(runtimeInfo, profile); err != nil {
 		return nil, err
 	}
 	cfg.RunnerID = strings.TrimSpace(cfg.RunnerID)
@@ -59,7 +65,12 @@ func NewLocalExecutor(cfg LocalExecConfig) (*LocalExecutor, error) {
 	if err != nil {
 		return nil, err
 	}
-	gitCommand, err := findRunnerCommand("git")
+	var gitCommand string
+	if profile == ExecutionProfileCodexDelegated {
+		gitCommand, err = resolveConfiguredCommand("git")
+	} else {
+		gitCommand, err = findRunnerCommand("git")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +148,20 @@ func NewLocalExecutor(cfg LocalExecConfig) (*LocalExecutor, error) {
 			"verification_sandbox and unsafe_host_verification are mutually exclusive",
 		)
 	}
+	if profile == ExecutionProfileCodexDelegated &&
+		(len(cfg.VerificationSandbox) > 0 || cfg.UnsafeHostVerification) {
+		return nil, errors.New(
+			"codex-delegated profile cannot be combined with strict verification isolation flags",
+		)
+	}
 	if len(cfg.VerificationSandbox) > 0 {
 		sandboxExecutable := cfg.VerificationSandbox[0]
 		if err := validateSandboxExecutable(sandboxExecutable); err != nil {
 			return nil, err
 		}
 	}
-	if len(cfg.VerificationSandbox) == 0 && !cfg.UnsafeHostVerification {
+	if profile == ExecutionProfileStrict &&
+		len(cfg.VerificationSandbox) == 0 && !cfg.UnsafeHostVerification {
 		return nil, errors.New(
 			"verification_sandbox is required; use the bundled bwrap wrapper or explicitly opt into unsafe_host_verification only inside an already isolated VM/container",
 		)
@@ -156,7 +174,7 @@ func NewLocalExecutor(cfg LocalExecConfig) (*LocalExecutor, error) {
 		strings.ContainsRune(cfg.CodexCommand, filepath.Separator) {
 		return nil, fmt.Errorf("codex_command: %w", resolveErr)
 	}
-	runtimeMetadata := RunnerRegistrationMetadata()
+	runtimeMetadata := RunnerRegistrationMetadataForProfile(profile)
 	if len(cfg.VerificationSandbox) > 0 {
 		runtimeMetadata, err = RunnerRegistrationMetadataForSandbox(
 			cfg.VerificationSandbox[0],
@@ -164,7 +182,11 @@ func NewLocalExecutor(cfg LocalExecConfig) (*LocalExecutor, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
+		runtimeMetadata["execution_profile"] = string(profile)
+		runtimeMetadata["directory_boundary"] = "goclaw-worktree-v1"
+		runtimeMetadata["network_isolation"] = "required"
+		runtimeMetadata["security_posture"] = "strict"
+	} else if profile == ExecutionProfileStrict {
 		runtimeMetadata["isolation_backend"] = "external-vm"
 	}
 	codexHome, err := resolveLocalCodexHome()
@@ -223,6 +245,7 @@ func (e *LocalExecutor) ExecuteClaim(ctx context.Context, claim ClaimResult) (Ev
 			"harness_version":    task.ExecutionPack.HarnessVersion,
 			"policy_bundle_hash": task.ExecutionPack.PolicyBundleHash,
 			"runtime_contract":   e.runtime.Contract,
+			"execution_profile":  string(e.cfg.ExecutionProfile),
 			"runner_goos":        e.runtime.OS,
 			"runner_goarch":      e.runtime.Arch,
 			"host_profile":       e.runtime.Substrate,
@@ -259,6 +282,15 @@ func (e *LocalExecutor) ExecuteClaim(ctx context.Context, claim ClaimResult) (Ev
 	}
 	if packHash != task.ExecutionPackSHA256 {
 		return failSetup("execution pack SHA-256 mismatch")
+	}
+	taskProfile, err := NormalizeExecutionProfile(
+		string(task.ExecutionPack.ExecutionProfile),
+	)
+	if err != nil {
+		return failSetup(err.Error())
+	}
+	if taskProfile != e.cfg.ExecutionProfile {
+		return failSetup("execution pack profile does not match runner profile")
 	}
 	repository, ok := e.cfg.RepositoryPaths[task.ExecutionPack.RepositoryID]
 	if !ok {
@@ -545,7 +577,7 @@ func (e *LocalExecutor) runCodex(
 		"TMPDIR=" + tempDir,
 		"TMP=" + tempDir,
 		"TEMP=" + tempDir,
-		"PATH=" + runnerSafePath,
+		"PATH=" + e.executionPath(),
 		"GIT_TERMINAL_PROMPT=0",
 	}
 	if err := e.verifyCodexCredentialIsolation(
@@ -593,18 +625,24 @@ func (e *LocalExecutor) verifyCodexCredentialIsolation(
 ) error {
 	args := []string{"--strict-config"}
 	args = append(args, codexPermissionProfileArgs(e.codexHome)...)
-	args = append(
-		args,
-		"sandbox", "linux",
-		"--permissions-profile", codexRunnerPermissionProfile,
-		"--",
-		"/bin/sh", "-c",
-		`if command ls -la -- "$1" >/dev/null 2>&1; then exit 97; fi
-if command head -c 1 -- "$1/auth.json" >/dev/null 2>&1; then exit 98; fi
-exit 0`,
-		"goclaw-codex-home-canary",
+	sandboxOS := "linux"
+	if e.cfg.ExecutionProfile == ExecutionProfileCodexDelegated {
+		sandboxOS = codexSandboxTarget(
+			valueOr(e.runtime.OS, CurrentRunnerRuntime().OS),
+		)
+	}
+	canaryCommand, canaryArgs := codexCredentialCanaryCommand(
+		sandboxOS,
 		e.codexHome,
 	)
+	args = append(
+		args,
+		"sandbox", sandboxOS,
+		"--permissions-profile", codexRunnerPermissionProfile,
+		"--",
+		canaryCommand,
+	)
+	args = append(args, canaryArgs...)
 	result, err := e.command(
 		ctx,
 		worktree,
@@ -643,7 +681,7 @@ func (e *LocalExecutor) git(
 		nil,
 		[]string{
 			"HOME=/nonexistent",
-			"PATH=" + runnerSafePath,
+			"PATH=" + e.executionPath(),
 			"GIT_CONFIG_NOSYSTEM=1",
 			"GIT_CONFIG_GLOBAL=/dev/null",
 			"GIT_ATTR_NOSYSTEM=1",
@@ -729,7 +767,7 @@ func (e *LocalExecutor) verificationCommand(
 			"TMPDIR=" + tempDir,
 			"TMP=" + tempDir,
 			"TEMP=" + tempDir,
-			"PATH=" + runnerSafePath,
+			"PATH=" + e.executionPath(),
 			"GIT_TERMINAL_PROMPT=0",
 		},
 		commandName,
@@ -751,7 +789,7 @@ func (e *LocalExecutor) commandWithAllowedEnvironment(
 	)
 	defer cancel()
 	started := time.Now()
-	resolvedName, err := resolveLocalCommand(directory, name)
+	resolvedName, err := e.resolveCommand(directory, name)
 	if err != nil {
 		return localCommandResult{ExitCode: -1}, err
 	}
@@ -791,6 +829,53 @@ func (e *LocalExecutor) commandWithAllowedEnvironment(
 		return result, context.DeadlineExceeded
 	}
 	return result, err
+}
+
+func (e *LocalExecutor) executionPath() string {
+	if e.cfg.ExecutionProfile == ExecutionProfileCodexDelegated {
+		return os.Getenv("PATH")
+	}
+	return runnerSafePath
+}
+
+func (e *LocalExecutor) resolveCommand(directory, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if e.cfg.ExecutionProfile != ExecutionProfileCodexDelegated ||
+		filepath.IsAbs(name) ||
+		strings.ContainsRune(name, filepath.Separator) {
+		return resolveLocalCommand(directory, name)
+	}
+	return resolveConfiguredCommand(name)
+}
+
+func codexCredentialCanaryCommand(
+	targetOS, codexHome string,
+) (string, []string) {
+	if targetOS == "windows" {
+		return "powershell.exe", []string{
+			"-NoLogo",
+			"-NoProfile",
+			"-NonInteractive",
+			"-Command",
+			`$ErrorActionPreference='Stop'; try { Get-ChildItem -LiteralPath $args[0] -Force | Out-Null; exit 97 } catch { exit 0 }`,
+			codexHome,
+		}
+	}
+	return "/bin/sh", []string{
+		"-c",
+		`if command ls -la -- "$1" >/dev/null 2>&1; then exit 97; fi
+if command head -c 1 -- "$1/auth.json" >/dev/null 2>&1; then exit 98; fi
+exit 0`,
+		"goclaw-codex-home-canary",
+		codexHome,
+	}
+}
+
+func codexSandboxTarget(goos string) string {
+	if strings.EqualFold(strings.TrimSpace(goos), "darwin") {
+		return "macos"
+	}
+	return strings.ToLower(strings.TrimSpace(goos))
 }
 
 func localEnvironmentOverrides(

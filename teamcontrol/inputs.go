@@ -204,6 +204,7 @@ type PutRunnerReleaseInput struct {
 	Arch        string
 	URI         string
 	SHA256      string
+	SizeBytes   int64
 	MinProtocol string
 	Status      RegistryStatus
 }

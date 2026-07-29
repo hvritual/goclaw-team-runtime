@@ -26,19 +26,24 @@ Runner 不接收 Codex OAuth，也不会把它上传到中央服务。ExecutionP
 
 ## 2. 跨平台支持边界
 
-试点统一使用 `goclaw.runner/linux-v1` 执行契约，而不是维护三套不等价的
-宿主沙箱：
+Runner 不把三种宿主描述成同等级沙箱，而是使用显式 profile：
 
-| 成员电脑 | 控制 CLI | `runner work` | 试点执行方式 |
+| 成员电脑 | `strict` | `codex-delegated` | 建议 |
 |---|---|---|---|
-| Linux amd64/arm64 | 支持 | 支持 | 本机专用用户 + bwrap |
-| Windows | 支持交叉构建 | 原生拒绝 | 专用 WSL2 发行版内运行 Linux Runner |
-| macOS Intel/Apple Silicon | 支持交叉构建 | 原生拒绝 | 专用 Lima Linux guest 内运行 |
+| Linux amd64/arm64 | 支持 | 支持 | 高保证任务选 strict + bwrap |
+| Windows amd64/arm64 | 原生拒绝；WSL2 guest 支持 | 原生支持 | 高风险任务用 strict WSL2 |
+| macOS Intel/Apple Silicon | 原生拒绝；Lima guest 支持 | 原生支持 | 高风险任务用 strict Lima |
 
-Windows/macOS 二进制只用于控制面命令。它们不会声明
-`goclaw-runtime-linux-v1` capability，调用 `runner work` 会失败关闭。本版本
-不声称实现原生 Windows ACL/Job Object/Sandbox 或原生 macOS
-Seatbelt/Virtualization.framework 隔离。
+`strict` 是缺省值并保留 `goclaw.runner/linux-v1` 合同、受审 verifier
+wrapper、固定 PATH、credential read-deny canary 和网络关闭。缺少边界时
+失败关闭。
+
+`codex-delegated` 是显式降级：GoClaw 仍执行 canonical repository/work
+root、独立 worktree、allowed/denied path、Git 安全审计、最小环境、Codex
+named permission canary、最终 diff/symlink/no-commit 拒绝和 Windows
+进程树取消，但不提供 GoClaw 自身的 OS 进程/网络沙箱。它必须同时满足
+Team Control 项目 policy allow 与 Runner 明确 capability，不能由错误或
+缺失参数触发。不信任的仓库或高权限机器不得使用该 profile。
 
 WSL2 必须关闭 interop、Windows PATH 和 automount，并把全部运行文件放在
 发行版虚拟磁盘；`/mnt/*`、drvfs 和 9p 被拒。Lima 必须关闭 host mount，
@@ -191,6 +196,7 @@ goclaw runner register \
   --project project-alpha \
   --capability codex \
   --capability go \
+  --execution-profile strict \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh
 ```
 
@@ -201,7 +207,8 @@ goclaw runner register \
 - Runner 只允许声明该用户有权访问的项目。
 - 控制面登记 Runner 的 owner、项目、capability 和 key ID。
 - Linux CLI 自动追加版本化 capability `goclaw-runtime-linux-v1`、架构和
-  substrate capability；客户端不能用参数伪装成另一种 `GOOS`。
+  substrate capability；strict/delegated 还分别追加稳定的 profile
+  capability，客户端不能用参数伪装成另一种 `GOOS`。
 - `--verification-sandbox` 记录 `runner_goos`、`runner_goarch`、
   `host_profile`、`isolation_backend=bwrap` 和 wrapper 的
   `sandbox_sha256`。三人试点的 `pilot check` 会验证这些 metadata。
@@ -219,6 +226,7 @@ goclaw runner register \
   --project project-alpha \
   --capability codex \
   --capability go \
+  --execution-profile strict \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh \
   --reuse-key
 ```
@@ -267,13 +275,17 @@ goclaw runner doctor \
   --work-root /home/alice/.local/share/goclaw/workstation-work \
   --repo repo-api=/home/alice/src/alpha-api \
   --codex-command /usr/local/bin/codex \
+  --execution-profile strict \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh \
   --json
 ```
 
-JSON 的 `ready` 必须为 `true`。Doctor 检查：
+原生 Windows/macOS 的 delegated doctor 使用
+`--execution-profile codex-delegated`，并且不传两个 verifier isolation
+参数。JSON 的 `ready` 必须为 `true`；delegated 的
+`verification-isolation` 固定为 `warn`，明确记录其降级姿态。Doctor 检查：
 
-- GOOS/GOARCH、native Linux/WSL2/Lima profile 和版本化 runtime contract；
+- GOOS/GOARCH、选定 execution profile、substrate 和版本化 runtime contract；
 - WSL interop、Windows PATH、`/mnt/*` 与 Linux guest 共享挂载；
 - Git、Codex、`codex login status`、该成员的 `CODEX_HOME`、device key 和 work root；
 - 每个仓库是否为 guest-local Git worktree，以及 local Git config 是否包含
@@ -297,6 +309,7 @@ goclaw runner work \
   --repo repo-api=/home/alice/src/alpha-api \
   --project project-alpha \
   --codex-command /usr/local/bin/codex \
+  --execution-profile strict \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh \
   --heartbeat 30s \
   --poll 5s
@@ -313,10 +326,15 @@ goclaw runner work \
   --repo repo-web=/home/alice/src/alpha-web \
   --project project-alpha \
   --codex-command /usr/local/bin/codex \
+  --execution-profile strict \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh
 ```
 
-`runner work` 没有 `--capability` 参数；capability 在 `runner register` 时声明。启动默认失败关闭：必须选择 `--verification-sandbox`，或在整个 Runner 已位于一次性隔离 VM/容器时显式选择 `--unsafe-host-verification`；两者互斥。后者不是普通开发机或 Production 宿主的便利开关。
+`runner work` 没有 `--capability` 参数；capability 在 `runner register` 时声明。
+注册、doctor 和 work 的 profile 必须一致。strict 启动默认失败关闭：必须
+选择 `--verification-sandbox`，或在整个 Runner 已位于一次性隔离 VM/容器
+时显式选择 `--unsafe-host-verification`；两者互斥。delegated 不接受这两个
+参数，避免制造“已经隔离”的错误印象。
 
 可选参数：
 
@@ -324,6 +342,7 @@ goclaw runner work \
 |---|---:|---|
 | `--codex-command` | `codex` | 本地 Codex CLI；systemd 模板使用预先解析的绝对路径 |
 | `--codex-model` | `default` | 使用本地账号默认订阅模型 |
+| `--execution-profile` | `strict` | `strict` 或显式降级的 `codex-delegated` |
 | `--allow-env` | 空 | 仅向 Codex 显式放行确有必要且不属于宿主能力边界的敏感变量，可重复 |
 | `--verification-sandbox` | 必选之一 | 绝对 verifier wrapper argv 前缀；Runner 追加 `WORKTREE SANDBOX_HOME -- COMMAND...` |
 | `--unsafe-host-verification` | false | 仅在一次性隔离 VM/容器内显式允许 verifier 直跑；与 `--verification-sandbox` 互斥 |
@@ -333,7 +352,16 @@ goclaw runner work \
 | `--once` | false | 最多处理一个任务；空队列时立即返回 |
 | `--project` | 必填 | 领取的项目队列 |
 
-Codex、内部 Git 和 wrapper 启动都从固定安全 PATH 和最小环境白名单构造，不再继承完整宿主环境。Codex 与 verifier 每次 run 都使用隔离的 HOME/XDG/TMP；Codex 主进程通过 `CODEX_HOME` 使用该成员已有的本机订阅 OAuth，模型命令的 named permission profile 对真实目录设置 `deny`，并在模型调用前运行不访问模型的 read-deny canary。profile 或 OS sandbox 不支持时任务失败关闭。上下文取消、超时或 lease 心跳失败会杀死整个 Unix 进程组，不只杀直接子进程。`GOCLAW_USER_TOKEN`、`GOCLAW_GATEWAY_TOKEN`、`GOCLAW_REVIEWER_TOKEN`、`GOCLAW_RUNNER_*`、`CODEX_ACCESS_TOKEN`、`CODEX_REFRESH_TOKEN`、`GOSKILLS_GATEWAY_*`，以及 SSH agent/Git askpass、Docker socket/context、Kubernetes config、Google/AWS/Azure/Cloud SDK 凭据路径、Kerberos cache 和 Vault 宿主能力变量始终剥离；即使写进 `--allow-env` 也不能放行。其他包含 `TOKEN`、`SECRET`、`PASSWORD`、`PASSWD`、`CREDENTIAL`、`PRIVATE_KEY`、`API_KEY` 或 `AUTH` 的变量默认剥离，确有必要时才可用 `--allow-env NAME` 只交给 Codex。allowlist 永不进入内部 Git 或冻结 verifier。
+Strict 的 Codex、内部 Git 和 wrapper 使用固定安全 PATH；delegated 为了支持
+本机工具链使用宿主 PATH，但每个解析后的 executable 必须是普通文件，Windows
+还会检查 ACL。两个 profile 都从最小环境白名单启动，使用隔离
+HOME/XDG/TMP；Codex 主进程通过 `CODEX_HOME` 使用该成员已有的本机订阅
+OAuth，模型命令的 named permission profile 对真实目录设置 `deny`，并在
+调用前运行对应 OS 的 read-deny canary。上下文取消、超时或 lease 心跳失败
+会终止 Unix 进程组或 Windows 进程树。控制面 Token、Runner/Codex Token、
+SSH agent/Git askpass、Docker、Kubernetes、云凭据、Kerberos 和 Vault
+宿主能力变量始终剥离；`--allow-env` 不能放行。allowlist 永不进入内部 Git
+或冻结 verifier。
 
 ## 10. Claim、lease 与 heartbeat
 
@@ -368,10 +396,22 @@ goclaw dev enqueue TASK_ID \
   --priority 10 \
   --capability codex \
   --capability go \
+  --execution-profile strict \
   --max-attempts 3
 ```
 
-`dev.task.enqueue` 会在服务器端重新读取冻结任务，检查 team/project/repository、活动 assignee、Issue/WorkItem、WorkItem 状态、base commit 和当前 PolicyBundle hash，然后构造可信 ExecutionPack。每个 WorkItem 必须恰有一个 active owner Assignment，且 owner 必须等于冻结任务 assignee。客户端提供的 `execution_pack` 不会被信任。
+`dev.task.enqueue` 会在服务器端重新读取冻结任务，检查
+team/project/repository、活动 assignee、Issue/WorkItem、WorkItem 状态、
+base commit 和当前 PolicyBundle hash，然后构造可信 ExecutionPack。每个
+WorkItem 必须恰有一个 active owner Assignment，且 owner 必须等于冻结任务
+assignee。客户端提供的 `execution_pack` 不会被信任。缺少
+`runner.execution_profiles` policy 时只有 strict 可入队；delegated 要求
+resolved policy 显式列出 `codex-delegated`，Gateway 还会追加对应 required
+capability。可选的 `runner.target_version`、`runner.target_release_id` 会
+同样转成 required capability，未达到目标的 Runner 不会领取；
+`runner.rollout_paused=true` 同时阻止新 enqueue 与新 claim。工作循环心跳
+只上报非秘密的当前 version/release/profile，项目列表据此显示 rollout
+状态。
 
 冻结 revision 的队列 ID 由服务器固定为 `<DEV_TASK_ID>-r<REVISION>`，幂等键由服务器按开发任务 ID、revision 和 execution bundle hash 派生；`goclaw dev enqueue` 不提供客户端 `--idempotency-key`。客户端不能通过换 ID 或 key 把同一不可变 revision 重复入队。入队会把 WorkItem 迁移到执行状态，登记 Task，并连接 WorkItem、Issue 与 Repository。冻结开发任务会把 `assignee_id` 放进 ExecutionPack，Claim 强制 Runner owner 与其一致；只有绕过 `dev.task.enqueue` 创建的无 assignee 底层任务，才可能由任意项目/capability 匹配 Runner 领取。业务域和容量仍不参与自动排程优化。
 
@@ -410,7 +450,9 @@ goclaw dev repair "$TASK_ID" \
 11. 对最终工作树执行 allowed/denied path、scope policy 和 no-automatic-commit 检查。
 12. 生成并用 device key 签名 EvidenceBundle。
 
-证据包含 task/project/lease/attempt、执行包哈希、base/head、分支、diff、检查结果、Artifact、Trace ID、Harness 版本、策略哈希和实际 `runner_goos`/`runner_goarch`/`host_profile`。
+证据包含 task/project/lease/attempt、执行包哈希、base/head、分支、diff、
+检查结果、Artifact、Trace ID、Harness 版本、策略哈希、冻结
+`execution_profile` 和实际 `runner_goos`/`runner_goarch`/`host_profile`。
 
 Runner 故意不做：
 
@@ -492,13 +534,55 @@ Windows 成员使用 [`../deploy/wsl2/README_CN.md`](../deploy/wsl2/README_CN.md
 脚本同时生成 linux/amd64 和 linux/arm64 Runner 包，并对 Windows/macOS
 控制 CLI 做交叉编译检查。
 
-升级顺序：
+### 13.1 受控本地 release 切换
 
-1. 停止 Runner，等待当前任务 complete/fail；必要时让 lease 超时恢复。
-2. 升级到与中央一致的 `0.8.0-pilot.1` 二进制。
-3. 保留个人 Token、device key、本地仓库和 Codex OAuth。
-4. 用 `--once` 做空队列或测试任务验收。
-5. 再恢复常驻循环。
+Team Control 先创建并批准 immutable Runner release；新记录必须包含正数
+`size_bytes`。Runner 不自动下载 `uri`，operator 用可信渠道把对应平台产物
+放到本机绝对路径，再执行：
+
+```bash
+goclaw runner release stage-from-control RELEASE_ID \
+  --project project-alpha \
+  --work-root /home/alice/.local/share/goclaw/workstation-work \
+  --artifact /absolute/staging/goclaw-runner
+```
+
+该命令从 Team Control 读取 approved release，并在写入前后核对
+ID、version、OS、arch、release protocol `1`、size 和 SHA-256。legacy
+零大小记录只能读取，不能 stage。URI 不会被 fetch，从而避免未实现完整
+SSRF/redirect/DNS policy 时产生隐式网络面。
+
+停止 Runner 并确认没有 active lease，然后原子选择新版本：
+
+```bash
+goclaw runner release activate RELEASE_ID \
+  --work-root /home/alice/.local/share/goclaw/workstation-work
+goclaw runner release status \
+  --work-root /home/alice/.local/share/goclaw/workstation-work
+goclaw runner release path \
+  --work-root /home/alice/.local/share/goclaw/workstation-work
+```
+
+service manager 应只启动 `release path` 返回且刚刚重新校验过的 binary。完成
+doctor 和 `--once` smoke 后，停止工作循环并确认健康：
+
+```bash
+goclaw runner release confirm RELEASE_ID \
+  --work-root /home/alice/.local/share/goclaw/workstation-work
+```
+
+smoke 失败时保持停止状态并回滚到前一个已确认版本：
+
+```bash
+goclaw runner release rollback \
+  --work-root /home/alice/.local/share/goclaw/workstation-work
+```
+
+运行中存在 `.runner-process.lock` 时，activate/confirm/rollback 全部拒绝。
+release mutation 也使用独占锁；staged 目录和状态用同文件系统
+temp + rename 原子发布。陈旧锁不会被自动猜测清理，必须由 operator 在确认
+没有 Runner/release 进程后处理。本 Wave 不负责 service 自动重启、远程下载、
+平台代码签名或 installer。
 
 ## 14. 验收清单
 
@@ -543,14 +627,18 @@ goclaw runner work \
 15. 完成证据自动进入 Orchestrator Lite 重验和 DoneGate；门通过后仍须具备 `project.manage + task_accept` 的操作者验收。当前 WorkItem 变为 done，共享 Issue 只在所有 Task/WorkItem 都 done 后 resolved。
 16. 取消其中一个共享 Issue 任务时，仅其 WorkItem 进入 cancelled，Issue 保持 open/verifying/blocked，必须重新安排或明确另行关闭。
 17. 应用 accepted patch 形成 commit/PR 后，`dev link-pr` 只在中央 `local_path` 可见 commit 时成功；篡改 patch、缺 trailer 或非 frozen-base 后代均被拒绝。URL 带凭据/query/fragment 会拒绝；成功只登记 URL，不代表远端 PR/head/status 已验证。
-18. Windows 原生和 macOS 原生 `runner work` 均失败；WSL2 打开 interop、
-    PATH 含 `/mnt/*`、repo/work root 位于共享挂载时 doctor 失败；Lima
-    virtiofs/9p/fuse host mount 同样失败。
+18. Windows/macOS 原生 strict 失败；delegated 只有 policy allow、Runner
+    capability 与任务 profile 同时匹配才可领取。Doctor 明确给出无 OS
+    process/network isolation 的 warning；Windows 的可写 ACL/reparse point
+    或 macOS 的不安全 owner/mode 会失败。
 19. local Git 配置包含 hook/filter/fsmonitor/include/credential/external
     diff/merge，或 frozen `.gitattributes` 启用相应 driver 时，在 checkout
     前失败。
 20. 超时、Ctrl-C 或 lease 心跳失败后，Codex/verifier 的孙进程也被清理；
     隔离 TMP 不回退到宿主 `/tmp`。
+21. release stage 拒绝 URI/相对路径、错误 size/hash/platform/arch/protocol
+    和非 approved 中央记录；运行中拒绝 activate。新版本未 confirm 时可以
+    回滚，但不能再次回到未确认版本。
 
 ## 15. 故障排查
 
@@ -591,13 +679,17 @@ chmod 600 /secure/goclaw/runner-dev-01.key
   试点流程比对的 metadata，不是远程硬件证明；绕过 CLI 的恶意 owner
   仍可能伪造。因此三人试点要求管理员核对 doctor 输出和同版 wrapper hash。
 - 没有 GitHub/GitLab/Jira 双向同步。
-- 没有自动 commit、push、PR、CI wait、merge 或 release。
+- 没有自动 commit、push、PR、CI wait、merge 或远程 release 下载；当前
+  release 功能只做经中央 identity pin 的本地 stage 和原子选择/回滚。
 - `dev link-pr` 已实现外部 commit 的本地校验与 PR URL 登记，但不执行 fetch、push、PR 创建/批准/merge，不调用 provider API，也不验证远端 PR head/内容/状态。
 - Codex 使用 worktree sandbox、最小环境和 run 隔离 HOME/XDG；Linux frozen verifier 额外进入无网络 bubblewrap wrapper。wrapper 不是整个 Runner 的 microVM，专用用户与最小挂载仍由部署者负责。
-- `--verification-sandbox` 是默认必需安全边界；`--unsafe-host-verification` 只允许已经处于一次性隔离 VM/容器的 Runner 显式使用，不能用于普通宿主。
-- 跨平台指统一 Linux substrate，不是原生三平台 Runner。Windows 依赖受控
-  WSL2，macOS 依赖无 host mount 的 Lima；两者的目标平台 smoke 仍需在
-  三名试点成员的真实设备上留证。
+- strict 的 `--verification-sandbox` 是默认必需安全边界；
+  `--unsafe-host-verification` 只允许已经处于一次性隔离 VM/容器的 Runner
+  显式使用。codex-delegated 是项目批准的降级 profile，不提供 GoClaw OS
+  级进程/网络隔离，不能用 Doctor warning 冒充 sandbox 证明。
+- 原生 Windows/macOS delegated 已通过交叉生产构建，但目标平台 ACL、
+  process-tree cancel、Codex permission CLI 和真实 OAuth smoke 仍必须在
+  试点设备补现场证据；高保证试点继续使用 WSL2/Lima strict。
 - Runner 不负责最终验收；签名证据证明来源和完整性，不自动证明方案正确。
 - 冻结任务的 assignee 会匹配 Runner owner，但 `business_domain` 和容量仍不参与自动排程优化；这些字段用于计划、校验与看板。
 - Team 模式无条件拒绝远程 `dev.task.run/repair/resume`；`development.gateway_allow_execution` 仅单用户模式有效。团队唯一执行路径是 `dev enqueue` + Workstation 持久队列。

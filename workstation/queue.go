@@ -12,6 +12,12 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	minTaskPriority       = -1000
+	maxTaskPriority       = 1000
+	claimPriorityAgingGap = time.Minute
+)
+
 func (s *Service) Enqueue(request EnqueueRequest) (Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -138,6 +144,7 @@ func (s *Service) Claim(request ClaimRequest) (ClaimResult, error) {
 		}
 	}
 	var selected *Task
+	claimAt := s.now()
 	for index := range tasks {
 		task := &tasks[index]
 		if task.Status != TaskQueued {
@@ -149,12 +156,16 @@ func (s *Service) Claim(request ClaimRequest) (ClaimResult, error) {
 		if !runnerAuthorized(runner, task.ProjectID, task.RequiredCapabilities) {
 			continue
 		}
+		if !runnerSupportsExecutionProfile(runner, task.ExecutionPack.ExecutionProfile) {
+			continue
+		}
 		if assigneeID := strings.TrimSpace(task.ExecutionPack.Metadata["assignee_id"]); assigneeID != "" &&
 			assigneeID != runner.OwnerUserID {
 			continue
 		}
-		selected = task
-		break
+		if selected == nil || claimTaskBefore(*task, *selected, claimAt) {
+			selected = task
+		}
 	}
 	if selected == nil {
 		return ClaimResult{}, ErrNoTaskAvailable
@@ -853,7 +864,19 @@ func (s *Service) normalizeEnqueueRequest(request EnqueueRequest) (EnqueueReques
 	if request.MaxAttempts < 0 {
 		return EnqueueRequest{}, "", errors.New("max_attempts cannot be negative")
 	}
+	if request.Priority < minTaskPriority || request.Priority > maxTaskPriority {
+		return EnqueueRequest{}, "", fmt.Errorf(
+			"priority must be between %d and %d",
+			minTaskPriority,
+			maxTaskPriority,
+		)
+	}
 	pack := request.ExecutionPack
+	profile, err := NormalizeExecutionProfile(string(pack.ExecutionProfile))
+	if err != nil {
+		return EnqueueRequest{}, "", err
+	}
+	pack.ExecutionProfile = profile
 	if pack.ProjectID != "" && pack.ProjectID != request.ProjectID {
 		return EnqueueRequest{}, "", errors.New("execution_pack.project_id does not match request")
 	}
@@ -899,6 +922,25 @@ func (s *Service) normalizeEnqueueRequest(request EnqueueRequest) (EnqueueReques
 	fingerprint.ExecutionPack.TaskID = ""
 	requestHash, err := hashJSON(fingerprint)
 	return request, requestHash, err
+}
+
+func claimTaskBefore(left, right Task, now time.Time) bool {
+	leftScore := int64(left.Priority) + claimWaitingAge(left, now)
+	rightScore := int64(right.Priority) + claimWaitingAge(right, now)
+	if leftScore != rightScore {
+		return leftScore > rightScore
+	}
+	if !left.CreatedAt.Equal(right.CreatedAt) {
+		return left.CreatedAt.Before(right.CreatedAt)
+	}
+	return left.ID < right.ID
+}
+
+func claimWaitingAge(task Task, now time.Time) int64 {
+	if !now.After(task.CreatedAt) {
+		return 0
+	}
+	return int64(now.Sub(task.CreatedAt) / claimPriorityAgingGap)
 }
 
 func validateLeaseRequest(runnerID, taskID, leaseID, idempotencyKey string) error {

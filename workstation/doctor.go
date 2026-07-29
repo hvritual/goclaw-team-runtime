@@ -8,12 +8,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 )
 
-const runnerSafePath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+var runnerSafePath = defaultRunnerCommandPath()
+
+func defaultRunnerCommandPath() string {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
+		return os.Getenv("PATH")
+	}
+	return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+}
 
 type DoctorStatus string
 
@@ -24,6 +32,7 @@ const (
 )
 
 type RunnerDoctorConfig struct {
+	ExecutionProfile       ExecutionProfile
 	DeviceKeyPath          string
 	WorkRoot               string
 	RepositoryPaths        map[string]string
@@ -58,12 +67,19 @@ func RunRunnerDoctor(
 	cfg RunnerDoctorConfig,
 ) RunnerDoctorReport {
 	runtimeInfo := CurrentRunnerRuntime()
-	metadata := RunnerRegistrationMetadata()
+	profile, profileErr := NormalizeExecutionProfile(
+		string(cfg.ExecutionProfile),
+	)
+	metadata := RunnerRegistrationMetadataForProfile(profile)
 	if len(cfg.VerificationSandbox) > 0 {
 		if resolved, err := RunnerRegistrationMetadataForSandbox(
 			cfg.VerificationSandbox[0],
 		); err == nil {
 			metadata = resolved
+			metadata["execution_profile"] = string(profile)
+			metadata["directory_boundary"] = "goclaw-worktree-v1"
+			metadata["network_isolation"] = "required"
+			metadata["security_posture"] = "strict"
 		}
 	} else if cfg.UnsafeHostVerification {
 		metadata["isolation_backend"] = "external-vm"
@@ -73,8 +89,11 @@ func RunRunnerDoctor(
 		GeneratedAt:   time.Now().UTC(),
 		Ready:         true,
 		Runtime:       runtimeInfo,
-		Capabilities:  RunnerRegistrationCapabilities([]string{"codex"}),
-		Metadata:      metadata,
+		Capabilities: RunnerRegistrationCapabilitiesForProfile(
+			[]string{"codex"},
+			profile,
+		),
+		Metadata: metadata,
 	}
 	add := func(check RunnerDoctorCheck) {
 		report.Checks = append(report.Checks, check)
@@ -83,10 +102,24 @@ func RunRunnerDoctor(
 		}
 	}
 
-	if err := ValidateRunnerExecutionRuntime(runtimeInfo); err != nil {
+	if profileErr != nil {
+		add(RunnerDoctorCheck{
+			ID: "execution-profile", Status: DoctorFail,
+			Summary: "Runner execution profile is unsupported",
+			Detail:  profileErr.Error(),
+		})
+	} else {
+		add(RunnerDoctorCheck{
+			ID: "execution-profile", Status: DoctorPass,
+			Summary: "Runner execution profile is explicit",
+			Detail:  string(profile),
+		})
+	}
+
+	if err := ValidateRunnerExecutionProfile(runtimeInfo, profile); err != nil {
 		add(RunnerDoctorCheck{
 			ID: "runtime", Status: DoctorFail,
-			Summary: "Linux execution substrate is not safe",
+			Summary: "Execution substrate does not satisfy the selected profile",
 			Detail:  err.Error(),
 		})
 	} else {
@@ -97,12 +130,18 @@ func RunRunnerDoctor(
 				runtimeInfo.OS,
 				runtimeInfo.Arch,
 				runtimeInfo.Substrate,
-				runtimeInfo.Contract,
+				string(profile),
 			),
 		})
 	}
 
-	gitCommand, err := findRunnerCommand("git")
+	var gitCommand string
+	var err error
+	if profile == ExecutionProfileCodexDelegated {
+		gitCommand, err = resolveConfiguredCommand("git")
+	} else {
+		gitCommand, err = findRunnerCommand("git")
+	}
 	if err != nil {
 		add(RunnerDoctorCheck{
 			ID: "git", Status: DoctorFail,
@@ -252,7 +291,7 @@ func RunRunnerDoctor(
 	} else {
 		add(RunnerDoctorCheck{
 			ID: "work-root", Status: DoctorPass,
-			Summary: "Runner work root is guest-local",
+			Summary: "Runner work root passed the directory boundary audit",
 			Detail:  filepath.Clean(cfg.WorkRoot),
 		})
 	}
@@ -293,7 +332,20 @@ func RunRunnerDoctor(
 		}
 	}
 
-	if len(cfg.VerificationSandbox) > 0 &&
+	if profile == ExecutionProfileCodexDelegated &&
+		(len(cfg.VerificationSandbox) > 0 || cfg.UnsafeHostVerification) {
+		add(RunnerDoctorCheck{
+			ID: "verification-isolation", Status: DoctorFail,
+			Summary: "Delegated profile cannot use strict isolation flags",
+		})
+	} else if profile == ExecutionProfileCodexDelegated {
+		add(RunnerDoctorCheck{
+			ID: "verification-isolation", Status: DoctorWarn,
+			Summary: "OS-level process and network isolation is not provided",
+			Detail: "GoClaw enforces the worktree/diff boundary; Codex named " +
+				"permissions enforce tool access. Use strict for untrusted code.",
+		})
+	} else if len(cfg.VerificationSandbox) > 0 &&
 		cfg.UnsafeHostVerification {
 		add(RunnerDoctorCheck{
 			ID: "verification-isolation", Status: DoctorFail,
@@ -448,10 +500,8 @@ func validateDeviceKeyFile(path string) error {
 	if err := validateCurrentUserOwner(path, info); err != nil {
 		return err
 	}
-	if info.Mode().Perm()&0o077 != 0 {
-		return errors.New(
-			"device_key_path must not be readable or writable by group or others",
-		)
+	if err := validatePrivateFilePermissions(path, info); err != nil {
+		return err
 	}
 	if err := validateTrustedPathChain(filepath.Dir(path), false); err != nil {
 		return fmt.Errorf("device_key_path parent: %w", err)
@@ -535,13 +585,10 @@ func validateResolvedCommand(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !info.Mode().IsRegular() || info.Mode()&0o111 == 0 {
-		return "", fmt.Errorf("%s is not a regular executable", path)
+	if err := validateExecutableFile(resolved, info); err != nil {
+		return "", err
 	}
-	if info.Mode().Perm()&0o022 != 0 {
-		return "", fmt.Errorf("%s is writable by group or others", path)
-	}
-	return filepath.Clean(path), nil
+	return filepath.Clean(resolved), nil
 }
 
 func doctorCommand(

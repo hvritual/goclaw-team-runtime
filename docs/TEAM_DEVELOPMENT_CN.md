@@ -169,6 +169,7 @@ Issue
 - `task_id`、`task_revision`、`project_id`、`correlation_id`
 - `issue_ids`、`work_item_ids`
 - `repository_id`、`base_commit`、`branch`
+- `execution_profile`
 - `harness_version`、`policy_pack_version`、`policy_bundle_hash`
 - `allowed_paths`、`denied_paths`、冻结的验证 argv
 
@@ -180,10 +181,18 @@ Runner 自动生成并签名 diff、变更文件、验证结果、Codex 事件�
 goclaw dev enqueue TASK_ID \
   --priority 10 \
   --capability codex \
+  --execution-profile strict \
   --max-attempts 3
 ```
 
-Gateway 从服务器端冻结任务重新构造 ExecutionPack，拒绝客户端伪造执行包，并校验 assignee、项目成员、Issue/WorkItem、唯一 active owner、仓库、base commit 与 PolicyBundle hash。一个不可变 revision 的队列 ID 固定为 `<TASK_ID>-r<REVISION>`；入队幂等键由服务器按 task ID、revision 和 execution bundle hash 派生。`goclaw dev enqueue` 不接收 `--idempotency-key`，客户端不能换 ID 或幂等键把同一 revision 重复排成多个任务。
+Gateway 从服务器端冻结任务重新构造 ExecutionPack，拒绝客户端伪造执行包，
+并校验 assignee、项目成员、Issue/WorkItem、唯一 active owner、仓库、
+base commit 与 PolicyBundle hash。profile 缺省为 strict；delegated 只有
+resolved `runner.execution_profiles` 显式允许时才可入队，并要求 Runner
+声明匹配 capability。一个不可变 revision 的队列 ID 固定为
+`<TASK_ID>-r<REVISION>`；入队幂等键由服务器按 task ID、revision 和
+execution bundle hash 派生。客户端不能换 ID/key 或自造 ExecutionPack
+绕过 profile policy。
 
 Runner 完成后不是直接宣告开发完成。Gateway 先验证 device-key HMAC 与 ExecutionPack，再把 EvidenceBundle 导入对应 Orchestrator Lite 任务；Orchestrator Lite 重新绑定 revision 与 execution bundle、检查 base/head、diff SHA 和路径集合，重算范围策略与冻结验证结果，按冻结 DoneGate 执行独立模型审查，并生成自己的 EvidencePackage/DoneGate。门通过且要求人工验收时，任务进入 `awaiting_acceptance`，WorkItem/Issue 进入 `verifying`；门失败则进入修复、阻塞或失败路径。
 
@@ -265,6 +274,13 @@ team → project → repository → component
 - API 兼容性、错误处理、日志和安全基线。
 - 必须关联的文档、回归用例和证据类型。
 - 共享组件优先、废弃周期和 owner 要求。
+- `runner.execution_profiles`；未声明时只允许 `strict`，只有项目接受
+  无 GoClaw OS sandbox 的降级边界后才加入 `codex-delegated`。
+- `runner.target_version`、`runner.target_release_id` 与
+  `runner.release_channel`；目标会进入 ExecutionPack 并转成 claim
+  capability，未更新 Runner 不会领取。
+- `runner.rollout_paused`；为 true 时新 enqueue 和新 claim 都失败关闭，
+  已持有 lease 仍按原合同完成或超时恢复。
 
 `policy.status` 当前能展示生效哈希和策略层。它不是外部仓库的持续合规扫描器；真实合规仍以冻结执行包、确定性验证、EvidencePackage 和 CI 证据为准。
 
@@ -506,13 +522,19 @@ goclaw team project-member-add \
 - TeamControl 与 Workstation 都是文件存储；进程内有锁和原子替换，但仅支持一个 GoClaw 进程安全写入。多个进程或共享盘同时写同一目录不受支持。
 - 没有多 Leader 共识、数据库级事务集群或自动故障转移。
 - 没有 GitHub/GitLab/Jira 双向同步；外部对象的创建、状态回写和 webhook 对账尚未实现。
-- Runner 不会自动 commit、push、创建/合并 PR 或发布；检测到 Codex 自动 commit 会把执行判为失败。
+- Runner 不会自动 commit、push、创建/合并 PR 或远程下载 release；本地
+  release manager 只处理中央 approved identity 对应的 operator-provided
+  artifact、原子选择、health confirm 和 rollback。
 - `dev link-pr` 只验证中央 `local_path` 已可见的 commit 与 accepted patch，并登记本地 Artifact/CorrelationLink；不会 fetch、push、创建、批准、merge PR 或等待 CI。
 - Team 模式的 `dev.task.run/repair/resume` 无条件禁用，即使 `development.gateway_allow_execution=true` 也不能调用；该开关仅适用于未启用 TeamControl 的单用户模式。团队只能通过 `dev enqueue` → Workstation 持久队列执行。
 - 每个 Runner 同时只持有一个活动 lease；device key 仅在 Runner 空闲时允许轮换。
 - 冻结任务的 `assignee_id` 会强制匹配 Runner owner；`business_domain` 和容量当前用于计划、校验与看板，不参与自动排程优化。
 - Codex 主进程只继承最小工具链环境，并通过显式 `CODEX_HOME` 使用本机订阅 OAuth；模型命令的 named permission profile 对真实目录设置 `deny`，每次模型调用前还必须通过 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kubernetes socket/context、云凭据路径等宿主能力变量永久拒绝，`--allow-env` 也不能放行。
-- 冻结 verifier 不再直接运行于宿主环境。`runner work` 必须指定绝对、受审、不可由 Runner 用户篡改的 `--verification-sandbox`；Linux 基线 wrapper 使用 bubblewrap 断网、遮蔽 host home/run/tmp，并只给 worktree 与临时 HOME 写权限。只有整个 Runner 已运行在一次性隔离 VM/容器时，才能显式使用与前者互斥的 `--unsafe-host-verification`。
+- Strict 的冻结 verifier 不直接运行于宿主环境，必须指定受审
+  `--verification-sandbox`；只有整个 Runner 已处于一次性隔离环境时才能
+  显式使用互斥的 `--unsafe-host-verification`。codex-delegated 不接受这两个
+  flag，依赖 Codex permission profile 并明确不提供 GoClaw OS 级网络/进程
+  隔离。
 - Production 必须使用专用用户并安装 root-owned `0755` verifier wrapper；VM/容器仍是 Codex Hand 和整体 Runner 的纵深隔离。device key 是控制面与工作站共享的 HMAC 秘密，不是 TPM attestation、公钥设备证书或不可抵赖签名；中央凭据泄露者能够伪造该 Runner 的证据。
 - 组件目录不会自动发现重复实现；文档目录不会自动证明内容正确。
 - Wave 门禁目前由仓库政策与 Reviewer 执行；服务端尚不校验 active Wave、plan revision、Step 或计划文件 SHA。要实现失败关闭的运行时门禁，必须另立治理 Wave 并迁移现有任务契约。

@@ -7,7 +7,7 @@
 | 应用 | 部署位置 | 主要职责 | 不负责 |
 |---|---|---|---|
 | `goclaw-team-control` | 中央 Linux 服务；macOS/Windows 可作管理客户端 | Gateway、成员/Token、项目/仓库、策略、任务、审批、知识、Harness、Runner scheduler、Web Console 和渠道 | 本地 Runner work loop |
-| `goclaw-runner` | 开发成员电脑的 Linux、WSL2 或 Lima guest | 注册、doctor、领取任务、调用本机 Codex OAuth、目录限定执行、验证和签名 Evidence | 团队 bootstrap、成员/Token/策略管理、最终验收 |
+| `goclaw-runner` | 开发成员电脑；`strict` 用 Linux/WSL2/Lima，`codex-delegated` 可用原生 Windows/macOS/Linux | 注册、doctor、领取任务、调用本机 Codex OAuth、目录限定执行、验证、签名 Evidence 与本地 release 切换 | 团队 bootstrap、成员/Token/策略管理、最终验收 |
 | `goclaw` | 兼容期 | 保留原命令面，便于迁移 | 不作为新部署的首选入口 |
 
 命令面隔离用于减少误操作；真正授权边界仍是 Gateway TLS/Token、个人 Team
@@ -117,12 +117,13 @@ goclaw-team-control team repository-create ...
 
 ## 5. Runner 部署
 
-原生 Windows/macOS 可运行 Runner 管理命令，但开发任务执行必须位于受支持的
-Linux substrate：
+Runner 有两个不可静默互换的 execution profile：
 
-- Linux native；
-- Windows 的 WSL2；
-- macOS 的 Lima Linux guest。
+- `strict` 是默认值，用于 Linux native、WSL2 或 Lima，要求受审 verifier
+  wrapper；高保证任务和三人试点使用它；
+- `codex-delegated` 可在原生 Windows、macOS、Linux 的 amd64/arm64 上运行，
+  但必须由项目策略显式允许。它保留目录边界、独立 worktree、最小环境、
+  credential canary 和 diff 后验检查，不提供 GoClaw OS 级进程/网络隔离。
 
 注册与执行示例：
 
@@ -151,6 +152,33 @@ goclaw-runner runner work \
   --verification-sandbox /usr/local/libexec/goclaw/verify-sandbox-bwrap.sh
 ```
 
+原生 Windows/macOS 降级运行时，注册、doctor 和 work 三个命令都必须显式
+使用同一参数：
+
+```text
+--execution-profile codex-delegated
+```
+
+该 profile 不得同时使用 `--verification-sandbox` 或
+`--unsafe-host-verification`。Team Control 的 resolved policy 必须包含：
+
+```json
+{
+  "runner.execution_profiles": ["strict", "codex-delegated"],
+  "runner.target_version": "0.9.0",
+  "runner.target_release_id": "runner-090-darwin-arm64",
+  "runner.release_channel": "pilot",
+  "runner.rollout_paused": false
+}
+```
+
+未配置该规则时只允许 `strict`。客户端传入的 ExecutionPack 不是权威，
+Gateway 会重建 profile 并追加匹配 capability；Runner claim 与本地执行还会
+再次核对，无法从 strict 静默降级。配置 target 时，Gateway 把目标
+version/release 转成 claim capability；Runner 每次工作循环心跳上报当前
+binary/release/profile，项目视图显示 `unmanaged/update_required/compliant`
+或 `paused`。pause 同时阻止新 enqueue 和已有队列的新 claim。
+
 Runner 只让 Codex 主进程使用本机 `CODEX_HOME` 的 ChatGPT/Codex OAuth；
 控制面不接收 OAuth 文件。模型生成的命令使用 named permission profile：
 worktree 可写、命令网络关闭、真实 `CODEX_HOME` 为 OS sandbox `deny`。
@@ -159,7 +187,38 @@ worktree 可写、命令网络关闭、真实 `CODEX_HOME` 为 OS sandbox `deny`
 任务失败关闭。个人 Team Token、Gateway Token 和 device key 应通过
 Secret Store、systemd credential 或权限为 `0600` 的环境文件注入。
 
-## 6. 命令面验证
+## 6. Runner 本地 release 生命周期
+
+Team Control 的 Runner release Registry 保存 immutable
+`id/version/os/arch/min_protocol/size_bytes/sha256`。Runner 不自动访问 Registry
+URI；operator 必须先用可信渠道取得本地 artifact，再对中央 `approved`
+记录做完整身份匹配：
+
+```bash
+goclaw-runner runner release stage-from-control RELEASE_ID \
+  --project project-alpha \
+  --work-root /absolute/runner-root \
+  --artifact /absolute/goclaw-runner
+
+goclaw-runner runner release activate RELEASE_ID \
+  --work-root /absolute/runner-root
+goclaw-runner runner release path --work-root /absolute/runner-root
+goclaw-runner runner release confirm RELEASE_ID \
+  --work-root /absolute/runner-root
+```
+
+`activate/confirm/rollback` 要求工作循环已停止；运行进程锁或并发 release
+mutation 锁存在时失败关闭。activate 后必须由外部 service manager 用
+`runner release path` 返回且已重新校验的路径做 smoke，再 confirm。失败时：
+
+```bash
+goclaw-runner runner release rollback --work-root /absolute/runner-root
+```
+
+本 Wave 只提供可恢复的本地选择状态，不会下载 URI、覆盖运行中 binary、
+重启 service 或绕过 macOS/Windows 代码签名策略。
+
+## 7. 命令面验证
 
 ```bash
 goclaw-team-control --help
@@ -172,7 +231,7 @@ goclaw-runner --help
 - Runner 只有 `runner`、`config`、`health`、`status`、`version`；
 - Runner 不能发现 `team`、`gateway`、`dev`、`harness`、`ouroboros`。
 
-## 7. 从兼容入口迁移
+## 8. 从兼容入口迁移
 
 | 旧命令 | 新命令 |
 |---|---|
@@ -184,7 +243,7 @@ goclaw-runner --help
 `goclaw` 在当前兼容周期仍可构建。先替换 systemd/launch 脚本，再移除旧
 binary；不要让两个中央进程同时写同一个 TeamControl/Workstation root。
 
-## 8. GitHub 作为恢复来源
+## 9. GitHub 作为恢复来源
 
 权威仓库：
 
@@ -212,11 +271,13 @@ git push
 不得把 `hosts.yml`、GitHub Token、浏览器 OAuth、Team Token 或 Runner key
 提交到仓库。授权中断时保留本地 commit，恢复授权后从同一分支继续推送。
 
-## 9. 当前 Wave 边界
+## 10. 当前 Wave 边界
 
 TR-W00 只完成双应用边界和构建。以下能力由后继 Wave 依次交付：
 
-1. `TC-W01`：预算、知识源、Skill、Runner release 与 Context Compiler；
-2. `RN-W01`：Runner 版本协商、自更新/回滚和多项目生命周期；
+1. `TC-W01`：预算、知识源、Skill、Runner release 与 Context Compiler，
+   已通过三路 exact review；
+2. `RN-W01`：双 execution profile、release stage/activate/confirm/rollback
+   和多项目生命周期，当前为候选验收状态；
 3. `INT-W01`：项目作用域 MCP、知识/Skill 与 Context Bundle；
 4. `REL-W01`：正式跨平台归档、安装升级、回滚和三人试点 Evidence。

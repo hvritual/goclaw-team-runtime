@@ -131,6 +131,17 @@ func (h *Handler) rpcListRunners(
 			return nil, err
 		}
 	}
+	var lifecyclePolicy runnerLifecyclePolicy
+	if h.teamSvc != nil && projectID != "" {
+		policy, err := h.teamSvc.ResolvePolicy(userID, projectID, "", "")
+		if err != nil {
+			return nil, err
+		}
+		lifecyclePolicy, err = resolveRunnerLifecyclePolicy(policy)
+		if err != nil {
+			return nil, err
+		}
+	}
 	runners, err := h.runnerSvc.ListRunners()
 	if err != nil {
 		return nil, err
@@ -154,13 +165,22 @@ func (h *Handler) rpcListRunners(
 			status = "draining"
 		}
 		item := map[string]interface{}{
-			"id":           runner.ID,
-			"member_id":    runner.OwnerUserID,
-			"display_name": runner.Name,
-			"status":       status,
-			"capabilities": runner.Capabilities,
-			"metadata":     runner.Metadata,
-			"last_seen_at": runner.LastHeartbeatAt,
+			"id":                 runner.ID,
+			"member_id":          runner.OwnerUserID,
+			"display_name":       runner.Name,
+			"status":             status,
+			"capabilities":       runner.Capabilities,
+			"metadata":           runner.Metadata,
+			"last_seen_at":       runner.LastHeartbeatAt,
+			"current_version":    runner.Metadata["current_version"],
+			"current_release_id": runner.Metadata["current_release_id"],
+			"target_version":     lifecyclePolicy.TargetVersion,
+			"target_release_id":  lifecyclePolicy.TargetReleaseID,
+			"release_channel":    lifecyclePolicy.ReleaseChannel,
+			"rollout_state": runnerRolloutState(
+				runner,
+				lifecyclePolicy,
+			),
 		}
 		if task, busy := leases[runner.ID]; busy && task.Lease != nil {
 			item["current_work_id"] = task.ID
@@ -177,20 +197,51 @@ func (h *Handler) rpcListRunners(
 	return result, nil
 }
 
+func runnerRolloutState(
+	runner workstation.Runner,
+	policy runnerLifecyclePolicy,
+) string {
+	if policy.Paused {
+		return "paused"
+	}
+	if policy.TargetVersion == "" && policy.TargetReleaseID == "" {
+		return "unmanaged"
+	}
+	if policy.TargetVersion != "" &&
+		runner.Metadata["current_version"] != policy.TargetVersion {
+		return "update_required"
+	}
+	if policy.TargetReleaseID != "" &&
+		runner.Metadata["current_release_id"] != policy.TargetReleaseID {
+		return "update_required"
+	}
+	return "compliant"
+}
+
 func (h *Handler) rpcPingRunner(
 	sessionID string,
 	params map[string]interface{},
 ) (interface{}, error) {
+	var request struct {
+		RunnerID string `json:"runner_id"`
+		workstation.RunnerLifecycleProjection
+	}
+	if err := decodeRPCParams(params, &request); err != nil {
+		return nil, err
+	}
 	_, runner, err := h.requireOwnedRunner(
 		sessionID,
-		stringParam(params["runner_id"]),
+		request.RunnerID,
 		"",
 		teamcontrol.ActionProjectRead,
 	)
 	if err != nil {
 		return nil, err
 	}
-	return h.runnerSvc.HeartbeatRunner(runner.ID)
+	return h.runnerSvc.HeartbeatRunnerLifecycle(
+		runner.ID,
+		request.RunnerLifecycleProjection,
+	)
 }
 
 func (h *Handler) rpcRotateRunnerKey(
@@ -314,7 +365,7 @@ func (h *Handler) rpcClaimRunnerTask(
 	if h.teamSvc != nil && request.ProjectID == "" {
 		return nil, fmt.Errorf("project_id is required in team mode")
 	}
-	_, _, err := h.requireOwnedRunner(
+	userID, _, err := h.requireOwnedRunner(
 		sessionID,
 		request.RunnerID,
 		request.ProjectID,
@@ -322,6 +373,27 @@ func (h *Handler) rpcClaimRunnerTask(
 	)
 	if err != nil {
 		return nil, err
+	}
+	if h.teamSvc != nil {
+		policy, err := h.teamSvc.ResolvePolicy(
+			userID,
+			request.ProjectID,
+			"",
+			"",
+		)
+		if err != nil {
+			return nil, err
+		}
+		lifecycle, err := resolveRunnerLifecyclePolicy(policy)
+		if err != nil {
+			return nil, err
+		}
+		if lifecycle.Paused {
+			return nil, fmt.Errorf(
+				"%w: project runner rollout is paused",
+				teamcontrol.ErrForbidden,
+			)
+		}
 	}
 	return h.runnerSvc.Claim(request)
 }

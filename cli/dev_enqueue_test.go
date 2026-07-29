@@ -9,15 +9,18 @@ func TestDevelopmentEnqueueParamsUsesGatewayCapabilityContract(t *testing.T) {
 	previousPriority := devQueuePriority
 	previousCapabilities := devQueueCapabilities
 	previousMaxAttempts := devQueueMaxAttempts
+	previousProfile := devExecutionProfile
 	t.Cleanup(func() {
 		devQueuePriority = previousPriority
 		devQueueCapabilities = previousCapabilities
 		devQueueMaxAttempts = previousMaxAttempts
+		devExecutionProfile = previousProfile
 	})
 
 	devQueuePriority = 12
 	devQueueCapabilities = []string{"codex", "go"}
 	devQueueMaxAttempts = 4
+	devExecutionProfile = "codex-delegated"
 	params := developmentEnqueueParams("task-alpha")
 
 	if _, legacy := params["required_capabilities"]; legacy {
@@ -31,7 +34,8 @@ func TestDevelopmentEnqueueParamsUsesGatewayCapabilityContract(t *testing.T) {
 	}
 	if params["task_id"] != "task-alpha" ||
 		params["priority"] != 12 ||
-		params["max_attempts"] != 4 {
+		params["max_attempts"] != 4 ||
+		params["execution_profile"] != "codex-delegated" {
 		t.Fatalf("unexpected enqueue params: %#v", params)
 	}
 }

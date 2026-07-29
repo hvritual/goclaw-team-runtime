@@ -5,8 +5,9 @@
 两个独立应用；兼容入口 `goclaw` 暂时保留。
 
 > 当前已恢复、可追溯的 release 是 `0.8.0-pilot.1-recovered.1`。
-> TR-W00 双应用边界已通过 exact-commit 三路独立验收；TC-W01 及后继
-> Runner/MCP/release Waves 尚未完成，因此仍不是新的稳定发布声明。
+> TR-W00 与 TC-W01 已通过 exact-commit 三路独立验收；RN-W01 已进入
+> Runner 双 profile 与本地 release 生命周期候选验收，因此仍不是新的稳定
+> 发布声明。
 >
 > `0.8.0-pilot.1` 的试点合同是一个中央单写者、一个项目、三名
 > 成员与三台 Linux substrate Runner，并加入失败关闭的 Wave 绑定、
@@ -36,10 +37,10 @@
 - 🧪 **Better Harness + Orchestrator Lite**：版本化评测、隔离 worktree、四类评审、EvidencePackage 与 Go DoneGate
 - 🛡️ **认知治理**：多评估器分歧升级、证伪条件、参考类、停止条件、Reviewer 身份与职责分离
 - 👥 **团队控制面**：团队/项目/仓库、个人 Token、项目 RBAC、业务域、容量、Issue、WorkItem、Assignment、文档、组件和分层策略
-- 🧑‍💻 **工作站 Runner**：每台电脑复用本地 Codex OAuth，支持持久任务、lease/heartbeat、隔离 worktree、冻结验证、签名 EvidenceBundle 与 Orchestrator Lite DoneGate 回流
+- 🧑‍💻 **工作站 Runner**：每台电脑复用本地 Codex OAuth；默认 `strict` Linux 隔离，也可由项目策略显式启用原生 Windows/macOS/Linux 的 `codex-delegated` 降级 profile；支持持久任务、lease/heartbeat、隔离 worktree、冻结验证、签名 EvidenceBundle 与 Orchestrator Lite DoneGate 回流
 - 🔗 **增量可追踪**：`task → run → diff → commit → PR → CI → release → regression` 的 Artifact/CorrelationLink 模型，并可校验外部 commit 与已验收 Workstation patch 后自动登记 commit/PR 关联
 - 👥 **多账号支持**：每个通道支持配置多个账号实例
-- 🪟 **跨平台控制端源码**：可在 Linux、macOS、Windows 构建；当前发布归档只交付 Linux，试点 Runner 统一在原生 Linux、WSL2 或 Lima Linux guest 执行
+- 🪟 **跨平台源码**：Linux、macOS、Windows 的 amd64/arm64 均可构建；高保证试点继续用 Linux/WSL2/Lima `strict`，原生 Windows/macOS 仅在项目明确接受降级边界时使用 `codex-delegated`
 
 ## 0.8.0-pilot.1 三人试点入口
 
@@ -90,7 +91,7 @@ Runner 完成后，Gateway 把证据导入 Orchestrator Lite，重新校验冻�
 
 Team 模式对 RPC 采用拒绝优先：旧的 process-global 配置、日志、渠道、会话、Browser 和 Cron 方法默认禁用；Harness、Memory Catalog 与 Ouroboros 按项目 RBAC 授权。Team 模式的 `dev.task.run/repair/resume` **无条件禁用**，`development.gateway_allow_execution` 只对未启用 TeamControl 的单用户模式有效；团队执行唯一入口是 `dev enqueue` → Workstation 持久队列。
 
-Runner 的 Codex 主进程使用最小环境白名单并通过 `CODEX_HOME` 使用该成员本机订阅 OAuth；模型命令的 named permission profile 对真实目录设置 `deny`，每次模型调用前运行 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kubernetes 和云凭据路径永不透传，`--allow-env` 不能覆盖这些宿主能力边界。冻结 verifier 默认失败关闭，`runner work` 必须提供 `--verification-sandbox /absolute/reviewed-wrapper`；Linux 发布包附带无网络 bubblewrap wrapper。通用 Runner 只有已位于一次性隔离 VM/容器时才能显式改用互斥的 `--unsafe-host-verification`；三人试点 Gate 固定要求 `isolation_backend=bwrap`，不接受该降级。
+Runner 的 Codex 主进程使用最小环境白名单并通过 `CODEX_HOME` 使用该成员本机订阅 OAuth；模型命令的 named permission profile 对真实目录设置 `deny`，每次模型调用前运行 read-deny canary。GoClaw/Reviewer/Runner/Codex Token、SSH agent、Docker/Kubernetes 和云凭据路径永不透传，`--allow-env` 不能覆盖这些宿主能力边界。默认 `strict` profile 必须使用受审 verifier wrapper，或仅在外层一次性隔离环境中显式使用 `--unsafe-host-verification`。`codex-delegated` 必须由 Team Control 项目策略和 Runner capability 双重允许；它保留 canonical worktree、diff 后验拒绝、最小环境和 Codex permission canary，但不提供 GoClaw 自身的 OS 进程/网络沙箱。三人高保证试点仍固定要求 Linux bwrap，不接受 delegated。
 
 Team Web Console 是中央状态的默认交互窗口。浏览器只持有 HttpOnly 短期会话，个人 Team Token 和 Gateway Token 不写入 LocalStorage、SessionStorage 或 Markdown。Obsidian 只在确有桌面笔记需求时作为可选适配器安装。受治理 Markdown 可位于普通目录或 Git 工作树；任何同步方式都不得承载队列、lease、Token、device key 或 Codex OAuth。飞书按 `channel/account/chat` 路由项目，但路由本身不是授权。
 

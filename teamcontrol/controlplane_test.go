@@ -159,7 +159,7 @@ func TestControlResourcesUseProjectCompositeIdentity(t *testing.T) {
 				ID: "shared-runner", ProjectID: project.ID,
 				Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
 				URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
-				MinProtocol: "1",
+				SizeBytes: 1024, MinProtocol: "1",
 			},
 		)
 		require.NoError(t, err)
@@ -297,7 +297,7 @@ func TestRegistryAndContextCompilerAreProjectScopedAndDeterministic(t *testing.T
 			ID: "runner-linux-amd64-v1", ProjectID: fixture.projectA.ID,
 			Channel: "pilot", Version: "1.0.0", OS: "linux", Arch: "amd64",
 			URI: "https://example.invalid/runner.tar.gz", SHA256: checksumC,
-			MinProtocol: "1", Status: RegistryApproved,
+			SizeBytes: 1024, MinProtocol: "1", Status: RegistryApproved,
 		},
 	)
 	require.NoError(t, err)
@@ -611,10 +611,19 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		ID: "runner-delete", ProjectID: fixture.projectA.ID,
 		Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
 		URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
-		MinProtocol: "1", Status: RegistryApproved,
+		SizeBytes: 1024, MinProtocol: "1", Status: RegistryApproved,
 	}
 	release, err := fixture.service.PutRunnerRelease(fixture.alice.ID, releaseInput)
 	require.NoError(t, err)
+	zeroSize := releaseInput
+	zeroSize.ID = "runner-zero-size"
+	zeroSize.SizeBytes = 0
+	_, err = fixture.service.PutRunnerRelease(fixture.alice.ID, zeroSize)
+	require.Error(t, err)
+	changedSize := releaseInput
+	changedSize.SizeBytes++
+	_, err = fixture.service.PutRunnerRelease(fixture.alice.ID, changedSize)
+	require.ErrorIs(t, err, ErrConflict)
 	releaseInput.Status = RegistryDraft
 	_, err = fixture.service.PutRunnerRelease(fixture.alice.ID, releaseInput)
 	require.ErrorIs(t, err, ErrInvalidTransition)
@@ -744,7 +753,7 @@ func TestRegistryCRUDPersistsAcrossReopen(t *testing.T) {
 			ID: "persistent-runner", ProjectID: fixture.projectA.ID,
 			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
 			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
-			MinProtocol: "1", Status: RegistryDisabled,
+			SizeBytes: 1024, MinProtocol: "1", Status: RegistryDisabled,
 		},
 	)
 	require.NoError(t, err)
@@ -867,7 +876,7 @@ func TestInitialControlPlaneBareKeysMigrateToProjectKeys(t *testing.T) {
 			ID: "legacy-runner", ProjectID: fixture.projectA.ID,
 			Channel: "pilot", Version: "1", OS: "linux", Arch: "amd64",
 			URI: "https://example.invalid/runner.tar.gz", SHA256: checksum,
-			MinProtocol: "1",
+			SizeBytes: 1024, MinProtocol: "1",
 		},
 	)
 	require.NoError(t, err)

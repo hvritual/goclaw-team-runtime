@@ -211,6 +211,13 @@ func (s *Service) RotateRunnerDeviceKey(id string, deviceKey []byte) (Runner, er
 }
 
 func (s *Service) HeartbeatRunner(id string) (Runner, error) {
+	return s.HeartbeatRunnerLifecycle(id, RunnerLifecycleProjection{})
+}
+
+func (s *Service) HeartbeatRunnerLifecycle(
+	id string,
+	lifecycle RunnerLifecycleProjection,
+) (Runner, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	runner, err := s.loadRunnerUnlocked(id)
@@ -220,6 +227,70 @@ func (s *Service) HeartbeatRunner(id string) (Runner, error) {
 	if runner.Status == RunnerDisabled {
 		return Runner{}, fmt.Errorf("%w: runner %s is disabled", ErrUnauthorized, id)
 	}
+	if strings.TrimSpace(lifecycle.CurrentVersion) != "" {
+		if len(strings.TrimSpace(lifecycle.CurrentVersion)) > 100 {
+			return Runner{}, errors.New("runner current_version exceeds 100 bytes")
+		}
+		profile, err := NormalizeExecutionProfile(
+			string(lifecycle.ExecutionProfile),
+		)
+		if err != nil {
+			return Runner{}, err
+		}
+		if lifecycle.ReleaseProtocol != RunnerReleaseProtocol {
+			return Runner{}, errors.New("runner release protocol is incompatible")
+		}
+		if lifecycle.CurrentReleaseID != "" {
+			if err := validateID(lifecycle.CurrentReleaseID); err != nil {
+				return Runner{}, fmt.Errorf("current_release_id: %w", err)
+			}
+		}
+		if runner.Metadata == nil {
+			runner.Metadata = map[string]string{}
+		}
+		runner.Metadata["current_version"] = strings.TrimSpace(
+			lifecycle.CurrentVersion,
+		)
+		runner.Metadata["current_release_id"] = strings.TrimSpace(
+			lifecycle.CurrentReleaseID,
+		)
+		runner.Metadata["release_protocol"] = lifecycle.ReleaseProtocol
+		runner.Metadata["execution_profile"] = string(profile)
+		if _, exists := runner.Metadata["target_version"]; !exists {
+			runner.Metadata["target_version"] = ""
+		}
+		if _, exists := runner.Metadata["target_release_id"]; !exists {
+			runner.Metadata["target_release_id"] = ""
+		}
+		runner.Metadata["rollout_state"] = "reported"
+		runner.Capabilities = removeRunnerLifecycleCapabilities(
+			runner.Capabilities,
+		)
+		versionCapability, err := RunnerVersionCapability(
+			lifecycle.CurrentVersion,
+		)
+		if err != nil {
+			return Runner{}, err
+		}
+		runner.Capabilities = append(
+			runner.Capabilities,
+			ExecutionProfileCapability(profile),
+			versionCapability,
+		)
+		if lifecycle.CurrentReleaseID != "" {
+			releaseCapability, err := RunnerReleaseCapability(
+				lifecycle.CurrentReleaseID,
+			)
+			if err != nil {
+				return Runner{}, err
+			}
+			runner.Capabilities = append(
+				runner.Capabilities,
+				releaseCapability,
+			)
+		}
+		runner.Capabilities = normalizeCapabilities(runner.Capabilities)
+	}
 	now := s.now()
 	runner.Status = RunnerOnline
 	runner.LastHeartbeatAt = now
@@ -228,6 +299,21 @@ func (s *Service) HeartbeatRunner(id string) (Runner, error) {
 		return Runner{}, err
 	}
 	return cloneJSON(runner)
+}
+
+func removeRunnerLifecycleCapabilities(values []string) []string {
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		lower := strings.ToLower(strings.TrimSpace(value))
+		if strings.HasPrefix(lower, "goclaw-version-sha256:") ||
+			strings.HasPrefix(lower, "goclaw-release:") ||
+			lower == strings.ToLower(RunnerStrictProfileCapability) ||
+			lower == strings.ToLower(RunnerCodexDelegatedCapability) {
+			continue
+		}
+		result = append(result, value)
+	}
+	return result
 }
 
 func (s *Service) GetRunner(id string) (Runner, error) {

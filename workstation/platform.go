@@ -117,8 +117,9 @@ func detectRunnerRuntime(
 		Contract:  RunnerRuntimeContract,
 	}
 	if info.OS != "linux" {
+		info.Substrate = "native-" + valueOr(info.OS, "unsupported")
 		info.UnsupportedReason = fmt.Sprintf(
-			"runner execution is disabled on %s; use a Linux guest through WSL2 or Lima",
+			"strict runner execution is disabled on %s; use a Linux guest through WSL2 or Lima",
 			valueOr(info.OS, "this host"),
 		)
 		return info
