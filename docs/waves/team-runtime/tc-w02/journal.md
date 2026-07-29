@@ -68,3 +68,17 @@
 - r002 完整继承 r001 目标和 docs-only boundary，只修复三路 findings；
 - `TC-W02-S05` active；S06 必须等待本 activation commit 后冻结 exact Task；
 - r001 approved plan 和 failed Evidence 保持不变。
+
+## 2026-07-29 — r002 exact Task Freeze
+
+- activation commit：
+  `d2df5fd59fffb2d38838364614974ebce62bbda1`；
+- activation tree：
+  `af6d487039df7086daa4224d341bfdbb9422772d`；
+- Task：`TC-W02-REPLAN-001` r002；
+- branch：`codex/tc-w02-replan-r001`；
+- Policy manifest SHA-256：
+  `04b76061b2dd61fe995568e1c8646f5eb5d7684cd0f3fcb12c2f7eee4033536d`；
+- base 已包含 r002 Plan/Registry/Policy 和 r001 failed Evidence；
+- freeze 后只允许 `docs/waves/**` 内关闭 r001 review findings、运行
+  base→candidate Gate 和重做三路 review。
