@@ -179,3 +179,20 @@
 - 否决方案：不伪造 FE-W01 complete，不同时激活多个 Wave，不把所有范围
   塞入一个不可复核的提交。
 - 关联：`TR-W00-S01`、`TR-ISSUE-001`、`TR-EVID-W00-001`。
+
+## 2026-07-29 — TR-DEC-002：提前合并后只做前向验收修复
+
+- 状态：`active`。
+- 触发：PR #1 在其声明的三路 P0=0/P1=0 Gate 前被合并；随后 code、
+  security、docs 独立复核均返回 BLOCK。
+- 决策：不改写 merge commit `3a75c737...`，创建 TR-W00 r002 和独立
+  acceptance-fix 分支；TR-W00 继续 active，TC-W01 不得提前激活。
+- Codex 边界：采用 named permission profile 对真实 `CODEX_HOME` 执行
+  OS sandbox read-deny，并以不调用模型的负向 canary 失败关闭；不接受
+  prompt-only 隔离。
+- 状态机：补充受治理的 `active -> superseded`，使 TR-DEC-001 的路线
+  替代可由规则解释，同时明确 superseded 不等于 complete。
+- 回滚：任一 P1 未关闭则保留 r002/偏差 Evidence，停止后继 Wave；
+  不 force-push、不删除 PR #1、不伪造验收先于合并。
+- 关联：`TR-W00-S06`–`S08`、`TR-ISSUE-002`、
+  `TR-EVID-W00-002`、`Task-ID TR-W00-ACCEPTANCE-002`。

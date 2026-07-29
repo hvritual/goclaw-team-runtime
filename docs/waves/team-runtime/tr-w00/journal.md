@@ -40,3 +40,16 @@
 - Evidence：`TR-EVID-W00-001`；
 - `S02/S03/S04` complete，`S05` deterministic passed、independent final
   pending；TR-W00 仍 active。
+
+## 2026-07-29 — r001 三路独立验收与提前合并偏差
+
+- 用户授权独立 code/security/docs agents 完成验收并自动继续路线；
+- 三路审查绑定 exact head `9d6a25276c9eda32360b801aa2c5fde1bd46e863`；
+- code：P0=0/P1=2/P2=3，BLOCK；
+- security：P0=0/P1=2/P2=3，BLOCK；
+- docs/governance：P0=0/P1=4/P2=1，BLOCK；
+- GitHub 显示 PR #1 已于独立验收前合并，merge commit 为
+  `3a75c7376d73e41f33e2b94eb3bb1ca4c30219fd`；
+- 该合并不构成 TR-W00 acceptance；r001 Evidence 保持 collecting，
+  `TR-ISSUE-002` 进入 fixing；
+- r002 只允许前向修复，三路 P1 清零前不激活 TC-W01。

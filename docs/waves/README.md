@@ -2,11 +2,11 @@
 
 本文定义 GoClaw 的分波更新规则。它首先用于 Team Web Console 稳定化，
 以后所有需要多个步骤、多个模块或多轮验证的更新也必须遵守同一规则。
-恢复基线 `MVP-W00 r006` 已完成，当前机器可读入口是 `FE-W01 r012`。
-recovered release 为 `0.8.0-pilot.1-recovered.1`；FE-W01 在该权威 base
-上的确定性 Gate 已通过，Browser localhost、ptrace 零出站和 credential
-owner 门禁按 `FE-EVID-W01-021` 失败关闭，当前不得推进。
-`PILOT-W00` 继续 `blocked`，在 FE-W01 完成前不得启动三台 Runner 放行。
+恢复基线 `MVP-W00 r006` 已完成，当前机器可读入口是 `TR-W00 r002`。
+recovered release 为 `0.8.0-pilot.1-recovered.1`；TR-W00 r001 的双应用
+实现已经合并，但三路独立验收仍有 P1，当前只允许按 r002 做前向修复。
+`PILOT-W00` 继续 `blocked`，在 `REL-W01` 完成且真实环境 Gate 通过前
+不得启动三台 Runner 放行。
 
 Wave 文档是计划、范围、门禁和证据索引，不替代运行时权威数据：
 
@@ -42,9 +42,15 @@ stateDiagram-v2
     active --> verifying
     verifying --> active: evidence failed
     verifying --> complete
+    active --> superseded
     proposed --> superseded
     planned --> superseded
 ```
+
+`active -> superseded` 只允许在用户明确改变路线时使用，并必须在同一
+governance commit 中满足：登记决策与替代原因、激活一个依赖合法的新 Wave、
+保留原 Plan/Journal/Evidence、把未完成状态写成 `superseded` 而非
+`complete`，且不得借此绕过原 Wave 的安全或发布门禁。
 
 状态含义：
 
@@ -87,7 +93,7 @@ stateDiagram-v2
 | [`FE-W00`](frontend-stability/fe-w00/plan-r005.md) | `complete` | 可执行基线与首批 Issue 拆分 | 禁止 |
 | [`MVP-W00`](recovery/mvp-w00/plan-r006.md) | `complete` | 权威源码、可重复发布与可追溯最终验收 | 禁止 |
 | [`FE-W01`](frontend-stability/fe-w01/plan-r012.md) | `superseded` | 历史浏览器、syscall 与凭据 Evidence 保留 | 禁止 |
-| [`TR-W00`](team-runtime/tr-w00/plan-r001.md) | `active` | Team Control/Runner 双应用边界与构建 | 受限 |
+| [`TR-W00`](team-runtime/tr-w00/plan-r002.md) | `active` | Team Control/Runner 双应用边界与验收修复 | 受限 |
 | [`TC-W01`](team-runtime/tc-w01/plan-r001.md) | `planned` | 控制面 Registry、预算与 Context Compiler | 受限 |
 | [`RN-W01`](team-runtime/rn-w01/plan-r001.md) | `planned` | Runner 生命周期、版本、自更新与本地执行 | 受限 |
 | [`INT-W01`](team-runtime/int-w01/plan-r001.md) | `planned` | MCP、知识、Skill 与 Context 集成 | 受限 |

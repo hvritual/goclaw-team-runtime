@@ -123,13 +123,14 @@
       "id": "TR-W00",
       "title": "Team Control and Runner Application Boundary",
       "status": "active",
-      "document": "team-runtime/tr-w00/plan-r001.md",
+      "document": "team-runtime/tr-w00/plan-r002.md",
       "depends_on": [
         "MVP-W00"
       ],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
+        "README.md",
         "cmd/team-control/**",
         "cmd/runner/**",
         "cli/application.go",
@@ -138,6 +139,8 @@
         "main.go",
         "scripts/build-release.sh",
         "scripts/build-apps.sh",
+        "workstation/localexec.go",
+        "workstation/localexec_test.go",
         "deploy/**",
         "Makefile"
       ],
