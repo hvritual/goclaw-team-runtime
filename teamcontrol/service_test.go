@@ -183,6 +183,34 @@ func TestProjectIsolationAndRoleAuthorization(t *testing.T) {
 	}
 }
 
+func TestRelativePathsAreCrossPlatformSafe(t *testing.T) {
+	for _, value := range []string{
+		`..\outside`,
+		`C:\outside`,
+		`C:outside`,
+		`\\server\share`,
+		"NUL",
+		"services/COM1.txt",
+		"services/NUL .txt",
+		"C|/outside",
+		"safe/file:stream",
+		"safe/\x00outside",
+		"safe/outside\n",
+	} {
+		_, err := validateRelativePath(value, "root_path")
+		require.Error(t, err, value)
+	}
+	for input, expected := range map[string]string{
+		"services/device-api": "services/device-api",
+		`services\device-api`: "services/device-api",
+		"services/./api":      "services/api",
+	} {
+		actual, err := validateRelativePath(input, "root_path")
+		require.NoError(t, err, input)
+		require.Equal(t, expected, actual)
+	}
+}
+
 func TestIssueLifecycleRequiresFixEvidenceAndTracksReopen(t *testing.T) {
 	fixture := newTestFixture(t)
 	due := time.Now().UTC().Add(24 * time.Hour)

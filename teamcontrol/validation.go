@@ -115,15 +115,15 @@ func validateURI(value, field string) (string, error) {
 // rejected because signed URLs and access tokens must never enter durable
 // control-plane state.
 func validateRegistryURI(value, field string) (string, error) {
+	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("%s contains a control character", field)
+	}
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return "", fmt.Errorf("%s is required", field)
 	}
 	if len(value) > maximumRegistryURILength {
 		return "", fmt.Errorf("%s exceeds the maximum length", field)
-	}
-	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
-		return "", fmt.Errorf("%s contains a control character", field)
 	}
 	if strings.ContainsAny(value, "?#") {
 		return "", fmt.Errorf("%s must not contain query or fragment data", field)
@@ -155,6 +155,9 @@ func validateRegistryURI(value, field string) (string, error) {
 		decodedPath, err := url.PathUnescape(parsed.EscapedPath())
 		if err != nil {
 			return "", fmt.Errorf("%s file URI contains an invalid escaped path", field)
+		}
+		if strings.IndexFunc(decodedPath, unicode.IsControl) >= 0 {
+			return "", fmt.Errorf("%s file URI contains a control character", field)
 		}
 		if unsafeLocalPath(decodedPath) {
 			return "", fmt.Errorf("%s file URI must not resolve to a UNC or device path", field)
@@ -190,6 +193,11 @@ func unsafeLocalPath(value string) bool {
 	if !rooted {
 		return false
 	}
+	return containsDOSDevicePath(lower)
+}
+
+func containsDOSDevicePath(value string) bool {
+	candidate := strings.TrimPrefix(strings.ToLower(value), "/")
 	if len(candidate) >= 3 &&
 		candidate[1] == '|' &&
 		candidate[2] == '/' &&
@@ -200,10 +208,10 @@ func unsafeLocalPath(value string) bool {
 		candidate = candidate[3:]
 	}
 	for _, segment := range strings.Split(candidate, "/") {
-		segment = strings.TrimRight(segment, " .")
 		if index := strings.IndexAny(segment, ".:"); index >= 0 {
 			segment = segment[:index]
 		}
+		segment = strings.TrimRight(segment, " .")
 		switch segment {
 		case "con", "prn", "aux", "nul", "conin$", "conout$":
 			return true
@@ -318,12 +326,24 @@ func validateOptionalSHA256(value string) (string, error) {
 }
 
 func validateRelativePath(value, field string) (string, error) {
-	value = filepath.ToSlash(strings.TrimSpace(value))
-	if value == "" {
+	if strings.IndexFunc(value, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("%s must remain inside its repository", field)
+	}
+	normalized := strings.ReplaceAll(strings.TrimSpace(value), `\`, "/")
+	if normalized == "" {
 		return "", nil
 	}
-	clean := filepath.ToSlash(filepath.Clean(value))
-	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || filepath.IsAbs(value) {
+	if strings.ContainsAny(normalized, `<>:"|?*`) {
+		return "", fmt.Errorf("%s must remain inside its repository", field)
+	}
+	clean := path.Clean(normalized)
+	candidate := strings.TrimPrefix(strings.ToLower(clean), "/")
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") ||
+		strings.HasPrefix(normalized, "/") ||
+		len(candidate) >= 2 && candidate[0] >= 'a' &&
+			candidate[0] <= 'z' && candidate[1] == ':' ||
+		windowsAbsolutePathPattern.MatchString(candidate) ||
+		containsDOSDevicePath(clean) {
 		return "", fmt.Errorf("%s must remain inside its repository", field)
 	}
 	return clean, nil

@@ -1,6 +1,6 @@
 # Team Control Registry、预算与 Context Bundle
 
-适用：`TC-W01 r003`。所有命令由 `goclaw-team-control` 执行，并要求
+适用：`TC-W01 r004`。所有命令由 `goclaw-team-control` 执行，并要求
 `GOCLAW_USER_TOKEN`；`goclaw-runner` 不暴露这些中央管理命令。
 
 ## 1. 数据权威

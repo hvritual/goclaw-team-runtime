@@ -194,3 +194,22 @@
 - TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
   `10/10` 与 build、Policy manifest `3/3` 全部通过；
 - `TC-EVID-W01-013` collecting，等待新 exact SHA 与三路 review。
+
+## 2026-07-29 — r004 exact review 6 BLOCK
+
+- reviewed exact `74dde015e5afbbc4c904b03c1e9b5bfdd8cb1cd2`，
+  tree `381e0e44e5296ec3447b0935726f2334e4dfc99c`；
+- code P0=0/P1=2/P2=3，security P0=0/P1=1/P2=2，
+  docs P0=0/P1=1/P2=2；
+- decoded control、device base 空格、host-dependent relative path 和中文合同
+  revision 是本 exact 的 P1；
+- `TC-EVID-W01-014` 保留失败结果，`TC-EVID-W01-013` superseded。
+
+## 2026-07-29 — r004 review remediation 7 target Gate 通过
+
+- decoded `file:` path control、device whitespace/extension 与 repository
+  relative path 跨平台边界已统一；
+- 中文 Registry 合同适用版本更新为 r004；
+- TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
+  `10/10` 与 build、Policy manifest `3/3` 全部通过；
+- `TC-EVID-W01-015` collecting，等待新 exact SHA 与三路 review。

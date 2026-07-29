@@ -277,6 +277,10 @@ Component Registry 保存：
 - owner、依赖组件和元数据。
 - 与 WorkItem、Issue、文档、构建和发布的关联。
 
+组件根路径按跨平台 repository-relative 规则规范化：`\` 与 `/` 等价，
+拒绝 POSIX/Windows 绝对路径、drive-relative、UNC、`..` 逃逸、DOS device
+和控制字符，避免 Team Control 与 Windows/macOS/Linux Runner 解释不一致。
+
 创建任务前先查询组件目录，再决定扩展现有组件还是新建组件。新共享组件至少应有：
 
 1. 明确 owner。
