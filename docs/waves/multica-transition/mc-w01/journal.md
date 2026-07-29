@@ -40,3 +40,13 @@
 
 | 2026-07-29 | `MC-W01-S01` | `active → complete` | activation exact commit 已冻结 | 创建 backup |
 | 2026-07-29 | `MC-W01-S02` | `planned → active` | Task frozen | BACKUP-VERIFIED |
+
+## 2026-07-29 — transition validator split
+
+- 历史 `validate-wave-docs.mjs` 明确检查 `TC-W02 must be the active Wave`，
+  因此对新路线返回预期 FAIL，不将其改写为 MC-W01 Evidence；
+- 新增 `validate-multica-transition.mjs`，只验证 MC-W01 唯一 active、
+  TC-W02 superseded、approved Plan/Policy、exact freeze tuple、非空
+  base→candidate docs scope 和 `git diff --check`；
+- 旧验证器与失败输出保留为旧路线历史，新验证器不得为产品 tree 或六域
+  功能验收背书。
