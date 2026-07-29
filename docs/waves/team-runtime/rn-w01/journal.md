@@ -9,3 +9,11 @@
   投影与 kill switch，Runner 负责本机 doctor、目录边界、执行、更新回滚和
   Evidence；
 - RN-W01 激活只建立授权，不提前修改产品代码；下一步先冻结 exact Task。
+
+## 2026-07-29 — r002 Task Freeze
+
+- Task `RN-W01-LIFECYCLE-001` r002 从远端 activation exact
+  `f7b30062468919db5ca8c4fcb5148f4493188832` /
+  tree `4eeb0a92368f29e9bfa5aa0a7cd9fb2ff62cd8b2` 冻结；
+- Policy manifest `3/3`，SHA-256 `37c0f491...`；
+- 冻结后才允许实现双 profile、跨平台 doctor、版本更新/回滚和并发 Evidence。
