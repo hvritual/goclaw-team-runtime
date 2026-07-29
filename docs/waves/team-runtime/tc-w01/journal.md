@@ -57,3 +57,14 @@
   secret channel、CRUD/UI Evidence 缺口与 Work-Item trailer 偏差；
 - r002 implementation 保留为 `TC-EVID-W01-002` failed，不 amend/rebase；
 - 激活 r003 做前向修复，RN-W01 继续 planned。
+
+## 2026-07-29 — r003 Task Freeze
+
+- activation commit：
+  `6cc3334c68cb6b45b4f43c688e0ac0e674e02a7f`；
+- activation tree：`b78c6374101d3f6fa41ff47e39673eb75a9378e2`；
+- Task：`TC-W01-ACCEPTANCE-004` r003；
+- canonical Work-Item：`tc-w01-acceptance-remediation`；
+- Policy manifest SHA-256：
+  `c9f6bb4e72166b9faf9511404e3ceca7f31b1aa2e8d73738581395756b7ec6c1`；
+- freeze 后只做 r003 已列 P1/P2 修复，不进入 RN/INT/REL。
