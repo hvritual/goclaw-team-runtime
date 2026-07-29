@@ -19,3 +19,15 @@
 | `TC-W01-S03` | planned | 等待 S02 |
 | `TC-W01-S04` | planned | 等待 S02–S03 |
 | `TC-W01-S05` | planned | 等待 S02–S04 |
+
+## 2026-07-29 — r002 Task Freeze
+
+- activation base：
+  `c29dabdee2f0551ad57996611e61e40521e3f7ee`；
+- activation tree：`9f08542676dec3f4680107613027392974dd3d50`；
+- Task：`TC-W01-CONTROL-003` r002；
+- Policy manifest SHA-256：
+  `0950b7ee6a2a15a0d8b7093cb4f7dbb513a1691c7c4f38755710a91a25d52b2b`；
+- branch：`agent/tc-w01-control-003`；
+- freeze 后只允许实现中央 Registry、预算、Context Bundle 和冻结的
+  Gateway/CLI/UI projection，不进入 RN/INT/REL 范围。
