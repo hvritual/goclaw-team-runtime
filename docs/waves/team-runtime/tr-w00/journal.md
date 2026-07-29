@@ -64,3 +64,19 @@
 - branch：`agent/tr-w00-acceptance-fixes-002`；
 - freeze 后才允许修改 build、credential Gate、Codex read-deny、入口测试、
   root README 和 systemd hardening 范围。
+
+## 2026-07-29 — r002 首次 final re-review 前向修复
+
+- exact remote head `c34d381674318130e9796d16b062d665806e162b` 的
+  security re-review 为 P0=0/P1=0，code re-review 为 P0=0/P1=1；
+- 新 P1 为 Runner systemd 模板的 `ProtectSystem=strict` 没有与可变
+  work root/repository root 配套 `ReadWritePaths`，会阻断 worktree 与
+  Evidence 写入；
+- 模板改为 `ProtectSystem=full`，继续只读保护系统目录，同时允许配置的
+  项目工作路径；固定路径部署仍可使用 `strict` 加显式
+  `ReadWritePaths` 强化；
+- canary 失败关闭测试显式放行 synthetic `MODEL_MARKER`，确保负向断言
+  确实能够观察错误进入模型分支；
+- focused Go test 和 `git diff --check` 通过；systemd 模板解析到可执行文件
+  存在性检查，当前容器没有 `/usr/local/bin/goclaw-runner`，因此真实 unit
+  启动 smoke 仍属于目标主机 Gate。

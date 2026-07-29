@@ -30,7 +30,11 @@ KillMode=control-group
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
-ProtectSystem=strict
+# Runner must write its work root and repository Git worktree metadata. "full"
+# keeps /usr, /boot and /etc read-only without making configured project paths
+# read-only. Deployments that use fixed paths may strengthen this to "strict"
+# together with explicit ReadWritePaths entries for every work/repository root.
+ProtectSystem=full
 ProtectControlGroups=true
 ProtectKernelModules=true
 ProtectKernelTunables=true

@@ -411,8 +411,9 @@ printf '%s\n' called > "$MODEL_MARKER"
 `)
 	executor := &LocalExecutor{
 		cfg: LocalExecConfig{
-			CodexCommand:   fakeCodex,
-			TimeoutSeconds: 30,
+			CodexCommand:       fakeCodex,
+			TimeoutSeconds:     30,
+			AllowedEnvironment: []string{"MODEL_MARKER"},
 		},
 		codexHome: filepath.Join(runtimeRoot, "real-codex-home"),
 	}
