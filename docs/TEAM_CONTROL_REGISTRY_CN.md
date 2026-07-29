@@ -230,7 +230,9 @@ not found；没有项目权限先返回 forbidden，不能据此探测资源是�
 调用 `delete`。
 
 Registry URI 只允许绝对本地路径、`file`、`https`、`git+https`，并拒绝
-userinfo、query、fragment、opaque URI、明文 HTTP 和未知 scheme。Metadata
+userinfo、query、fragment、opaque URI、明文 HTTP、未知 scheme、Windows
+设备路径和 Unix `/dev`、`/proc`、`/sys` 伪文件系统路径。校验错误不会
+回显不受信任的 scheme、metadata key 或 policy key。Metadata
 只允许上例字段以及非秘密的 `secret_ref` 标识；Gateway 响应不回显 metadata。
 实际凭据必须由 Runner 本机安全存储解析，不能写进 JSON、Vault、URI 或
 Context Bundle。

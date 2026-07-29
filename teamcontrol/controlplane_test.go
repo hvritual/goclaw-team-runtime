@@ -466,6 +466,13 @@ func TestRegistryRejectsSecretBearingFieldsAndSupportsCRUD(t *testing.T) {
 		"file://localhost//attacker/share/knowledge",
 		"file:////./PIPE/goclaw",
 		"file:////%3F/C:/vault/knowledge",
+		`C:\NUL`,
+		`C:\vault\COM1.txt`,
+		"file:///C:/NUL",
+		"/dev/zero",
+		"file:///dev/zero",
+		"/proc/self/environ",
+		"file:///sys/kernel",
 	} {
 		input := base
 		input.URI = uri

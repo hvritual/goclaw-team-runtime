@@ -218,20 +218,24 @@ func canonicalRules(input map[string]json.RawMessage) (map[string]json.RawMessag
 			return nil, err
 		}
 		if len(raw) == 0 {
-			return nil, fmt.Errorf("policy rule %q is empty", key)
+			return nil, fmt.Errorf("policy rule is empty")
 		}
 		decoder := json.NewDecoder(bytes.NewReader(raw))
 		decoder.UseNumber()
 		var value any
 		if err := decoder.Decode(&value); err != nil {
-			return nil, fmt.Errorf("policy rule %q is invalid JSON: %w", key, err)
+			return nil, fmt.Errorf("policy rule contains invalid JSON: %w", err)
 		}
 		var trailing any
 		if err := decoder.Decode(&trailing); err != io.EOF {
 			if err == nil {
-				return nil, fmt.Errorf("policy rule %q contains trailing JSON", key)
+				return nil, fmt.Errorf("policy rule contains trailing JSON")
 			}
-			return nil, fmt.Errorf("policy rule %q has invalid trailing JSON: %w", key, err)
+			return nil, fmt.Errorf("policy rule has invalid trailing JSON: %w", err)
+		}
+		if text, ok := value.(string); ok &&
+			(key == "style" || key == "code_style") {
+			value = strings.TrimSpace(text)
 		}
 		if err := validatePolicyRule(key, value); err != nil {
 			return nil, err
@@ -270,7 +274,7 @@ func validatePolicyRule(key string, value any) error {
 			return fmt.Errorf("policy rule %q must be a boolean", key)
 		}
 	default:
-		return fmt.Errorf("unsupported policy rule %q", key)
+		return fmt.Errorf("unsupported policy rule")
 	}
 	return nil
 }

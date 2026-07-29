@@ -117,3 +117,22 @@
 - 父目录 real-directory 与 Unix non-owner-write boundary 已加入；
 - 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
 - `TC-EVID-W01-007` collecting，等待第三个 exact SHA 完整三路验收。
+
+## 2026-07-29 — r003 exact review 3 BLOCK
+
+- reviewed exact `2bce7317f810fbe6ebf3a1874dccab02fb4f670a`，
+  tree `4f9daf57198b5e4cd71386c7c25fce88fd515a1c`；
+- code P0=0/P1=0/P2=3 PASS；security P0=0/P1=1/P2=2 BLOCK；
+  overall 已 BLOCK，因此未启动 docs final；
+- `C:\NUL`、`file:///C:/NUL`、`/dev/zero` 等设备或伪文件系统路径仍可
+  进入本地 Registry；
+- `TC-EVID-W01-008` 保留失败结果；继续最小前向修复并对新 SHA 重跑三路。
+
+## 2026-07-29 — r003 review remediation 4 Gate 通过
+
+- Windows DOS/NT device 与 Unix `/dev`、`/proc`、`/sys` 路径已拒绝并
+  加入回归；
+- URI/metadata/Policy 校验错误不再回显不受信任字段内容；
+- Policy canonical marshal 使用 trim 后的字段值；
+- 全仓 Go test/vet、关键 race、UI `10/10` 与 build 再次通过；
+- `TC-EVID-W01-009` collecting，等待新的 exact SHA 完整三路验收。

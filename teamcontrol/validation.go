@@ -154,14 +154,45 @@ func validateRegistryURI(value, field string) (string, error) {
 			return "", fmt.Errorf("%s must contain a host", field)
 		}
 	default:
-		return "", fmt.Errorf("%s uses unsupported scheme %q", field, parsed.Scheme)
+		return "", fmt.Errorf("%s uses an unsupported scheme", field)
 	}
 	return value, nil
 }
 
 func unsafeLocalPath(value string) bool {
 	normalized := strings.ReplaceAll(value, `\`, "/")
-	return strings.HasPrefix(normalized, "//")
+	lower := strings.ToLower(normalized)
+	if strings.HasPrefix(normalized, "//") ||
+		lower == "/dev" || strings.HasPrefix(lower, "/dev/") ||
+		lower == "/proc" || strings.HasPrefix(lower, "/proc/") ||
+		lower == "/sys" || strings.HasPrefix(lower, "/sys/") ||
+		strings.HasPrefix(lower, "/??/") ||
+		strings.HasPrefix(lower, "/device/") ||
+		strings.HasPrefix(lower, "/globalroot/") {
+		return true
+	}
+	candidate := strings.TrimPrefix(lower, "/")
+	if !windowsAbsolutePathPattern.MatchString(candidate) {
+		return false
+	}
+	for _, segment := range strings.Split(candidate[3:], "/") {
+		segment = strings.TrimRight(segment, " .")
+		if index := strings.IndexAny(segment, ".:"); index >= 0 {
+			segment = segment[:index]
+		}
+		switch segment {
+		case "con", "prn", "aux", "nul", "conin$", "conout$":
+			return true
+		}
+		if len(segment) == 4 {
+			prefix, digit := segment[:3], segment[3]
+			if (prefix == "com" || prefix == "lpt") &&
+				digit >= '1' && digit <= '9' {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func cleanUsageMetadata(values map[string]string) (map[string]string, error) {
@@ -230,10 +261,10 @@ func cleanTypedMetadata(
 	for rawKey, rawValue := range values {
 		key := strings.ToLower(strings.TrimSpace(rawKey))
 		if !allowed[key] {
-			return nil, fmt.Errorf("unsupported metadata key %q", rawKey)
+			return nil, fmt.Errorf("unsupported metadata key")
 		}
 		if _, exists := result[key]; exists {
-			return nil, fmt.Errorf("metadata key %q duplicates canonical key %q", rawKey, key)
+			return nil, fmt.Errorf("metadata key duplicates canonical key")
 		}
 		value, err := validate(key, rawValue)
 		if err != nil {
