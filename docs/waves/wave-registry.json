@@ -3,7 +3,7 @@
   "track_id": "TEAM-RUNTIME-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "TC-W01",
+  "active_wave": "RN-W01",
   "updated_at": "2026-07-29",
   "waves": [
     {
@@ -149,7 +149,7 @@
     {
       "id": "TC-W01",
       "title": "Team Control Registries, Budgets, and Context Compiler",
-      "status": "active",
+      "status": "complete",
       "document": "team-runtime/tc-w01/plan-r004.md",
       "depends_on": [
         "TR-W00"
@@ -167,17 +167,21 @@
     {
       "id": "RN-W01",
       "title": "Runner Lifecycle, Local Execution, and Version Management",
-      "status": "planned",
-      "document": "team-runtime/rn-w01/plan-r001.md",
+      "status": "active",
+      "document": "team-runtime/rn-w01/plan-r002.md",
       "depends_on": [
         "TC-W01"
       ],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
+        "teamcontrol/**",
         "workstation/**",
         "gateway/workstation.go",
+        "gateway/workstation_test.go",
+        "gateway/team_runtime_test.go",
         "cli/runner.go",
+        "cli/runner_test.go",
         "config/**",
         "deploy/**",
         "scripts/**"

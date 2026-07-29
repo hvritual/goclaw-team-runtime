@@ -246,3 +246,12 @@
 - TeamControl/Gateway/CLI target、全仓 Go test/vet、关键 race、UI
   `10/10` 与 build、Policy manifest `3/3` 全部通过；
 - `TC-EVID-W01-019` collecting，等待新 exact SHA 与三路 review。
+
+## 2026-07-29 — r004 exact final PASS
+
+- reviewed exact `a25628aecb32ecd025a0862562d2480b88fc8dff`，
+  tree `7bd25828ebf892350dc75828e7be41a154be2937`；
+- code P0=0/P1=0/P2=0、security P0=0/P1=0/P2=3、
+  docs P0=0/P1=0/P2=2，三路均 PASS；
+- `TC-EVID-W01-019` 结算 passed，`TC-EVID-W01-020` 固化 final review；
+- `TC-ISSUE-001` verified，TC-W01 complete，依赖 Wave RN-W01 r002 active。
