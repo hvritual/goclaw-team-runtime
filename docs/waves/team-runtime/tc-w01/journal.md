@@ -151,3 +151,16 @@
   superseded，不修改其历史正文；
 - 激活 `TC-W01 r004`，先推送 activation，再以远端 exact SHA 冻结 Task；
   RN-W01 继续 planned。
+
+## 2026-07-29 — r004 Task Freeze
+
+- activation remote commit：
+  `2afbe53545ea1203d9cabbe95a2fde23e1318e04`；
+- activation tree：`0617c07410151ed56841723b41f467ae254d859d`；
+- Task：`TC-W01-ACCEPTANCE-006` r004；
+- canonical Work-Item：`tc-w01-path-rbac-remediation`；
+- branch：`agent/tc-w01-acceptance-006`；
+- Policy manifest SHA-256：
+  `38b77d31e09806aafbc6b301e82f2f46b77aa9fa03de93c3283ee44d7ddeb41b`；
+- freeze 后只允许 exact scope 内的路径/RBAC provenance 修复和 Evidence；
+  RN/INT/REL 不进入实现。
