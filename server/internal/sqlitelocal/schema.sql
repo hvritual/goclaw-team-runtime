@@ -54,6 +54,25 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE UNIQUE INDEX IF NOT EXISTS members_workspace_user_idx ON members(workspace_id, user_id);
 CREATE INDEX IF NOT EXISTS members_user_idx ON members(user_id);
 
+CREATE TABLE IF NOT EXISTS invitations (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    inviter_id TEXT NOT NULL,
+    invitee_email TEXT NOT NULL,
+    invitee_user_id TEXT,
+    role TEXT NOT NULL,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS invitations_pending_workspace_email_idx
+    ON invitations(workspace_id, invitee_email) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS invitations_invitee_idx
+    ON invitations(invitee_email, invitee_user_id, status, expires_at);
+CREATE INDEX IF NOT EXISTS invitations_workspace_idx
+    ON invitations(workspace_id, status, created_at);
+
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -151,3 +170,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS skill_files_skill_path_idx ON skill_files(skil
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

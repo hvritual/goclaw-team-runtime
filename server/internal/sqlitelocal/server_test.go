@@ -172,6 +172,11 @@ func TestSQLiteLocalPersistsAcrossRestart(t *testing.T) {
 	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
 	client.token = login["token"].(string)
 	client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Persistent", "slug": "persistent"}, http.StatusCreated)
+	// Simulate a database created before the invitation table existed. Open
+	// must re-apply additive schema statements even when older data is present.
+	if _, err := app.db.Exec(`DROP TABLE invitations`); err != nil {
+		t.Fatal(err)
+	}
 	if err := app.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -187,6 +192,10 @@ func TestSQLiteLocalPersistsAcrossRestart(t *testing.T) {
 	if len(workspaces) != 1 || workspaces[0]["slug"] != "persistent" {
 		t.Fatalf("workspace did not persist: %#v", workspaces)
 	}
+	client.request(http.MethodPost, "/api/workspaces/"+workspaces[0]["id"].(string)+"/members", map[string]any{
+		"email": "invitee@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
 }
 
 func TestSQLiteLocalRejectsCrossWorkspaceRelationships(t *testing.T) {
@@ -234,7 +243,7 @@ func TestSQLiteLocalMemberCannotDeleteWorkspace(t *testing.T) {
 	owner.token = login["token"].(string)
 	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Protected", "slug": "protected"}, http.StatusCreated)
 	owner.slug = workspace["slug"].(string)
-	owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
 		"email": "member@example.com",
 		"role":  "member",
 	}, http.StatusCreated)
@@ -243,6 +252,7 @@ func TestSQLiteLocalMemberCannotDeleteWorkspace(t *testing.T) {
 	member.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "member@example.com"}, http.StatusNoContent)
 	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "member@example.com", "code": "888888"}, http.StatusOK)
 	member.token = memberLogin["token"].(string)
+	member.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
 	member.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string), nil, http.StatusForbidden)
 }
 
@@ -279,5 +289,168 @@ func TestSQLiteLocalBrowserCookieLogin(t *testing.T) {
 	app.Handler().ServeHTTP(meRec, meReq)
 	if meRec.Code != http.StatusOK {
 		t.Fatalf("cookie-authenticated /api/me: got status %d; body=%s", meRec.Code, meRec.Body.String())
+	}
+}
+
+func TestSQLiteLocalOnboardingUnlocksWorkspace(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "onboarding@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+
+	updated := client.request(http.MethodPatch, "/api/me/onboarding", map[string]any{
+		"questionnaire": map[string]any{
+			"role":     "engineer",
+			"use_case": []string{"task_management"},
+		},
+	}, http.StatusOK)
+	questionnaire, ok := updated["onboarding_questionnaire"].(map[string]any)
+	if !ok || questionnaire["role"] != "engineer" {
+		t.Fatalf("questionnaire was not persisted: %#v", updated)
+	}
+	if updated["onboarded_at"] != nil {
+		t.Fatalf("saving questionnaire must not complete onboarding: %#v", updated)
+	}
+
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Onboarding Team",
+		"slug": "onboarding-team",
+	}, http.StatusCreated)
+	completed := client.request(http.MethodPost, "/api/me/onboarding/complete", map[string]any{
+		"completion_path": "runtime_skipped",
+		"workspace_id":    workspace["id"],
+	}, http.StatusOK)
+	if completed["onboarded_at"] == nil || completed["onboarded_at"] == "" {
+		t.Fatalf("onboarding completion did not unlock the workspace: %#v", completed)
+	}
+
+	me := client.request(http.MethodGet, "/api/me", nil, http.StatusOK)
+	if me["onboarded_at"] != completed["onboarded_at"] {
+		t.Fatalf("completed onboarding was not persisted: completed=%#v me=%#v", completed, me)
+	}
+}
+
+func TestSQLiteLocalInvitationAcceptanceAddsMember(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Invitation Team",
+		"slug": "invitation-team",
+	}, http.StatusCreated)
+
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "invitee@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+	if invitation["status"] != "pending" {
+		t.Fatalf("new invitation must stay pending until accepted: %#v", invitation)
+	}
+	owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "invitee@example.com",
+		"role":  "member",
+	}, http.StatusConflict)
+
+	membersBefore := owner.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/members", http.StatusOK)
+	if len(membersBefore) != 1 {
+		t.Fatalf("pending invitation must not create a member: %#v", membersBefore)
+	}
+	workspaceInvitations := owner.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/invitations", http.StatusOK)
+	if len(workspaceInvitations) != 1 || workspaceInvitations[0]["id"] != invitation["id"] {
+		t.Fatalf("workspace invitation was not listed: %#v", workspaceInvitations)
+	}
+
+	intruder := &testClient{t: t, app: app}
+	intruderLogin := intruder.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "intruder@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	intruder.token = intruderLogin["token"].(string)
+	intruder.request(http.MethodGet, "/api/invitations/"+invitation["id"].(string), nil, http.StatusForbidden)
+	intruder.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusForbidden)
+
+	invitee := &testClient{t: t, app: app}
+	inviteeLogin := invitee.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "invitee@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	invitee.token = inviteeLogin["token"].(string)
+	pending := invitee.requestList(http.MethodGet, "/api/invitations", http.StatusOK)
+	if len(pending) != 1 || pending[0]["id"] != invitation["id"] {
+		t.Fatalf("invitee cannot see pending invitation: %#v", pending)
+	}
+
+	acceptedMember := invitee.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+	if acceptedMember["user_id"] != inviteeLogin["user"].(map[string]any)["id"] {
+		t.Fatalf("accepted membership belongs to the wrong user: %#v", acceptedMember)
+	}
+	membersAfter := owner.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/members", http.StatusOK)
+	if len(membersAfter) != 2 {
+		t.Fatalf("accepted invitation did not add a member: %#v", membersAfter)
+	}
+
+	me := invitee.request(http.MethodGet, "/api/me", nil, http.StatusOK)
+	if me["onboarded_at"] == nil || me["onboarded_at"] == "" {
+		t.Fatalf("accepting the first invitation must complete onboarding: %#v", me)
+	}
+}
+
+func TestSQLiteLocalInvitationDeclineAndRevoke(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Invitation Decisions",
+		"slug": "invitation-decisions",
+	}, http.StatusCreated)
+
+	declined := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "decline@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+	decliningUser := &testClient{t: t, app: app}
+	decliningLogin := decliningUser.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "decline@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	decliningUser.token = decliningLogin["token"].(string)
+	decliningUser.request(http.MethodPost, "/api/invitations/"+declined["id"].(string)+"/decline", nil, http.StatusNoContent)
+	if pending := decliningUser.requestList(http.MethodGet, "/api/invitations", http.StatusOK); len(pending) != 0 {
+		t.Fatalf("declined invitation is still pending: %#v", pending)
+	}
+
+	revoked := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "revoke@example.com",
+		"role":  "admin",
+	}, http.StatusCreated)
+	owner.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string)+"/invitations/"+revoked["id"].(string), nil, http.StatusNoContent)
+	if pending := owner.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/invitations", http.StatusOK); len(pending) != 0 {
+		t.Fatalf("revoked invitation is still pending: %#v", pending)
 	}
 }

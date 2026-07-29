@@ -34,6 +34,7 @@ var schema string
 const (
 	defaultVerificationCode = "888888"
 	authCookieName          = "multica_auth"
+	invitationLifetime      = 7 * 24 * time.Hour
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -119,6 +120,8 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 		api.Use(s.authenticate)
 		api.Get("/api/me", s.getMe)
 		api.Patch("/api/me", s.updateMe)
+		api.Patch("/api/me/onboarding", s.patchOnboarding)
+		api.Post("/api/me/onboarding/complete", s.completeOnboarding)
 
 		api.Route("/api/workspaces", func(workspaces chi.Router) {
 			workspaces.Get("/", s.listWorkspaces)
@@ -130,8 +133,15 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			workspaces.Post("/{id}/members", s.createMember)
 			workspaces.Patch("/{id}/members/{memberID}", s.updateMember)
 			workspaces.Delete("/{id}/members/{memberID}", s.deleteMember)
+			workspaces.Get("/{id}/invitations", s.listWorkspaceInvitations)
+			workspaces.Delete("/{id}/invitations/{invitationID}", s.revokeInvitation)
 			workspaces.Post("/{id}/leave", s.leaveWorkspace)
 		})
+
+		api.Get("/api/invitations", s.listMyInvitations)
+		api.Get("/api/invitations/{id}", s.getMyInvitation)
+		api.Post("/api/invitations/{id}/accept", s.acceptInvitation)
+		api.Post("/api/invitations/{id}/decline", s.declineInvitation)
 
 		api.Route("/api/projects", func(projects chi.Router) {
 			projects.Get("/", s.listProjects)
@@ -411,6 +421,10 @@ func (s *Server) findOrCreateUser(ctx context.Context, email string) (user, erro
 	if err != nil {
 		return user{}, err
 	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE invitations SET invitee_user_id = ?
+		WHERE invitee_email = ? AND invitee_user_id IS NULL AND status = 'pending'`, id, email); err != nil {
+		return user{}, err
+	}
 	return scanUser(s.db.QueryRowContext(ctx, `SELECT `+userColumns()+` FROM users WHERE id = ?`, id))
 }
 
@@ -460,6 +474,76 @@ func (s *Server) updateMe(w http.ResponseWriter, r *http.Request) {
 		value.Timezone, value.ProfileDescription, value.UpdatedAt, value.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update user")
+		return
+	}
+	writeJSON(w, http.StatusOK, value.response())
+}
+
+func (s *Server) patchOnboarding(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 16*1024)
+	var req struct {
+		Questionnaire *json.RawMessage `json:"questionnaire"`
+	}
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	if req.Questionnaire != nil {
+		var questionnaire map[string]any
+		if err := json.Unmarshal(*req.Questionnaire, &questionnaire); err != nil {
+			writeError(w, http.StatusBadRequest, "questionnaire must be a JSON object")
+			return
+		}
+		encoded, err := json.Marshal(questionnaire)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid questionnaire")
+			return
+		}
+		timestamp := now()
+		if _, err := s.db.ExecContext(r.Context(), `UPDATE users
+			SET onboarding_questionnaire = ?, updated_at = ? WHERE id = ?`,
+			string(encoded), timestamp, currentUserID(r)); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to update onboarding")
+			return
+		}
+	}
+
+	value, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	writeJSON(w, http.StatusOK, value.response())
+}
+
+func (s *Server) completeOnboarding(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CompletionPath string `json:"completion_path"`
+		WorkspaceID    string `json:"workspace_id"`
+	}
+	if r.ContentLength != 0 && !decodeJSON(w, r, &req) {
+		return
+	}
+	if req.WorkspaceID != "" {
+		var exists int
+		err := s.db.QueryRowContext(r.Context(), `SELECT 1 FROM members
+			WHERE workspace_id = ? AND user_id = ?`, req.WorkspaceID, currentUserID(r)).Scan(&exists)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "workspace is not available to the current user")
+			return
+		}
+	}
+
+	timestamp := now()
+	if _, err := s.db.ExecContext(r.Context(), `UPDATE users
+		SET onboarded_at = COALESCE(onboarded_at, ?), updated_at = ? WHERE id = ?`,
+		timestamp, timestamp, currentUserID(r)); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to complete onboarding")
+		return
+	}
+	value, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
 	writeJSON(w, http.StatusOK, value.response())
@@ -696,6 +780,7 @@ func (s *Server) deleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		`DELETE FROM skills WHERE workspace_id = ?`,
 		`DELETE FROM issues WHERE workspace_id = ?`,
 		`DELETE FROM projects WHERE workspace_id = ?`,
+		`DELETE FROM invitations WHERE workspace_id = ?`,
 		`DELETE FROM members WHERE workspace_id = ?`,
 		`DELETE FROM workspaces WHERE id = ?`,
 	}
@@ -722,6 +807,40 @@ func memberResponse(value member) map[string]any {
 		"id": value.ID, "workspace_id": value.WorkspaceID, "user_id": value.UserID,
 		"role": value.Role, "created_at": value.CreatedAt, "name": value.Name,
 		"email": value.Email, "avatar_url": nullable(value.AvatarURL.String),
+	}
+}
+
+type invitation struct {
+	ID, WorkspaceID, InviterID, InviteeEmail, Role, Status string
+	CreatedAt, UpdatedAt, ExpiresAt                        string
+	WorkspaceName, InviterName, InviterEmail               string
+	InviteeUserID                                          sql.NullString
+}
+
+func invitationSelect() string {
+	return `i.id, i.workspace_id, i.inviter_id, i.invitee_email, i.invitee_user_id,
+		i.role, i.status, i.created_at, i.updated_at, i.expires_at,
+		w.name, u.name, u.email`
+}
+
+func scanInvitation(scanner interface{ Scan(...any) error }) (invitation, error) {
+	var value invitation
+	err := scanner.Scan(
+		&value.ID, &value.WorkspaceID, &value.InviterID, &value.InviteeEmail, &value.InviteeUserID,
+		&value.Role, &value.Status, &value.CreatedAt, &value.UpdatedAt, &value.ExpiresAt,
+		&value.WorkspaceName, &value.InviterName, &value.InviterEmail,
+	)
+	return value, err
+}
+
+func invitationResponse(value invitation) map[string]any {
+	return map[string]any{
+		"id": value.ID, "workspace_id": value.WorkspaceID, "inviter_id": value.InviterID,
+		"invitee_email": value.InviteeEmail, "invitee_user_id": nullable(value.InviteeUserID.String),
+		"role": value.Role, "status": value.Status, "created_at": value.CreatedAt,
+		"updated_at": value.UpdatedAt, "expires_at": value.ExpiresAt,
+		"workspace_name": value.WorkspaceName, "inviter_name": value.InviterName,
+		"inviter_email": value.InviterEmail,
 	}
 }
 
@@ -778,24 +897,301 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "valid email is required")
 		return
 	}
-	invitee, err := s.findOrCreateUser(r.Context(), email)
+
+	var memberCount int
+	err := s.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM members m
+		JOIN users u ON u.id = m.user_id
+		WHERE m.workspace_id = ? AND lower(u.email) = ?`, workspaceValue.ID, email).Scan(&memberCount)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to create local member")
+		writeError(w, http.StatusInternalServerError, "failed to check workspace membership")
 		return
 	}
-	id, timestamp := newID(), now()
-	_, err = s.db.ExecContext(r.Context(), `INSERT INTO members(id, workspace_id, user_id, role, created_at)
-		VALUES (?, ?, ?, ?, ?)`, id, workspaceValue.ID, invitee.ID, req.Role, timestamp)
-	if err != nil {
+	if memberCount > 0 {
 		writeError(w, http.StatusConflict, "user is already a member")
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id": id, "workspace_id": workspaceValue.ID, "inviter_id": currentUserID(r),
-		"invitee_email": invitee.Email, "invitee_user_id": invitee.ID, "role": req.Role,
-		"status": "accepted", "created_at": timestamp, "updated_at": timestamp,
-		"expires_at": timestamp, "workspace_name": workspaceValue.Name,
-	})
+
+	timestamp := now()
+	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
+		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending' AND expires_at <= ?`,
+		timestamp, workspaceValue.ID, email, timestamp); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
+		return
+	}
+
+	var pendingCount int
+	if err := s.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM invitations
+		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending'`,
+		workspaceValue.ID, email).Scan(&pendingCount); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to check pending invitation")
+		return
+	}
+	if pendingCount > 0 {
+		writeError(w, http.StatusConflict, "invitation already pending for this email")
+		return
+	}
+
+	var inviteeUserID sql.NullString
+	err = s.db.QueryRowContext(r.Context(), `SELECT id FROM users WHERE email = ?`, email).Scan(&inviteeUserID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, "failed to resolve invitee")
+		return
+	}
+
+	id := newID()
+	expiresAt := time.Now().UTC().Add(invitationLifetime).Format(time.RFC3339Nano)
+	_, err = s.db.ExecContext(r.Context(), `INSERT INTO invitations(
+		id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
+		created_at, updated_at, expires_at
+	) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+		id, workspaceValue.ID, currentUserID(r), email, inviteeUserID, req.Role,
+		timestamp, timestamp, expiresAt)
+	if err != nil {
+		writeError(w, http.StatusConflict, "invitation already pending for this email")
+		return
+	}
+
+	value, err := scanInvitation(s.db.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.id = ?`, id))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load invitation")
+		return
+	}
+	writeJSON(w, http.StatusCreated, invitationResponse(value))
+}
+
+func (s *Server) listWorkspaceInvitations(w http.ResponseWriter, r *http.Request) {
+	workspaceValue, ok := s.authorizedWorkspace(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	timestamp := now()
+	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
+		WHERE workspace_id = ? AND status = 'pending' AND expires_at <= ?`,
+		timestamp, workspaceValue.ID, timestamp); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
+		return
+	}
+	rows, err := s.db.QueryContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.workspace_id = ? AND i.status = 'pending'
+		ORDER BY i.created_at`, workspaceValue.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list invitations")
+		return
+	}
+	defer rows.Close()
+
+	result := make([]map[string]any, 0)
+	for rows.Next() {
+		value, err := scanInvitation(rows)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to list invitations")
+			return
+		}
+		result = append(result, invitationResponse(value))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) revokeInvitation(w http.ResponseWriter, r *http.Request) {
+	workspaceValue, ok := s.authorizedWorkspace(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	if !s.requireWorkspaceRole(w, r, workspaceValue.ID, "owner", "admin") {
+		return
+	}
+	result, err := s.db.ExecContext(r.Context(), `UPDATE invitations
+		SET status = 'revoked', updated_at = ?
+		WHERE id = ? AND workspace_id = ? AND status = 'pending'`,
+		now(), chi.URLParam(r, "invitationID"), workspaceValue.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to revoke invitation")
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		writeError(w, http.StatusNotFound, "invitation not found")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) listMyInvitations(w http.ResponseWriter, r *http.Request) {
+	current, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	timestamp := now()
+	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
+		WHERE status = 'pending' AND expires_at <= ?
+			AND (invitee_user_id = ? OR invitee_email = ?)`,
+		timestamp, timestamp, current.ID, current.Email); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
+		return
+	}
+	rows, err := s.db.QueryContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.status = 'pending' AND (i.invitee_user_id = ? OR i.invitee_email = ?)
+		ORDER BY i.created_at`, current.ID, current.Email)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list invitations")
+		return
+	}
+	defer rows.Close()
+
+	result := make([]map[string]any, 0)
+	for rows.Next() {
+		value, err := scanInvitation(rows)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to list invitations")
+			return
+		}
+		result = append(result, invitationResponse(value))
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) getMyInvitation(w http.ResponseWriter, r *http.Request) {
+	current, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	value, err := scanInvitation(s.db.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.id = ?`, chi.URLParam(r, "id")))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "invitation not found")
+		return
+	}
+	if value.InviteeEmail != current.Email && (!value.InviteeUserID.Valid || value.InviteeUserID.String != current.ID) {
+		writeError(w, http.StatusForbidden, "invitation does not belong to you")
+		return
+	}
+	writeJSON(w, http.StatusOK, invitationResponse(value))
+}
+
+func (s *Server) acceptInvitation(w http.ResponseWriter, r *http.Request) {
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to accept invitation")
+		return
+	}
+	defer tx.Rollback()
+
+	current, err := scanUser(tx.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	value, err := scanInvitation(tx.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.id = ?`, chi.URLParam(r, "id")))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "invitation not found")
+		return
+	}
+	if value.InviteeEmail != current.Email && (!value.InviteeUserID.Valid || value.InviteeUserID.String != current.ID) {
+		writeError(w, http.StatusForbidden, "invitation does not belong to you")
+		return
+	}
+	if value.Status != "pending" {
+		writeError(w, http.StatusBadRequest, "invitation is not pending")
+		return
+	}
+	expiresAt, err := time.Parse(time.RFC3339Nano, value.ExpiresAt)
+	if err != nil || !expiresAt.After(time.Now()) {
+		if _, updateErr := tx.ExecContext(r.Context(), `UPDATE invitations
+			SET status = 'expired', updated_at = ? WHERE id = ? AND status = 'pending'`,
+			now(), value.ID); updateErr == nil {
+			_ = tx.Commit()
+		}
+		writeError(w, http.StatusGone, "invitation has expired")
+		return
+	}
+
+	memberID, timestamp := newID(), now()
+	if _, err := tx.ExecContext(r.Context(), `INSERT INTO members(id, workspace_id, user_id, role, created_at)
+		VALUES (?, ?, ?, ?, ?)`, memberID, value.WorkspaceID, current.ID, value.Role, timestamp); err != nil {
+		writeError(w, http.StatusConflict, "you are already a member of this workspace")
+		return
+	}
+	result, err := tx.ExecContext(r.Context(), `UPDATE invitations
+		SET status = 'accepted', invitee_user_id = ?, updated_at = ?
+		WHERE id = ? AND status = 'pending'`, current.ID, timestamp, value.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to accept invitation")
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		writeError(w, http.StatusConflict, "invitation is no longer pending")
+		return
+	}
+	if _, err := tx.ExecContext(r.Context(), `UPDATE users
+		SET onboarded_at = COALESCE(onboarded_at, ?), updated_at = ? WHERE id = ?`,
+		timestamp, timestamp, current.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to complete onboarding")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to accept invitation")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, memberResponse(member{
+		ID: memberID, WorkspaceID: value.WorkspaceID, UserID: current.ID,
+		Role: value.Role, CreatedAt: timestamp, Name: current.Name, Email: current.Email,
+		AvatarURL: current.AvatarURL,
+	}))
+}
+
+func (s *Server) declineInvitation(w http.ResponseWriter, r *http.Request) {
+	current, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "user not found")
+		return
+	}
+	value, err := scanInvitation(s.db.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
+		FROM invitations i
+		JOIN workspaces w ON w.id = i.workspace_id
+		JOIN users u ON u.id = i.inviter_id
+		WHERE i.id = ?`, chi.URLParam(r, "id")))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "invitation not found")
+		return
+	}
+	if value.InviteeEmail != current.Email && (!value.InviteeUserID.Valid || value.InviteeUserID.String != current.ID) {
+		writeError(w, http.StatusForbidden, "invitation does not belong to you")
+		return
+	}
+	result, err := s.db.ExecContext(r.Context(), `UPDATE invitations
+		SET status = 'declined', invitee_user_id = ?, updated_at = ?
+		WHERE id = ? AND status = 'pending'`, current.ID, now(), value.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to decline invitation")
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		writeError(w, http.StatusBadRequest, "invitation is not pending")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
