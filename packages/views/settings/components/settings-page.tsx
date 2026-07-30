@@ -15,11 +15,16 @@ import {
   Tags,
   Keyboard,
   ListTodo,
+  ShieldCheck,
 } from "lucide-react";
 import { GitHubMark } from "./github-mark";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@multica/ui/components/ui/tabs";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { useCurrentWorkspace } from "@multica/core/paths";
+import {
+  canViewPermissionManagement,
+  useCurrentMember,
+} from "@multica/core/permissions";
 import { useNavigation } from "../../navigation";
 import { AccountTab } from "./account-tab";
 import { PreferencesTab } from "./preferences-tab";
@@ -28,6 +33,7 @@ import { IssueTab } from "./issue-tab";
 import { TokensTab } from "./tokens-tab";
 import { WorkspaceTab } from "./workspace-tab";
 import { MembersTab } from "./members-tab";
+import { PermissionsTab } from "./permissions-tab";
 import { RepositoriesTab } from "./repositories-tab";
 import { GitHubTab } from "./github-tab";
 import { IntegrationsTab } from "./integrations-tab";
@@ -51,31 +57,34 @@ const ACCOUNT_TAB_ICONS = {
 
 const WORKSPACE_TAB_KEYS = [
   "general",
+  "members",
+  "permissions",
   "repositories",
   "github",
   "integrations",
   "labs",
-  "members",
   "labels",
   "properties",
 ] as const;
 const WORKSPACE_TAB_VALUES = {
   general: "workspace",
+  members: "members",
+  permissions: "permissions",
   repositories: "repositories",
   github: "github",
   integrations: "integrations",
   labs: "labs",
-  members: "members",
   labels: "labels",
   properties: "properties",
 } as const;
 const WORKSPACE_TAB_ICONS = {
   general: Settings,
+  members: Users,
+  permissions: ShieldCheck,
   repositories: FolderGit2,
   github: GitHubMark,
   integrations: Plug,
   labs: FlaskConical,
-  members: Users,
   labels: Tags,
   properties: SlidersHorizontal,
 } as const;
@@ -108,9 +117,22 @@ interface SettingsPageProps {
 
 export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
   const { t } = useT("settings");
-  const workspaceName = useCurrentWorkspace()?.name;
+  const workspace = useCurrentWorkspace();
+  const workspaceName = workspace?.name;
+  const currentMember = useCurrentMember(workspace?.id ?? "");
+  const canViewPermissions = canViewPermissionManagement({
+    userId: currentMember.userId,
+    role: currentMember.role,
+  }).allowed;
   const navigation = useNavigation();
   const isMobile = useIsMobile();
+  const visibleWorkspaceTabKeys = React.useMemo(
+    () =>
+      WORKSPACE_TAB_KEYS.filter(
+        (key) => key !== "permissions" || canViewPermissions,
+      ),
+    [canViewPermissions],
+  );
 
   // Whitelist of valid tab values; unknown ?tab=… values silently fall back to
   // the default. Whitelisting also blocks junk like ?tab=<script> from
@@ -119,10 +141,10 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
     () =>
       new Set<string>([
         ...ACCOUNT_TAB_KEYS,
-        ...Object.values(WORKSPACE_TAB_VALUES),
+        ...visibleWorkspaceTabKeys.map((key) => WORKSPACE_TAB_VALUES[key]),
         ...(extraAccountTabs?.map((tab) => tab.value) ?? []),
       ]),
-    [extraAccountTabs],
+    [extraAccountTabs, visibleWorkspaceTabKeys],
   );
 
   const tabFromUrl = navigation.searchParams.get(TAB_QUERY_KEY);
@@ -130,7 +152,11 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
     ? LEGACY_WORKSPACE_TAB_REDIRECTS[tabFromUrl] ?? tabFromUrl
     : null;
   const activeTab =
-    candidateTab && validTabs.has(candidateTab) ? candidateTab : DEFAULT_TAB;
+    candidateTab && validTabs.has(candidateTab)
+      ? candidateTab
+      : candidateTab === "permissions" && !canViewPermissions
+        ? "workspace"
+        : DEFAULT_TAB;
 
   // replace (not push) so settings tab switches don't pollute browser history.
   // Preserve any other query params the page may carry.
@@ -189,7 +215,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
           <span className="hidden truncate px-2 pb-1 pt-4 text-xs font-medium text-muted-foreground md:block">
             {workspaceName ?? t(($) => $.page.workspace_fallback)}
           </span>
-          {WORKSPACE_TAB_KEYS.map((key) => {
+          {visibleWorkspaceTabKeys.map((key) => {
             const Icon = WORKSPACE_TAB_ICONS[key];
             return (
               <TabsTrigger
@@ -221,6 +247,9 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
           <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
           <TabsContent value="labs"><LabsTab /></TabsContent>
           <TabsContent value="members"><MembersTab /></TabsContent>
+          {canViewPermissions ? (
+            <TabsContent value="permissions"><PermissionsTab /></TabsContent>
+          ) : null}
           <TabsContent value="labels"><LabelsTab /></TabsContent>
           <TabsContent value="properties"><PropertiesTab /></TabsContent>
           {extraAccountTabs?.map((tab) => (

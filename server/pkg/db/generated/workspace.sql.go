@@ -390,6 +390,21 @@ func (q *Queries) LockWorkspaceForDelete(ctx context.Context, id pgtype.UUID) (p
 	return id_2, err
 }
 
+const lockWorkspaceForMemberMutation = `-- name: LockWorkspaceForMemberMutation :one
+SELECT id FROM workspace WHERE id = $1 FOR UPDATE
+`
+
+// Serializes role changes, member removals, and workspace leaves so each
+// mutation checks the owner invariant against the result of the previous one.
+// Without this lock, two concurrent owner removals can both observe two owners
+// and commit a workspace with none.
+func (q *Queries) LockWorkspaceForMemberMutation(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockWorkspaceForMemberMutation, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const updateWorkspace = `-- name: UpdateWorkspace :one
 UPDATE workspace SET
     name = COALESCE($2, name),

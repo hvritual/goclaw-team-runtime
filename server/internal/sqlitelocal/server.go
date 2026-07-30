@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
+	"github.com/multica-ai/multica/server/internal/workspacepermissions"
 	_ "modernc.org/sqlite"
 )
 
@@ -129,6 +130,7 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			workspaces.Get("/{id}", s.getWorkspace)
 			workspaces.Patch("/{id}", s.updateWorkspace)
 			workspaces.Delete("/{id}", s.deleteWorkspace)
+			workspaces.Get("/{id}/permissions", s.getWorkspacePermissions)
 			workspaces.Get("/{id}/members", s.listMembers)
 			workspaces.Post("/{id}/members", s.createMember)
 			workspaces.Patch("/{id}/members/{memberID}", s.updateMember)
@@ -712,7 +714,13 @@ func (s *Server) updateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, value.ID, "owner", "admin") {
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		value.ID,
+		workspacepermissions.RoleOwner,
+		workspacepermissions.RoleAdmin,
+	) {
 		return
 	}
 	var req struct {
@@ -764,7 +772,12 @@ func (s *Server) deleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, value.ID, "owner") {
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		value.ID,
+		workspacepermissions.RoleOwner,
+	) {
 		return
 	}
 	tx, err := s.db.BeginTx(r.Context(), nil)
@@ -875,7 +888,13 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, workspaceValue.ID, "owner", "admin") {
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		workspaceValue.ID,
+		workspacepermissions.RoleOwner,
+		workspacepermissions.RoleAdmin,
+	) {
 		return
 	}
 	var req struct {
@@ -968,6 +987,15 @@ func (s *Server) listWorkspaceInvitations(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		workspaceValue.ID,
+		workspacepermissions.RoleOwner,
+		workspacepermissions.RoleAdmin,
+	) {
+		return
+	}
 	timestamp := now()
 	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
 		WHERE workspace_id = ? AND status = 'pending' AND expires_at <= ?`,
@@ -1004,7 +1032,13 @@ func (s *Server) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, workspaceValue.ID, "owner", "admin") {
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		workspaceValue.ID,
+		workspacepermissions.RoleOwner,
+		workspacepermissions.RoleAdmin,
+	) {
 		return
 	}
 	result, err := s.db.ExecContext(r.Context(), `UPDATE invitations
@@ -1199,21 +1233,53 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, workspaceValue.ID, "owner", "admin") {
-		return
-	}
 	var req struct {
 		Role string `json:"role"`
 	}
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.Role != "admin" && req.Role != "member" {
-		writeError(w, http.StatusBadRequest, "role must be admin or member")
+	requestedRole := workspacepermissions.RoleKey(req.Role)
+	if requestedRole != workspacepermissions.RoleOwner &&
+		requestedRole != workspacepermissions.RoleAdmin &&
+		requestedRole != workspacepermissions.RoleMember {
+		writeError(w, http.StatusBadRequest, "role must be owner, admin, or member")
 		return
 	}
+
 	memberID := chi.URLParam(r, "memberID")
-	result, err := s.db.ExecContext(r.Context(), `UPDATE members SET role = ? WHERE id = ? AND workspace_id = ?`, req.Role, memberID, workspaceValue.ID)
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update member")
+		return
+	}
+	defer tx.Rollback()
+
+	requesterRole, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
+	if err != nil ||
+		(requesterRole != workspacepermissions.RoleOwner &&
+			requesterRole != workspacepermissions.RoleAdmin) {
+		writeError(w, http.StatusForbidden, "insufficient workspace role")
+		return
+	}
+	targetRole, err := workspaceMemberRole(r.Context(), tx, workspaceValue.ID, memberID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+	if (targetRole == workspacepermissions.RoleOwner ||
+		requestedRole == workspacepermissions.RoleOwner) &&
+		requesterRole != workspacepermissions.RoleOwner {
+		writeError(w, http.StatusForbidden, "only owners can manage the owner role")
+		return
+	}
+	if targetRole == workspacepermissions.RoleOwner &&
+		requestedRole != workspacepermissions.RoleOwner &&
+		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
+		return
+	}
+
+	result, err := tx.ExecContext(r.Context(), `UPDATE members SET role = ? WHERE id = ? AND workspace_id = ?`, req.Role, memberID, workspaceValue.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update member")
 		return
@@ -1227,6 +1293,11 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "member not found")
 		return
 	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update member")
+		return
+	}
+
 	var value member
 	err = s.db.QueryRowContext(r.Context(), `SELECT m.id, m.workspace_id, m.user_id, m.role, m.created_at,
 		u.name, u.email, u.avatar_url FROM members m JOIN users u ON u.id = m.user_id
@@ -1244,12 +1315,47 @@ func (s *Server) deleteMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(w, r, workspaceValue.ID, "owner", "admin") {
+	memberID := chi.URLParam(r, "memberID")
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete member")
 		return
 	}
-	_, err := s.db.ExecContext(r.Context(), `DELETE FROM members WHERE id = ? AND workspace_id = ?`,
-		chi.URLParam(r, "memberID"), workspaceValue.ID)
+	defer tx.Rollback()
+
+	requesterRole, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
+	if err != nil ||
+		(requesterRole != workspacepermissions.RoleOwner &&
+			requesterRole != workspacepermissions.RoleAdmin) {
+		writeError(w, http.StatusForbidden, "insufficient workspace role")
+		return
+	}
+	targetRole, err := workspaceMemberRole(r.Context(), tx, workspaceValue.ID, memberID)
 	if err != nil {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+	if targetRole == workspacepermissions.RoleOwner &&
+		requesterRole != workspacepermissions.RoleOwner {
+		writeError(w, http.StatusForbidden, "only owners can remove another owner")
+		return
+	}
+	if targetRole == workspacepermissions.RoleOwner &&
+		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
+		return
+	}
+
+	result, err := tx.ExecContext(r.Context(), `DELETE FROM members WHERE id = ? AND workspace_id = ?`, memberID, workspaceValue.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete member")
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete member")
 		return
 	}
@@ -1261,19 +1367,34 @@ func (s *Server) leaveWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var role string
-	if err := s.db.QueryRowContext(r.Context(), `SELECT role FROM members WHERE workspace_id = ? AND user_id = ?`,
-		workspaceValue.ID, currentUserID(r)).Scan(&role); err != nil {
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
+		return
+	}
+	defer tx.Rollback()
+
+	role, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
+	if err != nil {
 		writeError(w, http.StatusNotFound, "membership not found")
 		return
 	}
-	if role == "owner" {
-		writeError(w, http.StatusConflict, "workspace owner cannot leave")
+	if role == workspacepermissions.RoleOwner &&
+		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
 		return
 	}
-	_, err := s.db.ExecContext(r.Context(), `DELETE FROM members WHERE workspace_id = ? AND user_id = ?`,
+	result, err := tx.ExecContext(r.Context(), `DELETE FROM members WHERE workspace_id = ? AND user_id = ?`,
 		workspaceValue.ID, currentUserID(r))
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
+		return
+	}
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		writeError(w, http.StatusNotFound, "membership not found")
+		return
+	}
+	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
 		return
 	}
@@ -1464,6 +1585,15 @@ func applyNullString(target *sql.NullString, input *string) {
 func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 	value, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
 	if !ok {
+		return
+	}
+	if !s.requireWorkspaceRole(
+		w,
+		r,
+		value.WorkspaceID,
+		workspacepermissions.RoleOwner,
+		workspacepermissions.RoleAdmin,
+	) {
 		return
 	}
 	tx, err := s.db.BeginTx(r.Context(), nil)
@@ -2190,6 +2320,9 @@ func (s *Server) updateSkill(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "skill not found")
 		return
 	}
+	if !s.requireSkillManager(w, r, workspaceValue.ID, current.CreatedBy) {
+		return
+	}
 	var req skillRequest
 	if !decodeJSON(w, r, &req) {
 		return
@@ -2240,6 +2373,14 @@ func (s *Server) deleteSkill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
+	current, err := scanSkill(s.db.QueryRowContext(r.Context(), `SELECT `+skillColumns()+` FROM skills WHERE id = ? AND workspace_id = ?`, id, workspaceValue.ID))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "skill not found")
+		return
+	}
+	if !s.requireSkillManager(w, r, workspaceValue.ID, current.CreatedBy) {
+		return
+	}
 	tx, err := s.db.BeginTx(r.Context(), nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete skill")
@@ -2285,21 +2426,4 @@ func (s *Server) belongsToWorkspace(ctx context.Context, table, id, workspaceID 
 	var found int
 	query := `SELECT 1 FROM ` + table + ` WHERE id = ? AND workspace_id = ?`
 	return s.db.QueryRowContext(ctx, query, id, workspaceID).Scan(&found) == nil
-}
-
-func (s *Server) requireWorkspaceRole(w http.ResponseWriter, r *http.Request, workspaceID string, allowed ...string) bool {
-	var role string
-	err := s.db.QueryRowContext(r.Context(), `SELECT role FROM members WHERE workspace_id = ? AND user_id = ?`,
-		workspaceID, currentUserID(r)).Scan(&role)
-	if err != nil {
-		writeError(w, http.StatusForbidden, "workspace access denied")
-		return false
-	}
-	for _, candidate := range allowed {
-		if role == candidate {
-			return true
-		}
-	}
-	writeError(w, http.StatusForbidden, "insufficient workspace role")
-	return false
 }

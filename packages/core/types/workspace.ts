@@ -89,3 +89,23 @@ export interface Invitation {
   inviter_email?: string;
   workspace_name?: string;
 }
+
+export type WorkspacePermissionAccess =
+  | "allowed"
+  | "conditional"
+  | "denied";
+
+export interface WorkspacePermissionRole {
+  key: MemberRole;
+}
+
+export interface WorkspacePermissionCapability {
+  key: string;
+  domain: "workspace" | "member" | "project" | "issue" | "task" | "skill";
+  access: Record<MemberRole, WorkspacePermissionAccess>;
+}
+
+export interface WorkspacePermissionCatalog {
+  roles: WorkspacePermissionRole[];
+  capabilities: WorkspacePermissionCapability[];
+}

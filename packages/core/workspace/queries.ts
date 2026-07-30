@@ -6,6 +6,7 @@ export const workspaceKeys = {
   all: (wsId: string) => ["workspaces", wsId] as const,
   list: () => ["workspaces", "list"] as const,
   members: (wsId: string) => ["workspaces", wsId, "members"] as const,
+  permissions: (wsId: string) => ["workspaces", wsId, "permissions"] as const,
   invitations: (wsId: string) => ["workspaces", wsId, "invitations"] as const,
   myInvitations: () => ["invitations", "mine"] as const,
   agents: (wsId: string) => ["workspaces", wsId, "agents"] as const,
@@ -38,6 +39,14 @@ export function memberListOptions(wsId: string) {
   return queryOptions({
     queryKey: workspaceKeys.members(wsId),
     queryFn: () => api.listMembers(wsId),
+  });
+}
+
+export function workspacePermissionOptions(wsId: string, enabled = true) {
+  return queryOptions({
+    queryKey: workspaceKeys.permissions(wsId),
+    queryFn: () => api.getWorkspacePermissions(wsId),
+    enabled: !!wsId && enabled,
   });
 }
 
@@ -114,10 +123,11 @@ export function selectSkillAssignments(
   return map;
 }
 
-export function invitationListOptions(wsId: string) {
+export function invitationListOptions(wsId: string, enabled = true) {
   return queryOptions({
     queryKey: workspaceKeys.invitations(wsId),
     queryFn: () => api.listWorkspaceInvitations(wsId),
+    enabled: !!wsId && enabled,
   });
 }
 

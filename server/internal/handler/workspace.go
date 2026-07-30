@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -584,13 +585,39 @@ func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update member")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+
+	if _, err := qtx.LockWorkspaceForMemberMutation(r.Context(), requester.WorkspaceID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update member")
+		return
+	}
+	requester, err = qtx.GetMemberByUserAndWorkspace(r.Context(), db.GetMemberByUserAndWorkspaceParams{
+		UserID:      parseUUID(requestUserID(r)),
+		WorkspaceID: requester.WorkspaceID,
+	})
+	if err != nil || (requester.Role != "owner" && requester.Role != "admin") {
+		writeError(w, http.StatusForbidden, "insufficient permissions")
+		return
+	}
+	target, err = qtx.GetMember(r.Context(), memberUUID)
+	if err != nil || uuidToString(target.WorkspaceID) != uuidToString(requester.WorkspaceID) {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+
 	if (target.Role == "owner" || role == "owner") && requester.Role != "owner" {
 		writeError(w, http.StatusForbidden, "insufficient permissions")
 		return
 	}
 
 	if target.Role == "owner" && role != "owner" {
-		members, err := h.Queries.ListMembers(r.Context(), target.WorkspaceID)
+		members, err := qtx.ListMembers(r.Context(), target.WorkspaceID)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to update member")
 			return
@@ -601,11 +628,16 @@ func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	updatedMember, err := h.Queries.UpdateMemberRole(r.Context(), db.UpdateMemberRoleParams{
+	updatedMember, err := qtx.UpdateMemberRole(r.Context(), db.UpdateMemberRoleParams{
 		ID:   target.ID,
 		Role: role,
 	})
 	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update member")
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update member")
 		return
 	}
@@ -649,21 +681,21 @@ func (h *Handler) DeleteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if target.Role == "owner" {
-		members, err := h.Queries.ListMembers(r.Context(), target.WorkspaceID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to delete member")
-			return
-		}
-		if countOwners(members) <= 1 {
-			writeError(w, http.StatusBadRequest, "workspace must have at least one owner")
-			return
-		}
-	}
-
 	requesterUserID := requestUserID(r)
 	result, err := h.revokeAndRemoveMember(r.Context(), target.WorkspaceID, target.UserID, target.ID, parseUUID(requesterUserID))
 	if err != nil {
+		if errors.Is(err, errLastWorkspaceOwner) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if errors.Is(err, errWorkspaceMemberRemovalForbidden) {
+			writeError(w, http.StatusForbidden, "insufficient permissions")
+			return
+		}
+		if errors.Is(err, errWorkspaceMemberRemovalNotFound) {
+			writeError(w, http.StatusNotFound, "member not found")
+			return
+		}
 		slog.Warn("delete member failed", append(logger.RequestAttrs(r), "error", err, "member_id", memberID, "workspace_id", workspaceID)...)
 		writeError(w, http.StatusInternalServerError, "failed to delete member")
 		return
@@ -693,20 +725,16 @@ func (h *Handler) LeaveWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if member.Role == "owner" {
-		members, err := h.Queries.ListMembers(r.Context(), member.WorkspaceID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to leave workspace")
-			return
-		}
-		if countOwners(members) <= 1 {
-			writeError(w, http.StatusBadRequest, "workspace must have at least one owner")
-			return
-		}
-	}
-
 	result, err := h.revokeAndRemoveMember(r.Context(), member.WorkspaceID, member.UserID, member.ID, member.UserID)
 	if err != nil {
+		if errors.Is(err, errLastWorkspaceOwner) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if errors.Is(err, errWorkspaceMemberRemovalNotFound) {
+			writeError(w, http.StatusNotFound, "membership not found")
+			return
+		}
 		slog.Warn("leave workspace failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
 		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
 		return

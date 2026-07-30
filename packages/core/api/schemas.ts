@@ -46,9 +46,70 @@ import type {
   TimelineEntry,
   User,
   WebhookDelivery,
+  WorkspacePermissionCatalog,
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
+
+const WORKSPACE_PERMISSION_ROLES = ["owner", "admin", "member"] as const;
+const WORKSPACE_PERMISSION_DOMAINS = [
+  "workspace",
+  "member",
+  "project",
+  "issue",
+  "task",
+  "skill",
+] as const;
+
+const WorkspacePermissionRoleSchema = z.object({
+  key: z.string(),
+}).loose();
+
+const WorkspacePermissionAccessSchema = z.string();
+
+export const WorkspacePermissionCatalogSchema = z.object({
+  roles: z.array(WorkspacePermissionRoleSchema),
+  capabilities: z.array(
+    z.object({
+      key: z.string(),
+      domain: z.string(),
+      access: z.object({
+        owner: WorkspacePermissionAccessSchema,
+        admin: WorkspacePermissionAccessSchema,
+        member: WorkspacePermissionAccessSchema,
+      }),
+    }).loose(),
+  ),
+}).loose().superRefine((catalog, context) => {
+  const roles = new Set(catalog.roles.map((role) => role.key));
+  for (const role of WORKSPACE_PERMISSION_ROLES) {
+    if (!roles.has(role)) {
+      context.addIssue({
+        code: "custom",
+        message: `permission catalog is missing role ${role}`,
+        path: ["roles"],
+      });
+    }
+  }
+
+  const domains = new Set(
+    catalog.capabilities.map((capability) => capability.domain),
+  );
+  for (const domain of WORKSPACE_PERMISSION_DOMAINS) {
+    if (!domains.has(domain)) {
+      context.addIssue({
+        code: "custom",
+        message: `permission catalog is missing domain ${domain}`,
+        path: ["capabilities"],
+      });
+    }
+  }
+});
+
+export const EMPTY_WORKSPACE_PERMISSION_CATALOG: WorkspacePermissionCatalog = {
+  roles: [],
+  capabilities: [],
+};
 
 export const GitHubInstallationSchema = z.object({
   id: z.string(),

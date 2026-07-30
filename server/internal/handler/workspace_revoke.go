@@ -2,11 +2,18 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
+)
+
+var (
+	errLastWorkspaceOwner              = errors.New("workspace must have at least one owner")
+	errWorkspaceMemberRemovalForbidden = errors.New("workspace member removal forbidden")
+	errWorkspaceMemberRemovalNotFound  = errors.New("workspace member removal target not found")
 )
 
 // revokeAndRemoveMember converges all server-side state that should follow a
@@ -49,6 +56,35 @@ func (h *Handler) revokeAndRemoveMember(ctx context.Context, workspaceID, userID
 	defer tx.Rollback(ctx)
 
 	qtx := h.Queries.WithTx(tx)
+	if _, err := qtx.LockWorkspaceForMemberMutation(ctx, workspaceID); err != nil {
+		return empty, err
+	}
+
+	target, err := qtx.GetMember(ctx, memberID)
+	if err != nil || target.WorkspaceID != workspaceID || target.UserID != userID {
+		return empty, errWorkspaceMemberRemovalNotFound
+	}
+	if archivedBy != target.UserID {
+		requester, err := qtx.GetMemberByUserAndWorkspace(ctx, db.GetMemberByUserAndWorkspaceParams{
+			UserID:      archivedBy,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil || (requester.Role != "owner" && requester.Role != "admin") {
+			return empty, errWorkspaceMemberRemovalForbidden
+		}
+		if target.Role == "owner" && requester.Role != "owner" {
+			return empty, errWorkspaceMemberRemovalForbidden
+		}
+	}
+	if target.Role == "owner" {
+		members, err := qtx.ListMembers(ctx, workspaceID)
+		if err != nil {
+			return empty, err
+		}
+		if countOwners(members) <= 1 {
+			return empty, errLastWorkspaceOwner
+		}
+	}
 
 	runtimes, err := qtx.ListAgentRuntimesByOwner(ctx, db.ListAgentRuntimesByOwnerParams{
 		WorkspaceID: workspaceID,

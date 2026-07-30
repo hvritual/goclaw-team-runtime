@@ -79,6 +79,13 @@ RETURNING issue_counter;
 -- workspace, so this cannot deadlock against it.
 SELECT id FROM workspace WHERE id = $1 FOR UPDATE;
 
+-- name: LockWorkspaceForMemberMutation :one
+-- Serializes role changes, member removals, and workspace leaves so each
+-- mutation checks the owner invariant against the result of the previous one.
+-- Without this lock, two concurrent owner removals can both observe two owners
+-- and commit a workspace with none.
+SELECT id FROM workspace WHERE id = $1 FOR UPDATE;
+
 -- name: LockWorkspaceForChatSessionCreate :one
 -- The creator half of the workspace delete/create protocol (#5219). Every
 -- production path that inserts a chat_session takes this FOR KEY SHARE lock on the

@@ -209,6 +209,16 @@ export function canManageMembers(ctx: PermissionContext): Decision {
   );
 }
 
+export function canViewPermissionManagement(
+  ctx: PermissionContext,
+): Decision {
+  if (isAdminLike(ctx.role)) return ALLOW;
+  return deny(
+    "not_admin_role",
+    "Only workspace owners and admins can view permission management.",
+  );
+}
+
 /**
  * Encodes the role-change matrix from `workspace.go:458-530`:
  *   - admins cannot touch the owner role (neither demote owners nor promote)

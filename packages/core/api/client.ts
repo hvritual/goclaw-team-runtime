@@ -51,6 +51,7 @@ import type {
   IssueReaction,
   Workspace,
   WorkspaceRepo,
+  WorkspacePermissionCatalog,
   MemberWithUser,
   User,
   Skill,
@@ -297,6 +298,8 @@ import {
   EMPTY_LIST_GITHUB_REPOSITORIES_RESPONSE,
   RuntimeModelListRequestSchema,
   MALFORMED_RUNTIME_MODEL_LIST_REQUEST,
+  WorkspacePermissionCatalogSchema,
+  EMPTY_WORKSPACE_PERMISSION_CATALOG,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -1963,6 +1966,18 @@ export class ApiClient {
   // Members
   async listMembers(workspaceId: string): Promise<MemberWithUser[]> {
     return this.fetch(`/api/workspaces/${workspaceId}/members`);
+  }
+
+  async getWorkspacePermissions(workspaceId: string): Promise<WorkspacePermissionCatalog> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/permissions`,
+    );
+    return parseWithFallback(
+      raw,
+      WorkspacePermissionCatalogSchema,
+      EMPTY_WORKSPACE_PERMISSION_CATALOG,
+      { endpoint: "GET /api/workspaces/:id/permissions" },
+    );
   }
 
   async createMember(workspaceId: string, data: CreateMemberRequest): Promise<Invitation> {

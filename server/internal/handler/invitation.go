@@ -186,12 +186,16 @@ func (h *Handler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListWorkspaceInvitations(w http.ResponseWriter, r *http.Request) {
 	workspaceID := workspaceIDFromURL(r, "id")
-	workspaceUUID, ok := parseUUIDOrBadRequest(w, workspaceID, "workspace id")
+	requester, ok := h.workspaceMember(w, r, workspaceID)
 	if !ok {
 		return
 	}
+	if !roleAllowed(requester.Role, "owner", "admin") {
+		writeError(w, http.StatusForbidden, "insufficient permissions")
+		return
+	}
 
-	rows, err := h.Queries.ListPendingInvitationsByWorkspace(r.Context(), workspaceUUID)
+	rows, err := h.Queries.ListPendingInvitationsByWorkspace(r.Context(), requester.WorkspaceID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list invitations")
 		return

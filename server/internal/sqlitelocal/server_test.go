@@ -454,3 +454,156 @@ func TestSQLiteLocalInvitationDeclineAndRevoke(t *testing.T) {
 		t.Fatalf("revoked invitation is still pending: %#v", pending)
 	}
 }
+
+func TestSQLiteLocalPermissionManagementIsAdminOnly(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Permission Team",
+		"slug": "permission-team",
+	}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+
+	catalog := owner.request(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/permissions", nil, http.StatusOK)
+	if len(catalog["roles"].([]any)) != 3 {
+		t.Fatalf("permission catalog must describe all fixed roles: %#v", catalog)
+	}
+	if len(catalog["capabilities"].([]any)) == 0 {
+		t.Fatalf("permission catalog must include capabilities: %#v", catalog)
+	}
+
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "member@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+	member := &testClient{t: t, app: app, slug: owner.slug}
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "member@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	member.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+	member.request(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/permissions", nil, http.StatusForbidden)
+	member.request(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/invitations", nil, http.StatusForbidden)
+}
+
+func TestSQLiteLocalOwnerManagementMatchesWorkspaceInvariant(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Owner Invariant",
+		"slug": "owner-invariant",
+	}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "admin@example.com",
+		"role":  "admin",
+	}, http.StatusCreated)
+	admin := &testClient{t: t, app: app, slug: owner.slug}
+	adminLogin := admin.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "admin@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	admin.token = adminLogin["token"].(string)
+	accepted := admin.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+
+	members := owner.requestList(http.MethodGet, "/api/workspaces/"+workspace["id"].(string)+"/members", http.StatusOK)
+	ownerMemberID := ""
+	for _, member := range members {
+		if member["role"] == "owner" {
+			ownerMemberID = member["id"].(string)
+		}
+	}
+	if ownerMemberID == "" {
+		t.Fatalf("owner membership not found: %#v", members)
+	}
+	admin.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string)+"/members/"+ownerMemberID, nil, http.StatusForbidden)
+
+	promoted := owner.request(http.MethodPatch, "/api/workspaces/"+workspace["id"].(string)+"/members/"+accepted["id"].(string), map[string]any{
+		"role": "owner",
+	}, http.StatusOK)
+	if promoted["role"] != "owner" {
+		t.Fatalf("member was not promoted to owner: %#v", promoted)
+	}
+
+	owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/leave", nil, http.StatusNoContent)
+	admin.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/leave", nil, http.StatusBadRequest)
+}
+
+func TestSQLiteLocalProjectAndSkillPermissionsMatchCatalog(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Permission parity",
+		"slug": "permission-parity",
+	}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+
+	project := owner.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Owner project",
+	}, http.StatusCreated)
+	ownerSkill := owner.request(http.MethodPost, "/api/skills", map[string]any{
+		"name":        "Owner skill",
+		"description": "Created by the owner",
+	}, http.StatusCreated)
+
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "member@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+	member := &testClient{t: t, app: app, slug: owner.slug}
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "member@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	member.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+
+	member.request(http.MethodDelete, "/api/projects/"+project["id"].(string), nil, http.StatusForbidden)
+	member.request(http.MethodPut, "/api/skills/"+ownerSkill["id"].(string), map[string]any{
+		"name":        "Changed by member",
+		"description": "Must be rejected",
+	}, http.StatusForbidden)
+	member.request(http.MethodDelete, "/api/skills/"+ownerSkill["id"].(string), nil, http.StatusForbidden)
+
+	memberSkill := member.request(http.MethodPost, "/api/skills", map[string]any{
+		"name":        "Member skill",
+		"description": "Created by the member",
+	}, http.StatusCreated)
+	member.request(http.MethodPut, "/api/skills/"+memberSkill["id"].(string), map[string]any{
+		"name":        "Updated member skill",
+		"description": "Members can maintain their own skills",
+	}, http.StatusOK)
+	member.request(http.MethodDelete, "/api/skills/"+memberSkill["id"].(string), nil, http.StatusNoContent)
+}

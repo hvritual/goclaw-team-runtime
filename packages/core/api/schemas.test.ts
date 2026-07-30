@@ -35,6 +35,7 @@ import {
   SquadSchema,
   TimelineEntriesSchema,
   UserSchema,
+  WorkspacePermissionCatalogSchema,
 } from "./schemas";
 import { parseWithFallback } from "./schema";
 
@@ -61,6 +62,127 @@ const baseIssue = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
+
+describe("WorkspacePermissionCatalogSchema", () => {
+  it("accepts the fixed three-role capability catalog", () => {
+    const parsed = WorkspacePermissionCatalogSchema.parse({
+      roles: [{ key: "owner" }, { key: "admin" }, { key: "member" }],
+      capabilities: [
+        "workspace",
+        "member",
+        "project",
+        "issue",
+        "task",
+        "skill",
+      ].map((domain) => ({
+        key: `${domain}.view`,
+        domain,
+        access: {
+          owner: "allowed",
+          admin: "conditional",
+          member: "denied",
+        },
+      })),
+    });
+
+    expect(parsed.roles.map((role) => role.key)).toEqual([
+      "owner",
+      "admin",
+      "member",
+    ]);
+    expect(parsed.capabilities[0]?.access.admin).toBe("conditional");
+  });
+
+  it("rejects catalogs missing a fixed role or six-domain capability group", () => {
+    expect(
+      WorkspacePermissionCatalogSchema.safeParse({
+        roles: [{ key: "owner" }, { key: "admin" }, { key: "admin" }],
+        capabilities: [
+          {
+            key: "workspace.view",
+            domain: "workspace",
+            access: {
+              owner: "allowed",
+              admin: "allowed",
+              member: "denied",
+            },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts added server roles, domains, and access levels", () => {
+    const result = WorkspacePermissionCatalogSchema.safeParse({
+      roles: [
+        { key: "owner" },
+        { key: "admin" },
+        { key: "member" },
+        { key: "auditor" },
+      ],
+      capabilities: [
+        ...[
+          "workspace",
+          "member",
+          "project",
+          "issue",
+          "task",
+          "skill",
+        ].map((domain) => ({
+          key: `${domain}.view`,
+          domain,
+          access: {
+            owner: "allowed",
+            admin: "allowed",
+            member: "allowed",
+          },
+        })),
+        {
+          key: "automation.run",
+          domain: "automation",
+          access: {
+            owner: "allowed",
+            admin: "conditional",
+            member: "scoped",
+          },
+        },
+      ],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects malformed role and access shapes", () => {
+    expect(
+      WorkspacePermissionCatalogSchema.safeParse({
+        roles: [
+          { key: "owner" },
+          { key: "admin" },
+          { key: "member" },
+          { key: 42 },
+        ],
+        capabilities: [
+          ...[
+            "workspace",
+            "member",
+            "project",
+            "issue",
+            "task",
+            "skill",
+          ].map((domain) => ({
+            key: `${domain}.view`,
+            domain,
+            access: {
+              owner: 1,
+              admin: "denied",
+              member: "denied",
+            },
+          })),
+        ],
+      }).success,
+    ).toBe(false);
+  });
+});
 
 describe("IssueSchema (via ListIssuesResponseSchema)", () => {
   it("accepts a primitive metadata KV map", () => {

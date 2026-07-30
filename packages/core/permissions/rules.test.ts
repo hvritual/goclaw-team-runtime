@@ -12,6 +12,7 @@ import {
   canEditSkill,
   canManageMembers,
   canUpdateWorkspaceSettings,
+  canViewPermissionManagement,
 } from "./rules";
 
 const ALICE = "user-alice";
@@ -402,6 +403,17 @@ describe("workspace-level rules", () => {
     expect(canManageMembers({ userId: ALICE, role: "member" }).allowed).toBe(
       false,
     );
+  });
+  it("permission management is visible only to owners and admins", () => {
+    expect(
+      canViewPermissionManagement({ userId: ALICE, role: "owner" }).allowed,
+    ).toBe(true);
+    expect(
+      canViewPermissionManagement({ userId: ALICE, role: "admin" }).allowed,
+    ).toBe(true);
+    expect(
+      canViewPermissionManagement({ userId: ALICE, role: "member" }).allowed,
+    ).toBe(false);
   });
 });
 

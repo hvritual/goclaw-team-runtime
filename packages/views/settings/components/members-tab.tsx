@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Crown, Shield, User, Plus, MoreHorizontal, UserMinus, Clock, X, Mail } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Crown, Shield, User, Plus, MoreHorizontal, UserMinus, Clock, X, Mail, Search } from "lucide-react";
 import { ActorAvatar } from "../../common/actor-avatar";
 import type { MemberWithUser, MemberRole, Invitation } from "@multica/core/types";
 import { Input } from "@multica/ui/components/ui/input";
@@ -42,6 +42,7 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import { useCurrentWorkspace } from "@multica/core/paths";
 import { memberListOptions, invitationListOptions, workspaceKeys } from "@multica/core/workspace/queries";
 import { api } from "@multica/core/api";
+import { canManageMembers } from "@multica/core/permissions";
 import { useT } from "../../i18n";
 import { SettingsCard, SettingsSection, SettingsTab } from "./settings-layout";
 
@@ -98,8 +99,12 @@ function MemberRow({
   const rc = roleConfig[member.role];
   const RoleIcon = rc.icon;
   const canEditRole = canManage && !isSelf && (member.role !== "owner" || canManageOwners);
-  const canRemove = canManage && !isSelf && (member.role !== "owner" || canManageOwners);
   const isLastOwner = member.role === "owner" && ownerCount <= 1;
+  const canRemove =
+    canManage &&
+    !isSelf &&
+    !isLastOwner &&
+    (member.role !== "owner" || canManageOwners);
   const showMenu = canEditRole || canRemove;
 
   return (
@@ -206,7 +211,11 @@ function InvitationRow({
         <div className="text-sm font-medium truncate">{invitation.invitee_email}</div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
-          <span>{t(($) => $.members.pending_status)}</span>
+          <span>
+            {t(($) => $.members.pending_expires, {
+              date: new Date(invitation.expires_at).toLocaleDateString(),
+            })}
+          </span>
         </div>
       </div>
       {canManage && (
@@ -234,12 +243,14 @@ export function MembersTab() {
   const workspace = useCurrentWorkspace();
   const qc = useQueryClient();
   const wsId = useWorkspaceId();
-  const { data: members = [] } = useQuery(memberListOptions(wsId));
-  const { data: invitations = [] } = useQuery(invitationListOptions(wsId));
+  const memberQuery = useQuery(memberListOptions(wsId));
+  const members = useMemo(() => memberQuery.data ?? [], [memberQuery.data]);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<MemberRole>("member");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | MemberRole>("all");
   const [memberActionId, setMemberActionId] = useState<string | null>(null);
   const [invitationActionId, setInvitationActionId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -250,9 +261,27 @@ export function MembersTab() {
   } | null>(null);
 
   const currentMember = members.find((m) => m.user_id === user?.id) ?? null;
-  const canManageWorkspace = currentMember?.role === "owner" || currentMember?.role === "admin";
+  const canManageWorkspace = canManageMembers({
+    userId: user?.id ?? null,
+    role: currentMember?.role ?? null,
+  }).allowed;
+  const invitationQuery = useQuery(
+    invitationListOptions(wsId, canManageWorkspace),
+  );
+  const invitations = invitationQuery.data ?? [];
   const isOwner = currentMember?.role === "owner";
   const ownerCount = members.filter((m) => m.role === "owner").length;
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    return members.filter((member) => {
+      if (roleFilter !== "all" && member.role !== roleFilter) return false;
+      if (!query) return true;
+      return (
+        member.name.toLocaleLowerCase().includes(query) ||
+        member.email.toLocaleLowerCase().includes(query)
+      );
+    });
+  }, [members, roleFilter, searchQuery]);
 
   const handleInviteMember = async () => {
     if (!workspace) return;
@@ -383,9 +412,63 @@ export function MembersTab() {
           </Card>
         )}
 
-        {members.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label={t(($) => $.members.search_placeholder)}
+              placeholder={t(($) => $.members.search_placeholder)}
+              className="pl-8"
+            />
+          </div>
+          <Select
+            items={([
+              ["all", t(($) => $.members.filter_all)],
+              ["owner", roleConfig.owner.label],
+              ["admin", roleConfig.admin.label],
+              ["member", roleConfig.member.label],
+            ] as const).map(([value, label]) => ({ value, label }))}
+            value={roleFilter}
+            onValueChange={(value) =>
+              setRoleFilter(value as "all" | MemberRole)
+            }
+          >
+            <SelectTrigger
+              aria-label={t(($) => $.members.filter_role)}
+              className="w-full"
+            >
+              <SelectValue>
+                {() =>
+                  roleFilter === "all"
+                    ? t(($) => $.members.filter_all)
+                    : roleConfig[roleFilter].label
+                }
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                {t(($) => $.members.filter_all)}
+              </SelectItem>
+              <SelectItem value="owner">{roleConfig.owner.label}</SelectItem>
+              <SelectItem value="admin">{roleConfig.admin.label}</SelectItem>
+              <SelectItem value="member">{roleConfig.member.label}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {memberQuery.isLoading ? (
+          <p className="text-sm text-muted-foreground">
+            {t(($) => $.members.loading)}
+          </p>
+        ) : memberQuery.isError ? (
+          <p className="text-sm text-destructive">
+            {t(($) => $.members.load_failed)}
+          </p>
+        ) : filteredMembers.length > 0 ? (
           <SettingsCard>
-            {members.map((m) => (
+            {filteredMembers.map((m) => (
               <div key={m.id}>
                 <MemberRow
                   member={m}
@@ -401,24 +484,46 @@ export function MembersTab() {
             ))}
           </SettingsCard>
         ) : (
-          <p className="text-sm text-muted-foreground">{t(($) => $.members.no_members)}</p>
+          <p className="text-sm text-muted-foreground">
+            {searchQuery || roleFilter !== "all"
+              ? t(($) => $.members.no_results)
+              : t(($) => $.members.no_members)}
+          </p>
         )}
       </SettingsSection>
 
-      {invitations.length > 0 && (
-        <SettingsSection title={t(($) => $.members.pending_title, { count: invitations.length })}>
-          <SettingsCard>
-            {invitations.map((inv) => (
-              <div key={inv.id}>
-                <InvitationRow
-                  invitation={inv}
-                  canManage={canManageWorkspace}
-                  onRevoke={() => handleRevokeInvitation(inv)}
-                  busy={invitationActionId === inv.id}
-                />
-              </div>
-            ))}
-          </SettingsCard>
+      {canManageWorkspace && (
+        <SettingsSection
+          title={t(($) => $.members.pending_title, {
+            count: invitations.length,
+          })}
+        >
+          {invitationQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">
+              {t(($) => $.members.pending_loading)}
+            </p>
+          ) : invitationQuery.isError ? (
+            <p className="text-sm text-destructive">
+              {t(($) => $.members.pending_load_failed)}
+            </p>
+          ) : invitations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t(($) => $.members.pending_empty)}
+            </p>
+          ) : (
+            <SettingsCard>
+              {invitations.map((inv) => (
+                <div key={inv.id}>
+                  <InvitationRow
+                    invitation={inv}
+                    canManage={canManageWorkspace}
+                    onRevoke={() => handleRevokeInvitation(inv)}
+                    busy={invitationActionId === inv.id}
+                  />
+                </div>
+              ))}
+            </SettingsCard>
+          )}
         </SettingsSection>
       )}
 
