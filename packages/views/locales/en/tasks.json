@@ -1,0 +1,13 @@
+{
+  "title": "Tasks",
+  "new_placeholder": "What needs to be done?",
+  "create": "Add task",
+  "empty": "No tasks yet",
+  "delete": "Delete",
+  "status": {
+    "todo": "To do",
+    "in_progress": "In progress",
+    "done": "Done",
+    "cancelled": "Cancelled"
+  }
+}

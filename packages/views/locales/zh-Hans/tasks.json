@@ -1,0 +1,13 @@
+{
+  "title": "任务",
+  "new_placeholder": "需要完成什么？",
+  "create": "添加任务",
+  "empty": "暂无任务",
+  "delete": "删除",
+  "status": {
+    "todo": "待办",
+    "in_progress": "进行中",
+    "done": "已完成",
+    "cancelled": "已取消"
+  }
+}

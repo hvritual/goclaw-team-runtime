@@ -3,13 +3,13 @@ import { DragStrip } from "@multica/views/platform";
 import { MulticaIcon } from "@multica/ui/components/common/multica-icon";
 
 function requireRuntimeAppUrl(): string {
-  const runtimeConfig = window.desktopAPI.runtimeConfig;
-  if (!runtimeConfig.ok) {
+  const endpointConfig = window.desktopAPI.endpointConfig;
+  if (!endpointConfig.ok) {
     throw new Error(
-      "Invariant violated: DesktopLoginPage rendered before App accepted runtime config",
+      "Invariant violated: DesktopLoginPage rendered before App accepted endpoint config",
     );
   }
-  return runtimeConfig.config.appUrl;
+  return endpointConfig.config.appUrl;
 }
 
 export function DesktopLoginPage() {

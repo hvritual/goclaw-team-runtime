@@ -9,7 +9,6 @@ import {
   type MyIssuesFilter,
 } from "./queries";
 import { projectKeys } from "../projects/queries";
-import { inboxKeys } from "../inbox/queries";
 import {
   applyIssueChange,
   invalidateIssueDerivatives,
@@ -27,16 +26,14 @@ import {
 import {
   cleanupDeletedIssueCaches,
   collectDeletedIssueCacheMetadata,
-  invalidateDeletedIssueDependentCaches,
   invalidateDeletedIssueParentCaches,
   invalidateIssueScopedCaches,
   pruneDeletedIssueFromListCaches,
   pruneDeletedIssueFromParentChildrenCaches,
 } from "./delete-cache";
 import { useWorkspaceId } from "../hooks";
-import { useRecentContextStore } from "../chat/recent-context-store";
 import { useRecentIssuesStore } from "./stores";
-import type { GroupedIssuesResponse, InboxItem, Issue, IssueAssigneeGroup, IssueReaction, IssueStatus } from "../types";
+import type { GroupedIssuesResponse, Issue, IssueAssigneeGroup, IssueReaction, IssueStatus } from "../types";
 import type {
   CreateIssueRequest,
   ListIssuesCache,
@@ -238,11 +235,7 @@ export function useUpdateIssue() {
       return api.moveIssue(id, { ...target, ...moveIntent });
     },
     onMutate: ({ id, move_intent: _moveIntent, ...data }) => {
-      // suppress_run / handoff_note are write-time control fields, not Issue
-      // columns — they steer enqueue/injection on the server and must never be
-      // written into the query cache (MUL-3375). Strip them from the patch; the
-      // mutationFn above still sends the full payload to the API.
-      const { suppress_run: _suppressRun, handoff_note: _handoffNote, ...patch } = data;
+      const patch = data;
       // Fire-and-forget cancelQueries — keeps onMutate synchronous so the
       // cache update happens in the same tick as mutate(). Awaiting would
       // yield to the event loop, letting @dnd-kit reset its visual state
@@ -251,9 +244,6 @@ export function useUpdateIssue() {
       qc.cancelQueries({ queryKey: issueKeys.myAll(wsId) });
       qc.cancelQueries({ queryKey: issueKeys.flatAll(wsId) });
       qc.cancelQueries({ queryKey: issueKeys.tableAll(wsId) });
-      if (patch.status !== undefined) {
-        qc.cancelQueries({ queryKey: inboxKeys.list(wsId) });
-      }
       const prevDetail = qc.getQueryData<Issue>(issueKeys.detail(wsId, id));
       // The coordinator owns the cross-cache rules: surgical patch/rebucket
       // where the card is loaded and still belongs, surgical REMOVE where the
@@ -335,13 +325,7 @@ export function useUpdateIssue() {
       // optimistically; against the post-write entity the changed dims come
       // out false unless the server coerced a different value, so this pass
       // is the plain surgical patch it always was.
-      const {
-        suppress_run: _suppressRun,
-        handoff_note: _handoffNote,
-        move_intent: _moveIntent,
-        id: _id,
-        ...intent
-      } = vars;
+      const { move_intent: _moveIntent, id: _id, ...intent } = vars;
       // Drop `properties` from the reconcile payload: the bag is owned by the
       // property mutation pipeline (single-key atomic writes + its own
       // optimistic state). An UpdateIssue snapshot taken before a concurrent
@@ -482,7 +466,6 @@ export function useDeleteIssue() {
       }
     },
     onSuccess: (_data, id, ctx) => {
-      useRecentContextStore.getState().forgetContext(wsId, { type: "issue", id });
       cleanupDeletedIssueCaches(qc, wsId, id, ctx?.metadata);
     },
     onSettled: (_data, _err, _id, ctx) => {
@@ -510,16 +493,11 @@ export function useBatchUpdateIssues() {
       updates: UpdateIssueRequest;
     }) => api.batchUpdateIssues(ids, updates),
     onMutate: async ({ ids, updates }) => {
-      // Control fields steer the server; they are not Issue columns and must
-      // not enter the cache (MUL-3375). mutationFn still sends them.
-      const { suppress_run: _suppressRun, handoff_note: _handoffNote, ...patch } = updates;
+      const patch = updates;
       await qc.cancelQueries({ queryKey: issueKeys.list(wsId) });
       await qc.cancelQueries({ queryKey: issueKeys.myAll(wsId) });
       await qc.cancelQueries({ queryKey: issueKeys.flatAll(wsId) });
       await qc.cancelQueries({ queryKey: issueKeys.tableAll(wsId) });
-      if (patch.status !== undefined) {
-        await qc.cancelQueries({ queryKey: inboxKeys.list(wsId) });
-      }
 
       // Run every issue through the coordinator — the same rules table the
       // single-issue update uses, so a batch edit patches/removes across the
@@ -534,7 +512,6 @@ export function useBatchUpdateIssues() {
         [QueryKey, IssueTableRowCache]
       >();
       const prevDetailById = new Map<string, Issue>();
-      let prevInboxList: InboxItem[] | undefined;
       const staleKeys: QueryKey[] = [];
       for (const id of ids) {
         const base = qc.getQueryData<Issue>(issueKeys.detail(wsId, id));
@@ -559,9 +536,6 @@ export function useBatchUpdateIssues() {
           }
         }
         if (change.prevDetail) prevDetailById.set(id, change.prevDetail);
-        if (prevInboxList === undefined && change.prevInboxList !== undefined) {
-          prevInboxList = change.prevInboxList;
-        }
         staleKeys.push(...change.staleKeys);
       }
 
@@ -589,7 +563,6 @@ export function useBatchUpdateIssues() {
         prevFlatLists: [...prevFlatListByHash.values()],
         prevTableRows: [...prevTableRowByHash.values()],
         prevDetailById,
-        prevInboxList,
         staleKeys,
         prevChildren,
         affectedParentIds,
@@ -615,9 +588,6 @@ export function useBatchUpdateIssues() {
         for (const [id, snapshot] of ctx.prevDetailById) {
           qc.setQueryData(issueKeys.detail(wsId, id), snapshot);
         }
-      }
-      if (ctx?.prevInboxList !== undefined) {
-        qc.setQueryData(inboxKeys.list(wsId), ctx.prevInboxList);
       }
       if (ctx?.prevChildren) {
         for (const [parentId, snapshot] of ctx.prevChildren) {
@@ -738,9 +708,7 @@ export function useBatchDeleteIssues() {
     },
     onSuccess: (data, ids, ctx) => {
       if (data.deleted === ids.length) {
-        const { forgetContext } = useRecentContextStore.getState();
         for (const id of ids) {
-          forgetContext(wsId, { type: "issue", id });
           cleanupDeletedIssueCaches(qc, wsId, id, ctx?.metadataById.get(id));
         }
         return;
@@ -770,7 +738,6 @@ export function useBatchDeleteIssues() {
         invalidateIssueScopedCaches(qc, wsId, id);
       }
       qc.invalidateQueries({ queryKey: issueKeys.all(wsId) });
-      invalidateDeletedIssueDependentCaches(qc, wsId);
     },
     onSettled: (_data, _err, _ids, ctx) => {
       qc.invalidateQueries({ queryKey: issueKeys.list(wsId) });
@@ -803,14 +770,12 @@ export function useCreateComment(issueId: string) {
       type,
       parentId,
       attachmentIds,
-      suppressAgentIds,
     }: {
       content: string;
       type?: string;
       parentId?: string;
       attachmentIds?: string[];
-      suppressAgentIds?: string[];
-    }) => api.createComment(issueId, content, type, parentId, attachmentIds, suppressAgentIds),
+    }) => api.createComment(issueId, content, type, parentId, attachmentIds),
     onSuccess: (comment) => {
       const entry: TimelineEntry = {
         type: "comment",
@@ -833,10 +798,6 @@ export function useCreateComment(issueId: string) {
         if (old.some((e) => e.id === entry.id)) return old;
         return sortTimelineEntriesAsc([...old, entry]);
       });
-      // Posting a comment changes the trigger answer itself (the enqueued
-      // task now dedupes follow-up triggers), so cached previews for this
-      // issue are stale the moment the create lands.
-      qc.invalidateQueries({ queryKey: issueKeys.commentTriggerPreview(issueId) });
     },
     // No onSettled invalidate. The `comment:created` WS broadcast keeps
     // the timeline cache fresh after a successful create, and reconnect
@@ -855,13 +816,11 @@ export function useUpdateComment(issueId: string) {
       commentId,
       content,
       attachmentIds,
-      suppressAgentIds,
     }: {
       commentId: string;
       content: string;
       attachmentIds: string[];
-      suppressAgentIds?: string[];
-    }) => api.updateComment(commentId, content, attachmentIds, suppressAgentIds),
+    }) => api.updateComment(commentId, content, attachmentIds),
     onMutate: async ({ commentId, content, attachmentIds }) => {
       await qc.cancelQueries({ queryKey: issueKeys.timeline(issueId) });
       const prev = qc.getQueryData<TimelineCache>(issueKeys.timeline(issueId));
@@ -1076,7 +1035,7 @@ export function useToggleIssueSubscriber(issueId: string) {
       subscribed,
     }: {
       userId: string;
-      userType: "member" | "agent";
+      userType: "member";
       subscribed: boolean;
     }) => {
       if (subscribed) {

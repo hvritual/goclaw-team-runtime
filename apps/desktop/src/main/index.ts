@@ -1,20 +1,18 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, Notification, screen } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen } from "electron";
 import { homedir } from "os";
 import { join } from "path";
 import { pathToFileURL } from "url";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import fixPath from "fix-path";
 import { setupAutoUpdater } from "./updater";
-import { setupDaemonManager } from "./daemon-manager";
-import { setupLocalDirectory } from "./local-directory";
 import { openExternalSafely, downloadURLSafely } from "./external-url";
 import { installContextMenu } from "./context-menu";
 import { handleAppShortcut } from "./keyboard-shortcuts";
 import { installNavigationGestures } from "./navigation-gestures";
 import { installNavigationGuard } from "./navigation-guard";
 import { getAppVersion } from "./app-version";
-import { loadRuntimeConfig } from "./runtime-config-loader";
-import type { RuntimeConfigResult } from "../shared/runtime-config";
+import { loadEndpointConfig } from "./endpoint-config-loader";
+import type { EndpointConfigResult } from "../shared/endpoint-config";
 import {
   RENDERER_ROUTE_CONTEXT_CHANNEL,
   sanitizeRendererRouteContext,
@@ -62,10 +60,6 @@ import {
   type MainRendererMessageChannel,
 } from "../shared/main-renderer-messages";
 import { AuthSessionCoordinator } from "./auth-session-coordinator";
-import {
-  NotificationGate,
-  parseNativeNotificationPayload,
-} from "./notification-gate";
 
 // Guards against registering the will-download handler more than once on the
 // same session. window.webContents.session is shared, and createWindow() can
@@ -95,8 +89,7 @@ function installDownloadSaveDialogHandler(window: BrowserWindow): void {
 // `app.asar.unpacked/`, but `__dirname` resolves into `app.asar/`. The
 // Linux native window-icon code path expects a real filesystem path
 // (unlike Electron's nativeImage loader which transparently reads from
-// asar), so swap the segment — same pattern as bundledCliPath() in
-// daemon-manager.ts. In dev `__dirname` has no `app.asar`, so the replace
+// asar), so swap the segment. In dev `__dirname` has no `app.asar`, so the replace
 // is a no-op.
 const BUNDLED_ICON_PATH = join(__dirname, "../../resources/icon.png").replace(
   "app.asar",
@@ -105,11 +98,7 @@ const BUNDLED_ICON_PATH = join(__dirname, "../../resources/icon.png").replace(
 
 // macOS/Linux GUI launches inherit a minimal PATH from launchd that omits
 // the user's shell config (~/.zshrc, Homebrew, nvm, ~/.local/bin, etc.).
-// Run the user's login shell once to recover the real PATH so the bundled
-// multica CLI can find agent binaries like claude/codex/opencode. Must run
-// before any child_process.spawn / execFile call in the main process —
-// ES module imports are hoisted, so this block executes before createWindow
-// or any daemon-manager spawn.
+// Run the user's login shell once to recover the real PATH.
 if (process.platform !== "win32") {
   fixPath();
   // Fallback: prepend common install locations in case fix-path came up
@@ -141,10 +130,8 @@ const authSessionCoordinator = new AuthSessionCoordinator<BrowserWindow>(
     if (!window.isDestroyed()) window.close();
   },
 );
-const notificationGate = new NotificationGate();
 const mainRendererMessages = new MainRendererMessageQueue();
 let desktopInitialized = false;
-let authSessionGeneration = 0;
 const rendererRouteContexts = new WeakMap<
   Electron.WebContents,
   RendererRouteContext
@@ -179,7 +166,7 @@ async function captureStackIfEnabled(
   if (webContents.isDestroyed()) return null;
   return captureHangStack(webContents.debugger);
 }
-let runtimeConfigResult: RuntimeConfigResult = {
+let endpointConfigResult: EndpointConfigResult = {
   ok: false,
   error: { message: "Runtime config has not loaded yet" },
 };
@@ -444,7 +431,7 @@ function createWindow(): BrowserWindow {
   // that DevTools can't be opened (white screen with no clickable surface),
   // the only way to recover the actual JS error is to forward it from the
   // main process to the dev launcher log. Without these, the
-  // user sees only the daemon-manager polling noise (`Render frame was
+  // user sees only recovery polling noise (`Render frame was
   // disposed before WebFrameMain could be accessed`) which is a downstream
   // symptom, not the cause.
   //
@@ -661,7 +648,7 @@ if (!gotTheLock) {
   });
 
   // Windows/Linux cold-start deep links are safe to parse now. Delivery is
-  // queued because desktopInitialized remains false until runtime config and
+  // queued because desktopInitialized remains false until endpoint config and
   // IPC handlers are ready.
   const coldStartDeepLink = process.argv.find((arg) =>
     arg.startsWith(`${PROTOCOL}://`),
@@ -675,11 +662,11 @@ if (!gotTheLock) {
       readonly VITE_APP_URL?: string;
     };
 
-    runtimeConfigResult = await loadRuntimeConfig({
+    endpointConfigResult = await loadEndpointConfig({
       isDev: is.dev,
       // electron-vite exposes VITE_* on import.meta.env for the main process;
       // keep dev URL overrides on the same source the renderer used before
-      // runtime config moved endpoint resolution into main/preload.
+      // endpoint config moved endpoint resolution into main/preload.
       env: {
         apiUrl: viteEnv.VITE_API_URL,
         wsUrl: viteEnv.VITE_WS_URL,
@@ -774,11 +761,11 @@ if (!gotTheLock) {
       diagnosticsControl.apply(event.sender, control);
     });
 
-    // Sync IPC: preload exposes the validated runtime config before renderer
+    // Sync IPC: preload exposes the validated endpoint config before renderer
     // boot. If desktop.json exists but is invalid, renderer receives the
     // blocking error and must not silently fall back to the cloud defaults.
-    ipcMain.on("runtime-config:get", (event) => {
-      event.returnValue = runtimeConfigResult;
+    ipcMain.on("endpoint-config:get", (event) => {
+      event.returnValue = endpointConfigResult;
     });
 
     ipcMain.on(RENDERER_ROUTE_CONTEXT_CHANNEL, (event, context: unknown) => {
@@ -813,11 +800,7 @@ if (!gotTheLock) {
       if (!sourceWindow || userId === undefined) return;
 
       if (sourceWindow === mainWindow) {
-        const accountInvalidated = authSessionCoordinator.reportMain(userId);
-        if (accountInvalidated) {
-          authSessionGeneration += 1;
-          mainRendererMessages.clear("inbox:open");
-        }
+        authSessionCoordinator.reportMain(userId);
         return;
       }
       if (issueWindows.has(sourceWindow)) {
@@ -835,71 +818,10 @@ if (!gotTheLock) {
       );
     });
 
-    // Main owns foreground detection and item-level dedupe. Every renderer
-    // has its own WebSocket and `document.hasFocus()` only describes that one
-    // window, so renderer-only gating can emit N duplicate system banners.
-    ipcMain.on("notification:show", (event, value: unknown) => {
-      const sourceWindow = BrowserWindow.fromWebContents(event.sender);
-      if (!sourceWindow) return;
-      if (sourceWindow === mainWindow) {
-        if (!authSessionCoordinator.hasActiveMainSession()) return;
-      } else if (
-        !issueWindows.has(sourceWindow) ||
-        !authSessionCoordinator.isCurrentIssueSession(sourceWindow)
-      ) {
-        return;
-      }
-
-      const payload = parseNativeNotificationPayload(value);
-      if (!payload || !Notification.isSupported()) return;
-      const anyWindowFocused = BrowserWindow.getAllWindows().some(
-        (window) => !window.isDestroyed() && window.isFocused(),
-      );
-      if (!notificationGate.shouldShow(payload.itemId, anyWindowFocused)) {
-        return;
-      }
-
-      const notification = new Notification({
-        title: payload.title,
-        body: payload.body,
-      });
-      const notificationSessionGeneration = authSessionGeneration;
-      notification.on("click", () => {
-        // A banner emitted for user A must not navigate after the main window
-        // logs out or switches to user B.
-        if (notificationSessionGeneration !== authSessionGeneration) return;
-        // Recreate the main window when an issue-only window outlived it, then
-        // wait for the inbox listener before delivering the navigation.
-        dispatchToMainRenderer("inbox:open", {
-          slug: payload.slug,
-          itemId: payload.itemId,
-          issueKey: payload.issueKey,
-        });
-      });
-      notification.show();
-    });
-
-    // IPC: update the dock / taskbar unread badge. Values above 99 render as
-    // "99+". macOS is the primary target (user-visible dock badge); Linux
-    // Unity launchers also respect `setBadgeCount`. Windows' taskbar overlay
-    // needs a pre-rendered PNG and is deferred — the OS notification + the
-    // in-app inbox sidebar cover the core UX there for now.
-    ipcMain.on("badge:set", (_event, rawCount: number) => {
-      const count = Math.max(0, Math.floor(rawCount));
-      if (process.platform === "darwin") {
-        const label = count === 0 ? "" : count > 99 ? "99+" : String(count);
-        app.dock?.setBadge(label);
-      } else {
-        app.setBadgeCount(count);
-      }
-    });
-
     desktopInitialized = true;
     createWindow();
 
     setupAutoUpdater(() => mainWindow);
-    setupDaemonManager(() => mainWindow);
-    setupLocalDirectory(() => mainWindow);
 
     app.on("activate", () => {
       const window = ensureMainWindow();

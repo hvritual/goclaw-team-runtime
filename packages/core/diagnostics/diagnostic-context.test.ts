@@ -38,17 +38,11 @@ describe("bucketDiagnosticPath", () => {
   it("templates every workspace detail route", () => {
     expect(bucketDiagnosticPath("/acme/issues/MUL-5345")).toBe("/:slug/issues/:id");
     expect(bucketDiagnosticPath("/acme/projects/p1")).toBe("/:slug/projects/:id");
-    expect(bucketDiagnosticPath("/acme/autopilots/ap-7")).toBe("/:slug/autopilots/:id");
-    expect(bucketDiagnosticPath("/acme/agents/agt_9")).toBe("/:slug/agents/:id");
+    expect(bucketDiagnosticPath("/acme/tasks/task-7")).toBe("/:slug/tasks/:id");
     expect(bucketDiagnosticPath("/acme/members/m-3")).toBe("/:slug/members/:id");
-    expect(bucketDiagnosticPath("/acme/squads/sq.4")).toBe("/:slug/squads/:id");
-    expect(bucketDiagnosticPath("/acme/runtimes/machine-1")).toBe("/:slug/runtimes/:id");
     expect(bucketDiagnosticPath("/acme/skills/skl_123")).toBe("/:slug/skills/:id");
     expect(bucketDiagnosticPath("/acme/attachments/att-8/preview")).toBe(
       "/:slug/attachments/:id/preview",
-    );
-    expect(bucketDiagnosticPath("/acme/runtimes/machine-1/runtime/rt-2")).toBe(
-      "/:slug/runtimes/:id/runtime/:runtimeId",
     );
   });
 
@@ -57,9 +51,8 @@ describe("bucketDiagnosticPath", () => {
   it("templates ids that look nothing like ids", () => {
     for (const [path, expected] of [
       ["/acme/projects/p1", "/:slug/projects/:id"],
+      ["/acme/tasks/my-first-task", "/:slug/tasks/:id"],
       ["/acme/skills/skl_123", "/:slug/skills/:id"],
-      ["/acme/agents/my-favourite-agent", "/:slug/agents/:id"],
-      ["/acme/squads/Platform Team", "/:slug/squads/:id"],
       ["/acme/issues/new", "/:slug/issues/:id"],
     ] as const) {
       expect(bucketDiagnosticPath(path)).toBe(expected);
@@ -69,20 +62,17 @@ describe("bucketDiagnosticPath", () => {
   // paths.ts URL-encodes every id, so an id containing a slash or a space
   // arrives as one already-escaped segment.
   it("templates percent-encoded ids without splitting them", () => {
-    expect(bucketDiagnosticPath("/acme/runtimes/machine%2Fruntime")).toBe(
-      "/:slug/runtimes/:id",
+    expect(bucketDiagnosticPath("/acme/tasks/task%2Fone")).toBe(
+      "/:slug/tasks/:id",
     );
-    expect(
-      bucketDiagnosticPath("/acme/runtimes/machine%2Fruntime/runtime/runtime%20one"),
-    ).toBe("/:slug/runtimes/:id/runtime/:runtimeId");
     expect(bucketDiagnosticPath("/my%20workspace/skills/a%2Fb")).toBe(
       "/:slug/skills/:id",
     );
   });
 
-  it("keeps static segments that share a slot with an id", () => {
-    expect(bucketDiagnosticPath("/acme/agents/new")).toBe("/:slug/agents/new");
-    expect(bucketDiagnosticPath("/acme/agents")).toBe("/:slug/agents");
+  it("keeps collection routes distinct from detail routes", () => {
+    expect(bucketDiagnosticPath("/acme/tasks")).toBe("/:slug/tasks");
+    expect(bucketDiagnosticPath("/acme/tasks/new")).toBe("/:slug/tasks/:id");
   });
 
   it("keeps pre-workspace routes intact", () => {

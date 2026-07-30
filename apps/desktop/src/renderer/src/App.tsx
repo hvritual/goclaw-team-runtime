@@ -1,9 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CoreProvider } from "@multica/core/platform";
 import { pickLocale, type SupportedLocale } from "@multica/core/i18n";
 import { useAuthStore } from "@multica/core/auth";
-import { useWelcomeStore } from "@multica/core/onboarding";
 import { workspaceKeys, workspaceListOptions } from "@multica/core/workspace/queries";
 import { api } from "@multica/core/api";
 import { useHasOnboarded } from "@multica/core/paths";
@@ -17,11 +16,9 @@ import { UpdateNotification } from "./components/update-notification";
 import { IssueWindow } from "./components/issue-window";
 import { useTabStore } from "./stores/tab-store";
 import { useWindowOverlayStore } from "./stores/window-overlay-store";
-import { useDaemonIPCBridge } from "./platform/daemon-ipc-bridge";
 import { createDesktopLocaleAdapter } from "./platform/i18n-adapter";
 import { captureEvent } from "@multica/core/analytics";
 import { RESOURCES } from "@multica/views/locales";
-import { DesktopClientUsageReporter } from "./platform/client-usage-reporter";
 import { DiagnosticRouteReporter } from "./platform/diagnostic-route-reporter";
 import { flushFreezeBreadcrumb } from "./freeze-flush";
 import { DiagnosticsControlReporter } from "./platform/diagnostics-control-reporter";
@@ -44,7 +41,7 @@ const HTML_LANG: Record<SupportedLocale, string> = {
  * (or no tabs/workspace exist — e.g. login page), close the window.
  *
  * Mounted at the App root so every renderer state — including login,
- * loading, onboarding, and runtime-config errors — has a working Cmd+W
+ * loading, onboarding, and endpoint-config errors — has a working Cmd+W
  * handler. Without this, states outside the tab shell would swallow the
  * shortcut and do nothing.
  */
@@ -124,17 +121,6 @@ function AppContent() {
   // first render.
   const [bootstrapping, setBootstrapping] = useState(false);
 
-  const runtimeConfig = window.desktopAPI.runtimeConfig.ok
-    ? window.desktopAPI.runtimeConfig.config
-    : null;
-
-  // Tell the main process which backend URL we talk to, so daemon-manager
-  // can pick the matching CLI profile (server_url from ~/.multica config).
-  useEffect(() => {
-    if (!runtimeConfig) return;
-    window.daemonAPI.setTargetApiUrl(runtimeConfig.apiUrl);
-  }, [runtimeConfig]);
-
   // Listen for invite IDs delivered via deep link (multica://invite/<id>).
   // We open the overlay regardless of login state — if the user isn't logged
   // in, InvitePage's queries will fail and render the "not found" state,
@@ -147,8 +133,6 @@ function AppContent() {
   }, []);
 
   // Listen for auth token delivered via deep link (multica://auth/callback?token=...).
-  // daemonAPI.syncToken is handled separately by the [user] effect below, which
-  // fires whenever a user logs in (deep link, session restore, account switch).
   useEffect(() => {
     return window.desktopAPI.onAuthToken(async (token) => {
       setBootstrapping(true);
@@ -169,45 +153,12 @@ function AppContent() {
     });
   }, [qc]);
 
-  // Sync token and start the daemon whenever the user logs in.
-  useEffect(() => {
-    if (!user) return;
-    const token = localStorage.getItem("multica_token");
-    if (!token) return;
-    const userId = user.id;
-    (async () => {
-      try {
-        await window.daemonAPI.syncToken(token, userId);
-        await window.daemonAPI.autoStart();
-      } catch (err) {
-        console.error("Failed to sync daemon on login", err);
-      }
-    })();
-  }, [user]);
-
-  // When a user who started the session with zero workspaces creates their
-  // first one, restart the daemon so it picks up the new workspace
-  // immediately (otherwise workspaceSyncLoop's next 30s tick would be the
-  // earliest pickup point). Specifically scoped to "started empty" because
-  // account switches (user A logout → user B login) should not trigger a
-  // daemon restart here — daemon-manager already restarts on user change
-  // via syncToken.
   const { data: workspaces = [], isFetched: workspaceListFetched } = useQuery({
     ...workspaceListOptions(),
     enabled: !!user,
   });
   const wsCount = workspaces.length;
   const hasOnboarded = useHasOnboarded();
-
-  // Bridge local daemon IPC status into the runtimes cache so this user's
-  // own daemon flips to offline/online sub-second instead of waiting on the
-  // server's 75s sweeper. Resolves wsId from the active tab so workspace
-  // switches automatically rebind the subscription.
-  const activeWorkspaceSlug = useTabStore((s) => s.activeWorkspaceSlug);
-  const activeWsId = activeWorkspaceSlug
-    ? workspaces.find((w) => w.slug === activeWorkspaceSlug)?.id
-    : undefined;
-  useDaemonIPCBridge(activeWsId);
 
   // Pre-workspace overlay routing for desktop. Mirrors the web layout
   // hard gate via overlays (desktop has no URL bar, so we open the
@@ -293,26 +244,6 @@ function AppContent() {
     }
   }, [workspaces, workspaceListFetched]);
 
-  // null = undecided (pre-login or list hasn't settled yet)
-  // true  = session started with zero workspaces; next transition to >=1 triggers restart
-  // false = session started with >=1 workspace, OR we've already restarted; skip
-  const sessionStartedEmptyRef = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (!user) {
-      sessionStartedEmptyRef.current = null;
-      return;
-    }
-    if (!workspaceListFetched) return;
-    if (sessionStartedEmptyRef.current === null) {
-      sessionStartedEmptyRef.current = wsCount === 0;
-      return;
-    }
-    if (sessionStartedEmptyRef.current && wsCount >= 1) {
-      void window.daemonAPI.restart();
-      sessionStartedEmptyRef.current = false;
-    }
-  }, [user, workspaceListFetched, wsCount]);
-
   if (isLoading || bootstrapping) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -324,7 +255,7 @@ function AppContent() {
   return user ? <DesktopShell /> : <DesktopLoginPage />;
 }
 
-function BlockingRuntimeConfigError({ message }: { message: string }) {
+function BlockingEndpointConfigError({ message }: { message: string }) {
   return (
     <div className="flex h-screen items-center justify-center bg-background p-8 text-foreground">
       <div className="max-w-xl rounded-lg border bg-card p-6 shadow-sm">
@@ -340,36 +271,23 @@ function BlockingRuntimeConfigError({ message }: { message: string }) {
   );
 }
 
-// On logout, wipe desktop-only in-memory state and stop the daemon so that
+// On logout, wipe desktop-only in-memory state so that
 // a subsequent login as a different user never inherits the previous user's
 // tabs, overlay, or credentials. Zustand persist only writes to localStorage;
 // useLogout clears the storage key, but the live stores stay populated until
 // we explicitly reset them here.
-async function handleDaemonLogout() {
-  // Report synchronously before async daemon cleanup so a rapidly closed main
+async function handleDesktopLogout() {
+  // Report synchronously so a rapidly closed main
   // window cannot leave authenticated issue renderers behind.
   window.desktopAPI.reportAuthSession?.(null);
   useTabStore.getState().reset();
   useWindowOverlayStore.getState().close();
-  // Drop any post-onboarding welcome signal so user B logging in next
-  // doesn't inherit user A's pending modal state.
-  useWelcomeStore.getState().reset();
-  try {
-    await window.daemonAPI.clearToken();
-  } catch {
-    // Best-effort — clearing is followed by stop which also hardens state.
-  }
-  try {
-    await window.daemonAPI.stop();
-  } catch {
-    // Daemon may already be stopped.
-  }
 }
 
 export default function App() {
   const { version, os } = window.desktopAPI.appInfo;
   const systemLocale = window.desktopAPI.systemLocale;
-  const runtimeConfigResult = window.desktopAPI.runtimeConfig;
+  const endpointConfigResult = window.desktopAPI.endpointConfig;
   // The fallback keeps renderer HMR safe while a main/preload rebuild is
   // restarting Electron; packaged builds always expose windowContext.
   const windowContext =
@@ -438,12 +356,12 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      {runtimeConfigResult.ok ? (
+      {endpointConfigResult.ok ? (
         <CoreProvider
-          apiBaseUrl={runtimeConfigResult.config.apiUrl}
-          wsUrl={runtimeConfigResult.config.wsUrl}
+          apiBaseUrl={endpointConfigResult.config.apiUrl}
+          wsUrl={endpointConfigResult.config.wsUrl}
           onLogout={
-            windowContext.kind === "main" ? handleDaemonLogout : undefined
+            windowContext.kind === "main" ? handleDesktopLogout : undefined
           }
           identity={identity}
           locale={locale}
@@ -453,11 +371,6 @@ export default function App() {
           <DesktopAuthSessionBridge />
           {windowContext.kind === "main" && <DiagnosticRouteReporter />}
           <DiagnosticsControlReporter />
-          {windowContext.kind === "main" && (
-            <DesktopClientUsageReporter
-              apiUrl={runtimeConfigResult.config.apiUrl}
-            />
-          )}
           {windowContext.kind === "issue" ? (
             <IssueWindowContent />
           ) : (
@@ -465,7 +378,7 @@ export default function App() {
           )}
         </CoreProvider>
       ) : (
-        <BlockingRuntimeConfigError message={runtimeConfigResult.error.message} />
+        <BlockingEndpointConfigError message={endpointConfigResult.error.message} />
       )}
       <Toaster />
       {windowContext.kind === "main" && <UpdateNotification />}

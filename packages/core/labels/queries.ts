@@ -10,7 +10,7 @@ export const labelKeys = {
     [...labelKeys.all(wsId), "detail", id] as const,
   byIssue: (wsId: string, issueId: string) =>
     [...labelKeys.all(wsId), "issue", issueId] as const,
-  byResource: (wsId: string, resourceType: "agent" | "skill", resourceId: string) =>
+  byResource: (wsId: string, resourceType: "skill", resourceId: string) =>
     [...labelKeys.all(wsId), resourceType, resourceId] as const,
 };
 
@@ -24,7 +24,7 @@ export function labelListOptions(wsId: string, resourceType: LabelResourceType =
 
 export function resourceLabelsOptions(
   wsId: string,
-  resourceType: "agent" | "skill",
+  resourceType: "skill",
   resourceId: string,
 ) {
   return queryOptions({

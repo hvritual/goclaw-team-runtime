@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/multica-ai/multica/server/internal/auth"
 	"github.com/multica-ai/multica/server/internal/cli"
 )
 
@@ -27,7 +26,7 @@ import (
 // with a Multica Cloud Node PAT (`mcn_`) even though the server happily
 // authenticates both kinds. Keep this list in sync with the prefix branches
 // in server/internal/middleware/auth.go.
-var loginTokenPrefixes = []string{"mul_", auth.CloudPATPrefix}
+var loginTokenPrefixes = []string{"mul_"}
 
 // validateLoginTokenPrefix returns nil if token starts with one of the
 // CLI-recognised PAT prefixes, or an error describing the accepted set.
@@ -73,13 +72,6 @@ func init() {
 func resolveToken(cmd *cobra.Command) string {
 	if v := strings.TrimSpace(os.Getenv("MULTICA_TOKEN")); v != "" {
 		return v
-	}
-	// Inside a daemon-managed task, never fall back to the user-global config
-	// token: that silent fallback is how agent writes land as the wrong actor.
-	// inDaemonManagedExecutionContext already covers the MULTICA_DAEMON_PORT
-	// signal for subprocesses that lost MULTICA_AGENT_ID / MULTICA_TASK_ID.
-	if inDaemonManagedExecutionContext() {
-		return ""
 	}
 	profile := resolveProfile(cmd)
 	cfg, _ := cli.LoadCLIConfigForProfile(profile)

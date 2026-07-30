@@ -352,7 +352,6 @@ function BoardGroupHeading({
         actorType={group.assigneeType}
         actorId={group.assigneeId}
         size="sm"
-        showStatusDot={group.assigneeType === "agent"}
       />
     ) : (
       <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground">

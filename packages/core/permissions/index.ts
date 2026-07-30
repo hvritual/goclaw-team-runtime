@@ -13,14 +13,9 @@ export type {
 } from "./types";
 
 export {
-  canAssignAgentToIssue,
-  canEditAgent,
   canManageMembers,
   canViewPermissionManagement,
 } from "./rules";
 
-export {
-  useAgentPermissions,
-  useSkillPermissions,
-} from "./use-resource-permissions";
+export { useSkillPermissions } from "./use-resource-permissions";
 export { useCurrentMember } from "./use-current-member";

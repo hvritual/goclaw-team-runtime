@@ -91,8 +91,6 @@ type issueTableFiltersRequest struct {
 	LabelIDs          []string                     `json:"label_ids,omitempty"`
 	Properties        map[string][]string          `json:"properties,omitempty"`
 	Date              *issueTableDateFilterRequest `json:"date,omitempty"`
-	WorkingOnly       bool                         `json:"working_only,omitempty"`
-	WorkingIssueIDs   []string                     `json:"working_issue_ids,omitempty"`
 	IncludeSubIssues  *bool                        `json:"include_sub_issues,omitempty"`
 }
 
@@ -246,8 +244,6 @@ func equalOptionalString(a, b *string) bool {
 func canonicalIssueTableFingerprint(workspaceID string, spec issueTableQuerySpec) (string, error) {
 	explicitEmptyAssignees :=
 		spec.Filters.Assignees != nil && len(spec.Filters.Assignees) == 0
-	explicitEmptyWorkingIssues :=
-		spec.Filters.WorkingIssueIDs != nil && len(spec.Filters.WorkingIssueIDs) == 0
 	normalized := spec
 	normalized.Search = strings.TrimSpace(normalized.Search)
 	normalized.Scope.AssigneeTypes = sortedUniqueStrings(normalized.Scope.AssigneeTypes)
@@ -256,21 +252,18 @@ func canonicalIssueTableFingerprint(workspaceID string, spec issueTableQuerySpec
 	normalized.Filters.ProjectIDs = sortedUniqueStrings(normalized.Filters.ProjectIDs)
 	normalized.Filters.LabelIDs = sortedUniqueStrings(normalized.Filters.LabelIDs)
 	normalized.Filters.Assignees = sortedUniqueActors(normalized.Filters.Assignees)
-	normalized.Filters.WorkingIssueIDs = sortedUniqueStrings(normalized.Filters.WorkingIssueIDs)
 	normalized.Filters.Creators = sortedUniqueActors(normalized.Filters.Creators)
 	for key, values := range normalized.Filters.Properties {
 		normalized.Filters.Properties[key] = sortedUniqueStrings(values)
 	}
 	encoded, err := json.Marshal(struct {
-		WorkspaceID                string              `json:"workspace_id"`
-		Query                      issueTableQuerySpec `json:"query"`
-		ExplicitEmptyAssignees     bool                `json:"explicit_empty_assignees,omitempty"`
-		ExplicitEmptyWorkingIssues bool                `json:"explicit_empty_working_issues,omitempty"`
+		WorkspaceID            string              `json:"workspace_id"`
+		Query                  issueTableQuerySpec `json:"query"`
+		ExplicitEmptyAssignees bool                `json:"explicit_empty_assignees,omitempty"`
 	}{
-		WorkspaceID:                workspaceID,
-		Query:                      normalized,
-		ExplicitEmptyAssignees:     explicitEmptyAssignees,
-		ExplicitEmptyWorkingIssues: explicitEmptyWorkingIssues,
+		WorkspaceID:            workspaceID,
+		Query:                  normalized,
+		ExplicitEmptyAssignees: explicitEmptyAssignees,
 	})
 	if err != nil {
 		return "", err
@@ -357,41 +350,6 @@ func parseIssueTableActor(w http.ResponseWriter, actor issueTableActorRef, field
 		return issueActorFilter{}, false
 	}
 	return issueActorFilter{actorType: actor.Type, actorID: id}, true
-}
-
-func appendIssueTableInvolvedPredicate(where []string, addArg func(any) string, userID pgtype.UUID) []string {
-	ref := addArg(userID)
-	return append(where, fmt.Sprintf(`(
-    (i.assignee_type = 'agent' AND i.assignee_id IN (
-       SELECT a.id FROM agent a
-        WHERE a.workspace_id = $1
-          AND a.owner_id     = %[1]s::uuid
-    ))
-    OR (i.assignee_type = 'squad' AND i.assignee_id IN (
-       SELECT sm.squad_id
-         FROM squad_member sm
-         JOIN squad s ON s.id = sm.squad_id
-        WHERE s.workspace_id = $1
-          AND sm.member_type = 'member'
-          AND sm.member_id   = %[1]s::uuid
-       UNION
-       SELECT s.id
-         FROM squad s
-         JOIN agent a ON a.id = s.leader_id
-        WHERE s.workspace_id = $1
-          AND a.workspace_id = $1
-          AND a.owner_id     = %[1]s::uuid
-       UNION
-       SELECT sm.squad_id
-         FROM squad_member sm
-         JOIN squad s ON s.id = sm.squad_id
-         JOIN agent a ON a.id = sm.member_id
-        WHERE s.workspace_id = $1
-          AND sm.member_type = 'agent'
-          AND a.workspace_id = $1
-          AND a.owner_id     = %[1]s::uuid
-    ))
-)`, ref))
 }
 
 func (h *Handler) compileIssueTableQuery(w http.ResponseWriter, r *http.Request, spec issueTableQuerySpec) (issueTableSQL, bool) {
@@ -489,13 +447,10 @@ func (h *Handler) compileIssueTableQuery(w http.ResponseWriter, r *http.Request,
 			where = append(where, fmt.Sprintf("i.assignee_type = 'member' AND i.assignee_id = %s::uuid", addArg(userUUID)))
 		case "created":
 			where = append(where, fmt.Sprintf("i.creator_type = 'member' AND i.creator_id = %s::uuid", addArg(userUUID)))
-		case "involved":
-			where = appendIssueTableInvolvedPredicate(where, addArg, userUUID)
 		case "any":
 			assignedRef := addArg(userUUID)
 			createdRef := addArg(userUUID)
-			involved := appendIssueTableInvolvedPredicate(nil, addArg, userUUID)[0]
-			where = append(where, fmt.Sprintf("((i.assignee_type = 'member' AND i.assignee_id = %s::uuid) OR (i.creator_type = 'member' AND i.creator_id = %s::uuid) OR %s)", assignedRef, createdRef, involved))
+			where = append(where, fmt.Sprintf("((i.assignee_type = 'member' AND i.assignee_id = %s::uuid) OR (i.creator_type = 'member' AND i.creator_id = %s::uuid))", assignedRef, createdRef))
 		default:
 			writeError(w, http.StatusBadRequest, "invalid scope.relation")
 			return issueTableSQL{}, false
@@ -595,23 +550,6 @@ func (h *Handler) compileIssueTableQuery(w http.ResponseWriter, r *http.Request,
 		where = append(where, fmt.Sprintf("i.%s >= %s AND i.%s < %s", column, addArg(start), column, addArg(end)))
 	}
 
-	if spec.Filters.WorkingOnly {
-		where = append(where, "EXISTS (SELECT 1 FROM agent_task_queue atq WHERE atq.issue_id = i.id AND atq.status = 'running')")
-	}
-	workingIssueIDs, ok := parseIssueTableUUIDList(w, spec.Filters.WorkingIssueIDs, "filters.working_issue_ids")
-	if !ok {
-		return issueTableSQL{}, false
-	}
-	if spec.Filters.WorkingIssueIDs != nil {
-		if len(workingIssueIDs) == 0 {
-			where = append(where, "FALSE")
-		} else {
-			where = append(where, fmt.Sprintf(
-				"i.id = ANY(%s::uuid[])",
-				addArg(workingIssueIDs),
-			))
-		}
-	}
 	if spec.Filters.IncludeSubIssues != nil && !*spec.Filters.IncludeSubIssues {
 		where = append(where, "i.parent_issue_id IS NULL")
 	}

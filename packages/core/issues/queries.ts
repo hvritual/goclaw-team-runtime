@@ -134,41 +134,18 @@ export const issueKeys = {
   /** Full-issue timeline (single TanStack Query, no cursor). */
   timeline: (issueId: string) =>
     [...issueKeys.timelineAll(), issueId] as const,
-  /** Prefix across all issues — WS task lifecycle events invalidate here so
-   *  an open composer's trigger preview refreshes when an agent's queue
-   *  state changes (the dedup guard makes the answer queue-dependent). */
-  commentTriggerPreviewAll: () => ["issues", "comment-trigger-preview"] as const,
-  /** PREFIX for invalidation — the composer hook appends parent + content signature. */
-  commentTriggerPreview: (issueId: string) =>
-    [...issueKeys.commentTriggerPreviewAll(), issueId] as const,
-  /** Prefix across all issue-trigger previews (assign/status/create/batch).
-   *  WS task lifecycle events invalidate here so the answer revalidates when an
-   *  agent's queue state changes (the status source's pending dedup makes it
-   *  queue-dependent, mirroring commentTriggerPreviewAll). */
-  issueTriggerPreviewAll: () => ["issues", "issue-trigger-preview"] as const,
-  /** PREFIX — the picker hook appends a signature of the prospective write. */
-  issueTriggerPreview: (signature: string) =>
-    [...issueKeys.issueTriggerPreviewAll(), signature] as const,
   reactionsAll: () => ["issues", "reactions"] as const,
   reactions: (issueId: string) =>
     [...issueKeys.reactionsAll(), issueId] as const,
   subscribersAll: () => ["issues", "subscribers"] as const,
   subscribers: (issueId: string) =>
     [...issueKeys.subscribersAll(), issueId] as const,
-  usageAll: () => ["issues", "usage"] as const,
-  usage: (issueId: string) => [...issueKeys.usageAll(), issueId] as const,
   attachmentsAll: () => ["issues", "attachments"] as const,
   /** Issue-level attachments — used by the description editor so its
    *  inline file-card / image NodeViews can re-sign download URLs at
    *  click time. */
   attachments: (issueId: string) =>
     [...issueKeys.attachmentsAll(), issueId] as const,
-  /** Prefix-match key for invalidating tasks across all issues — used by
-   *  the global WS task: prefix path so any task lifecycle event refreshes
-   *  every per-issue list, regardless of which issue is currently mounted. */
-  tasksAll: () => ["issues", "tasks"] as const,
-  /** Per-issue task list (issue-detail Execution log section). */
-  tasks: (issueId: string) => [...issueKeys.tasksAll(), issueId] as const,
 };
 
 export type MyIssuesFilter = Pick<
@@ -178,7 +155,6 @@ export type MyIssuesFilter = Pick<
   | "assignee_types"
   | "creator_id"
   | "project_id"
-  | "involves_user_id"
 >;
 
 /** Server-side contract for the flat table window. These facets must travel
@@ -244,7 +220,7 @@ async function fetchFirstPages(filter: MyIssuesFilter = {}, sort?: IssueSortPara
 
 /**
  * "All my issues" — union of three server filters:
- *   assignee_id=me OR creator_id=me OR involves_user_id=me
+ *   assignee_id=me OR creator_id=me
  *
  * The backend has no OR-across-user-filters today, so we run the three
  * existing single-filter fetches in parallel and dedupe on the client by
@@ -368,7 +344,6 @@ async function fetchAllMyFlatIssues(
   const relations = await Promise.all([
     fetchAllFlatPages({ ...filter, assignee_id: userId }, sort),
     fetchAllFlatPages({ ...filter, creator_id: userId }, sort),
-    fetchAllFlatPages({ ...filter, involves_user_id: userId }, sort),
   ]);
   const byId = new Map<string, Issue>();
   for (const issues of relations) {
@@ -501,16 +476,15 @@ export function issueFlatExportOptions(
 }
 
 async function fetchAllMyFirstPages(userId: string, sort?: IssueSortParam): Promise<ListIssuesCache> {
-  const [byAssignee, byCreator, byInvolves] = await Promise.all([
+  const [byAssignee, byCreator] = await Promise.all([
     fetchFirstPages({ assignee_id: userId }, sort),
     fetchFirstPages({ creator_id: userId }, sort),
-    fetchFirstPages({ involves_user_id: userId }, sort),
   ]);
   const byStatus: ListIssuesCache["byStatus"] = {};
   for (const status of PAGINATED_STATUSES) {
     const seen = new Set<string>();
     const merged: Issue[] = [];
-    for (const cache of [byAssignee, byCreator, byInvolves]) {
+    for (const cache of [byAssignee, byCreator]) {
       const bucket = cache.byStatus[status];
       if (!bucket) continue;
       for (const issue of bucket.issues) {
@@ -527,7 +501,7 @@ async function fetchAllMyFirstPages(userId: string, sort?: IssueSortParam): Prom
 
 /**
  * Sibling of {@link fetchAllMyFirstPages} for the assignee-grouped board
- * view. Runs the three single-filter grouped queries in parallel and
+ * view. Runs the two single-filter grouped queries in parallel and
  * merges groups by (assignee_type, assignee_id), deduping issues within
  * each group. Extra filters from the page (statuses, priorities, etc.)
  * pass through unchanged.
@@ -540,7 +514,6 @@ async function fetchAllMyAssigneeGroups(
   const variants: AssigneeGroupedIssuesFilter[] = [
     { ...filter, assignee_id: userId },
     { ...filter, creator_id: userId },
-    { ...filter, involves_user_id: userId },
   ];
   const responses = await Promise.all(
     variants.map((f) =>
@@ -886,13 +859,6 @@ export function issueSubscribersOptions(issueId: string) {
   return queryOptions({
     queryKey: issueKeys.subscribers(issueId),
     queryFn: () => api.listIssueSubscribers(issueId),
-  });
-}
-
-export function issueUsageOptions(issueId: string) {
-  return queryOptions({
-    queryKey: issueKeys.usage(issueId),
-    queryFn: () => api.getIssueUsage(issueId),
   });
 }
 

@@ -17,19 +17,11 @@ describe("paths.workspace() shape", () => {
     expect(new Set(parameterlessRoutes)).toEqual(
       new Set([
         "root",
-        "usage",
         "issues",
         "projects",
-        "autopilots",
-        "agents",
-        "newAgent",
-        "chat",
-        "squads",
-        "inbox",
+        "tasks",
         "myIssues",
-        "runtimes",
         "skills",
-        "squads",
         "settings",
       ]),
     );
@@ -40,19 +32,11 @@ describe("paths.workspace() shape", () => {
     // Check that none of the parameterless paths embed a leaked literal and
     // that each method emits its explicitly registered workspace subpath.
     const expectedSegments: Array<[string, string]> = [
-      ["usage", "usage"],
       ["issues", "issues"],
       ["projects", "projects"],
-      ["autopilots", "autopilots"],
-      ["agents", "agents"],
-      ["newAgent", "agents/new"],
-      ["chat", "chat"],
-      ["squads", "squads"],
-      ["inbox", "inbox"],
+      ["tasks", "tasks"],
       ["myIssues", "my-issues"],
-      ["runtimes", "runtimes"],
       ["skills", "skills"],
-      ["squads", "squads"],
       ["settings", "settings"],
     ];
     const wsAsAny = ws as unknown as Record<string, () => string>;

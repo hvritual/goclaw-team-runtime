@@ -21,16 +21,9 @@ const GLOBAL_ACTIONS: readonly ShortcutActionId[] = [
   "openSearch",
   "createIssue",
   "toggleSidebar",
-  "goInbox",
-  "goChat",
   "goMyIssues",
   "goIssues",
   "goProjects",
-  "goAutopilots",
-  "goAgents",
-  "goSquads",
-  "goUsage",
-  "goRuntimes",
   "goSkills",
   "goSettings",
 ];
@@ -51,16 +44,9 @@ export function GlobalShortcuts() {
 
   useEffect(() => {
     const destinations: Partial<Record<ShortcutActionId, string>> = {
-      goInbox: workspacePaths.inbox(),
-      goChat: workspacePaths.chat(),
       goMyIssues: workspacePaths.myIssues(),
       goIssues: workspacePaths.issues(),
       goProjects: workspacePaths.projects(),
-      goAutopilots: workspacePaths.autopilots(),
-      goAgents: workspacePaths.agents(),
-      goSquads: workspacePaths.squads(),
-      goUsage: workspacePaths.usage(),
-      goRuntimes: workspacePaths.runtimes(),
       goSkills: workspacePaths.skills(),
       goSettings: workspacePaths.settings(),
     };

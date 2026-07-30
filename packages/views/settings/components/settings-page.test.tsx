@@ -49,17 +49,11 @@ vi.mock("./account-tab", () => ({ AccountTab: () => null }));
 vi.mock("./preferences-tab", () => ({ PreferencesTab: () => null }));
 vi.mock("./keyboard-shortcuts-tab", () => ({ KeyboardShortcutsTab: () => null }));
 vi.mock("./issue-tab", () => ({ IssueTab: () => null }));
-vi.mock("./chat-tab", () => ({ ChatTab: () => null }));
-vi.mock("./notifications-tab", () => ({ NotificationsTab: () => null }));
 vi.mock("./tokens-tab", () => ({ TokensTab: () => null }));
 vi.mock("./workspace-tab", () => ({
   WorkspaceTab: () => <div data-testid="WorkspaceTab-content">WorkspaceTab</div>,
 }));
 vi.mock("./members-tab", () => ({ MembersTab: () => null }));
-vi.mock("./repositories-tab", () => ({ RepositoriesTab: () => null }));
-vi.mock("./github-tab", () => ({ GitHubTab: () => null }));
-vi.mock("./integrations-tab", () => ({ IntegrationsTab: () => null }));
-vi.mock("./labs-tab", () => ({ LabsTab: () => null }));
 vi.mock("./labels-tab", () => ({ LabelsTab: () => null }));
 vi.mock("./properties-tab", () => ({ PropertiesTab: () => null }));
 
@@ -82,21 +76,21 @@ describe("SettingsPage enterprise administration navigation", () => {
     searchRef.current = new URLSearchParams("tab=workspace");
   });
 
-  it("shows Workspace, Members, and Permissions as sibling tabs for admins", () => {
+  it("shows Workspace, Members, and Roles as sibling tabs for admins", () => {
     render(<SettingsPage />, { wrapper: Wrapper });
 
     expect(screen.getByRole("tab", { name: "Workspace" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Members" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Permissions" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Roles" })).toBeInTheDocument();
   });
 
   it("hides permission management and safely falls back for regular members", () => {
     roleRef.current = "member";
-    searchRef.current = new URLSearchParams("tab=permissions");
+    searchRef.current = new URLSearchParams("tab=roles");
 
     render(<SettingsPage />, { wrapper: Wrapper });
 
-    expect(screen.queryByRole("tab", { name: "Permissions" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Roles" })).toBeNull();
     expect(screen.getByTestId("WorkspaceTab-content")).toBeInTheDocument();
   });
 });

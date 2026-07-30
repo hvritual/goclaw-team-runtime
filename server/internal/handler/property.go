@@ -448,19 +448,11 @@ func parseIssueProperties(raw []byte) map[string]any {
 // Definition handlers
 // ---------------------------------------------------------------------------
 
-// requirePropertyAdmin gates definition writes: human owner/admin members
-// only. Agent actors are rejected before the role check — an agent inherits
-// its runtime owner's credentials, and without this check an admin's agent
-// could mass-create definitions (MUL-4463 decision: agents propose via
-// comments, humans confirm).
+// requirePropertyAdmin gates definition writes to workspace owners and admins.
 func (h *Handler) requirePropertyAdmin(w http.ResponseWriter, r *http.Request) (workspaceID, userID string, ok bool) {
 	workspaceID = h.resolveWorkspaceID(r)
 	userID, ok = requireUserID(w, r)
 	if !ok {
-		return "", "", false
-	}
-	if actorType, _ := h.resolveActor(r, userID, workspaceID); actorType == "agent" {
-		writeError(w, http.StatusForbidden, "agents cannot manage property definitions")
 		return "", "", false
 	}
 	if _, roleOK := h.requireWorkspaceRole(w, r, workspaceID, "workspace not found", "owner", "admin"); !roleOK {

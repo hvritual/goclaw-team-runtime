@@ -55,15 +55,10 @@ describe("issueMatchesListFilter", () => {
       }),
     ).toBe(true);
     expect(
-      issueMatchesListFilter(makeIssue({ assignee_type: "agent" }), "workspace:members", {
-        assignee_types: ["member"],
-      }),
-    ).toBe(false);
-    expect(
       issueMatchesListFilter(
         makeIssue({ assignee_type: null, assignee_id: null }),
-        "workspace:agents",
-        { assignee_types: ["agent", "squad"] },
+        "workspace:members",
+        { assignee_types: ["member"] },
       ),
     ).toBe(false);
   });
@@ -84,25 +79,10 @@ describe("issueMatchesListFilter", () => {
     ).toBe(false);
   });
 
-  it("never decides involves_user_id — the ownership graph is server-side", () => {
-    expect(
-      issueMatchesListFilter(makeIssue(), "agents", { involves_user_id: "me" }),
-    ).toBe("unknown");
-  });
-
   it("never decides the my:all union scope", () => {
     expect(issueMatchesListFilter(makeIssue(), "all", {})).toBe("unknown");
   });
 
-  it("ANDs across fields — a definitive miss beats an unknown", () => {
-    expect(
-      issueMatchesListFilter(
-        makeIssue({ project_id: "p2" }),
-        "scoped",
-        { project_id: "p1", involves_user_id: "me" },
-      ),
-    ).toBe(false);
-  });
 });
 
 describe("issueChangedDims", () => {
@@ -158,9 +138,6 @@ describe("listFilterDependsOn", () => {
         { assignee_types: ["member"] },
         { ...none, assignee: true },
       ),
-    ).toBe(true);
-    expect(
-      listFilterDependsOn("agents", { involves_user_id: "me" }, { ...none, assignee: true }),
     ).toBe(true);
     expect(
       listFilterDependsOn("assigned", { assignee_id: "me" }, { ...none, project: true }),

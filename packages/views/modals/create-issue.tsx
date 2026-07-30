@@ -6,7 +6,6 @@ import { useNavigation } from "../navigation";
 import {
   AlertTriangle,
   ArrowDown,
-  ArrowLeftRight,
   ArrowUp,
   CalendarClock,
   CalendarDays,
@@ -56,12 +55,9 @@ import { ShortcutKeycaps } from "../common/shortcut-keycaps";
 import { StatusIcon, StatusPicker, PriorityIcon, PriorityPicker, StagePicker, AssigneePicker, StartDatePicker, DueDatePicker, LabelPicker } from "../issues/components";
 import { maxSiblingStage } from "../issues/components/pickers/stage-picker";
 import { ProjectPicker } from "../projects/components/project-picker";
-import { useIssueTriggerPreview } from "../issues/hooks/use-issue-trigger-preview";
-import { useActorName } from "@multica/core/workspace/hooks";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useIssueDraftStore, type IssueCreateDraft } from "@multica/core/issues/stores/draft-store";
-import { useCreateModeStore } from "@multica/core/issues/stores/create-mode-store";
 import { useQuickCreateStore } from "@multica/core/issues/stores/quick-create-store";
 import {
   useIssueCreateSettingsStore,
@@ -82,7 +78,6 @@ import {
 } from "@multica/core/api";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
 import { PillButton } from "../common/pill-button";
-import { ActorAvatar } from "../common/actor-avatar";
 import { PropertyIcon } from "../common/property-icon";
 import {
   CustomPropertyValueDisplay,
@@ -99,106 +94,13 @@ import { useT } from "../i18n";
 // shell's local mode state.
 // ---------------------------------------------------------------------------
 
-// CreateRunHint is the create modal's passive pre-trigger label (MUL-3375 §4):
-// whether saving will start a run, driven by the unified backend predicate
-// (preview, isCreate) — never a frontend guess. No dialog, no blocking.
-//
-// Visually it borrows the comment header's avatar+text line, minus the
-// interactivity — purely a caption, never a link/hover-card. It renders its own
-// reveal band (a grid 0fr→1fr collapse) so it sits on a dedicated row above the
-// property toolbar without reflowing anything: collapsed it is 0px (the flex-1
-// editor absorbs the delta), and it expands only once the predicate resolves,
-// animating straight to the correct copy.
-function CreateRunHint({
-  assigneeType,
-  assigneeId,
-  status,
-}: {
-  assigneeType?: IssueAssigneeType;
-  assigneeId?: string;
-  status: IssueStatus;
-}) {
-  const { t } = useT("modals");
-  const { getActorName } = useActorName();
-  const isAgentLike = assigneeType === "agent" || assigneeType === "squad";
-  const preview = useIssueTriggerPreview({
-    isCreate: true,
-    assigneeType: assigneeType ?? null,
-    assigneeId: assigneeId ?? null,
-    status,
-    enabled: isAgentLike && !!assigneeId,
-  });
-
-  // Reveal only after the predicate resolves so the band animates to the final
-  // copy instead of flashing "parked" before the run preview lands.
-  const ready = isAgentLike && !!assigneeId && !preview.isLoading;
-  const willStart = preview.totalCount > 0;
-  const isSquad = assigneeType === "squad";
-  const triggerAgentId = preview.triggers[0]?.agent_id ?? assigneeId;
-
-  // Avatar + copy mirror the flow. A squad doesn't "work" — its leader
-  // evaluates and delegates — so the squad path keeps the squad as the subject
-  // (avatar + name) and uses the leader-delegates copy. A single agent picks
-  // the issue up directly; a parked issue shows whoever it was assigned to.
-  let avatarType: string;
-  let avatarId: string | undefined;
-  let text: string;
-  if (!willStart) {
-    avatarType = assigneeType ?? "agent";
-    avatarId = assigneeId;
-    text = t(($) => $.run_confirm.create_parked);
-  } else if (isSquad) {
-    avatarType = "squad";
-    avatarId = assigneeId;
-    text = t(($) => $.run_confirm.create_will_start_squad, {
-      name: getActorName("squad", assigneeId ?? ""),
-    });
-  } else {
-    avatarType = "agent";
-    avatarId = triggerAgentId;
-    text = t(($) => $.run_confirm.create_will_start, {
-      name: getActorName("agent", triggerAgentId ?? assigneeId ?? ""),
-    });
-  }
-
-  return (
-    <div
-      className={cn(
-        "grid shrink-0 transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none",
-        ready ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-      )}
-      aria-hidden={!ready}
-    >
-      <div className="overflow-hidden">
-        <div
-          aria-live="polite"
-          className="flex items-center gap-1.5 px-4 pb-1 pt-0.5 text-[0.6875rem] text-muted-foreground"
-        >
-          {avatarId && (
-            <ActorAvatar
-              actorType={avatarType}
-              actorId={avatarId}
-              size="sm"
-              profileLink={false}
-            />
-          )}
-          <span className="truncate">{text}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ManualCreatePanel({
   onClose,
-  onSwitchMode,
   data,
   isExpanded,
   setIsExpanded,
 }: {
   onClose: () => void;
-  /** Called with the carry payload to seed the agent panel after switch. */
-  onSwitchMode?: (carry?: Record<string, unknown> | null) => void;
   data?: Record<string, unknown> | null;
   /** Lifted to the shell so DialogContent's mode-aware className can react
    *  without the body itself having to live inside DialogContent (which would
@@ -215,11 +117,8 @@ export function ManualCreatePanel({
   const draft = useIssueDraftStore((s) => s.draft);
   const setManual = useIssueDraftStore((s) => s.setManual);
   const setShared = useIssueDraftStore((s) => s.setShared);
-  const setAgent = useIssueDraftStore((s) => s.setAgent);
-  const setActiveMode = useIssueDraftStore((s) => s.setActiveMode);
   const clearDraft = useIssueDraftStore((s) => s.clearDraft);
   const setLastAssignee = useIssueDraftStore((s) => s.setLastAssignee);
-  const setLastMode = useCreateModeStore((s) => s.setLastMode);
   const keepOpen = useQuickCreateStore((s) => s.keepOpen);
   const setKeepOpen = useQuickCreateStore((s) => s.setKeepOpen);
   const manualFields = useIssueCreateSettingsStore((s) => s.manualCreateFields);
@@ -307,15 +206,9 @@ export function ManualCreatePanel({
     enabled: !!parentIssueId,
   });
 
-  // Set the persisted draft's active mode so a later reopen (and any reader of
-  // the unified draft) knows which form the user is editing in.
-  useEffect(() => {
-    setActiveMode("manual");
-  }, [setActiveMode]);
-
   // Prune completed uploads whose markdown reference was deleted in an
   // earlier editing session. Runs once on mount: at that point the persisted
-  // manual description / agent prompt ARE the draft bodies (no editor edits
+  // manual description is the draft body (no editor edits
   // have happened yet), so dropping `uploaded` records referenced by neither
   // is safe. Placeholders (uploading / failed / interrupted) are always kept —
   // they have no body reference yet and the status chips are their only UI.
@@ -328,16 +221,13 @@ export function ManualCreatePanel({
     const kept = uploads.filter(
       (u) =>
         u.status !== "uploaded" ||
-        contentReferencesAttachment(current.manual.description, u.attachment) ||
-        contentReferencesAttachment(current.agent.prompt, u.attachment),
+        contentReferencesAttachment(current.manual.description, u.attachment),
     );
     if (kept.length !== uploads.length) setShared({ attachments: kept });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Gate every action that fixes this draft: Create and the switch to agent
-  // mode (which assist-inits the agent prompt from the description and would
-  // carry a stripped body across).
+  // Gate submission while uploads are still in flight.
   const uploadGate = useUploadGate(descEditorRef);
   // Coordinator-owned uploads in the shared pool (MUL-5181, L2): a file picked
   // here survives dialog close, aborts on logout, and is dropped after a
@@ -346,7 +236,7 @@ export function ManualCreatePanel({
     attachments: draftAttachments,
     handleUpload,
     gate,
-  } = useIssueCreateUploads("manual", uploadGate, descEditorRef);
+  } = useIssueCreateUploads(uploadGate, descEditorRef);
 
   // Sync field changes to the draft store — manual-only fields to the manual
   // slot, project / priority / due date to the shared slot.
@@ -661,7 +551,6 @@ export function ManualCreatePanel({
       // These preferences derive from the SUBMITTED values, not the live
       // draft — an issue was created, so record them regardless of the guard.
       setLastAssignee(assigneeType, assigneeId);
-      setLastMode("manual");
       // Success may only consume the draft it submitted (MUL-5181 P0): any
       // edit after the submit snapshot — typing while the request is in
       // flight, or a reopened dialog — survives, and the dialog then stays
@@ -694,55 +583,6 @@ export function ManualCreatePanel({
     void composer.submit();
   };
   const submitting = composer.submitting;
-
-  // Switch to agent mode WITHOUT destroying the manual draft. The manual slot
-  // (title, description, …) is left untouched so a later agent→manual flip
-  // restores it verbatim. Project / priority / due date already live in the
-  // shared slot, so they carry across for free. Only two things are handed to
-  // the agent panel:
-  //   1. A one-time assist-init of the agent prompt / actor: when the agent
-  //      draft is still empty, seed the prompt from title + description and the
-  //      actor from the manual assignee (if agent-like). An existing agent
-  //      draft is preserved — no repeated concatenate-then-clobber.
-  //   2. The parent-issue context, which is not persisted in the draft (it is a
-  //      per-invocation intent from "Add sub issue"), so it rides the carry.
-  const switchToAgent = () => {
-    // Serializing mid-upload packs a description that has already lost the
-    // pending image into the agent prompt, so gate the switch too.
-    if (gate.isBlocked()) return;
-    // Commit the shared fields to the draft so the agent panel reads them from
-    // there. Local state can hold a value seeded from `data` (e.g. an opener's
-    // project) that was never written through a picker, so a plain flip would
-    // otherwise drop it.
-    setShared({ projectId, priority, dueDate });
-    const existingPrompt = draft.agent.prompt;
-    if (!existingPrompt.trim()) {
-      const desc = descEditorRef.current?.getMarkdown()?.trim() ?? "";
-      const seeded = [title.trim(), desc].filter(Boolean).join("\n\n");
-      if (seeded) setAgent({ prompt: seeded });
-    }
-    if (
-      !draft.agent.actorId &&
-      assigneeId &&
-      (assigneeType === "agent" || assigneeType === "squad")
-    ) {
-      setAgent({ actorType: assigneeType, actorId: assigneeId });
-    }
-    setLastMode("agent");
-    setActiveMode("agent");
-    // Prefer the hydrated identifier from `parentIssue`, but fall back to the
-    // identifier the modal opener seeded on `data`. Without the fallback, a
-    // flip that happens before the issue detail query resolves drops the
-    // identifier and the agent chip renders as "Sub-issue of " with an empty
-    // tail. The UUID alone still wires the sub-issue relationship correctly;
-    // this only affects the display affordance.
-    const carryParentIdentifier =
-      parentIssue?.identifier ?? (data?.parent_issue_identifier as string | undefined);
-    const carry: Record<string, unknown> = {};
-    if (parentIssueId) carry.parent_issue_id = parentIssueId;
-    if (carryParentIdentifier) carry.parent_issue_identifier = carryParentIdentifier;
-    onSwitchMode?.(Object.keys(carry).length > 0 ? carry : null);
-  };
 
   // One state for the button and the keyboard paths, so a rendered affordance
   // can never disagree with what `handleSubmit` will actually do.
@@ -875,10 +715,6 @@ export function ManualCreatePanel({
               {descDragOver && <FileDropOverlay />}
             </div>
 
-
-            {/* Pre-trigger preview — a passive caption above the toolbar; reveals
-                when an agent assignee will pick the issue up. */}
-            <CreateRunHint assigneeType={assigneeType} assigneeId={assigneeId} status={status} />
 
             {/* Property toolbar — each field renders per the Settings → Issue
                 selection (see showField above). */}
@@ -1237,18 +1073,6 @@ export function ManualCreatePanel({
                 />
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={switchToAgent}
-                  disabled={gate.uploading}
-                  aria-disabled={gate.uploading || undefined}
-                  aria-busy={gate.uploading || undefined}
-                  title={t(($) => $.create_issue.switch_to_agent_tooltip)}
-                  className="border-beam group flex shrink-0 items-center gap-1.5 text-xs px-2 py-1 rounded-sm text-muted-foreground bg-brand/5 hover:bg-brand/10 hover:text-foreground transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ArrowLeftRight className="size-3.5 text-brand/80 transition-transform duration-300 group-hover:rotate-180" />
-                  {t(($) => $.create_issue.switch_to_agent)}
-                </button>
                 <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
                   <Switch
                     size="sm"

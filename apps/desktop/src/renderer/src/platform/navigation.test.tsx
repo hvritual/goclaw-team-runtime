@@ -41,7 +41,7 @@ beforeEach(() => {
   Object.defineProperty(window, "desktopAPI", {
     configurable: true,
     value: {
-      runtimeConfig: { ok: true, config: { appUrl: "https://app.example" } },
+      endpointConfig: { ok: true, config: { appUrl: "https://app.example" } },
     },
   });
 });

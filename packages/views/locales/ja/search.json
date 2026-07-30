@@ -11,12 +11,10 @@
     "recent": "最近の項目"
   },
   "pages": {
-    "inbox": "インボックス",
     "my_issues": "マイイシュー",
     "issues": "イシュー",
     "projects": "プロジェクト",
-    "agents": "エージェント",
-    "runtimes": "ランタイム",
+    "tasks": "タスク",
     "skills": "スキル",
     "settings": "設定"
   },

@@ -272,10 +272,10 @@ describe("keyboard shortcut definitions", () => {
       ),
     ).toBe(false);
     expect(
-      isShortcutAllowedForAction("goInbox", createShortcutChord("Enter"), "macos"),
+      isShortcutAllowedForAction("goIssues", createShortcutChord("Enter"), "macos"),
     ).toBe(false);
     expect(
-      isShortcutAllowedForAction("goInbox", createShortcutChord("G"), "macos"),
+      isShortcutAllowedForAction("goIssues", createShortcutChord("G"), "macos"),
     ).toBe(true);
   });
 

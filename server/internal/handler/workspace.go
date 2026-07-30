@@ -236,7 +236,6 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	// emit time. Stamping here would race under concurrent creates without
 	// a schema change, and the event stream answers the question exactly.
 	obsmetrics.RecordEvent(h.Analytics, h.Metrics, analytics.WorkspaceCreated(userID, wsID))
-	h.notifyDaemonWorkspacesChanged(userID)
 
 	slog.Info("workspace created", append(logger.RequestAttrs(r), "workspace_id", wsID, "name", ws.Name, "slug", ws.Slug)...)
 	writeJSON(w, http.StatusCreated, h.workspaceToResponse(ws))
@@ -255,6 +254,14 @@ type UpdateWorkspaceRequest struct {
 type workspaceRepoRef struct {
 	URL         string `json:"url"`
 	Description string `json:"description,omitempty"`
+}
+
+func isValidGitRepoURL(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, "https://") ||
+		strings.HasPrefix(value, "http://") ||
+		strings.HasPrefix(value, "ssh://") ||
+		(strings.Contains(value, "@") && strings.Contains(value, ":"))
 }
 
 func validateAndNormalizeWorkspaceRepos(value any) ([]byte, error) {
@@ -372,7 +379,6 @@ func (h *Handler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 			for _, member := range members {
 				userIDs = append(userIDs, uuidToString(member.UserID))
 			}
-			h.notifyDaemonWorkspacesChanged(userIDs...)
 		}
 	}
 
@@ -542,7 +548,6 @@ func (h *Handler) CreateMember(w http.ResponseWriter, r *http.Request) {
 		eventPayload["workspace_name"] = ws.Name
 	}
 	h.publish(protocol.EventMemberAdded, uuidToString(requester.WorkspaceID), "member", userID, eventPayload)
-	h.notifyDaemonWorkspacesChanged(uuidToString(user.ID))
 
 	writeJSON(w, http.StatusCreated, h.memberWithUserResponse(member, user))
 }
@@ -713,7 +718,6 @@ func (h *Handler) DeleteMember(w http.ResponseWriter, r *http.Request) {
 		"workspace_id": wsIDStr,
 		"user_id":      uuidToString(target.UserID),
 	})
-	h.notifyDaemonWorkspacesChanged(uuidToString(target.UserID))
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -752,7 +756,6 @@ func (h *Handler) LeaveWorkspace(w http.ResponseWriter, r *http.Request) {
 		"workspace_id": workspaceID,
 		"user_id":      uuidToString(member.UserID),
 	})
-	h.notifyDaemonWorkspacesChanged(uuidToString(member.UserID))
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -787,20 +790,6 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// The teardown runs in one transaction so the chat_session row locks below
-	// are still held when DeleteWorkspace sweeps chat_draft_restore. Without
-	// them, FinalizeDeferredCancelledChat could commit a restore for one of
-	// these sessions after the sweep's snapshot was taken: the session cascades
-	// away, the restore has no FK to follow it (MUL-3515) and no reaper, and the
-	// user's prompt is stranded forever (#5219). The finalizer takes the same
-	// lock before inserting, so it either blocks until the session is gone and
-	// skips the insert, or commits first and the sweep sees its row.
-	//
-	// The workspace row is locked first, because the session locks only cover
-	// sessions that already exist: a CreateChatSession committing inside the
-	// delete window would otherwise slip in a session nobody locked, and its
-	// restore would outlive the cascade the same way. Holding the workspace row
-	// FOR UPDATE blocks that insert on its workspace FK (FOR KEY SHARE).
 	tx, err := h.TxStarter.Begin(r.Context())
 	if err != nil {
 		slog.Warn("begin workspace delete tx failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
@@ -812,18 +801,6 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := qtx.LockWorkspaceForDelete(r.Context(), requester.WorkspaceID); err != nil {
 		slog.Warn("lock workspace for delete failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
-		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
-		return
-	}
-
-	if _, err := qtx.LockChatSessionsByWorkspace(r.Context(), requester.WorkspaceID); err != nil {
-		slog.Warn("lock workspace chat sessions failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
-		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
-		return
-	}
-
-	if err := qtx.DeleteChatPinnedAgentsByWorkspace(r.Context(), requester.WorkspaceID); err != nil {
-		slog.Warn("delete workspace chat pins failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
 		writeError(w, http.StatusInternalServerError, "failed to delete workspace")
 		return
 	}
@@ -846,7 +823,6 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	h.publish(protocol.EventWorkspaceDeleted, workspaceID, "member", requestUserID(r), map[string]any{
 		"workspace_id": workspaceID,
 	})
-	h.notifyDaemonWorkspacesChanged(affectedUserIDs...)
 
 	w.WriteHeader(http.StatusNoContent)
 }

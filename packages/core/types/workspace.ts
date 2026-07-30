@@ -50,12 +50,7 @@ export interface User {
   starter_content_state: string | null;
   /** Preferred UI language. null means "follow client/system". */
   language: string | null;
-  /**
-   * Free-form self-description (role, stack, preferences). Injected into
-   * the agent brief so coding agents have cheap, durable context about
-   * who is requesting the work. Server always returns a string —
-   * NOT NULL DEFAULT '' at the column level, empty when unset.
-   */
+  /** Free-form member profile shared with workspace collaborators. */
   profile_description: string;
   /** Pinned IANA tz; null means "use browser-detected tz at render time". */
   timezone: string | null;

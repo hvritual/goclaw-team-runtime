@@ -55,7 +55,7 @@ import {
 import { StatusIcon, PriorityIcon } from ".";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { memberListOptions, agentListOptions, squadListOptions } from "@multica/core/workspace/queries";
+import { memberListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { labelListOptions } from "@multica/core/labels/queries";
 import { propertyListOptions } from "@multica/core/properties";
@@ -94,7 +94,6 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/
 import { useT } from "../../i18n";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { FILTER_ITEM_CLASS, HoverCheck } from "../../common/hover-check";
-import { WorkspaceAgentWorkingChip } from "./workspace-agent-working-chip";
 import { TableColumnPicker } from "./table-view";
 
 type LocalDateRange = {
@@ -257,7 +256,7 @@ function useIssueCounts(
 // Scope config
 // ---------------------------------------------------------------------------
 
-const SCOPE_VALUES: IssuesScope[] = ["all", "members", "agents"];
+const SCOPE_VALUES: IssuesScope[] = ["all", "members"];
 
 // ---------------------------------------------------------------------------
 // Actor sub-menu content (shared between Assignee and Creator)
@@ -271,7 +270,6 @@ function ActorSubContent({
   includeNoAssignee,
   onToggleNoAssignee,
   noAssigneeCount,
-  showSquads = true,
 }: {
   counts: Map<string, number>;
   selected: ActorFilterValue[];
@@ -280,26 +278,16 @@ function ActorSubContent({
   includeNoAssignee?: boolean;
   onToggleNoAssignee?: () => void;
   noAssigneeCount?: number;
-  showSquads?: boolean;
 }) {
   const { t } = useT("issues");
   const [search, setSearch] = useState("");
   const wsId = useWorkspaceId();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
-  const { data: agents = [] } = useQuery(agentListOptions(wsId));
-  const { data: squads = [] } = useQuery(squadListOptions(wsId));
   const query = search.trim().toLowerCase();
   const filteredMembers = members.filter((m) =>
     m.name.toLowerCase().includes(query) || matchesPinyin(m.name, query),
   );
-  const filteredAgents = agents.filter((a) =>
-    !a.archived_at && (a.name.toLowerCase().includes(query) || matchesPinyin(a.name, query)),
-  );
-  const filteredSquads = squads.filter((s) =>
-    !s.archived_at && (s.name.toLowerCase().includes(query) || matchesPinyin(s.name, query)),
-  );
-
-  const isSelected = (type: "member" | "agent" | "squad", id: string) =>
+  const isSelected = (type: "member", id: string) =>
     selected.some((f) => f.type === type && f.id === id);
 
   return (
@@ -363,65 +351,8 @@ function ActorSubContent({
           </DropdownMenuGroup>
         )}
 
-        {filteredAgents.length > 0 && (
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t(($) => $.filters.agents_group)}</DropdownMenuLabel>
-            {filteredAgents.map((a) => {
-              const checked = isSelected("agent", a.id);
-              const count = counts.get(`agent:${a.id}`) ?? 0;
-              return (
-                <DropdownMenuCheckboxItem
-                  key={a.id}
-                  checked={checked}
-                  onCheckedChange={() =>
-                    onToggle({ type: "agent", id: a.id })
-                  }
-                  className={FILTER_ITEM_CLASS}
-                >
-                  <HoverCheck checked={checked} />
-                  <ActorAvatar actorType="agent" actorId={a.id} size="sm" showStatusDot />
-                  <span className="truncate">{a.name}</span>
-                  {count > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {count}
-                    </span>
-                  )}
-                </DropdownMenuCheckboxItem>
-              );
-            })}
-          </DropdownMenuGroup>
-        )}
 
-        {showSquads && filteredSquads.length > 0 && (
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t(($) => $.filters.squads_group)}</DropdownMenuLabel>
-            {filteredSquads.map((s) => {
-              const checked = isSelected("squad", s.id);
-              const count = counts.get(`squad:${s.id}`) ?? 0;
-              return (
-                <DropdownMenuCheckboxItem
-                  key={s.id}
-                  checked={checked}
-                  onCheckedChange={() =>
-                    onToggle({ type: "squad", id: s.id })
-                  }
-                  className={FILTER_ITEM_CLASS}
-                >
-                  <HoverCheck checked={checked} />
-                  <ActorAvatar actorType="squad" actorId={s.id} size="sm" />
-                  <span className="truncate">{s.name}</span>
-                  {count > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {count}
-                    </span>
-                  )}
-                </DropdownMenuCheckboxItem>
-              );
-            })}
-          </DropdownMenuGroup>
-        )}
-
-        {filteredMembers.length === 0 && filteredAgents.length === 0 && (!showSquads || filteredSquads.length === 0) && search && (
+        {filteredMembers.length === 0 && search && (
           <div className="px-2 py-3 text-center text-sm text-muted-foreground">
             {t(($) => $.filters.no_results)}
           </div>
@@ -815,23 +746,13 @@ export function IssuesHeader({
   const { t } = useT("issues");
   const scope = useIssuesScopeStore((s) => s.scope);
   const setScope = useIssuesScopeStore((s) => s.setScope);
-  // Bind the workspace agents-working chip to the active view store so
-  // shared IssuesHeader consumers (/issues and project detail) toggle the
-  // same filter state as the rest of the display controls. /my-issues keeps
-  // its own sibling header and passes chip state explicitly.
-  const agentRunningFilter = useViewStore((s) => s.agentRunningFilter);
-  const toggleAgentRunningFilter = useViewStore(
-    (s) => s.toggleAgentRunningFilter,
-  );
-  const SCOPE_LABEL_KEY: Record<IssuesScope, "all_label" | "members_label" | "agents_label"> = {
+  const SCOPE_LABEL_KEY: Record<IssuesScope, "all_label" | "members_label"> = {
     all: "all_label",
     members: "members_label",
-    agents: "agents_label",
   };
-  const SCOPE_DESC_KEY: Record<IssuesScope, "all_description" | "members_description" | "agents_description"> = {
+  const SCOPE_DESC_KEY: Record<IssuesScope, "all_description" | "members_description"> = {
     all: "all_description",
     members: "members_description",
-    agents: "agents_description",
   };
 
   const scopeLabel = t(($) => $.scope[SCOPE_LABEL_KEY[scope]]);
@@ -889,15 +810,6 @@ export function IssuesHeader({
         </DropdownMenu>
 
         <div className="flex shrink-0 items-center gap-1">
-          {agentRunningFilter && (
-            <span className="mr-1 hidden text-xs text-muted-foreground md:inline">
-              {t(($) => $.agent_activity.filter_active_label)}
-            </span>
-          )}
-          <WorkspaceAgentWorkingChip
-            value={agentRunningFilter}
-            onToggle={toggleAgentRunningFilter}
-          />
           <IssueDisplayControls
             scopedIssues={scopedIssues}
             allowGantt={allowGantt}
@@ -1276,7 +1188,6 @@ export function IssueDisplayControls({
                   counts={counts.creator}
                   selected={creatorFilters}
                   onToggle={act.toggleCreatorFilter}
-                  showSquads={false}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>

@@ -85,10 +85,10 @@ describe("commonIssueFields", () => {
 
   it("returns the shared assignee when every issue points at the same actor", () => {
     const common = commonIssueFields([
-      makeIssue({ id: "a", assignee_type: "agent", assignee_id: "agent-1" }),
-      makeIssue({ id: "b", assignee_type: "agent", assignee_id: "agent-1" }),
+      makeIssue({ id: "a", assignee_type: "member", assignee_id: "member-1" }),
+      makeIssue({ id: "b", assignee_type: "member", assignee_id: "member-1" }),
     ]);
-    expect(common.assignee).toEqual({ type: "agent", id: "agent-1" });
+    expect(common.assignee).toEqual({ type: "member", id: "member-1" });
   });
 
   it("returns null assignee when actors differ", () => {
@@ -107,10 +107,10 @@ describe("commonIssueFields", () => {
     expect(common.assignee).toBeNull();
   });
 
-  it("distinguishes assignees of the same id but different type", () => {
+  it("returns null when one assignee is missing", () => {
     const common = commonIssueFields([
       makeIssue({ id: "a", assignee_type: "member", assignee_id: "x" }),
-      makeIssue({ id: "b", assignee_type: "agent", assignee_id: "x" }),
+      makeIssue({ id: "b", assignee_type: null, assignee_id: null }),
     ]);
     expect(common.assignee).toBeNull();
   });

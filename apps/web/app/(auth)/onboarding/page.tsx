@@ -10,7 +10,7 @@ import {
   useHasOnboarded,
 } from "@multica/core/paths";
 import { workspaceListOptions } from "@multica/core/workspace/queries";
-import { CliInstallInstructions, OnboardingFlow } from "@multica/views/onboarding";
+import { OnboardingFlow } from "@multica/views/onboarding";
 
 /**
  * Web shell for the onboarding flow. The route is the platform chrome on
@@ -71,20 +71,14 @@ export default function OnboardingPage() {
   return (
     <div className="h-full overflow-y-auto bg-background">
       <OnboardingFlow
-        onComplete={(ws, issueId) => {
-          // Runtime-connected onboarding now creates one focused
-          // onboarding issue. Skip/runtime-less exits still land on the
-          // workspace issues list.
+        onComplete={(ws) => {
           completingRef.current = true;
-          if (ws && issueId) {
-            router.push(paths.workspace(ws.slug).issueDetail(issueId));
-          } else if (ws) {
+          if (ws) {
             router.push(paths.workspace(ws.slug).issues());
           } else {
             router.push(paths.root());
           }
         }}
-        runtimeInstructions={<CliInstallInstructions />}
       />
     </div>
   );

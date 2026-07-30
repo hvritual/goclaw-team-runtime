@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
-import type { RuntimeConfigResult } from "../shared/runtime-config";
+import type { EndpointConfigResult } from "../shared/endpoint-config";
 import type { FreezeBreadcrumb } from "../shared/freeze-breadcrumb";
 import type {
   ManualUpdateCheckResult,
@@ -24,10 +24,6 @@ import {
   type IssueWindowRequest,
 } from "../shared/issue-window";
 import { AUTH_SESSION_STATE_CHANNEL } from "../shared/auth-session";
-import type {
-  DaemonStatus,
-  LocalRuntimeProbe,
-} from "../shared/daemon-types";
 import {
   MAIN_RENDERER_CHANNEL_STATE_CHANNEL,
   type MainRendererMessageChannel,
@@ -53,9 +49,9 @@ function fetchAppInfo(): { version: string; os: "macos" | "windows" | "linux" | 
   return { version: "unknown", os };
 }
 
-function fetchRuntimeConfig(): RuntimeConfigResult {
+function fetchEndpointConfig(): EndpointConfigResult {
   try {
-    const result = ipcRenderer.sendSync("runtime-config:get") as RuntimeConfigResult | undefined;
+    const result = ipcRenderer.sendSync("endpoint-config:get") as EndpointConfigResult | undefined;
     if (result && typeof result === "object" && "ok" in result) return result;
   } catch (err) {
     return {
@@ -69,7 +65,7 @@ function fetchRuntimeConfig(): RuntimeConfigResult {
 }
 
 const appInfo = fetchAppInfo();
-const runtimeConfig = fetchRuntimeConfig();
+const endpointConfig = fetchEndpointConfig();
 const windowContext = readDesktopWindowContext(process.argv);
 
 // Read the OS-preferred locale that main injected via additionalArguments.
@@ -120,7 +116,7 @@ const desktopAPI = {
     };
   },
   /** Validated runtime endpoint config, or a blocking config error. */
-  runtimeConfig,
+  endpointConfig,
   /** Identifies whether this renderer owns the main tabbed window or a
    *  dedicated issue window, parsed from validated launch arguments. */
   windowContext,
@@ -158,41 +154,6 @@ const desktopAPI = {
   /** Toggle immersive mode — hide macOS traffic lights for full-screen modals */
   setImmersiveMode: (immersive: boolean) =>
     ipcRenderer.invoke("window:setImmersive", immersive),
-  /**
-   * Show a native OS notification for a new inbox item. Fired from the
-   * renderer only when the app is unfocused — in-focus feedback is the
-   * inbox sidebar's unread styling. `slug`, `itemId`, and `issueKey` are
-   * all round-tripped on click: slug pins routing to the source workspace
-   * (the user may switch workspaces before clicking the banner), itemId
-   * lets the renderer mark the row read, issueKey maps to the inbox URL
-   * param.
-   */
-  showNotification: (payload: {
-    slug: string;
-    itemId: string;
-    issueKey: string;
-    title: string;
-    body: string;
-  }) => ipcRenderer.send("notification:show", payload),
-  /**
-   * Update the OS dock / taskbar unread badge. Pass 0 to clear. Values
-   * above 99 render as "99+" (capping is handled in the main process).
-   */
-  setUnreadBadge: (count: number) =>
-    ipcRenderer.send("badge:set", Math.max(0, Math.floor(count))),
-  /**
-   * Subscribe to "open this inbox row" requests sent by the main process
-   * when the user clicks an OS notification banner. Returns an unsubscribe
-   * function. The payload echoes the `slug`, `itemId`, and `issueKey` that
-   * were passed to `showNotification`.
-   */
-  onInboxOpen: (
-    callback: (payload: {
-      slug: string;
-      itemId: string;
-      issueKey: string;
-    }) => void,
-  ) => subscribeToMainRendererChannel("inbox:open", callback),
   /** Listen for native macOS back/forward swipe gestures. */
   onNavigationGesture: (callback: (gesture: NavigationGesture) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, gesture: unknown) => {
@@ -210,12 +171,6 @@ const desktopAPI = {
    *  fail-closed and only enables hang stack capture once this says so. */
   setDiagnosticsControl: (control: DiagnosticsControl) =>
     ipcRenderer.send(DIAGNOSTICS_CONTROL_CHANNEL, control),
-  /** Open the OS folder picker and return the chosen absolute path. */
-  pickDirectory: (defaultPath?: string) =>
-    ipcRenderer.invoke("local-directory:pick", defaultPath),
-  /** Validate that a path is an existing readable+writable directory. */
-  validateLocalDirectory: (path: string) =>
-    ipcRenderer.invoke("local-directory:validate", path),
   /** Listen for Cmd/Ctrl+W tab-close requests from the main process.
    *  The renderer should close the active tab; if it was the last tab,
    *  call `closeWindow()` to dismiss the window. Returns an unsubscribe fn. */
@@ -231,61 +186,6 @@ const desktopAPI = {
   /** Open a validated issue-detail route in a dedicated native window. */
   openIssueWindow: (request: IssueWindowRequest) =>
     ipcRenderer.invoke("window:open-issue", request),
-};
-
-type DaemonReauthResult =
-  | { ok: true }
-  | { ok: false; reason: "session_invalid" }
-  | { ok: false; reason: "transient"; message: string };
-
-const daemonAPI = {
-  start: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("daemon:start"),
-  stop: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("daemon:stop"),
-  restart: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("daemon:restart"),
-  getStatus: (): Promise<DaemonStatus> =>
-    ipcRenderer.invoke("daemon:get-status"),
-  probeRuntimes: (): Promise<LocalRuntimeProbe> =>
-    ipcRenderer.invoke("daemon:probe-runtimes"),
-  getHostName: (): Promise<string> =>
-    ipcRenderer.invoke("daemon:get-host-name"),
-  onStatusChange: (callback: (status: DaemonStatus) => void) => {
-    const handler = (_: unknown, status: DaemonStatus) => callback(status);
-    ipcRenderer.on("daemon:status", handler);
-    return () => ipcRenderer.removeListener("daemon:status", handler);
-  },
-  setTargetApiUrl: (url: string): Promise<void> =>
-    ipcRenderer.invoke("daemon:set-target-api-url", url),
-  syncToken: (token: string, userId: string): Promise<void> =>
-    ipcRenderer.invoke("daemon:sync-token", token, userId),
-  clearToken: (): Promise<void> =>
-    ipcRenderer.invoke("daemon:clear-token"),
-  reauthenticate: (
-    token: string,
-    userId: string,
-  ): Promise<DaemonReauthResult> =>
-    ipcRenderer.invoke("daemon:reauthenticate", token, userId),
-  isCliInstalled: (): Promise<boolean> =>
-    ipcRenderer.invoke("daemon:is-cli-installed"),
-  getPrefs: (): Promise<{ autoStart: boolean; autoStop: boolean }> =>
-    ipcRenderer.invoke("daemon:get-prefs"),
-  setPrefs: (prefs: Partial<{ autoStart: boolean; autoStop: boolean }>): Promise<{ autoStart: boolean; autoStop: boolean }> =>
-    ipcRenderer.invoke("daemon:set-prefs", prefs),
-  autoStart: (): Promise<void> =>
-    ipcRenderer.invoke("daemon:auto-start"),
-  retryInstall: (): Promise<void> =>
-    ipcRenderer.invoke("daemon:retry-install"),
-  startLogStream: () => ipcRenderer.send("daemon:start-log-stream"),
-  stopLogStream: () => ipcRenderer.send("daemon:stop-log-stream"),
-  onLogLine: (callback: (line: string) => void) => {
-    const handler = (_: unknown, line: string) => callback(line);
-    ipcRenderer.on("daemon:log-line", handler);
-    return () => ipcRenderer.removeListener("daemon:log-line", handler);
-  },
-  openLogFile: (): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("daemon:open-log-file"),
 };
 
 const updaterAPI = {
@@ -320,15 +220,12 @@ const updaterAPI = {
 if (process.contextIsolated) {
   contextBridge.exposeInMainWorld("electron", electronAPI);
   contextBridge.exposeInMainWorld("desktopAPI", desktopAPI);
-  contextBridge.exposeInMainWorld("daemonAPI", daemonAPI);
   contextBridge.exposeInMainWorld("updater", updaterAPI);
 } else {
   // @ts-expect-error - fallback for non-isolated context
   window.electron = electronAPI;
   // @ts-expect-error - fallback for non-isolated context
   window.desktopAPI = desktopAPI;
-  // @ts-expect-error - fallback for non-isolated context
-  window.daemonAPI = daemonAPI;
   // @ts-expect-error - fallback for non-isolated context
   window.updater = updaterAPI;
 }

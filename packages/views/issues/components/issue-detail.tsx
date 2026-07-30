@@ -57,17 +57,12 @@ import { CustomPropertyValueEditor, CustomPropertyValueDisplay } from "./pickers
 import { Switch } from "@multica/ui/components/ui/switch";
 import { IssueActionsDropdown, useIssueActions, IssueActionsContextMenu, IssueContextMenuProvider } from "../actions";
 import { LabelChip } from "../../labels/label-chip";
-import { IssueAgentActivityIndicator } from "./issue-agent-activity-indicator";
-import { SubIssuesAgentWorkingChip } from "./sub-issues-agent-working-chip";
 import { ProjectPicker } from "../../projects/components/project-picker";
-import { LocalDirectoryHint } from "../../projects/components/local-directory-hint";
 import { CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
 import { ResolvedThreadBar } from "./resolved-thread-bar";
 import { ThreadMinimap, type ThreadMinimapThread } from "./thread-minimap";
 import { collectThreadReplies, deriveThreadResolution } from "./thread-utils";
-import { IssueAgentHeaderChip } from "./issue-agent-header-chip";
-import { ExecutionLogSection } from "./execution-log-section";
 import { PullRequestList } from "./pull-request-list";
 import { useGitHubSettings } from "@multica/core/github";
 import { useQuery } from "@tanstack/react-query";
@@ -75,13 +70,12 @@ import { useAuthStore } from "@multica/core/auth";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { useRecentContextStore } from "@multica/core/chat";
-import { issueListOptions, issueDetailOptions, childIssuesOptions, childIssueProgressOptions, issueUsageOptions, issueAttachmentsOptions } from "@multica/core/issues/queries";
+import { issueListOptions, issueDetailOptions, childIssuesOptions, childIssueProgressOptions, issueAttachmentsOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
 import { ProjectIcon } from "../../projects/components/project-icon";
 import { issueLabelsOptions } from "@multica/core/labels";
 import { propertyListOptions } from "@multica/core/properties";
-import { memberListOptions, agentListOptions } from "@multica/core/workspace/queries";
+import { memberListOptions } from "@multica/core/workspace/queries";
 import {
   selectExpandedResolved,
   useCommentComposerStore,
@@ -117,29 +111,22 @@ import {
 
 function SubscriberPopoverContent({
   members,
-  agents,
   subscribers,
   toggleSubscriber,
   t,
 }: {
   members: { user_id: string; name: string }[];
-  agents: { id: string; name: string; archived_at?: string | null }[];
   subscribers: { user_type: string; user_id: string }[];
-  toggleSubscriber: (id: string, type: "member" | "agent", subscribed: boolean) => void;
+  toggleSubscriber: (id: string, type: "member", subscribed: boolean) => void;
   t: ActivityT;
 }) {
   const [search, setSearch] = useState("");
   const q = search.trim().toLowerCase();
 
   const uniqueMembers = members.filter((m, i, arr) => arr.findIndex((x) => x.user_id === m.user_id) === i);
-  const activeAgents = agents.filter((a) => !a.archived_at);
-
   const filteredMembers = q
     ? uniqueMembers.filter((m) => m.name.toLowerCase().includes(q) || matchesPinyin(m.name, q))
     : uniqueMembers;
-  const filteredAgents = q
-    ? activeAgents.filter((a) => a.name.toLowerCase().includes(q) || matchesPinyin(a.name, q))
-    : activeAgents;
 
   return (
     <PopoverContent align="end" className="w-64 p-0">
@@ -150,7 +137,7 @@ function SubscriberPopoverContent({
           onValueChange={setSearch}
         />
         <CommandList className="max-h-64">
-          {filteredMembers.length === 0 && filteredAgents.length === 0 && (
+          {filteredMembers.length === 0 && (
             <CommandEmpty>{t(($) => $.detail.no_subscribers_results)}</CommandEmpty>
           )}
           {filteredMembers.length > 0 && (
@@ -167,25 +154,6 @@ function SubscriberPopoverContent({
                     <Checkbox checked={isSubbed} className="pointer-events-none" />
                     <ActorAvatar actorType="member" actorId={m.user_id} size="md" />
                     <span className="truncate flex-1">{m.name}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          )}
-          {filteredAgents.length > 0 && (
-            <CommandGroup heading={t(($) => $.detail.agents_group)}>
-              {filteredAgents.map((a) => {
-                const sub = subscribers.find((s) => s.user_type === "agent" && s.user_id === a.id);
-                const isSubbed = !!sub;
-                return (
-                  <CommandItem
-                    key={`agent-${a.id}`}
-                    onSelect={() => toggleSubscriber(a.id, "agent", isSubbed)}
-                    className="flex items-center gap-2.5"
-                  >
-                    <Checkbox checked={isSubbed} className="pointer-events-none" />
-                    <ActorAvatar actorType="agent" actorId={a.id} size="md" showStatusDot />
-                    <span className="truncate flex-1">{a.name}</span>
                   </CommandItem>
                 );
               })}
@@ -296,12 +264,6 @@ function formatActivity(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function formatTokenCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
 
 // Stable reference for threads with no replies. Inline `[]` would create a
 // new array on every render and bust React.memo on CommentCard / ResolvedThreadBar.
@@ -690,7 +652,6 @@ function SubIssueRow({
           <span className="text-[11px] text-muted-foreground tabular-nums font-medium shrink-0">
             {child.identifier}
           </span>
-          <IssueAgentActivityIndicator issueId={child.id} />
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <span
               className={cn(
@@ -911,7 +872,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   // Issue navigation — read from TQ list cache
   const wsId = useWorkspaceId();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
-  const { data: agents = [] } = useQuery(agentListOptions(wsId));
   // Workspace owners and admins moderate any comment authored by anyone
   // (mirrors backend `comment.go:507-512`). Computed here so per-comment
   // rendering doesn't have to re-derive it for every row.
@@ -955,7 +915,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   const [parentIssueOpen, setParentIssueOpen] = useState(true);
   const [pullRequestsOpen, setPullRequestsOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(false);
-  const [tokenUsageOpen, setTokenUsageOpen] = useState(true);
   const githubSettings = useGitHubSettings();
 
   // Per-issue, per-session set of optional properties currently visible in
@@ -1088,17 +1047,9 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
 
   // Record recent visit
   const recordVisit = useRecentIssuesStore((s) => s.recordVisit);
-  const recordRecentContext = useRecentContextStore((s) => s.recordVisit);
   useEffect(() => {
     if (issue) {
       recordVisit(wsId, issue.id);
-      recordRecentContext(wsId, {
-        type: "issue",
-        id: issue.id,
-        label: issue.identifier,
-        subtitle: issue.title,
-        status: issue.status,
-      });
     }
   }, [issue?.id, wsId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1360,9 +1311,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   const {
     subscribers, isSubscribed, toggleSubscribe: handleToggleSubscribe, toggleSubscriber,
   } = useIssueSubscribers(id, user?.id);
-
-  // Token usage
-  const { data: usage } = useQuery(issueUsageOptions(id));
 
   // Attachments uploaded against this issue. Drives the description
   // editor's click-time fresh-sign download: NodeViews match
@@ -2035,47 +1983,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
         </div>}
       </div>
 
-      {/* Execution log — active runs + collapsed past runs. Self-contained;
-          owns its own collapse state and WS subscriptions. Hides itself
-          when there are no runs to show. */}
-      <ExecutionLogSection issueId={id} />
-
-      {/* Token usage */}
-      {usage && usage.task_count > 0 && (
-        <div>
-          <button
-            type="button"
-            className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${tokenUsageOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
-            onClick={() => setTokenUsageOpen(!tokenUsageOpen)}
-          >
-            {t(($) => $.detail.section_token_usage)}
-            <ChevronRight className={`!size-3 shrink-0 stroke-[2.5] text-muted-foreground transition-transform ${tokenUsageOpen ? "rotate-90" : ""}`} />
-          </button>
-          {tokenUsageOpen && <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 pl-2">
-            <PropRow label={t(($) => $.detail.prop_input)}>
-              <span className="text-muted-foreground">{formatTokenCount(usage.total_input_tokens)}</span>
-            </PropRow>
-            <PropRow label={t(($) => $.detail.prop_output)}>
-              <span className="text-muted-foreground">{formatTokenCount(usage.total_output_tokens)}</span>
-            </PropRow>
-            {(usage.total_cache_read_tokens > 0 || usage.total_cache_write_tokens > 0) && (
-              <PropRow label={t(($) => $.detail.prop_cache)}>
-                <span className="text-muted-foreground">
-                  {t(($) => $.detail.prop_cache_value, {
-                    read: formatTokenCount(usage.total_cache_read_tokens),
-                    write: formatTokenCount(usage.total_cache_write_tokens),
-                  })}
-                </span>
-              </PropRow>
-            )}
-            <PropRow label={t(($) => $.detail.prop_runs)}>
-              <span className="text-muted-foreground">{usage.task_count}</span>
-            </PropRow>
-          </div>}
-        </div>
-      )}
-
-      {/* Metadata — agent-facing free-form KV bag. The values almost
+      {/* Metadata — free-form KV bag. The values almost
           never mean anything to humans, so the trigger row matches the
           sibling section headers (Pull requests / Details / Parent issue)
           but clicking opens a dialog with the raw JSON instead of expanding
@@ -2223,10 +2131,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
           }
           actions={
             <>
-            {/* Live "agent is working" chip, leftmost in the right cluster so
-                it never overlaps the title (which truncates to make room).
-                It self-hides when no agent is active. */}
-            <IssueAgentHeaderChip issueId={id} />
             {onDone && issue.status !== "done" && issue.status !== "cancelled" && (
               <Tooltip>
                 <TooltipTrigger
@@ -2481,7 +2385,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                   </div>
                   {/* issue.id, not the route param — the endpoint takes a
                       UUID and the route may carry a human-readable id. */}
-                  <SubIssuesAgentWorkingChip parentIssueId={issue.id} />
                   <input
                     type="checkbox"
                     checked={allChildrenSelected}
@@ -2596,7 +2499,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                   </PopoverTrigger>
                   <SubscriberPopoverContent
                     members={members}
-                    agents={agents}
                     subscribers={subscribers}
                     toggleSubscriber={toggleSubscriber}
                     t={t}
@@ -2605,13 +2507,6 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               </div>
             </div>
 
-            <LocalDirectoryHint projectId={issue?.project_id} />
-
-            {/* The "agent is working" live signal now lives in the header
-                (IssueAgentHeaderChip) so it stays in one fixed place and
-                doesn't compete with sticky banners in this content column.
-                The per-task timeline + past runs live in the right panel
-                via ExecutionLogSection. */}
 
             {/* Timeline entries — virtualized via react-virtuoso to keep
                 first-paint cost O(viewport) instead of O(N). On a 500-comment

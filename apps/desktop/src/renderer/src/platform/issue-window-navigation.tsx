@@ -25,7 +25,7 @@ import { parseIssueWindowPath } from "../../../shared/issue-window";
  */
 function useContentLinkHandler(
   navigate: ReturnType<typeof useNavigate>,
-  runtimeConfig: typeof window.desktopAPI.runtimeConfig,
+  endpointConfig: typeof window.desktopAPI.endpointConfig,
 ) {
   useEffect(() => {
     const handler = (e: Event) => {
@@ -36,14 +36,14 @@ function useContentLinkHandler(
         void navigate(issuePath.path);
         return;
       }
-      if (!runtimeConfig.ok) return;
+      if (!endpointConfig.ok) return;
       void window.desktopAPI.openExternal(
-        `${runtimeConfig.config.appUrl}${path}`,
+        `${endpointConfig.config.appUrl}${path}`,
       );
     };
     window.addEventListener("multica:navigate", handler);
     return () => window.removeEventListener("multica:navigate", handler);
-  }, [navigate, runtimeConfig]);
+  }, [navigate, endpointConfig]);
 }
 
 /**
@@ -59,7 +59,7 @@ export function IssueWindowNavigationProvider({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const runtimeConfig = window.desktopAPI.runtimeConfig;
+  const endpointConfig = window.desktopAPI.endpointConfig;
   const currentPath = `${location.pathname}${location.search}${location.hash}`;
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export function IssueWindowNavigationProvider({
     });
   }, [currentPath]);
 
-  useContentLinkHandler(navigate, runtimeConfig);
+  useContentLinkHandler(navigate, endpointConfig);
 
   const adapter = useMemo<NavigationAdapter>(() => {
     const navigateToIssue = (path: string, replace = false) => {
@@ -98,9 +98,9 @@ export function IssueWindowNavigationProvider({
         });
       },
       getShareableUrl: (path) =>
-        runtimeConfig.ok ? `${runtimeConfig.config.appUrl}${path}` : path,
+        endpointConfig.ok ? `${endpointConfig.config.appUrl}${path}` : path,
     };
-  }, [location.pathname, location.search, navigate, runtimeConfig]);
+  }, [location.pathname, location.search, navigate, endpointConfig]);
 
   return <NavigationProvider value={adapter}>{children}</NavigationProvider>;
 }

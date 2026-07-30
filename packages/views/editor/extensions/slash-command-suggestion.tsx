@@ -11,18 +11,10 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
-import { useAuthStore } from "@multica/core/auth";
-import { useChatStore } from "@multica/core/chat";
-import { getCurrentWsId } from "@multica/core/platform";
-import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { isImeComposing } from "@multica/core/utils";
-import { workspaceKeys } from "@multica/core/workspace/queries";
-import type { Agent, MemberWithUser } from "@multica/core/types";
 import { useT } from "../../i18n";
 import { createSuggestionPopupRender, isPickerAcceptKey } from "./suggestion-popup";
 import { isTriggerArmedAt } from "./suggestion-trigger-arming";
-
-const MAX_ITEMS = 20;
 
 /** Known built-in command ids — the keys under editor `slash_command.commands`. */
 export type BuiltinCommandKey = "note";
@@ -160,38 +152,9 @@ export const SlashCommandList = forwardRef<
 });
 
 function buildItems(qc: QueryClient, query: string): SlashCommandItem[] {
-  const wsId = getCurrentWsId();
-  if (!wsId) return [];
-
-  const agents: Agent[] = qc.getQueryData(workspaceKeys.agents(wsId)) ?? [];
-  const members: MemberWithUser[] =
-    qc.getQueryData(workspaceKeys.members(wsId)) ?? [];
-  // Tiptap calls suggestion items outside React render, so direct store reads
-  // are intentional here.
-  const { selectedAgentId } = useChatStore.getState();
-  const userId = useAuthStore.getState().user?.id ?? null;
-  const memberRole = members.find((m) => m.user_id === userId)?.role ?? null;
-
-  const availableAgents = agents.filter(
-    (a) =>
-      !a.archived_at &&
-      canAssignAgentToIssue(a, { userId, role: memberRole }).allowed,
-  );
-  const activeAgent =
-    availableAgents.find((a) => a.id === selectedAgentId) ??
-    availableAgents[0] ??
-    null;
-
-  const q = query.toLowerCase();
-  return (activeAgent?.skills ?? [])
-    .filter(
-      (s) =>
-        !q ||
-        s.name.toLowerCase().includes(q) ||
-        (s.description ?? "").toLowerCase().includes(q),
-    )
-    .slice(0, MAX_ITEMS)
-    .map((s) => ({ id: s.id, label: s.name, description: s.description ?? "" }));
+  void qc;
+  void query;
+  return [];
 }
 
 export function createSlashCommandSuggestion(qc: QueryClient): Omit<

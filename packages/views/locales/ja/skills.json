@@ -158,7 +158,7 @@
     "delete_dialog": {
       "title": "スキルを削除しますか？",
       "description_with_agents_other": "「{{name}}」を完全に削除し、現在使用中の {{count}} 個のエージェントから削除します。",
-      "description_no_agents": "「{{name}}」を完全に削除し、すべてのエージェントから削除します。",
+      "description": "「{{name}}」を完全に削除します。",
       "warning": "この操作は元に戻せません。",
       "cancel": "キャンセル",
       "confirm": "完全に削除",

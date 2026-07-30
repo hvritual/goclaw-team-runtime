@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS task_issue_id_idx;

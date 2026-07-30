@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Bot, Camera, Loader2, Users, X } from "lucide-react";
+import { Camera, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@multica/core/api";
 import { useFileUpload } from "@multica/core/hooks/use-file-upload";
@@ -11,7 +11,7 @@ import { cn } from "@multica/ui/lib/utils";
 import { useT } from "../i18n";
 import { AvatarCropDialog } from "./avatar-crop-dialog";
 
-export type AvatarUploadVariant = "user" | "agent" | "squad" | "workspace";
+export type AvatarUploadVariant = "user" | "workspace";
 
 interface AvatarUploadControlProps {
   /** Current avatar URL, raw (unresolved). `null` renders the empty state. */
@@ -25,9 +25,8 @@ interface AvatarUploadControlProps {
   disabled?: boolean;
   /**
    * Fires with the uploaded file URL after a successful crop + upload. The
-   * parent persists it (updateMe / updateWorkspace / updateAgent /
-   * updateSquad, or stashing it for a create call). The crop dialog stays in
-   * its busy state until this resolves, then closes.
+   * parent persists it (updateMe or updateWorkspace). The crop dialog stays
+   * in its busy state until this resolves, then closes.
    */
   onUploaded: (url: string) => void | Promise<unknown>;
   /**
@@ -58,12 +57,6 @@ function AvatarFallback({
   name: string;
   size: number;
 }) {
-  if (variant === "agent") {
-    return <Bot style={{ width: size * 0.5, height: size * 0.5 }} />;
-  }
-  if (variant === "squad") {
-    return <Users style={{ width: size * 0.5, height: size * 0.5 }} />;
-  }
   const text =
     variant === "workspace"
       ? name.charAt(0).toUpperCase()

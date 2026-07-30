@@ -18,7 +18,6 @@ import {
 import type { Issue, UpdateIssueRequest } from "@multica/core/types";
 import { commonIssueFields } from "@multica/core/issues/batch";
 import { useBatchUpdateIssues, useBatchDeleteIssues } from "@multica/core/issues/mutations";
-import { useModalStore } from "@multica/core/modals";
 import { StatusPicker, PriorityPicker, AssigneePicker } from "./pickers";
 import { useT } from "../../i18n";
 import { cn } from "@multica/ui/lib/utils";
@@ -80,7 +79,6 @@ export function BatchActionToolbar({
   const surfaceActions = useIssueSurfaceActionsOptional();
   const batchUpdate = useBatchUpdateIssues();
   const batchDelete = useBatchDeleteIssues();
-  const openModal = useModalStore((s) => s.open);
   const loading =
     surfaceActions?.isPending ?? (batchUpdate.isPending || batchDelete.isPending);
   const ids = selectedIssues.map((issue) => issue.id);
@@ -125,23 +123,6 @@ export function BatchActionToolbar({
   };
 
   const handleBatchAssignee = (updates: Partial<UpdateIssueRequest>) => {
-    if ((updates.assignee_type === "agent" || updates.assignee_type === "squad") && updates.assignee_id) {
-      // Backlog never starts a run on assign (parking lot), so if every selected
-      // issue is in backlog the confirm modal would only render an empty "won't
-      // start" box — apply directly, matching handleBatchStatus's backlog short-
-      // circuit. A mixed selection still routes through the modal: the non-backlog
-      // issues will trigger and need confirmation.
-      const allBacklog = selectedIssues.every((i) => i.status === "backlog");
-      if (!allBacklog) {
-        openModal("issue-run-confirm", {
-          issueIds: ids,
-          mode: "assign",
-          assigneeType: updates.assignee_type,
-          assigneeId: updates.assignee_id,
-        });
-        return;
-      }
-    }
     void handleBatchUpdate(updates);
   };
 

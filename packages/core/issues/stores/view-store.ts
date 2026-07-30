@@ -104,7 +104,7 @@ export interface CardProperties {
 }
 
 export interface ActorFilterValue {
-  type: "member" | "agent" | "squad";
+  type: "member";
   id: string;
 }
 
@@ -163,12 +163,6 @@ export interface IssueViewState {
    */
   propertyFilters: Record<string, string[]>;
   dateFilter: IssueDateFilter | null;
-  // When true, the list only shows issues that currently have at least one
-  // agent task in `running` status. Drives the workspace "agents working"
-  // quick filter chip in the issues header. Not persisted across reloads —
-  // running state changes second-to-second, a persisted toggle would let
-  // users return to an empty list with no obvious cause.
-  agentRunningFilter: boolean;
   sortBy: SortField;
   sortDirection: SortDirection;
   cardProperties: CardProperties;
@@ -211,7 +205,6 @@ export interface IssueViewState {
   toggleLabelFilter: (labelId: string) => void;
   togglePropertyFilter: (propertyId: string, optionId: string) => void;
   setDateFilter: (filter: IssueDateFilter | null) => void;
-  toggleAgentRunningFilter: () => void;
   hideStatus: (status: IssueStatus) => void;
   showStatus: (status: IssueStatus) => void;
   clearFilters: () => void;
@@ -249,7 +242,6 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
   labelFilters: [],
   propertyFilters: {},
   dateFilter: null,
-  agentRunningFilter: false,
   sortBy: "position",
   sortDirection: "asc",
   cardProperties: {
@@ -348,8 +340,6 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
       return { propertyFilters };
     }),
   setDateFilter: (filter) => set({ dateFilter: filter }),
-  toggleAgentRunningFilter: () =>
-    set((state) => ({ agentRunningFilter: !state.agentRunningFilter })),
   hideStatus: (status) =>
     set((state) => {
       // If no filter active, activate filter with all EXCEPT this one
@@ -378,7 +368,6 @@ export const viewStoreSlice = (set: StoreApi<IssueViewState>["setState"]): Issue
       labelFilters: [],
       propertyFilters: {},
       dateFilter: null,
-      agentRunningFilter: false,
     }),
   setSortBy: (field) => set({ sortBy: field }),
   setSortDirection: (dir) => set({ sortDirection: dir }),
@@ -471,10 +460,6 @@ export const viewStorePersistOptions = (name: string) => ({
   name,
   storage: createJSONStorage(() => createWorkspaceAwareStorage(defaultStorage)),
   partialize: (state: IssueViewState) => ({
-    // NOTE: `agentRunningFilter` is intentionally NOT persisted — running
-    // state changes second-to-second, and a stored toggle would let users
-    // return to an unexplained empty list. Keep it ephemeral. See the
-    // field comment on IssueViewState.
     // `dateFilter` is also intentionally not persisted: relative presets such
     // as Today would otherwise become stale after a calendar-day rollover.
     viewMode: state.viewMode,

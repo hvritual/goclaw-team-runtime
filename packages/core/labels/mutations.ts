@@ -108,7 +108,7 @@ export function useDeleteLabel() {
 }
 
 export function useAttachResourceLabel(
-  resourceType: "agent" | "skill",
+  resourceType: "skill",
   resourceId: string,
 ) {
   const qc = useQueryClient();
@@ -130,7 +130,7 @@ export function useAttachResourceLabel(
 }
 
 export function useDetachResourceLabel(
-  resourceType: "agent" | "skill",
+  resourceType: "skill",
   resourceId: string,
 ) {
   const qc = useQueryClient();
@@ -151,8 +151,8 @@ export function useDetachResourceLabel(
   });
 }
 
-function workspaceKeysForLabels(resourceType: "agent" | "skill", wsId: string) {
-  return ["workspaces", wsId, resourceType === "agent" ? "agents" : "skills"] as const;
+function workspaceKeysForLabels(_resourceType: "skill", wsId: string) {
+  return ["workspaces", wsId, "skills"] as const;
 }
 
 async function cancelIssueLabelMutationQueries(

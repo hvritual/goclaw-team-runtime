@@ -211,7 +211,7 @@ var issueUpdateCmd = &cobra.Command{
 
 var issueAssignCmd = &cobra.Command{
 	Use:   "assign <id>",
-	Short: "Assign an issue to a member, agent, or squad",
+	Short: "Assign an issue to a workspace member",
 	Args:  exactArgs(1),
 	RunE:  runIssueAssign,
 }
@@ -299,14 +299,14 @@ var issueSubscriberListCmd = &cobra.Command{
 
 var issueSubscriberAddCmd = &cobra.Command{
 	Use:   "add <issue-id>",
-	Short: "Subscribe a user or agent to an issue (defaults to the caller)",
+	Short: "Subscribe a member to an issue (defaults to the caller)",
 	Args:  exactArgs(1),
 	RunE:  runIssueSubscriberAdd,
 }
 
 var issueSubscriberRemoveCmd = &cobra.Command{
 	Use:   "remove <issue-id>",
-	Short: "Unsubscribe a user or agent from an issue (defaults to the caller)",
+	Short: "Unsubscribe a member from an issue (defaults to the caller)",
 	Args:  exactArgs(1),
 	RunE:  runIssueSubscriberRemove,
 }
@@ -407,7 +407,6 @@ func validateIssueEnum(field, value string, allowed []string) error {
 func init() {
 	issueCmd.AddCommand(issueListCmd)
 	issueCmd.AddCommand(issueGetCmd)
-	issueCmd.AddCommand(issuePullRequestsCmd)
 	issueCmd.AddCommand(issueChildrenCmd)
 	issueCmd.AddCommand(issueCreateCmd)
 	issueCmd.AddCommand(issueUpdateCmd)
@@ -416,11 +415,6 @@ func init() {
 	issueCmd.AddCommand(issueReorderCmd)
 	issueCmd.AddCommand(issueCommentCmd)
 	issueCmd.AddCommand(issueSubscriberCmd)
-	issueCmd.AddCommand(issueRunsCmd)
-	issueCmd.AddCommand(issueRunMessagesCmd)
-	issueCmd.AddCommand(issueUsageCmd)
-	issueCmd.AddCommand(issueRerunCmd)
-	issueCmd.AddCommand(issueCancelTaskCmd)
 	issueCmd.AddCommand(issueSearchCmd)
 
 	issueCommentCmd.AddCommand(issueCommentListCmd)
@@ -438,8 +432,8 @@ func init() {
 	issueListCmd.Flags().Bool("full-id", false, "Show full UUIDs in table output")
 	issueListCmd.Flags().String("status", "", "Filter by status")
 	issueListCmd.Flags().String("priority", "", "Filter by priority")
-	issueListCmd.Flags().String("assignee", "", "Filter by assignee name (member, agent, or squad; fuzzy match)")
-	issueListCmd.Flags().String("assignee-id", "", "Filter by assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
+	issueListCmd.Flags().String("assignee", "", "Filter by member name (fuzzy match)")
+	issueListCmd.Flags().String("assignee-id", "", "Filter by member UUID (mutually exclusive with --assignee)")
 	issueListCmd.Flags().String("project", "", "Filter by project ID")
 	issueListCmd.Flags().StringSlice("metadata", nil, "Filter by metadata key=value (repeatable; combined with AND). Value is JSON-parsed: 'true'/'false' → bool, numbers → number, otherwise string. Wrap as '\"42\"' to force a string when the value would otherwise sniff as a number.")
 	issueListCmd.Flags().Int("limit", 50, "Maximum number of issues to return")
@@ -464,8 +458,8 @@ func init() {
 	issueCreateCmd.Flags().Bool("allow-external-file", false, "Allow --description-file / --attachment to read a path outside the current working directory. Off by default so a stale file from another run/environment can't be picked up (MUL-4252).")
 	issueCreateCmd.Flags().String("status", "", "Issue status")
 	issueCreateCmd.Flags().String("priority", "", "Issue priority")
-	issueCreateCmd.Flags().String("assignee", "", "Assignee name (member, agent, or squad; fuzzy match)")
-	issueCreateCmd.Flags().String("assignee-id", "", "Assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
+	issueCreateCmd.Flags().String("assignee", "", "Assignee member name (fuzzy match)")
+	issueCreateCmd.Flags().String("assignee-id", "", "Assignee member UUID (mutually exclusive with --assignee)")
 	issueCreateCmd.Flags().String("parent", "", "Parent issue ID")
 	issueCreateCmd.Flags().Int("stage", 0, "Stage ordinal (>=1) grouping this sub-issue into an ordered barrier group under its parent; omit for unstaged. The parent assignee is woken only when every sub-issue in a stage finishes.")
 	issueCreateCmd.Flags().String("project", "", "Project ID")
@@ -484,8 +478,8 @@ func init() {
 	issueUpdateCmd.Flags().Bool("allow-external-file", false, "Allow --description-file to read a path outside the current working directory. Off by default so a stale temp file from another run/environment can't be picked up (MUL-4252).")
 	issueUpdateCmd.Flags().String("status", "", "New status")
 	issueUpdateCmd.Flags().String("priority", "", "New priority")
-	issueUpdateCmd.Flags().String("assignee", "", "New assignee name (member, agent, or squad; fuzzy match)")
-	issueUpdateCmd.Flags().String("assignee-id", "", "New assignee UUID — member, agent, or squad (mutually exclusive with --assignee)")
+	issueUpdateCmd.Flags().String("assignee", "", "New assignee member name (fuzzy match)")
+	issueUpdateCmd.Flags().String("assignee-id", "", "New assignee member UUID (mutually exclusive with --assignee)")
 	issueUpdateCmd.Flags().String("project", "", "Project ID")
 	issueUpdateCmd.Flags().String("start-date", "", "New start date (calendar day, YYYY-MM-DD; pass empty string to clear)")
 	issueUpdateCmd.Flags().String("due-date", "", "New due date (calendar day, YYYY-MM-DD)")
@@ -501,8 +495,8 @@ func init() {
 	registerIssueReorderFlags(issueReorderCmd)
 
 	// issue assign
-	issueAssignCmd.Flags().String("to", "", "Assignee name (member, agent, or squad; fuzzy match)")
-	issueAssignCmd.Flags().String("to-id", "", "Assignee UUID — member, agent, or squad (mutually exclusive with --to)")
+	issueAssignCmd.Flags().String("to", "", "Assignee member name (fuzzy match)")
+	issueAssignCmd.Flags().String("to-id", "", "Assignee member UUID (mutually exclusive with --to)")
 	issueAssignCmd.Flags().Bool("unassign", false, "Remove current assignee")
 	issueAssignCmd.Flags().String("output", "json", "Output format: table or json")
 
@@ -540,7 +534,7 @@ func init() {
 	issueCommentAddCmd.Flags().Bool("content-stdin", false, "Read comment content from stdin (preserves multi-line content verbatim)")
 	issueCommentAddCmd.Flags().String("content-file", "", "Read comment content from a UTF-8 file (preserves multi-line content verbatim; use this on Windows when stdin piping mangles non-ASCII bytes). The path must be inside the current working directory unless --allow-external-file is set.")
 	issueCommentAddCmd.Flags().Bool("allow-external-file", false, "Allow --content-file / --attachment to read a path outside the current working directory. Off by default so a stale file from another run/environment can't be picked up (MUL-4252).")
-	issueCommentAddCmd.Flags().String("parent", "", "Parent comment ID to reply under. A comment-triggered agent task must reply under its trigger comment; omitting --parent to post a top-level comment is rejected")
+	issueCommentAddCmd.Flags().String("parent", "", "Parent comment ID to reply under")
 	issueCommentAddCmd.Flags().StringSlice("attachment", nil, "File path(s) to attach (can be specified multiple times)")
 	issueCommentAddCmd.Flags().String("output", "json", "Output format: table or json")
 
@@ -557,13 +551,13 @@ func init() {
 	issueSubscriberListCmd.Flags().String("output", "table", "Output format: table or json")
 
 	// issue subscriber add
-	issueSubscriberAddCmd.Flags().String("user", "", "Member or agent name to subscribe (fuzzy match; defaults to the caller)")
-	issueSubscriberAddCmd.Flags().String("user-id", "", "Member or agent UUID to subscribe (mutually exclusive with --user)")
+	issueSubscriberAddCmd.Flags().String("user", "", "Member name to subscribe (fuzzy match; defaults to the caller)")
+	issueSubscriberAddCmd.Flags().String("user-id", "", "Member UUID to subscribe (mutually exclusive with --user)")
 	issueSubscriberAddCmd.Flags().String("output", "json", "Output format: table or json")
 
 	// issue subscriber remove
-	issueSubscriberRemoveCmd.Flags().String("user", "", "Member or agent name to unsubscribe (fuzzy match; defaults to the caller)")
-	issueSubscriberRemoveCmd.Flags().String("user-id", "", "Member or agent UUID to unsubscribe (mutually exclusive with --user)")
+	issueSubscriberRemoveCmd.Flags().String("user", "", "Member name to unsubscribe (fuzzy match; defaults to the caller)")
+	issueSubscriberRemoveCmd.Flags().String("user-id", "", "Member UUID to unsubscribe (mutually exclusive with --user)")
 	issueSubscriberRemoveCmd.Flags().String("output", "json", "Output format: table or json")
 }
 
@@ -597,7 +591,7 @@ func runIssueList(cmd *cobra.Command, _ []string) error {
 	if v, _ := cmd.Flags().GetInt("limit"); v > 0 {
 		params.Set("limit", fmt.Sprintf("%d", v))
 	}
-	_, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", issueAssigneeKinds)
+	_, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", workspaceMemberKinds)
 	if resolveErr != nil {
 		return fmt.Errorf("resolve assignee: %w", resolveErr)
 	}
@@ -1087,10 +1081,6 @@ func runIssueCreate(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if hasDesc {
-		if err := guardLocalPathLinks(desc, "issue description",
-			"Deliver the file itself with `multica issue create --attachment <path>` (repeatable) and drop the link."); err != nil {
-			return err
-		}
 		body["description"] = desc
 	}
 	if statusFlag != "" {
@@ -1129,7 +1119,7 @@ func runIssueCreate(cmd *cobra.Command, _ []string) error {
 	if v, _ := cmd.Flags().GetBool("allow-duplicate"); v {
 		body["allow_duplicate"] = true
 	}
-	aType, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", issueAssigneeKinds)
+	aType, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", workspaceMemberKinds)
 	if resolveErr != nil {
 		return fmt.Errorf("resolve assignee: %w", resolveErr)
 	}
@@ -1265,13 +1255,6 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		// `issue update` has no --attachment flag, so the hint must point at the
-		// command that does. Telling the agent to "pass --attachment" here would
-		// name an argument this command rejects.
-		if err := guardLocalPathLinks(desc, "issue description",
-			"`multica issue update` cannot carry files — deliver the file with `multica issue comment add <issue-id> --attachment <path>` instead, and drop the link."); err != nil {
-			return err
-		}
 		body["description"] = desc
 	}
 	if statusChanged {
@@ -1301,7 +1284,7 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 		body["due_date"] = v
 	}
 	if cmd.Flags().Changed("assignee") || cmd.Flags().Changed("assignee-id") {
-		aType, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", issueAssigneeKinds)
+		aType, aID, hasAssignee, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "assignee", "assignee-id", workspaceMemberKinds)
 		if resolveErr != nil {
 			return fmt.Errorf("resolve assignee: %w", resolveErr)
 		}
@@ -1391,7 +1374,7 @@ func runIssueAssign(cmd *cobra.Command, args []string) error {
 		body["assignee_type"] = nil
 		body["assignee_id"] = nil
 	} else {
-		aType, aID, _, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "to", "to-id", issueAssigneeKinds)
+		aType, aID, _, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "to", "to-id", workspaceMemberKinds)
 		if resolveErr != nil {
 			return fmt.Errorf("resolve assignee: %w", resolveErr)
 		}
@@ -1925,10 +1908,6 @@ func runIssueCommentAdd(cmd *cobra.Command, args []string) error {
 	if !hasContent {
 		return fmt.Errorf("--content, --content-stdin, or --content-file is required")
 	}
-	if err := guardLocalPathLinks(content, "comment body",
-		"Deliver the file itself with `multica issue comment add <issue-id> --attachment <path>` (repeatable) and drop the link."); err != nil {
-		return err
-	}
 
 	client, err := newAPIClient(cmd)
 	if err != nil {
@@ -2413,7 +2392,7 @@ func runIssueSubscriberMutation(cmd *cobra.Command, issueID, action string) erro
 
 	body := map[string]any{}
 	userName, _ := cmd.Flags().GetString("user")
-	uType, uID, hasUser, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "user", "user-id", memberOrAgentKinds)
+	uType, uID, hasUser, resolveErr := pickAssigneeFromFlags(ctx, client, cmd, "user", "user-id", workspaceMemberKinds)
 	if resolveErr != nil {
 		return fmt.Errorf("resolve user: %w", resolveErr)
 	}
@@ -2452,25 +2431,19 @@ func runIssueSubscriberMutation(cmd *cobra.Command, issueID, action string) erro
 // ---------------------------------------------------------------------------
 
 type assigneeMatch struct {
-	Type string // "member", "agent", or "squad"
-	ID   string // user_id for members, agent id for agents, squad id for squads
+	Type string
+	ID   string
 	Name string
 }
 
-// assigneeKinds is the set of entity types a given flag is allowed to resolve
-// to. Issue assignees accept all three (`issueAssigneeKinds`), while
-// project lead and issue subscribers are member-or-agent only
-// (`memberOrAgentKinds`) — the DB CHECK on `project.lead_type` and the
-// `isWorkspaceEntity` switch in the subscriber handler both reject `squad`,
-// so resolving to (squad, ...) for those callers would surface as a 500 /
-// 403 instead of a clean CLI-side resolution error (MUL-2165 follow-up).
 type assigneeKinds struct {
 	member, agent, squad bool
 }
 
 var (
-	issueAssigneeKinds = assigneeKinds{member: true, agent: true, squad: true}
-	memberOrAgentKinds = assigneeKinds{member: true, agent: true}
+	workspaceMemberKinds = assigneeKinds{member: true}
+	issueAssigneeKinds   = assigneeKinds{member: true, agent: true, squad: true}
+	memberOrAgentKinds   = assigneeKinds{member: true, agent: true}
 )
 
 var assigneeResolveRetrySleep = func(ctx context.Context, d time.Duration) bool {

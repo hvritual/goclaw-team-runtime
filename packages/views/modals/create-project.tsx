@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { CalendarClock, CalendarDays, ChevronRight, FolderOpen, Maximize2, Minimize2, MoreHorizontal, Search, X as XIcon, UserMinus } from "lucide-react";
+import { CalendarClock, CalendarDays, ChevronRight, Maximize2, Minimize2, MoreHorizontal, Search, X as XIcon, UserMinus } from "lucide-react";
 
 /**
  * GitHub mark — lucide-react v1 dropped brand icons, so we inline the
@@ -31,7 +31,7 @@ import {
 } from "@multica/core/projects/config";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
-import { memberListOptions, agentListOptions } from "@multica/core/workspace/queries";
+import { memberListOptions } from "@multica/core/workspace/queries";
 import { useActorName } from "@multica/core/workspace/hooks";
 import type { ProjectStatus, ProjectPriority } from "@multica/core/types";
 import { cn } from "@multica/ui/lib/utils";
@@ -61,12 +61,6 @@ import { ProjectStartDatePicker } from "../projects/components/project-start-dat
 import { ProjectDueDatePicker } from "../projects/components/project-due-date-picker";
 import { PillButton } from "../common/pill-button";
 import { githubShortLabel } from "../common/github-url";
-import {
-  isDesktopShell,
-  pickDirectory,
-  validateLocalDirectory,
-} from "../platform/local-directory";
-import { useLocalDaemonStatus } from "../platform/use-local-daemon-status";
 
 function RepoUrlText({
   url,
@@ -99,7 +93,6 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const wsPaths = useWorkspacePaths();
   const wsId = useWorkspaceId();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
-  const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { getActorName } = useActorName();
   const projectStatusLabels = useProjectStatusLabels();
   const projectPriorityLabels = useProjectPriorityLabels();
@@ -112,7 +105,9 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const descEditorRef = useRef<ContentEditorRef>(null);
   const [status, setStatus] = useState<ProjectStatus>(draft.status);
   const [priority, setPriority] = useState<ProjectPriority>(draft.priority);
-  const [leadType, setLeadType] = useState<"member" | "agent" | undefined>(draft.leadType);
+  const [leadType, setLeadType] = useState<"member" | undefined>(
+    draft.leadType === "member" ? "member" : undefined,
+  );
   const [leadId, setLeadId] = useState<string | undefined>(draft.leadId);
   const [icon, setIcon] = useState<string | undefined>(draft.icon);
   const [startDate, setStartDate] = useState<string>(draft.startDate ?? "");
@@ -137,64 +132,11 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
     repo.url.toLowerCase().includes(repoQuery),
   );
 
-  // A project's source is binary: either a set of GitHub repos OR a local
-  // working directory — never both. Mode is the source of truth for what
-  // gets persisted on submit; switching mode does NOT clear the other
-  // side's stash, so toggling back and forth restores the user's prior
-  // selection. Only the mode-matching side is sent to the API. Local mode
-  // is hidden entirely on web (no daemon to bind the path to).
-  const desktop = isDesktopShell();
-  const daemonStatus = useLocalDaemonStatus();
-  const [sourceMode, setSourceMode] = useState<"repos" | "local">("repos");
-  const [selectedLocalPath, setSelectedLocalPath] = useState<string | null>(null);
-  const [selectedLocalLabel, setSelectedLocalLabel] = useState<string | null>(null);
-  const [localPickError, setLocalPickError] = useState<string | null>(null);
-  const [localPicking, setLocalPicking] = useState(false);
-
-  const handleSourceModeChange = (mode: "repos" | "local") => {
-    setSourceMode(mode);
-    setLocalPickError(null);
-  };
-
-  const handlePickLocalDirectory = async () => {
-    if (localPicking) return;
-    setLocalPickError(null);
-    setLocalPicking(true);
-    try {
-      const picked = await pickDirectory(selectedLocalPath ?? undefined);
-      if (!picked.ok || !picked.path) {
-        if (picked.reason && picked.reason !== "cancelled") {
-          setLocalPickError(
-            picked.error ?? t(($) => $.create_project.local_pick_failed),
-          );
-        }
-        return;
-      }
-      const validation = await validateLocalDirectory(picked.path);
-      if (!validation.ok) {
-        setLocalPickError(
-          validation.error ?? t(($) => $.create_project.local_invalid_dir),
-        );
-        return;
-      }
-      setSelectedLocalPath(picked.path);
-      setSelectedLocalLabel(picked.basename ?? null);
-    } finally {
-      setLocalPicking(false);
-    }
-  };
-
-  const clearLocalDirectory = () => {
-    setSelectedLocalPath(null);
-    setSelectedLocalLabel(null);
-    setLocalPickError(null);
-  };
-
   // Sync field changes to draft store
   const updateTitle = (v: string) => { setTitle(v); setDraft({ title: v }); };
   const updateStatus = (v: ProjectStatus) => { setStatus(v); setDraft({ status: v }); };
   const updatePriority = (v: ProjectPriority) => { setPriority(v); setDraft({ priority: v }); };
-  const updateLead = (type?: "member" | "agent", id?: string) => {
+  const updateLead = (type?: "member", id?: string) => {
     setLeadType(type); setLeadId(id);
     setDraft({ leadType: type, leadId: id });
   };
@@ -207,9 +149,6 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
   const leadQuery = leadFilter.toLowerCase();
   const filteredMembers = members.filter((m) => m.name.toLowerCase().includes(leadQuery) || matchesPinyin(m.name, leadQuery));
-  const filteredAgents = agents.filter(
-    (a) => !a.archived_at && (a.name.toLowerCase().includes(leadQuery) || matchesPinyin(a.name, leadQuery)),
-  );
 
   const leadLabel =
     leadType && leadId ? getActorName(leadType, leadId) : t(($) => $.create_project.lead);
@@ -218,33 +157,13 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
 
   const handleSubmit = async () => {
     if (!title.trim() || submitting) return;
-    // `sourceMode` decides which side's stash gets persisted — the other
-    // side is silently dropped, so repos picked then abandoned for local
-    // mode don't leak into the project.
-    let resources:
-      | Array<{ resource_type: "github_repo" | "local_directory"; resource_ref: Record<string, unknown> }>
-      | undefined;
-    if (sourceMode === "repos" && selectedRepos.length > 0) {
-      resources = selectedRepos.map((url) => ({
+    const resources =
+      selectedRepos.length > 0
+        ? selectedRepos.map((url) => ({
         resource_type: "github_repo" as const,
         resource_ref: { url },
-      }));
-    } else if (
-      sourceMode === "local" &&
-      selectedLocalPath &&
-      daemonStatus.daemonId
-    ) {
-      resources = [
-        {
-          resource_type: "local_directory" as const,
-          resource_ref: {
-            local_path: selectedLocalPath,
-            daemon_id: daemonStatus.daemonId,
-            ...(selectedLocalLabel ? { label: selectedLocalLabel } : {}),
-          },
-        },
-      ];
-    }
+          }))
+        : undefined;
     setSubmitting(true);
     try {
       const project = await createProject.mutateAsync({
@@ -447,7 +366,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                 <PillButton>
                   {leadType && leadId ? (
                     <>
-                      <ActorAvatar actorType={leadType} actorId={leadId} size="sm" showStatusDot />
+                      <ActorAvatar actorType={leadType} actorId={leadId} size="sm" />
                       <span>{leadLabel}</span>
                     </>
                   ) : (
@@ -499,30 +418,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                     ))}
                   </>
                 )}
-                {filteredAgents.length > 0 && (
-                  <>
-                    <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      {t(($) => $.create_project.agents_group)}
-                    </div>
-                    {filteredAgents.map((a) => (
-                      <button
-                        type="button"
-                        key={a.id}
-                        onClick={() => {
-                          updateLead("agent", a.id);
-                          setLeadOpen(false);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-                      >
-                        <ActorAvatar actorType="agent" actorId={a.id} size="sm" showStatusDot />
-                        <span>{a.name}</span>
-                      </button>
-                    ))}
-                  </>
-                )}
-                {filteredMembers.length === 0 &&
-                  filteredAgents.length === 0 &&
-                  leadFilter && (
+                {filteredMembers.length === 0 && leadFilter && (
                     <div className="px-2 py-3 text-center text-sm text-muted-foreground">
                       {t(($) => $.create_project.no_results)}
                     </div>
@@ -563,64 +459,17 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
             <PopoverTrigger
               render={
                 <PillButton>
-                  {sourceMode === "local" ? (
-                    <>
-                      <FolderOpen className="size-3" />
-                      <span className="max-w-[12rem] truncate">
-                        {selectedLocalPath
-                          ? selectedLocalLabel ?? selectedLocalPath
-                          : t(($) => $.create_project.source_pill_local)}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <GithubIcon className="size-3" />
-                      <span>
-                        {selectedRepos.length === 0
-                          ? t(($) => $.create_project.repos_pill)
-                          : t(($) => $.create_project.repos_pill_count, { count: selectedRepos.length })}
-                      </span>
-                    </>
-                  )}
+                  <GithubIcon className="size-3" />
+                  <span>
+                    {selectedRepos.length === 0
+                      ? t(($) => $.create_project.repos_pill)
+                      : t(($) => $.create_project.repos_pill_count, { count: selectedRepos.length })}
+                  </span>
                 </PillButton>
               }
             />
             <PopoverContent side="top" align="start" className="w-72 p-2 space-y-2">
-              {/* Source mode is binary — repo OR local directory, never both.
-                  Local option is desktop-only because a local_directory
-                  resource has to be pinned to a daemon_id, which doesn't
-                  exist on the web. */}
-              {desktop && (
-                <div className="grid grid-cols-2 gap-1 rounded-md bg-muted/60 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => handleSourceModeChange("repos")}
-                    className={cn(
-                      "rounded px-2 py-1 text-xs transition-colors",
-                      sourceMode === "repos"
-                        ? "bg-background shadow-sm font-medium"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t(($) => $.create_project.source_tab_repos)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSourceModeChange("local")}
-                    className={cn(
-                      "rounded px-2 py-1 text-xs transition-colors",
-                      sourceMode === "local"
-                        ? "bg-background shadow-sm font-medium"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t(($) => $.create_project.source_tab_local)}
-                  </button>
-                </div>
-              )}
-
-              {sourceMode === "repos" ? (
-                <>
+              <>
                   <div className="text-xs font-medium text-muted-foreground">
                     {t(($) => $.create_project.repos_heading)}
                   </div>
@@ -721,84 +570,6 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                     </div>
                   )}
                 </>
-              ) : (
-                <>
-                  <div className="text-xs font-medium text-muted-foreground">
-                    {t(($) => $.create_project.local_heading)}
-                  </div>
-                  {/* Daemon must be online — daemon_id is required to bind
-                      the resource. If it's offline, surface why and disable
-                      the picker; once it boots we re-render automatically
-                      via useLocalDaemonStatus. */}
-                  {daemonStatus.daemonId && daemonStatus.running ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      {t(($) => $.create_project.local_on_device, {
-                        device: daemonStatus.deviceName ?? t(($) => $.create_project.local_this_machine),
-                      })}
-                    </p>
-                  ) : (
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                      {t(($) => $.create_project.local_daemon_offline)}
-                    </p>
-                  )}
-
-                  {selectedLocalPath ? (
-                    <div className="rounded-md border px-2 py-2 space-y-1">
-                      <div className="flex items-start gap-2 text-xs">
-                        <FolderOpen className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1">
-                          {selectedLocalLabel && (
-                            <div className="font-medium truncate">{selectedLocalLabel}</div>
-                          )}
-                          <div className="font-mono text-[10px] text-muted-foreground break-all">
-                            {selectedLocalPath}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={clearLocalDirectory}
-                          className="text-muted-foreground hover:text-foreground"
-                          aria-label={t(($) => $.create_project.local_clear)}
-                        >
-                          <XIcon className="size-3" />
-                        </button>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-full text-xs"
-                        onClick={handlePickLocalDirectory}
-                        disabled={localPicking || !daemonStatus.running}
-                      >
-                        {t(($) => $.create_project.local_change)}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="w-full text-xs"
-                      onClick={handlePickLocalDirectory}
-                      disabled={localPicking || !daemonStatus.running}
-                    >
-                      <FolderOpen className="size-3" />
-                      {localPicking
-                        ? t(($) => $.create_project.local_picking)
-                        : t(($) => $.create_project.local_pick)}
-                    </Button>
-                  )}
-
-                  {localPickError && (
-                    <p className="text-[11px] text-destructive">{localPickError}</p>
-                  )}
-
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    {t(($) => $.create_project.local_hint)}
-                  </p>
-                </>
-              )}
             </PopoverContent>
           </Popover>
 

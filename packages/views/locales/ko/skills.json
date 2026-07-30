@@ -158,7 +158,7 @@
     "delete_dialog": {
       "title": "스킬을 삭제할까요?",
       "description_with_agents_other": "\"{{name}}\"을(를) 영구 삭제하고 현재 사용 중인 에이전트 {{count}}개에서 제거합니다.",
-      "description_no_agents": "\"{{name}}\"을(를) 영구 삭제하고 모든 에이전트에서 제거합니다.",
+      "description": "\"{{name}}\"을(를) 영구 삭제합니다.",
       "warning": "이 작업은 되돌릴 수 없습니다.",
       "cancel": "취소",
       "confirm": "영구 삭제",

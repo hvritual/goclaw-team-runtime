@@ -91,10 +91,10 @@ func parseLabelResourceType(raw string) (string, error) {
 		return defaultLabelResourceType, nil
 	}
 	switch value {
-	case "issue", "agent", "skill":
+	case "issue", "skill":
 		return value, nil
 	default:
-		return "", errors.New("resource_type must be issue, agent, or skill")
+		return "", errors.New("resource_type must be issue or skill")
 	}
 }
 
@@ -343,7 +343,6 @@ func (h *Handler) DeleteLabel(w http.ResponseWriter, r *http.Request) {
 	// rather than database cascades.
 	for _, cleanup := range []func() error{
 		func() error { return qtx.DeleteIssueLabelAssignmentsByLabel(r.Context(), idUUID) },
-		func() error { return qtx.DeleteAgentLabelAssignmentsByLabel(r.Context(), idUUID) },
 		func() error { return qtx.DeleteSkillLabelAssignmentsByLabel(r.Context(), idUUID) },
 	} {
 		if err := cleanup(); err != nil {
@@ -550,85 +549,6 @@ func (h *Handler) DetachLabel(w http.ResponseWriter, r *http.Request) {
 		"labels":   resp,
 	})
 	writeJSON(w, http.StatusOK, map[string]any{"labels": resp})
-}
-
-// ---------------------------------------------------------------------------
-// Handlers — agent/skill↔label attach/detach
-// ---------------------------------------------------------------------------
-
-func (h *Handler) ListLabelsForAgent(w http.ResponseWriter, r *http.Request) {
-	if !featureflags.ResourceLabelsEnabled(r.Context(), h.FeatureFlags) {
-		writeError(w, http.StatusNotFound, "resource labels are not enabled")
-		return
-	}
-	agent, ok := h.loadAgentForUser(w, r, chi.URLParam(r, "id"))
-	if !ok {
-		return
-	}
-	labels, err := h.Queries.ListLabelsByAgent(r.Context(), db.ListLabelsByAgentParams{
-		AgentID: agent.ID, WorkspaceID: agent.WorkspaceID,
-	})
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list agent labels")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"labels": labelsToResponse(labels)})
-}
-
-func (h *Handler) AttachLabelToAgent(w http.ResponseWriter, r *http.Request) {
-	if !featureflags.ResourceLabelsEnabled(r.Context(), h.FeatureFlags) {
-		writeError(w, http.StatusNotFound, "resource labels are not enabled")
-		return
-	}
-	agent, ok := h.loadAgentForUser(w, r, chi.URLParam(r, "id"))
-	if !ok || !h.canManageAgent(w, r, agent) {
-		return
-	}
-	var req AttachLabelRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.LabelID == "" {
-		writeError(w, http.StatusBadRequest, "label_id is required")
-		return
-	}
-	labelID, ok := parseUUIDOrBadRequest(w, req.LabelID, "label_id")
-	if !ok {
-		return
-	}
-	label, err := h.Queries.GetLabel(r.Context(), db.GetLabelParams{ID: labelID, WorkspaceID: agent.WorkspaceID})
-	if err != nil || label.ResourceType != "agent" {
-		writeError(w, http.StatusNotFound, "agent label not found")
-		return
-	}
-	if err := h.Queries.AttachLabelToAgent(r.Context(), db.AttachLabelToAgentParams{
-		AgentID: agent.ID, LabelID: labelID, WorkspaceID: agent.WorkspaceID,
-	}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to attach agent label")
-		return
-	}
-	h.publish(protocol.EventLabelUpdated, uuidToString(agent.WorkspaceID), "member", requestUserID(r), map[string]any{"label": labelToResponse(label)})
-	h.ListLabelsForAgent(w, r)
-}
-
-func (h *Handler) DetachLabelFromAgent(w http.ResponseWriter, r *http.Request) {
-	if !featureflags.ResourceLabelsEnabled(r.Context(), h.FeatureFlags) {
-		writeError(w, http.StatusNotFound, "resource labels are not enabled")
-		return
-	}
-	agent, ok := h.loadAgentForUser(w, r, chi.URLParam(r, "id"))
-	if !ok || !h.canManageAgent(w, r, agent) {
-		return
-	}
-	labelID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "labelId"), "label id")
-	if !ok {
-		return
-	}
-	if err := h.Queries.DetachLabelFromAgent(r.Context(), db.DetachLabelFromAgentParams{
-		AgentID: agent.ID, LabelID: labelID, WorkspaceID: agent.WorkspaceID,
-	}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to detach agent label")
-		return
-	}
-	h.publish(protocol.EventLabelUpdated, uuidToString(agent.WorkspaceID), "member", requestUserID(r), map[string]any{"label_id": uuidToString(labelID), "resource_type": "agent"})
-	h.ListLabelsForAgent(w, r)
 }
 
 func (h *Handler) ListLabelsForSkill(w http.ResponseWriter, r *http.Request) {

@@ -37,28 +37,6 @@ func GeneratePATToken() (string, error) {
 	return "mul_" + hex.EncodeToString(b), nil
 }
 
-// GenerateDaemonToken creates a new daemon auth token: "mdt_" + 40 random hex chars.
-func GenerateDaemonToken() (string, error) {
-	b := make([]byte, 20) // 20 bytes = 40 hex chars
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate daemon token: %w", err)
-	}
-	return "mdt_" + hex.EncodeToString(b), nil
-}
-
-// GenerateAgentTaskToken creates a new task-scoped agent auth token:
-// "mat_" + 40 random hex chars. The token is single-purpose — bound to a
-// specific (agent_id, task_id) pair on the server side — and is what the
-// daemon injects into the agent process in place of its own owner PAT.
-// See MUL-2600.
-func GenerateAgentTaskToken() (string, error) {
-	b := make([]byte, 20)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate agent task token: %w", err)
-	}
-	return "mat_" + hex.EncodeToString(b), nil
-}
-
 // HashToken returns the hex-encoded SHA-256 hash of a token string.
 func HashToken(token string) string {
 	h := sha256.Sum256([]byte(token))

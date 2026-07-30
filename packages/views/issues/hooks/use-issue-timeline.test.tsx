@@ -157,18 +157,17 @@ describe("useIssueTimeline", () => {
     expect(result.current.timeline.map((e) => e.id)).toEqual(["c1", "c2", "c3"]);
   });
 
-  it("passes suppressed agent ids through editComment", async () => {
+  it("passes comment content and attachments through editComment", async () => {
     const { result } = renderHook(() => useIssueTimeline("issue-1", "user-1"));
 
     await act(async () => {
-      await result.current.editComment("comment-1", "updated", ["attachment-1"], ["agent-1"]);
+      await result.current.editComment("comment-1", "updated", ["attachment-1"]);
     });
 
     expect(stableHandles.updateMutateAsync).toHaveBeenCalledWith({
       commentId: "comment-1",
       content: "updated",
       attachmentIds: ["attachment-1"],
-      suppressAgentIds: ["agent-1"],
     });
   });
 

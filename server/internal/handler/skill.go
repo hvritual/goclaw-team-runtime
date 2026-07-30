@@ -156,6 +156,24 @@ func (h *Handler) existingSkillIdentityByName(ctx context.Context, workspaceID p
 	return existingSkillIdentity(skill, ""), true, nil
 }
 
+func (h *Handler) lookupSkillByName(
+	ctx context.Context,
+	workspaceID pgtype.UUID,
+	name string,
+) (db.Skill, bool, error) {
+	skill, err := h.Queries.GetSkillByWorkspaceAndName(ctx, db.GetSkillByWorkspaceAndNameParams{
+		WorkspaceID: workspaceID,
+		Name:        name,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return db.Skill{}, false, nil
+	}
+	if err != nil {
+		return db.Skill{}, false, err
+	}
+	return skill, true, nil
+}
+
 func existingSkillIdentity(skill db.Skill, userID string) ExistingSkillIdentity {
 	identity := ExistingSkillIdentity{
 		ID:           uuidToString(skill.ID),
@@ -2405,234 +2423,4 @@ func (h *Handler) DeleteSkillFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// --- Agent-Skill junction ---
-
-func (h *Handler) ListAgentSkills(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	agent, ok := h.loadAgentForUser(w, r, id)
-	if !ok {
-		return
-	}
-
-	skills, err := h.Queries.ListAgentSkillSummaries(r.Context(), agent.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list agent skills")
-		return
-	}
-
-	resp := make([]SkillSummaryResponse, len(skills))
-	for i, s := range skills {
-		resp[i] = skillSummaryToResponse(
-			s.ID, s.WorkspaceID, s.Name, s.Description, s.Config,
-			s.CreatedBy, s.CreatedAt, s.UpdatedAt,
-		)
-		resp[i].Enabled = &s.Enabled
-	}
-	writeJSON(w, http.StatusOK, resp)
-}
-
-func (h *Handler) SetAgentSkills(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	agent, ok := h.loadAgentForUser(w, r, id)
-	if !ok {
-		return
-	}
-	if !h.canManageAgent(w, r, agent) {
-		return
-	}
-
-	var req SetAgentSkillsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	skillUUIDs, ok := parseUUIDSliceOrBadRequest(w, req.SkillIDs, "skill_ids")
-	if !ok {
-		return
-	}
-	if !h.validateAgentSkillIDsInWorkspace(w, r, agent, skillUUIDs) {
-		return
-	}
-
-	tx, err := h.TxStarter.Begin(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer tx.Rollback(r.Context())
-
-	qtx := h.Queries.WithTx(tx)
-
-	if err := qtx.RemoveAllAgentSkills(r.Context(), agent.ID); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to clear agent skills")
-		return
-	}
-
-	for _, skillID := range skillUUIDs {
-		if err := qtx.AddAgentSkill(r.Context(), db.AddAgentSkillParams{
-			AgentID: agent.ID,
-			SkillID: skillID,
-		}); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to add agent skill: "+err.Error())
-			return
-		}
-	}
-
-	if err := tx.Commit(r.Context()); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to commit")
-		return
-	}
-
-	h.writeUpdatedAgentSkills(w, r, agent)
-}
-
-func (h *Handler) AddAgentSkills(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	agent, ok := h.loadAgentForUser(w, r, id)
-	if !ok {
-		return
-	}
-	if !h.canManageAgent(w, r, agent) {
-		return
-	}
-
-	var req AddAgentSkillsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	skillUUIDs, ok := parseUUIDSliceOrBadRequest(w, req.SkillIDs, "skill_ids")
-	if !ok {
-		return
-	}
-	if !h.validateAgentSkillIDsInWorkspace(w, r, agent, skillUUIDs) {
-		return
-	}
-
-	tx, err := h.TxStarter.Begin(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer tx.Rollback(r.Context())
-
-	qtx := h.Queries.WithTx(tx)
-	for _, skillID := range skillUUIDs {
-		if err := qtx.AddAgentSkill(r.Context(), db.AddAgentSkillParams{
-			AgentID: agent.ID,
-			SkillID: skillID,
-		}); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to add agent skill: "+err.Error())
-			return
-		}
-	}
-
-	if err := tx.Commit(r.Context()); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to commit")
-		return
-	}
-
-	h.writeUpdatedAgentSkills(w, r, agent)
-}
-
-func (h *Handler) SetAgentSkillEnabled(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	agent, ok := h.loadAgentForUser(w, r, id)
-	if !ok {
-		return
-	}
-	if !h.canManageAgent(w, r, agent) {
-		return
-	}
-
-	skillID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "skillId"), "skill_id")
-	if !ok {
-		return
-	}
-	var req struct {
-		Enabled *bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Enabled == nil {
-		writeError(w, http.StatusBadRequest, "enabled is required")
-		return
-	}
-	rows, err := h.Queries.SetAgentSkillEnabled(r.Context(), db.SetAgentSkillEnabledParams{
-		AgentID: agent.ID,
-		SkillID: skillID,
-		Enabled: *req.Enabled,
-	})
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update agent skill")
-		return
-	}
-	if rows == 0 {
-		writeError(w, http.StatusNotFound, "agent skill not found")
-		return
-	}
-
-	h.writeUpdatedAgentSkills(w, r, agent)
-}
-
-func (h *Handler) RemoveAgentSkill(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	agent, ok := h.loadAgentForUser(w, r, id)
-	if !ok {
-		return
-	}
-	if !h.canManageAgent(w, r, agent) {
-		return
-	}
-	skillID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "skillId"), "skill_id")
-	if !ok {
-		return
-	}
-	if err := h.Queries.RemoveAgentSkill(r.Context(), db.RemoveAgentSkillParams{
-		AgentID: agent.ID,
-		SkillID: skillID,
-	}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to remove agent skill")
-		return
-	}
-	h.writeUpdatedAgentSkills(w, r, agent)
-}
-
-func (h *Handler) validateAgentSkillIDsInWorkspace(w http.ResponseWriter, r *http.Request, agent db.Agent, skillUUIDs []pgtype.UUID) bool {
-	seen := map[string]struct{}{}
-	for _, skillID := range skillUUIDs {
-		key := uuidToString(skillID)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		if _, err := h.Queries.GetSkillInWorkspace(r.Context(), db.GetSkillInWorkspaceParams{
-			ID:          skillID,
-			WorkspaceID: agent.WorkspaceID,
-		}); err != nil {
-			writeError(w, http.StatusNotFound, "skill not found")
-			return false
-		}
-	}
-	return true
-}
-
-func (h *Handler) writeUpdatedAgentSkills(w http.ResponseWriter, r *http.Request, agent db.Agent) {
-	skills, err := h.Queries.ListAgentSkillSummaries(r.Context(), agent.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list agent skills")
-		return
-	}
-
-	resp := make([]SkillSummaryResponse, len(skills))
-	for i, s := range skills {
-		resp[i] = skillSummaryToResponse(
-			s.ID, s.WorkspaceID, s.Name, s.Description, s.Config,
-			s.CreatedBy, s.CreatedAt, s.UpdatedAt,
-		)
-		resp[i].Enabled = &s.Enabled
-	}
-	actorType, actorID := h.resolveActor(r, requestUserID(r), uuidToString(agent.WorkspaceID))
-	h.publish(protocol.EventAgentStatus, uuidToString(agent.WorkspaceID), actorType, actorID, map[string]any{"agent_id": uuidToString(agent.ID), "skills": resp})
-	writeJSON(w, http.StatusOK, resp)
 }

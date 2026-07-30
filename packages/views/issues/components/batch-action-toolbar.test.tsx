@@ -105,7 +105,7 @@ describe("BatchActionToolbar picker wiring", () => {
   it("falls back to an empty (no-checkmark) state when the selection is mixed", () => {
     const issues = [
       makeIssue({ id: "a", status: "todo", priority: "none", assignee_type: "member", assignee_id: "u-1" }),
-      makeIssue({ id: "b", status: "done", priority: "urgent", assignee_type: "agent", assignee_id: "ag-1" }),
+      makeIssue({ id: "b", status: "done", priority: "urgent", assignee_type: "member", assignee_id: "u-2" }),
     ];
     selection.selectedIds = new Set(["a", "b"]);
 

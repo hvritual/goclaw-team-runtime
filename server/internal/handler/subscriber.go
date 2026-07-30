@@ -60,10 +60,8 @@ func (h *Handler) SubscribeToIssue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	workspaceID := uuidToString(issue.WorkspaceID)
-	// Default target: the caller, derived via resolveActor so an agent caller
-	// (X-Agent-ID set) subscribes itself rather than the underlying member.
 	callerActorType, callerActorID := h.resolveActor(r, requestUserID(r), workspaceID)
-	targetUserType := callerActorType
+	targetUserType := "member"
 	targetUserID := callerActorID
 	var req struct {
 		UserID   *string `json:"user_id"`
@@ -76,7 +74,10 @@ func (h *Handler) SubscribeToIssue(w http.ResponseWriter, r *http.Request) {
 		targetUserID = *req.UserID
 	}
 	if req.UserType != nil && *req.UserType != "" {
-		targetUserType = *req.UserType
+		if *req.UserType != "member" {
+			writeError(w, http.StatusBadRequest, "user_type must be member")
+			return
+		}
 	}
 
 	if !h.isWorkspaceEntity(r.Context(), targetUserType, targetUserID, workspaceID) {
@@ -115,10 +116,8 @@ func (h *Handler) UnsubscribeFromIssue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	workspaceID := uuidToString(issue.WorkspaceID)
-	// Default target: the caller, derived via resolveActor so an agent caller
-	// (X-Agent-ID set) unsubscribes itself rather than the underlying member.
 	callerActorType, callerActorID := h.resolveActor(r, requestUserID(r), workspaceID)
-	targetUserType := callerActorType
+	targetUserType := "member"
 	targetUserID := callerActorID
 	var req struct {
 		UserID   *string `json:"user_id"`
@@ -131,7 +130,10 @@ func (h *Handler) UnsubscribeFromIssue(w http.ResponseWriter, r *http.Request) {
 		targetUserID = *req.UserID
 	}
 	if req.UserType != nil && *req.UserType != "" {
-		targetUserType = *req.UserType
+		if *req.UserType != "member" {
+			writeError(w, http.StatusBadRequest, "user_type must be member")
+			return
+		}
 	}
 
 	if !h.isWorkspaceEntity(r.Context(), targetUserType, targetUserID, workspaceID) {

@@ -27,7 +27,7 @@ export function ResourceLabelPicker({
   resourceId,
   canEdit,
 }: {
-  resourceType: "agent" | "skill";
+  resourceType: "skill";
   resourceId: string;
   canEdit: boolean;
 }) {

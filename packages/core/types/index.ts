@@ -1,82 +1,19 @@
 export type { Issue, IssueStatus, IssuePriority, IssueAssigneeType, IssueMetadata, IssueMetadataValue, IssueReaction } from "./issue";
 export type {
-  Agent,
-  AgentStatus,
-  AgentRuntimeMode,
-  AgentVisibility,
-  AgentPermissionMode,
-  AgentInvocationTarget,
-  AgentInvocationTargetInput,
-  AgentTask,
-  TaskAttribution,
-  AttributionUser,
-  TaskEvidence,
-  AgentActivityBucket,
-  AgentRunCount,
-  WorkspaceWorkingAgent,
-  WorkspaceWorkingAgentType,
-  WorkspaceWorkingAgentMineRelation,
-  TaskFailureReason,
-  AgentRuntime,
-  RuntimeDevice,
-  RuntimeProfile,
-  RuntimeProtocolFamily,
-  RuntimeProfileVisibility,
-  CreateRuntimeProfileRequest,
-  UpdateRuntimeProfileRequest,
-  CreateAgentRequest,
-  AgentBuilderRuntimeSwitch,
-  AgentBuilderSession,
-  AgentTemplate,
-  AgentTemplateSummary,
-  AgentTemplateSkillRef,
-  CreateAgentFromTemplateRequest,
-  CreateAgentFromTemplateResponse,
-  CreateAgentFromTemplateFailure,
-  UpdateAgentRequest,
-  AgentEnvResponse,
-  UpdateAgentEnvRequest,
+  Task,
+  TaskStatus,
+  TaskPriority,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  ListTasksResponse,
+} from "./task";
+export type {
   Skill,
   SkillSummary,
-  AgentSkillSummary,
-  DisabledRuntimeSkill,
-  SetAgentRuntimeSkillEnabledRequest,
   SkillFile,
   CreateSkillRequest,
   UpdateSkillRequest,
-  SetAgentSkillsRequest,
-  RuntimeUsage,
-  RuntimeHourlyActivity,
-  RuntimeUsageByAgent,
-  RuntimeUsageByHour,
-  DashboardUsageDaily,
-  DashboardUsageByAgent,
-  DashboardAgentRunTime,
-  DashboardRunTimeDaily,
-  DashboardFailureDaily,
-  DashboardFailureByAgent,
-  RuntimeUpdate,
-  RuntimeUpdateStatus,
-  RuntimeModel,
-  RuntimeModelServiceTier,
-  RuntimeModelThinking,
-  RuntimeModelThinkingLevel,
-  RuntimeModelListRequest,
-  RuntimeModelListStatus,
-  RuntimeModelsResult,
-  RuntimeLocalSkillStatus,
-  RuntimeLocalSkillImportAction,
-  RuntimeLocalSkillImportConflict,
-  RuntimeLocalSkillSummary,
-	RuntimeLocalMcpServerSummary,
-  RuntimeLocalSkillListRequest,
-  CreateRuntimeLocalSkillImportRequest,
-  RuntimeLocalSkillImportRequest,
-  RuntimeLocalSkillsResult,
-  RuntimeLocalSkillImportResult,
-  IssueUsageSummary,
-} from "./agent";
-export { RUNTIME_PROFILE_PROTOCOL_FAMILIES } from "./agent";
+} from "./skill";
 export type {
   Workspace,
   WorkspaceRepo,
@@ -90,37 +27,17 @@ export type {
   WorkspacePermissionCapability,
   WorkspacePermissionCatalog,
 } from "./workspace";
-export type { InboxItem, InboxSeverity, InboxItemType, InboxWorkspaceUnread } from "./inbox";
 export type { NotificationGroupKey, NotificationGroupValue, NotificationPreferences, NotificationPreferenceResponse } from "./notification-preference";
-export type { Comment, CommentType, CommentAuthorType, CommentTriggerPreview, CommentTriggerPreviewAgent, CommentTriggerSource, CommentTriggerOutcome, CommentTriggerStatus, Reaction } from "./comment";
+export type { Comment, CommentType, CommentAuthorType, Reaction } from "./comment";
 export type { Label, LabelResourceType, CreateLabelRequest, UpdateLabelRequest, ListLabelsResponse, IssueLabelsResponse, ResourceLabelsResponse } from "./label";
 export type { IssueProperty, IssuePropertyType, IssuePropertyOption, IssuePropertyConfig, IssuePropertyValue, IssuePropertyValues, CreatePropertyRequest, UpdatePropertyRequest, ListPropertiesResponse, IssuePropertiesResponse } from "./property";
 export { ISSUE_PROPERTY_TYPES, isKnownPropertyType } from "./property";
-export type {
-  TimelineEntry,
-  AssigneeFrequencyEntry,
-} from "./activity";
+export type { TimelineEntry } from "./activity";
 export type { IssueSubscriber } from "./subscriber";
 export type * from "./events";
 export type * from "./api";
 export type { Attachment } from "./attachment";
 export { attachmentDownloadPath, attachmentIdFromDownloadURL, contentReferencesAttachment } from "./attachment-url";
-export type {
-  ChatSession,
-  ChatLastMessage,
-  ChatPinnedAgent,
-  ChatMessage,
-  ChatMessagesPage,
-  ChatPendingTask,
-  PendingChatTaskItem,
-  PendingChatTasksResponse,
-  HasPendingChatTasksResponse,
-  SendChatMessageResponse,
-  CancelledChatMessage,
-  CancelTaskResponse,
-  ChatDraftRestore,
-  ChatDraftRestoresResponse,
-} from "./chat";
 export type { StorageAdapter } from "./storage";
 export type {
   Project,
@@ -133,7 +50,6 @@ export type {
   ProjectResourceType,
   ProjectResourceRef,
   GithubRepoResourceRef,
-  LocalDirectoryResourceRef,
   CreateProjectResourceRequest,
   UpdateProjectResourceRequest,
   ListProjectResourcesResponse,
@@ -160,85 +76,3 @@ export type {
   ConnectVCSRequest,
   ConnectVCSResponse,
 } from "./vcs";
-export type {
-  LarkInstallation,
-  ListLarkInstallationsResponse,
-  BeginLarkInstallResponse,
-  LarkInstallStatusResponse,
-  RedeemLarkBindingTokenResponse,
-} from "./lark";
-export type {
-  ComposioToolkit,
-  ComposioConnection,
-  ComposioConnectInitResponse,
-} from "./composio";
-export type {
-  SlackInstallation,
-  ListSlackInstallationsResponse,
-  RegisterSlackBYORequest,
-  RedeemSlackBindingTokenResponse,
-} from "./slack";
-export type {
-  Autopilot,
-  AutopilotStatus,
-  AutopilotExecutionMode,
-  AutopilotAssigneeType,
-  AutopilotSubscriber,
-  AutopilotSubscriberInput,
-  AutopilotCollaborator,
-  AutopilotCollaboratorsResponse,
-  AutopilotTrigger,
-  AutopilotTriggerKind,
-  AutopilotRun,
-  AutopilotRunStatus,
-  AutopilotRunSource,
-  WebhookEventFilter,
-  CreateAutopilotRequest,
-  UpdateAutopilotRequest,
-  CreateAutopilotTriggerRequest,
-  UpdateAutopilotTriggerRequest,
-  ListAutopilotsResponse,
-  CronPreviewResponse,
-  GetAutopilotResponse,
-  ListAutopilotRunsResponse,
-  WebhookDelivery,
-  WebhookDeliveryStatus,
-  WebhookSignatureStatus,
-  ListWebhookDeliveriesResponse,
-} from "./autopilot";
-export type {
-  Squad,
-  SquadMember,
-  SquadMemberType,
-  SquadMemberPreview,
-  SquadActivityLog,
-  SquadActivityOutcome,
-  CreateSquadRequest,
-  UpdateSquadRequest,
-  AddSquadMemberRequest,
-  RemoveSquadMemberRequest,
-  UpdateSquadMemberRoleRequest,
-  CreateSquadActivityLogRequest,
-  SquadMemberStatusValue,
-  SquadActiveIssueBrief,
-  SquadMemberStatus,
-  SquadMemberStatusListResponse,
-} from "./squad";
-export type {
-  BillingBalance,
-  BillingTransaction,
-  BillingTransactionsPage,
-  BillingTxType,
-  BillingTxSource,
-  BillingBatch,
-  BillingBatchesPage,
-  BillingBatchSourceType,
-  BillingTopup,
-  BillingTopupsPage,
-  BillingTopupStatus,
-  BillingPriceTier,
-  CreateBillingCheckoutSessionRequest,
-  CreateBillingCheckoutSessionResponse,
-  BillingCheckoutSessionStatus,
-  CreateBillingPortalSessionResponse,
-} from "./billing";

@@ -15,13 +15,8 @@ import type {
   IssueTableFacetSpec,
   IssueTableFacetsResponse,
 } from "@multica/core/types";
-import {
-  myIssuesRelationFromScope,
-  type MyIssuesScope,
-} from "@multica/core/issues/stores/my-issues-view-store";
-import { useViewStore } from "@multica/core/issues/stores/view-store-context";
+import type { MyIssuesScope } from "@multica/core/issues/stores/my-issues-view-store";
 import { useT } from "../../i18n";
-import { WorkspaceAgentWorkingChip } from "../../issues/components/workspace-agent-working-chip";
 import {
   IssueDisplayControls,
   ViewRefreshIndicator,
@@ -46,18 +41,11 @@ export function MyIssuesHeader({
   onTableFacetChange: (facet: IssueTableFacetSpec | null) => void;
 }) {
   const { t } = useT("my-issues");
-  const { t: tIssues } = useT("issues");
-  const mineRelation = myIssuesRelationFromScope(scope);
   const SCOPES: { value: MyIssuesScope; label: string; description: string }[] = [
     { value: "all", label: t(($) => $.header.scope.all_label), description: t(($) => $.header.scope.all_description) },
     { value: "assigned", label: t(($) => $.header.scope.assigned_label), description: t(($) => $.header.scope.assigned_description) },
     { value: "created", label: t(($) => $.header.scope.created_label), description: t(($) => $.header.scope.created_description) },
-    { value: "agents", label: t(($) => $.header.scope.agents_label), description: t(($) => $.header.scope.agents_description) },
   ];
-  const agentRunningFilter = useViewStore((s) => s.agentRunningFilter);
-  const toggleAgentRunningFilter = useViewStore(
-    (s) => s.toggleAgentRunningFilter,
-  );
   const scopeLabel = SCOPES.find((s) => s.value === scope)?.label ?? SCOPES[0]?.label;
 
   return (
@@ -115,16 +103,6 @@ export function MyIssuesHeader({
         </DropdownMenu>
 
         <div className="flex shrink-0 items-center gap-1">
-          {agentRunningFilter && (
-            <span className="mr-1 hidden text-xs text-muted-foreground md:inline">
-              {tIssues(($) => $.agent_activity.filter_active_label)}
-            </span>
-          )}
-          <WorkspaceAgentWorkingChip
-            value={agentRunningFilter}
-            onToggle={toggleAgentRunningFilter}
-            mineRelation={mineRelation === "all" ? "any" : mineRelation}
-          />
           <IssueDisplayControls
             scopedIssues={allIssues}
             facetCountsExact={facetCountsExact}

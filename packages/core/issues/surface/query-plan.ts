@@ -5,7 +5,6 @@ import type {
 } from "../queries";
 import {
   issueScopeKey,
-  UnsupportedIssueScopeError,
   type IssueScope,
 } from "./scope";
 
@@ -57,13 +56,6 @@ function myRelationPlan(
         userId: undefined,
         createDefaults: {},
       };
-    case "involved":
-      return {
-        queryScope: "agents",
-        queryFilter: { involves_user_id: scope.userId },
-        userId: undefined,
-        createDefaults: {},
-      };
     case "all":
       return {
         queryScope: "all",
@@ -81,16 +73,13 @@ export function buildIssueSurfaceQueryPlan(
 
   switch (scope.type) {
     case "workspace": {
-      // Members/Agents tabs are server-filtered scoped lists — assignee_types
+      // The Members tab is a server-filtered scoped list — assignee_types
       // is a real API param on both the list and grouped endpoints, so each
       // tab gets its own cache entry with correct per-status totals and
       // load-more pagination. Only the unfiltered "all" tab uses the shared
       // workspace list cache.
-      if (scope.actorKind === "members" || scope.actorKind === "agents") {
-        const queryFilter: MyIssuesFilter =
-          scope.actorKind === "members"
-            ? { assignee_types: ["member"] }
-            : { assignee_types: ["agent", "squad"] };
+      if (scope.actorKind === "members") {
+        const queryFilter: MyIssuesFilter = { assignee_types: ["member"] };
         return {
           kind: "scoped",
           scopeKey,
@@ -163,7 +152,5 @@ export function buildIssueSurfaceQueryPlan(
             : {},
       };
     }
-    case "team":
-      throw new UnsupportedIssueScopeError(scope, "issue surface query plan");
   }
 }

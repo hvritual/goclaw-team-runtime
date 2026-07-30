@@ -145,22 +145,3 @@ describe("RichContent import boundary", () => {
     expect(offenders).toEqual([]);
   });
 });
-
-describe("chat renders every text entry through RichContent", () => {
-  const chatList = readFileSync(
-    join(VIEWS_ROOT, "chat/components/chat-message-list.tsx"),
-    "utf8",
-  );
-
-  it("uses RichContent and no other markdown renderer", () => {
-    expect(chatList).toMatch(/\bRichContent\b/);
-    expect(chatList).not.toMatch(/MemoizedMarkdown|<Markdown\b/);
-  });
-
-  it("keys the live row and the persisted assistant row on the task", () => {
-    // The identity contract in source form: if someone reverts to `msg.id`,
-    // the parity test's remount assertion and this both fail.
-    expect(chatList).toMatch(/task:\$\{/);
-    expect(chatList).not.toMatch(/computeItemKey=\{\(_, msg\) => msg\.id\}/);
-  });
-});

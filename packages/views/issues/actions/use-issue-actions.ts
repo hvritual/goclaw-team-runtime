@@ -61,34 +61,10 @@ export function useIssueActions(issue: Issue | null): UseIssueActionsResult {
   const issueId = issue?.id ?? null;
   const issueIdentifier = issue?.identifier ?? null;
   const issueProjectId = issue?.project_id ?? null;
-  const issueStatus = issue?.status ?? null;
 
   const updateField = useCallback(
     (updates: Partial<UpdateIssueRequest>) => {
       if (!issueId) return;
-      // Assigning to an agent/squad may start a run. Route through the
-      // pre-trigger confirm modal (preview + optional handoff note + "暂不开始"),
-      // which applies the change itself — the four entry points share this one
-      // backend-driven flow instead of guessing (MUL-3375). Every other field
-      // change (status, priority, member assign, unassign) applies directly.
-      //
-      // Backlog is the parking lot: assigning a backlog issue never starts a run
-      // (server/internal/service/issue_trigger.go), so the modal would only show
-      // an empty "won't start" box with a single Apply button. Apply directly,
-      // matching the batch backlog short-circuit in BatchActionToolbar.
-      if (
-        (updates.assignee_type === "agent" || updates.assignee_type === "squad") &&
-        updates.assignee_id &&
-        issueStatus !== "backlog"
-      ) {
-        openModal("issue-run-confirm", {
-          issueIds: [issueId],
-          mode: "assign",
-          assigneeType: updates.assignee_type,
-          assigneeId: updates.assignee_id,
-        });
-        return;
-      }
       if (surfaceActions) {
         surfaceActions.updateIssue(issueId, updates, {
           errorMessage: t(($) => $.detail.update_failed),
@@ -107,7 +83,7 @@ export function useIssueActions(issue: Issue | null): UseIssueActionsResult {
         );
       }
     },
-    [issueId, issueStatus, surfaceActions, updateIssue, openModal, t],
+    [issueId, surfaceActions, updateIssue, t],
   );
 
   // Explicit "open it somewhere else" CTA, so the new tab takes focus

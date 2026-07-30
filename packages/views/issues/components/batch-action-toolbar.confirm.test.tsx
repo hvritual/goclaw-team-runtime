@@ -53,10 +53,6 @@ vi.mock("./pickers", () => ({
   AssigneePicker: ({ onUpdate }: { onUpdate: (u: Partial<UpdateIssueRequest>) => void }) => (
     <div>
       <button
-        data-testid="assign-agent"
-        onClick={() => onUpdate({ assignee_type: "agent", assignee_id: "agent-1" })}
-      />
-      <button
         data-testid="assign-member"
         onClick={() => onUpdate({ assignee_type: "member", assignee_id: "user-1" })}
       />
@@ -112,16 +108,6 @@ describe("BatchActionToolbar status routing (MUL-4155)", () => {
       expect(batchUpdate).toHaveBeenCalledWith({ ids: ["a"], updates: { status } });
       unmount();
     }
-  });
-
-  it("still routes agent assignment through the run-confirm modal", () => {
-    render(<BatchActionToolbar issues={[makeIssue({ status: "todo" })]} />);
-    fireEvent.click(screen.getByTestId("assign-agent"));
-    expect(openModal).toHaveBeenCalledWith(
-      "issue-run-confirm",
-      expect.objectContaining({ issueIds: ["a"], mode: "assign", assigneeType: "agent", assigneeId: "agent-1" }),
-    );
-    expect(batchUpdate).not.toHaveBeenCalled();
   });
 
   it("applies member assignment directly (never starts a run)", () => {

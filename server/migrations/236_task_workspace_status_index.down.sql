@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS task_workspace_status_position_idx;

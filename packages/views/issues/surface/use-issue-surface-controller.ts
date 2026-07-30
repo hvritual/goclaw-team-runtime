@@ -14,7 +14,6 @@ import type {
   IssueTableQuerySpec,
   Project,
 } from "@multica/core/types";
-import { workspaceWorkingAgentsOptions } from "@multica/core/agents";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { ALL_STATUSES } from "@multica/core/issues/config";
 import { dateOnlyToLocalDate } from "@multica/core/issues/date";
@@ -76,8 +75,6 @@ export interface IssueSurfaceController {
   swimlaneIssues: Issue[];
   /** The rows the agents-working filter would leave on screen. Feeds the
    *  header chip so its count IS the post-click row count (MUL-4884). */
-  /** See IssueSurfaceData.workingScopeIssues — undefined means UNKNOWN. */
-  workingScopeIssues: Issue[] | undefined;
   filteredGanttIssues: Issue[];
   assigneeGroups?: IssueAssigneeGroup[];
   assigneeGroupQueryKey?: QueryKey;
@@ -191,7 +188,6 @@ export function useIssueSurfaceController({
   const includeNoProject = useViewStore((s) => s.includeNoProject);
   const labelFilters = useViewStore((s) => s.labelFilters);
   const propertyFilters = useViewStore((s) => s.propertyFilters);
-  const agentRunningFilter = useViewStore((s) => s.agentRunningFilter);
   const showSubIssues = useViewStore((s) => s.showSubIssues);
   const ganttShowCompleted = useViewStore((s) => s.ganttShowCompleted);
   const cardProperties = useViewStore((s) => s.cardProperties);
@@ -318,22 +314,6 @@ export function useIssueSurfaceController({
   const { projectFilters: viewProjectFilters, includeNoProject: viewIncludeNoProject } =
     projectFilterState;
 
-  const workingAgentMineRelation =
-    scope.type === "my"
-      ? scope.relation === "all"
-        ? "any"
-        : scope.relation
-      : undefined;
-  const { data: workspaceWorkingAgents = [] } = useQuery(
-    workspaceWorkingAgentsOptions(wsId, "issue", workingAgentMineRelation),
-  );
-  const workingIssueIDs = useMemo(() => {
-    const issueIDs = new Set<string>();
-    for (const agent of workspaceWorkingAgents) {
-      for (const issueID of agent.issue_ids) issueIDs.add(issueID);
-    }
-    return issueIDs;
-  }, [workspaceWorkingAgents]);
 
   const tableQuerySpec = useMemo<IssueTableQuerySpec>(() => {
     let queryScope: IssueTableQuerySpec["scope"];
@@ -343,9 +323,7 @@ export function useIssueSurfaceController({
           kind: "workspace",
           ...(scope.actorKind === "members"
             ? { assignee_types: ["member" as const] }
-            : scope.actorKind === "agents"
-              ? { assignee_types: ["agent" as const, "squad" as const] }
-              : {}),
+            : {}),
         };
         break;
       case "project":
@@ -363,8 +341,6 @@ export function useIssueSurfaceController({
           actor: { type: scope.actorType, id: scope.actorId },
         };
         break;
-      case "team":
-        throw new Error("Team issue scope is not supported by the Table query");
     }
 
     const date =
@@ -392,9 +368,6 @@ export function useIssueSurfaceController({
           ? { properties: effectivePropertyFilters }
           : {}),
         ...(date ? { date } : {}),
-        ...(agentRunningFilter
-          ? { working_issue_ids: [...workingIssueIDs] }
-          : {}),
         include_sub_issues: showSubIssues,
       },
       ...(debouncedActiveSearch ? { search: debouncedActiveSearch } : {}),
@@ -404,7 +377,6 @@ export function useIssueSurfaceController({
       },
     };
   }, [
-    agentRunningFilter,
     assigneeFilters,
     creatorFilters,
     dateParams,
@@ -420,7 +392,6 @@ export function useIssueSurfaceController({
     statusFilters,
     viewIncludeNoProject,
     viewProjectFilters,
-    workingIssueIDs,
   ]);
 
   const [activeTableFacet, setActiveTableFacet] =
@@ -542,13 +513,11 @@ export function useIssueSurfaceController({
         viewIncludeNoProject,
         labelFilters,
         effectivePropertyFilters,
-        agentRunningFilter,
         showSubIssues,
         dateParams,
         debouncedActiveSearch,
       ]),
     [
-      agentRunningFilter,
       assigneeFilters,
       creatorFilters,
       dateParams,
@@ -583,13 +552,11 @@ export function useIssueSurfaceController({
     priorityFilters,
     assigneeFilters,
     includeNoAssignee,
-    agentRunningFilter,
     creatorFilters,
     projectFilters: viewProjectFilters,
     includeNoProject: viewIncludeNoProject,
     labelFilters,
     propertyFilters: effectivePropertyFilters,
-    workingIssueIDs,
     showSubIssues,
     loadProjects:
       cardProperties.project ||

@@ -17,16 +17,6 @@ describe("MainRendererMessageQueue", () => {
     expect(send).toHaveBeenCalledWith("auth:token", "token-a");
   });
 
-  it("delivers immediately while a channel is ready", () => {
-    const queue = new MainRendererMessageQueue();
-    const send = vi.fn();
-
-    queue.setReady("inbox:open", true, send);
-    queue.enqueue("inbox:open", { itemId: "item-1" }, send);
-
-    expect(send).toHaveBeenCalledOnce();
-  });
-
   it("keeps queued work across a renderer readiness reset", () => {
     const queue = new MainRendererMessageQueue();
     const send = vi.fn();
@@ -40,16 +30,6 @@ describe("MainRendererMessageQueue", () => {
     expect(send).toHaveBeenCalledWith("invite:open", "invite-1");
   });
 
-  it("can discard account-scoped pending messages", () => {
-    const queue = new MainRendererMessageQueue();
-    const send = vi.fn();
-
-    queue.enqueue("inbox:open", { itemId: "old-account-item" }, send);
-    queue.clear("inbox:open");
-    queue.setReady("inbox:open", true, send);
-
-    expect(send).not.toHaveBeenCalled();
-  });
 });
 
 describe("parseMainRendererChannelState", () => {

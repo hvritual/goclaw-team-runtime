@@ -94,8 +94,8 @@ describe("shortcut store", () => {
     ).toBe("openSearch");
 
     const custom = createShortcutChord("1", { primary: true });
-    useShortcutStore.getState().setShortcut("goInbox", custom);
-    expect(findShortcutConflict("goChat", custom)).toBe("goInbox");
+    useShortcutStore.getState().setShortcut("goIssues", custom);
+    expect(findShortcutConflict("goProjects", custom)).toBe("goIssues");
   });
 
   it("migrates v1 string overrides without losing disabled actions", () => {
@@ -117,13 +117,13 @@ describe("shortcut store", () => {
         openSearch: { key: "J", modifiers: { primary: true } },
         findInIssue: createShortcutChord("J"),
         send: createShortcutChord("Enter"),
-        goInbox: null,
-        goChat: createShortcutChord("Meta"),
+        goIssues: null,
+        goProjects: createShortcutChord("Meta"),
         unknownAction: createShortcutChord("X"),
       }),
     ).toEqual({
       send: createShortcutChord("Enter"),
-      goInbox: null,
+      goIssues: null,
     });
 
     expect(
@@ -137,10 +137,10 @@ describe("shortcut store", () => {
         overrides: {
           openSearch: "",
           createIssue: 42,
-          goInbox: null,
+          goIssues: null,
           unknownAction: "Mod+X",
         },
       }, 1),
-    ).toEqual({ overrides: { goInbox: null } });
+    ).toEqual({ overrides: { goIssues: null } });
   });
 });

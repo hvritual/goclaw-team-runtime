@@ -10,15 +10,12 @@ import {
 } from "./view-store";
 import { registerForWorkspaceRehydration } from "../../platform/workspace-storage";
 
-export type MyIssuesScope = "all" | "assigned" | "created" | "agents";
-export type MyIssuesRelation = "all" | "assigned" | "created" | "involved";
+export type MyIssuesScope = "all" | "assigned" | "created";
+export type MyIssuesRelation = MyIssuesScope;
 
-// "agents" is the user-facing scope label; the issue APIs call the same
-// ownership/squad-membership relation "involved".
 export function myIssuesRelationFromScope(
   scope: MyIssuesScope,
 ): MyIssuesRelation {
-  if (scope === "agents") return "involved";
   return scope;
 }
 

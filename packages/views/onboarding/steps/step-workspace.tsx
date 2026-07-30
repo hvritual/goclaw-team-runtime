@@ -5,15 +5,13 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpenText,
-  Bot,
   FolderKanban,
-  Inbox,
+  ListChecks,
   ListTodo,
   Lock,
-  MoreHorizontal,
-  Monitor,
   Plus,
-  Zap,
+  Settings,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@multica/ui/components/ui/button";
@@ -29,7 +27,6 @@ import { workspaceUrlHost } from "@multica/core/workspace/workspace-url";
 import { DragStrip } from "@multica/views/platform";
 import { useLogout } from "../../auth";
 import { StepHeader } from "../components/step-header";
-import { RadioMark } from "../components/option-card";
 import { WorkspaceAvatar } from "../../workspace/workspace-avatar";
 import { useT } from "../../i18n";
 import {
@@ -38,6 +35,20 @@ import {
   nameToWorkspaceSlug,
 } from "../../workspace/slug";
 import { isReservedSlug } from "@multica/core/paths";
+
+function RadioMark({ selected }: { selected: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex size-4 shrink-0 items-center justify-center rounded-full border",
+        selected ? "border-primary" : "border-muted-foreground/40",
+      )}
+    >
+      {selected ? <span className="size-2 rounded-full bg-primary" /> : null}
+    </span>
+  );
+}
 
 /**
  * Step 2 — create your first workspace, or continue with one set up in
@@ -552,9 +563,9 @@ function ExistingWorkspaceSide({ workspace }: { workspace: Workspace }) {
         {t(($) => $.step_workspace.side_next_eyebrow)}
       </div>
       <div className="flex flex-col gap-3.5">
-        <PerkRow>{t(($) => $.step_workspace.next_runtime)}</PerkRow>
-        <PerkRow>{t(($) => $.step_workspace.next_agent)}</PerkRow>
-        <PerkRow>{t(($) => $.step_workspace.next_starter)}</PerkRow>
+        <PerkRow>{t(($) => $.step_workspace.next_members)}</PerkRow>
+        <PerkRow>{t(($) => $.step_workspace.next_projects)}</PerkRow>
+        <PerkRow>{t(($) => $.step_workspace.next_skills)}</PerkRow>
       </div>
     </div>
   );
@@ -596,19 +607,14 @@ function WorkspacePreviewCard({
       </div>
       <div className="flex flex-col">
         <EntityRow
-          icon={<Inbox className="h-4 w-4" />}
-          label={t(($) => $.step_workspace.preview.inbox_label)}
-          meta={t(($) => $.step_workspace.preview.inbox_meta)}
-        />
-        <EntityRow
           icon={<ListTodo className="h-4 w-4" />}
           label={t(($) => $.step_workspace.preview.issues_label)}
           meta={t(($) => $.step_workspace.preview.issues_meta)}
         />
         <EntityRow
-          icon={<Bot className="h-4 w-4" />}
-          label={t(($) => $.step_workspace.preview.agents_label)}
-          meta={t(($) => $.step_workspace.preview.agents_meta)}
+          icon={<ListChecks className="h-4 w-4" />}
+          label={t(($) => $.step_workspace.preview.tasks_label)}
+          meta={t(($) => $.step_workspace.preview.tasks_meta)}
         />
         <EntityRow
           icon={<FolderKanban className="h-4 w-4" />}
@@ -616,25 +622,19 @@ function WorkspacePreviewCard({
           meta={t(($) => $.step_workspace.preview.projects_meta)}
         />
         <EntityRow
-          icon={<Zap className="h-4 w-4" />}
-          label={t(($) => $.step_workspace.preview.autopilot_label)}
-          meta={t(($) => $.step_workspace.preview.autopilot_meta)}
+          icon={<Users className="h-4 w-4" />}
+          label={t(($) => $.step_workspace.preview.members_label)}
+          meta={t(($) => $.step_workspace.preview.members_meta)}
         />
         <EntityRow
-          icon={<Monitor className="h-4 w-4" />}
-          label={t(($) => $.step_workspace.preview.runtimes_label)}
-          meta={t(($) => $.step_workspace.preview.runtimes_meta)}
+          icon={<Settings className="h-4 w-4" />}
+          label={t(($) => $.step_workspace.preview.settings_label)}
+          meta={t(($) => $.step_workspace.preview.settings_meta)}
         />
         <EntityRow
           icon={<BookOpenText className="h-4 w-4" />}
           label={t(($) => $.step_workspace.preview.skills_label)}
           meta={t(($) => $.step_workspace.preview.skills_meta)}
-        />
-        <EntityRow
-          dim
-          icon={<MoreHorizontal className="h-4 w-4" />}
-          label={t(($) => $.step_workspace.preview.more_label)}
-          meta={t(($) => $.step_workspace.preview.more_meta)}
         />
       </div>
     </div>

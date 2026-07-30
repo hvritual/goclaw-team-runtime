@@ -6,7 +6,7 @@ interface ProjectDraft {
   description: string;
   status: ProjectStatus;
   priority: ProjectPriority;
-  leadType?: "member" | "agent";
+  leadType?: "member";
   leadId?: string;
   icon?: string;
   // Calendar days ("YYYY-MM-DD"); empty/undefined means unset.

@@ -28,7 +28,7 @@ beforeEach(() => {
   Object.defineProperty(window, "desktopAPI", {
     configurable: true,
     value: {
-      runtimeConfig: { ok: true, config: { appUrl: APP_URL } },
+      endpointConfig: { ok: true, config: { appUrl: APP_URL } },
       openExternal,
       setRendererRouteContext,
       openIssueWindow: vi.fn(),

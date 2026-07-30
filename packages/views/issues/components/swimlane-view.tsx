@@ -433,8 +433,6 @@ function buildAssigneeLanes(
     });
   }
 
-  // Sort by actor type (members before agents before squads) then by name.
-  const typeOrder: Record<string, number> = { member: 0, agent: 1, squad: 2 };
   const orderIndex = new Map<string, number>();
   storedOrder.forEach((id, idx) => orderIndex.set(`assignee:${id}`, idx));
   const ordered = Array.from(seen.values()).sort((a, b) => {
@@ -443,9 +441,6 @@ function buildAssigneeLanes(
     if (ai !== undefined && bi !== undefined) return ai - bi;
     if (ai !== undefined) return -1;
     if (bi !== undefined) return 1;
-    const at = typeOrder[a.actor?.type ?? ""] ?? 99;
-    const bt = typeOrder[b.actor?.type ?? ""] ?? 99;
-    if (at !== bt) return at - bt;
     return a.title.localeCompare(b.title);
   });
 
@@ -504,10 +499,7 @@ function buildServerLanes(
     if (grouping === "assignee" && value.kind === "assignee") {
       const actorRef = value.actor;
       const actor: { type: IssueAssigneeType; id: string } | null =
-        actorRef &&
-        (actorRef.type === "member" ||
-          actorRef.type === "agent" ||
-          actorRef.type === "squad")
+        actorRef && actorRef.type === "member"
           ? { type: actorRef.type, id: actorRef.id }
           : null;
       const rawId = actor ? `${actor.type}:${actor.id}` : NONE_LANE_ID;
@@ -663,10 +655,6 @@ function SwimLaneViewImpl({
     assigneeFilters: activeFiltersProp?.assigneeFilters ?? [],
     includeNoAssignee: activeFiltersProp?.includeNoAssignee ?? false,
     assigneeFilterActive: activeFiltersProp?.assigneeFilterActive ?? false,
-    // Extra children are not part of the server-grouped page yet, so apply
-    // the same running-task issue ids returned by `/api/working-agents`.
-    agentRunningFilter: activeFiltersProp?.agentRunningFilter ?? false,
-    runningIssueIds: activeFiltersProp?.runningIssueIds,
     creatorFilters: activeFiltersProp?.creatorFilters ?? [],
     projectFilters: activeFiltersProp?.projectFilters ?? [],
     includeNoProject: activeFiltersProp?.includeNoProject ?? false,

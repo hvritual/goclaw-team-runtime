@@ -33,7 +33,7 @@ export interface ProjectListFilters {
   statuses: string[];
   /** ProjectPriority values. */
   priorities: string[];
-  /** Composite "type:id" lead refs (member or agent). */
+  /** Composite "type:id" member lead references. */
   leads: string[];
 }
 

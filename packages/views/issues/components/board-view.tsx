@@ -142,9 +142,7 @@ function buildGroups(
 
   const order: Record<string, number> = {
     member: 0,
-    agent: 1,
-    squad: 2,
-    none: 3,
+    none: 1,
   };
 
   return Array.from(groups.values()).toSorted((a, b) => {
@@ -277,10 +275,7 @@ function BoardViewImpl({
         if (descriptor.value.kind !== "assignee") return [];
         const actorRef = descriptor.value.actor;
         const actor: { type: IssueAssigneeType; id: string } | null =
-          actorRef &&
-          (actorRef.type === "member" ||
-            actorRef.type === "agent" ||
-            actorRef.type === "squad")
+          actorRef && actorRef.type === "member"
             ? { type: actorRef.type, id: actorRef.id }
             : null;
         return [{
@@ -301,9 +296,7 @@ function BoardViewImpl({
     if (grouping !== "assignee" || !assigneeGroups) return undefined;
     const order: Record<string, number> = {
       member: 0,
-      agent: 1,
-      squad: 2,
-      none: 3,
+      none: 1,
     };
     return assigneeGroups
       .map((group) => ({

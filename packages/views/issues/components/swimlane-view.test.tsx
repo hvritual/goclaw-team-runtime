@@ -171,7 +171,6 @@ const mockViewState: {
   labelFilters?: string[];
   propertyFilters?: Record<string, string[]>;
   cardPropertyIds?: string[];
-  agentRunningFilter?: boolean;
 } = {
   sortBy: "position",
   sortDirection: "asc",
@@ -193,7 +192,6 @@ const mockViewState: {
   labelFilters: [],
   propertyFilters: {},
   cardPropertyIds: [],
-  agentRunningFilter: false,
 };
 const mockSetSwimlaneOrder = mockViewState.setSwimlaneOrder as ReturnType<typeof vi.fn>;
 const mockToggleSwimlaneCollapsed = mockViewState.toggleSwimlaneCollapsed as ReturnType<typeof vi.fn>;
@@ -417,7 +415,6 @@ describe("SwimLaneView", () => {
     mockViewState.projectFilters = [];
     mockViewState.includeNoProject = false;
     mockViewState.labelFilters = [];
-    mockViewState.agentRunningFilter = false;
     mockListChildrenByParents.mockResolvedValue({ issues: [] });
     mockGetAgentTaskSnapshot.mockResolvedValue([]);
     useLoadMoreByStatusMock.mockImplementation(() => ({
@@ -1417,8 +1414,8 @@ describe("SwimLaneView", () => {
       id: "issue-y",
       identifier: "PROJ-201",
       title: "Issue Y",
-      assignee_type: "agent",
-      assignee_id: "agent-1",
+      assignee_type: "member",
+      assignee_id: "user-2",
       parent_issue_id: null,
       project_id: null,
       status: "in_progress",
@@ -1789,146 +1786,6 @@ describe("SwimLaneView", () => {
       expect(screen.getByText("Matching Child (High Priority)")).toBeInTheDocument();
       expect(screen.queryByText("Non-matching Child (Low Priority)")).toBeNull();
     });
-  });
-
-  it("filters batch-fetched children using API-derived running issue ids", async () => {
-    mockViewState.swimlaneGrouping = "parent";
-
-    const grandparent: Issue = {
-      id: "gp-3",
-      workspace_id: "ws-1",
-      number: 30,
-      identifier: "PROJ-30",
-      title: "Grandparent 3",
-      description: null,
-      status: "todo",
-      priority: "medium",
-      assignee_type: null,
-      assignee_id: null,
-      creator_type: "member",
-      creator_id: "user-1",
-      parent_issue_id: null,
-      project_id: null,
-      position: 10,
-      stage: null,
-      start_date: null,
-      due_date: null,
-      metadata: {},
-      properties: {},
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    };
-    const parent: Issue = {
-      ...grandparent,
-      id: "p-3",
-      number: 31,
-      identifier: "PROJ-31",
-      title: "Parent 3",
-      parent_issue_id: "gp-3",
-      position: 11,
-    };
-    const runningGrandchild: Issue = {
-      ...grandparent,
-      id: "gc-running",
-      number: 32,
-      identifier: "PROJ-32",
-      title: "Running Child",
-      status: "in_progress",
-      assignee_type: "agent",
-      assignee_id: "idle-agent",
-      parent_issue_id: "p-3",
-      position: 12,
-    };
-    const nonRunningGrandchild: Issue = {
-      ...grandparent,
-      id: "gc-non-running",
-      number: 33,
-      identifier: "PROJ-33",
-      title: "Non-running Child",
-      status: "in_progress",
-      assignee_type: "agent",
-      assignee_id: "working-agent",
-      parent_issue_id: "p-3",
-      position: 13,
-    };
-
-    mockListChildrenByParents.mockResolvedValueOnce({
-      issues: [runningGrandchild, nonRunningGrandchild],
-    });
-
-    const childProgressMap = new Map<string, { done: number; total: number }>([
-      ["p-3", { done: 0, total: 2 }],
-    ]);
-
-    renderWithI18n(
-      <SwimLaneView
-        issues={[grandparent, parent]}
-        activeFilters={{
-          priorityFilters: [],
-          assigneeFilters: [],
-          includeNoAssignee: false,
-          agentRunningFilter: true,
-          runningIssueIds: new Set(["gc-running"]),
-          creatorFilters: [],
-          projectFilters: [],
-          includeNoProject: false,
-          labelFilters: [],
-        }}
-        childProgressMap={childProgressMap}
-        onMoveIssue={vi.fn()}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(mockListChildrenByParents).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText("Running Child")).toBeInTheDocument();
-      expect(screen.queryByText("Non-running Child")).toBeNull();
-    });
-  });
-
-  it("hides batch-fetched children when the running issue set is empty", async () => {
-    mockViewState.swimlaneGrouping = "parent";
-    const parent = mockIssues[0]!;
-    const batchOnlyChild: Issue = {
-      ...mockIssues[1]!,
-      id: "working-empty-child",
-      identifier: "PROJ-34",
-      title: "Working Empty Child",
-      parent_issue_id: parent.id,
-    };
-    mockListChildrenByParents.mockResolvedValueOnce({
-      issues: [batchOnlyChild],
-    });
-
-    renderWithI18n(
-      <SwimLaneView
-        issues={[parent]}
-        activeFilters={{
-          priorityFilters: [],
-          assigneeFilters: [],
-          includeNoAssignee: false,
-          agentRunningFilter: true,
-          runningIssueIds: new Set(),
-          creatorFilters: [],
-          projectFilters: [],
-          includeNoProject: false,
-          labelFilters: [],
-        }}
-        childProgressMap={
-          new Map([[parent.id, { done: 0, total: 1 }]])
-        }
-        onMoveIssue={vi.fn()}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(mockListChildrenByParents).toHaveBeenCalled();
-    });
-    await act(async () => {});
-    expect(screen.queryByText("Working Empty Child")).toBeNull();
   });
 
   it("hides batch-fetched children when 'Show sub-issues' is off", async () => {

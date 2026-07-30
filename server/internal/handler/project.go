@@ -80,26 +80,15 @@ func (h *Handler) loadProjectResourceCount(ctx context.Context, projectID pgtype
 }
 
 type CreateProjectRequest struct {
-	Title       string                                `json:"title"`
-	Description *string                               `json:"description"`
-	Icon        *string                               `json:"icon"`
-	Status      string                                `json:"status"`
-	Priority    string                                `json:"priority"`
-	LeadType    *string                               `json:"lead_type"`
-	LeadID      *string                               `json:"lead_id"`
-	StartDate   *string                               `json:"start_date"`
-	DueDate     *string                               `json:"due_date"`
-	Resources   []CreateProjectResourceRequestPayload `json:"resources,omitempty"`
-}
-
-// CreateProjectResourceRequestPayload mirrors CreateProjectResourceRequest but
-// is embedded inside the project create payload. Kept as a separate type so a
-// future change to the standalone request can't silently break this surface.
-type CreateProjectResourceRequestPayload struct {
-	ResourceType string          `json:"resource_type"`
-	ResourceRef  json.RawMessage `json:"resource_ref"`
-	Label        *string         `json:"label"`
-	Position     *int32          `json:"position"`
+	Title       string  `json:"title"`
+	Description *string `json:"description"`
+	Icon        *string `json:"icon"`
+	Status      string  `json:"status"`
+	Priority    string  `json:"priority"`
+	LeadType    *string `json:"lead_type"`
+	LeadID      *string `json:"lead_id"`
+	StartDate   *string `json:"start_date"`
+	DueDate     *string `json:"due_date"`
 }
 
 type UpdateProjectRequest struct {
@@ -237,12 +226,16 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.Title == "" {
+	if strings.TrimSpace(req.Title) == "" {
 		writeError(w, http.StatusBadRequest, "title is required")
 		return
 	}
 	workspaceID := h.resolveWorkspaceID(r)
 	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	workspaceUUID, ok := parseUUIDOrBadRequest(w, workspaceID, "workspace_id")
 	if !ok {
 		return
 	}
@@ -263,176 +256,47 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	var leadType pgtype.Text
 	var leadID pgtype.UUID
 	if req.LeadType != nil {
+		if *req.LeadType != "member" {
+			writeError(w, http.StatusBadRequest, "lead_type must be member")
+			return
+		}
 		leadType = pgtype.Text{String: *req.LeadType, Valid: true}
 	}
 	if req.LeadID != nil {
-		id, ok := parseUUIDOrBadRequest(w, *req.LeadID, "lead_id")
+		leadID, ok = parseUUIDOrBadRequest(w, *req.LeadID, "lead_id")
 		if !ok {
 			return
 		}
-		leadID = id
 	}
-	wsUUID, ok := parseUUIDOrBadRequest(w, workspaceID, "workspace_id")
-	if !ok {
-		return
-	}
-
-	// start_date / due_date are optional calendar days; an absent or empty
-	// value leaves the column NULL. Mirrors CreateIssue's date handling.
 	var startDate pgtype.Date
 	if req.StartDate != nil && *req.StartDate != "" {
-		d, err := util.ParseCalendarDate(*req.StartDate)
-		if err != nil {
+		startDate, _ = util.ParseCalendarDate(*req.StartDate)
+		if !startDate.Valid {
 			writeError(w, http.StatusBadRequest, "invalid start_date format, expected YYYY-MM-DD")
 			return
 		}
-		startDate = d
 	}
 	var dueDate pgtype.Date
 	if req.DueDate != nil && *req.DueDate != "" {
-		d, err := util.ParseCalendarDate(*req.DueDate)
-		if err != nil {
+		dueDate, _ = util.ParseCalendarDate(*req.DueDate)
+		if !dueDate.Valid {
 			writeError(w, http.StatusBadRequest, "invalid due_date format, expected YYYY-MM-DD")
 			return
 		}
-		dueDate = d
 	}
-
-	// Pre-validate every resource payload before opening a transaction so an
-	// invalid ref produces a clean 400 with no DB work. For local_directory we
-	// also enforce one row per daemon_id within the batch — the daemon-side
-	// resolver picks the first match by daemon_id, so two rows on the same
-	// daemon would silently route the agent into whichever sorts first.
-	// The standalone POST/PUT paths run the same check via
-	// findLocalDirectoryConflict; this loop just covers the bundled-create
-	// surface, where there is no existing row to compare against yet.
-	normalizedRefs := make([]json.RawMessage, len(req.Resources))
-	localDirSeen := map[string]int{}
-	for i, res := range req.Resources {
-		res.ResourceType = strings.TrimSpace(res.ResourceType)
-		if res.ResourceType == "" {
-			writeError(w, http.StatusBadRequest, "resources[].resource_type is required")
-			return
-		}
-		ref, err := validateAndNormalizeResourceRef(res.ResourceType, res.ResourceRef)
-		if err != nil {
-			writeError(w, http.StatusBadRequest, "resources["+strconv.Itoa(i)+"]: "+err.Error())
-			return
-		}
-		normalizedRefs[i] = ref
-		if res.ResourceType == "local_directory" {
-			var ld localDirectoryRef
-			if err := json.Unmarshal(ref, &ld); err != nil {
-				writeError(w, http.StatusBadRequest, "resources["+strconv.Itoa(i)+"]: "+err.Error())
-				return
-			}
-			if prev, ok := localDirSeen[ld.DaemonID]; ok {
-				writeError(w, http.StatusBadRequest, "resources["+strconv.Itoa(i)+"]: duplicate local_directory for daemon (already at index "+strconv.Itoa(prev)+"); each daemon may attach at most one local_directory per project")
-				return
-			}
-			localDirSeen[ld.DaemonID] = i
-		}
-	}
-
-	createParams := db.CreateProjectParams{
-		WorkspaceID: wsUUID,
-		Title:       req.Title,
-		Description: ptrToText(req.Description),
-		Icon:        ptrToText(req.Icon),
-		Status:      status,
-		LeadType:    leadType,
-		LeadID:      leadID,
-		Priority:    priority,
-		StartDate:   startDate,
-		DueDate:     dueDate,
-	}
-
-	// Without resources, keep the simple non-tx path.
-	if len(req.Resources) == 0 {
-		project, err := h.Queries.CreateProject(r.Context(), createParams)
-		if err != nil {
-			h.writeProjectWriteError(w, r, err, "create")
-			return
-		}
-		resp := projectToResponse(project)
-		h.publish(protocol.EventProjectCreated, workspaceID, "member", userID, map[string]any{"project": resp})
-		writeJSON(w, http.StatusCreated, resp)
-		return
-	}
-
-	// Transactional path: project + all resources are atomic.
-	tx, err := h.TxStarter.Begin(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start transaction")
-		return
-	}
-	defer tx.Rollback(r.Context())
-	qtx := h.Queries.WithTx(tx)
-
-	project, err := qtx.CreateProject(r.Context(), createParams)
+	project, err := h.Queries.CreateProject(r.Context(), db.CreateProjectParams{
+		WorkspaceID: workspaceUUID, Title: strings.TrimSpace(req.Title),
+		Description: ptrToText(req.Description), Icon: ptrToText(req.Icon),
+		Status: status, Priority: priority, LeadType: leadType, LeadID: leadID,
+		StartDate: startDate, DueDate: dueDate,
+	})
 	if err != nil {
 		h.writeProjectWriteError(w, r, err, "create")
 		return
 	}
-
-	creator, _ := h.parseUserUUIDOrZero(userID)
-	resourceRows := make([]db.ProjectResource, 0, len(req.Resources))
-	for i, res := range req.Resources {
-		var label pgtype.Text
-		if res.Label != nil && strings.TrimSpace(*res.Label) != "" {
-			label = pgtype.Text{String: strings.TrimSpace(*res.Label), Valid: true}
-		}
-		var position int32 = int32(i)
-		if res.Position != nil {
-			position = *res.Position
-		}
-		row, err := qtx.CreateProjectResource(r.Context(), db.CreateProjectResourceParams{
-			ProjectID:    project.ID,
-			WorkspaceID:  project.WorkspaceID,
-			ResourceType: res.ResourceType,
-			ResourceRef:  normalizedRefs[i],
-			Label:        label,
-			Position:     position,
-			CreatedBy:    creator,
-		})
-		if err != nil {
-			if isUniqueViolation(err) {
-				writeError(w, http.StatusConflict, "resources["+strconv.Itoa(i)+"]: this resource is already attached")
-				return
-			}
-			writeError(w, http.StatusInternalServerError, "failed to attach resource at index "+strconv.Itoa(i))
-			return
-		}
-		resourceRows = append(resourceRows, row)
-	}
-	if err := tx.Commit(r.Context()); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to commit project create")
-		return
-	}
-
-	resourceResp := make([]ProjectResourceResponse, len(resourceRows))
-	for i, row := range resourceRows {
-		resourceResp[i] = projectResourceToResponse(row)
-	}
-	resp := projectToResponse(project)
-	resp.ResourceCount = int64(len(resourceResp))
-	h.publish(protocol.EventProjectCreated, workspaceID, "member", userID, map[string]any{"project": resp})
-	for _, rr := range resourceResp {
-		h.publish(protocol.EventProjectResourceCreated, workspaceID, "member", userID, map[string]any{
-			"resource":   rr,
-			"project_id": resp.ID,
-		})
-	}
-	// One-shot create echo: the parent ProjectResponse fields plus the just-
-	// created resources. This is a transient creation echo, not a contract for
-	// reads — GET /projects/{id} stays metadata-only with resource_count.
-	writeJSON(w, http.StatusCreated, struct {
-		ProjectResponse
-		Resources []ProjectResourceResponse `json:"resources"`
-	}{
-		ProjectResponse: resp,
-		Resources:       resourceResp,
-	})
+	response := projectToResponse(project)
+	h.publish(protocol.EventProjectCreated, workspaceID, "member", userID, map[string]any{"project": response})
+	writeJSON(w, http.StatusCreated, response)
 }
 
 func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -510,6 +374,10 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := rawFields["lead_type"]; ok {
 		if req.LeadType != nil {
+			if *req.LeadType != "member" {
+				writeError(w, http.StatusBadRequest, "lead_type must be member")
+				return
+			}
 			params.LeadType = pgtype.Text{String: *req.LeadType, Valid: true}
 		} else {
 			params.LeadType = pgtype.Text{Valid: false}
@@ -606,11 +474,25 @@ func (h *Handler) DeleteProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to lock project")
 		return
 	}
-	if err := qtx.ClearChatSessionProjectByProject(r.Context(), db.ClearChatSessionProjectByProjectParams{
+	if err := qtx.ClearIssueProjectByProject(r.Context(), db.ClearIssueProjectByProjectParams{
 		ProjectID:   project.ID,
 		WorkspaceID: project.WorkspaceID,
 	}); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to clear project chat context")
+		writeError(w, http.StatusInternalServerError, "failed to clear project issues")
+		return
+	}
+	if err := qtx.ClearTaskProjectByProject(r.Context(), db.ClearTaskProjectByProjectParams{
+		ProjectID:   project.ID,
+		WorkspaceID: project.WorkspaceID,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to clear project tasks")
+		return
+	}
+	if err := qtx.DeleteProjectResourcesByProject(r.Context(), db.DeleteProjectResourcesByProjectParams{
+		ProjectID:   project.ID,
+		WorkspaceID: project.WorkspaceID,
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project resources")
 		return
 	}
 	if err := qtx.DeleteProject(r.Context(), db.DeleteProjectParams{

@@ -14,13 +14,13 @@ import {
 import { useWindowOverlayStore } from "@/stores/window-overlay-store";
 
 function requireRuntimeAppUrl(scope: string): string {
-  const runtimeConfig = window.desktopAPI.runtimeConfig;
-  if (!runtimeConfig.ok) {
+  const endpointConfig = window.desktopAPI.endpointConfig;
+  if (!endpointConfig.ok) {
     throw new Error(
-      `Invariant violated: ${scope} rendered before App accepted runtime config`,
+      `Invariant violated: ${scope} rendered before App accepted endpoint config`,
     );
   }
-  return runtimeConfig.config.appUrl;
+  return endpointConfig.config.appUrl;
 }
 
 /**

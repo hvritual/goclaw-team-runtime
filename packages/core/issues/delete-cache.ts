@@ -3,12 +3,6 @@ import type {
   QueryClient,
   QueryKey,
 } from "@tanstack/react-query";
-import {
-  agentActivityKeys,
-  agentRunCountsKeys,
-  agentTaskSnapshotKeys,
-  agentTasksKeys,
-} from "../agents/queries";
 import { labelKeys } from "../labels/queries";
 import type {
   Issue,
@@ -157,16 +151,6 @@ export function invalidateDeletedIssueParentCaches(
   qc.invalidateQueries({ queryKey: issueKeys.childrenByParentsAll(wsId) });
 }
 
-export function invalidateDeletedIssueDependentCaches(
-  qc: QueryClient,
-  wsId: string,
-) {
-  qc.invalidateQueries({ queryKey: agentTaskSnapshotKeys.list(wsId) });
-  qc.invalidateQueries({ queryKey: agentActivityKeys.last30d(wsId) });
-  qc.invalidateQueries({ queryKey: agentRunCountsKeys.last30d(wsId) });
-  qc.invalidateQueries({ queryKey: agentTasksKeys.all(wsId) });
-}
-
 export function invalidateIssueScopedCaches(
   qc: QueryClient,
   wsId: string,
@@ -175,9 +159,7 @@ export function invalidateIssueScopedCaches(
   qc.invalidateQueries({ queryKey: issueKeys.timeline(issueId) });
   qc.invalidateQueries({ queryKey: issueKeys.reactions(issueId) });
   qc.invalidateQueries({ queryKey: issueKeys.subscribers(issueId) });
-  qc.invalidateQueries({ queryKey: issueKeys.usage(issueId) });
   qc.invalidateQueries({ queryKey: issueKeys.attachments(issueId) });
-  qc.invalidateQueries({ queryKey: issueKeys.tasks(issueId) });
   qc.invalidateQueries({ queryKey: issueKeys.children(wsId, issueId) });
   qc.invalidateQueries({ queryKey: labelKeys.byIssue(wsId, issueId) });
 }
@@ -196,9 +178,7 @@ export function cleanupDeletedIssueCaches(
   qc.removeQueries({ queryKey: issueKeys.timeline(issueId) });
   qc.removeQueries({ queryKey: issueKeys.reactions(issueId) });
   qc.removeQueries({ queryKey: issueKeys.subscribers(issueId) });
-  qc.removeQueries({ queryKey: issueKeys.usage(issueId) });
   qc.removeQueries({ queryKey: issueKeys.attachments(issueId) });
-  qc.removeQueries({ queryKey: issueKeys.tasks(issueId) });
   qc.removeQueries({ queryKey: issueKeys.children(wsId, issueId) });
   qc.removeQueries({ queryKey: labelKeys.byIssue(wsId, issueId) });
 
@@ -211,8 +191,6 @@ export function cleanupDeletedIssueCaches(
   // refresh when an issue is removed — the deleted row may have been a
   // scheduled bar visible right now.
   qc.invalidateQueries({ queryKey: issueKeys.projectGanttAll(wsId) });
-  invalidateDeletedIssueDependentCaches(qc, wsId);
-
   // Recent Issues store persists to localStorage and survives reloads, so a
   // deleted id left behind keeps the Cmd+K command bar firing 404s on every
   // open. Both the delete mutation and the WS delete event flow through here,

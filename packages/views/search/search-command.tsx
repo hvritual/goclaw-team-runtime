@@ -70,12 +70,10 @@ import { useSearchStore } from "./search-store";
 // against the current workspace slug at render time (see SearchCommand body).
 // Only parameterless paths are valid nav destinations.
 type NavKey =
-  | "inbox"
   | "myIssues"
   | "issues"
   | "projects"
-  | "agents"
-  | "runtimes"
+  | "tasks"
   | "skills"
   | "settings";
 
@@ -144,12 +142,10 @@ interface SearchResults {
 export function SearchCommand() {
   const { t } = useT("search");
   const navPages: NavPage[] = [
-    { key: "inbox", label: t(($) => $.pages.inbox), keywords: ["inbox", "notifications", "收件箱"] },
     { key: "myIssues", label: t(($) => $.pages.my_issues), keywords: ["my", "issues", "assigned", "我的"] },
     { key: "issues", label: t(($) => $.pages.issues), keywords: ["issues", "tasks", "bugs"] },
     { key: "projects", label: t(($) => $.pages.projects), keywords: ["projects", "kanban", "项目"] },
-    { key: "agents", label: t(($) => $.pages.agents), keywords: ["agents", "bots", "ai"] },
-    { key: "runtimes", label: t(($) => $.pages.runtimes), keywords: ["runtimes", "environments"] },
+    { key: "tasks", label: t(($) => $.pages.tasks), keywords: ["tasks", "work", "任务"] },
     { key: "skills", label: t(($) => $.pages.skills), keywords: ["skills", "library"] },
     { key: "settings", label: t(($) => $.pages.settings), keywords: ["settings", "config", "preferences", "设置"] },
   ];

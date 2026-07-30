@@ -170,7 +170,7 @@
     "delete_dialog": {
       "title": "删除这个 skill？",
       "description_with_agents_other": "将永久删除\"{{name}}\"，并从当前正在使用它的 {{count}} 个智能体上移除。",
-      "description_no_agents": "将永久删除\"{{name}}\"，并从所有智能体上移除。",
+      "description": "将永久删除“{{name}}”。",
       "warning": "此操作不可撤销。",
       "cancel": "取消",
       "confirm": "永久删除",

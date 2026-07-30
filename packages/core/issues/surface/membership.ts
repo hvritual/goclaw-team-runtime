@@ -66,8 +66,7 @@ export function listFilterDependsOn(
     changed.assignee &&
     (filter.assignee_id !== undefined ||
       filter.assignee_ids !== undefined ||
-      filter.assignee_types !== undefined ||
-      filter.involves_user_id !== undefined)
+      filter.assignee_types !== undefined)
   ) {
     return true;
   }
@@ -123,10 +122,5 @@ export function issueMatchesListFilter(
     if (issue.project_id === undefined) unknown = true;
     else if (issue.project_id !== filter.project_id) return false;
   }
-  if (filter.involves_user_id !== undefined) {
-    // Indirect-assignee predicate (owned agents / squads) — server-only.
-    unknown = true;
-  }
-
   return unknown ? "unknown" : true;
 }

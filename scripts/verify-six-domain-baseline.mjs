@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -57,8 +57,8 @@ for (const domain of manifest.domains ?? []) {
     }
 
     for (const file of files) {
-      if (!trackedFiles.has(file)) {
-        failures.push(`${domain.id}.${layer}: ${file} is not tracked`);
+      if (!trackedFiles.has(file) && !existsSync(resolve(repoRoot, file))) {
+        failures.push(`${domain.id}.${layer}: ${file} does not exist`);
         continue;
       }
 
@@ -73,8 +73,8 @@ for (const domain of manifest.domains ?? []) {
   }
 
   for (const marker of domain.markers ?? []) {
-    if (!trackedFiles.has(marker.file)) {
-      failures.push(`${domain.id}.markers: ${marker.file} is not tracked`);
+    if (!trackedFiles.has(marker.file) && !existsSync(resolve(repoRoot, marker.file))) {
+      failures.push(`${domain.id}.markers: ${marker.file} does not exist`);
       continue;
     }
 

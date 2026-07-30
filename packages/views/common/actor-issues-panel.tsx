@@ -22,8 +22,6 @@ import {
 import { IssueSurface } from "../issues/surface/issue-surface";
 import { useT } from "../i18n";
 
-export type TaskActorType = "member" | "agent";
-
 const SCOPE_VALUES: ActorIssuesScope[] = ["assigned", "created"];
 
 function ActorIssuesHeader({
@@ -105,7 +103,7 @@ export function ActorIssuesPanel({
   actorType,
   actorId,
 }: {
-  actorType: TaskActorType;
+  actorType: "member";
   actorId: string;
 }) {
   const { t } = useT("issues");

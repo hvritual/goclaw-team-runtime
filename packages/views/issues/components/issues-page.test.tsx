@@ -194,43 +194,6 @@ const mockListMembers = vi.hoisted(() =>
     },
   ]),
 );
-const mockListAgents = vi.hoisted(() =>
-  vi.fn().mockResolvedValue([
-    {
-      id: "agent-1",
-      workspace_id: "ws-1",
-      name: "Agent One",
-      description: "",
-      instructions: "",
-      status: "idle",
-      runtime_id: null,
-      owner_id: "user-1",
-      avatar_url: null,
-      visibility: "workspace",
-      archived_at: null,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    },
-  ]),
-);
-const mockListSquads = vi.hoisted(() =>
-  vi.fn().mockResolvedValue([
-    {
-      id: "squad-1",
-      workspace_id: "ws-1",
-      name: "Squad One",
-      description: "",
-      instructions: "",
-      avatar_url: null,
-      leader_id: "agent-1",
-      creator_id: "user-1",
-      archived_at: null,
-      archived_by: null,
-      created_at: "2026-01-01T00:00:00Z",
-      updated_at: "2026-01-01T00:00:00Z",
-    },
-  ]),
-);
 vi.mock("@multica/core/api", () => ({
   api: {
     getBaseUrl: () => "http://127.0.0.1:8080",
@@ -241,8 +204,6 @@ vi.mock("@multica/core/api", () => ({
     listIssueTableFacets: (request: any) => mockListIssueTableFacets(request),
     updateIssue: vi.fn(),
     listMembers: (...args: any[]) => mockListMembers(...args),
-    listAgents: (...args: any[]) => mockListAgents(...args),
-    listSquads: (...args: any[]) => mockListSquads(...args),
   },
   getApi: () => ({
     listIssues: (...args: any[]) => mockListIssues(...args),
@@ -252,8 +213,6 @@ vi.mock("@multica/core/api", () => ({
     listIssueTableFacets: (request: any) => mockListIssueTableFacets(request),
     updateIssue: vi.fn(),
     listMembers: (...args: any[]) => mockListMembers(...args),
-    listAgents: (...args: any[]) => mockListAgents(...args),
-    listSquads: (...args: any[]) => mockListSquads(...args),
   }),
   setApiInstance: vi.fn(),
 }));
@@ -533,8 +492,8 @@ const mockIssues: Issue[] = [
     description: null,
     status: "in_progress",
     priority: "medium",
-    assignee_type: "agent",
-    assignee_id: "agent-1",
+    assignee_type: "member",
+    assignee_id: "user-2",
     creator_type: "member",
     creator_id: "user-1",
     start_date: null,
@@ -567,12 +526,12 @@ const mockIssues: Issue[] = [
     workspace_id: "ws-1",
     number: 4,
     identifier: "TES-4",
-    title: "Squad task",
+    title: "Member task",
     description: null,
     status: "todo",
     priority: "medium",
-    assignee_type: "squad",
-    assignee_id: "squad-1",
+    assignee_type: "member",
+    assignee_id: "user-3",
     creator_type: "member",
     creator_id: "user-1",
     start_date: null,
@@ -721,8 +680,6 @@ describe("IssuesPage (shared)", () => {
     // assignee chip of each card grouped under that header, so a unique
     // match is not guaranteed.
     await screen.findAllByText("Test User");
-    expect(screen.getAllByText("Agent One").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Squad One").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("No assignee")).toBeInTheDocument();
   });
 
@@ -778,10 +735,9 @@ describe("IssuesPage (shared)", () => {
 
     expect(await screen.findAllByText("All")).not.toHaveLength(0);
     expect(screen.getByText("Members")).toBeInTheDocument();
-    expect(screen.getByText("Agents")).toBeInTheDocument();
   });
 
-  // The Members/Agents tabs filter server-side via assignee_types (the same
+  // The Members tab filters server-side via assignee_types (the same
   // param the grouped endpoint takes), so the mock mirrors the server's
   // WHERE clause instead of a client-side post-filter.
   function mockListIssuesHonoringAssigneeTypes() {
@@ -797,31 +753,15 @@ describe("IssuesPage (shared)", () => {
     });
   }
 
-  it("agents scope includes squad-assigned issues", async () => {
-    mockScope = "agents";
-    mockViewState.viewMode = "list";
-    mockListIssuesHonoringAssigneeTypes();
-    renderWithQuery(<IssuesPage />);
-
-    // Squad task and agent task should be visible
-    await screen.findByText("Design landing page");
-    expect(screen.getByText("Squad task")).toBeInTheDocument();
-    // Member task should NOT be visible
-    expect(screen.queryByText("Implement auth")).not.toBeInTheDocument();
-    expect(mockListIssues).toHaveBeenCalledWith(
-      expect.objectContaining({ assignee_types: ["agent", "squad"] }),
-    );
-  });
-
-  it("members scope excludes squad-assigned issues", async () => {
+  it("members scope requests member-assigned issues", async () => {
     mockScope = "members";
     mockViewState.viewMode = "list";
     mockListIssuesHonoringAssigneeTypes();
     renderWithQuery(<IssuesPage />);
 
     await screen.findByText("Implement auth");
-    expect(screen.queryByText("Squad task")).not.toBeInTheDocument();
-    expect(screen.queryByText("Design landing page")).not.toBeInTheDocument();
+    expect(screen.getByText("Member task")).toBeInTheDocument();
+    expect(screen.getByText("Design landing page")).toBeInTheDocument();
     expect(mockListIssues).toHaveBeenCalledWith(
       expect.objectContaining({ assignee_types: ["member"] }),
     );

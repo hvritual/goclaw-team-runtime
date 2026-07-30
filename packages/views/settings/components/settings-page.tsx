@@ -7,17 +7,11 @@ import {
   Key,
   Settings,
   Users,
-  FolderGit2,
-  FlaskConical,
-  Bell,
-  Plug,
-  MessageCircle,
   Tags,
   Keyboard,
   ListTodo,
   ShieldCheck,
 } from "lucide-react";
-import { GitHubMark } from "./github-mark";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@multica/ui/components/ui/tabs";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { useCurrentWorkspace } from "@multica/core/paths";
@@ -28,63 +22,43 @@ import {
 import { useNavigation } from "../../navigation";
 import { AccountTab } from "./account-tab";
 import { PreferencesTab } from "./preferences-tab";
-import { ChatTab } from "./chat-tab";
 import { IssueTab } from "./issue-tab";
 import { TokensTab } from "./tokens-tab";
 import { WorkspaceTab } from "./workspace-tab";
 import { MembersTab } from "./members-tab";
-import { PermissionsTab } from "./permissions-tab";
-import { RepositoriesTab } from "./repositories-tab";
-import { GitHubTab } from "./github-tab";
-import { IntegrationsTab } from "./integrations-tab";
-import { LabsTab } from "./labs-tab";
-import { NotificationsTab } from "./notifications-tab";
+import { RolesTab } from "./roles-tab";
 import { LabelsTab } from "./labels-tab";
 import { PropertiesTab } from "./properties-tab";
 import { KeyboardShortcutsTab } from "./keyboard-shortcuts-tab";
 import { useT } from "../../i18n";
 
-const ACCOUNT_TAB_KEYS = ["profile", "preferences", "shortcuts", "issue", "chat", "notifications", "tokens"] as const;
+const ACCOUNT_TAB_KEYS = ["profile", "preferences", "shortcuts", "issue", "tokens"] as const;
 const ACCOUNT_TAB_ICONS = {
   profile: User,
   preferences: SlidersHorizontal,
   shortcuts: Keyboard,
   issue: ListTodo,
-  chat: MessageCircle,
-  notifications: Bell,
   tokens: Key,
 } as const;
 
 const WORKSPACE_TAB_KEYS = [
   "general",
   "members",
-  "permissions",
-  "repositories",
-  "github",
-  "integrations",
-  "labs",
+  "roles",
   "labels",
   "properties",
 ] as const;
 const WORKSPACE_TAB_VALUES = {
   general: "workspace",
   members: "members",
-  permissions: "permissions",
-  repositories: "repositories",
-  github: "github",
-  integrations: "integrations",
-  labs: "labs",
+  roles: "roles",
   labels: "labels",
   properties: "properties",
 } as const;
 const WORKSPACE_TAB_ICONS = {
   general: Settings,
   members: Users,
-  permissions: ShieldCheck,
-  repositories: FolderGit2,
-  github: GitHubMark,
-  integrations: Plug,
-  labs: FlaskConical,
+  roles: ShieldCheck,
   labels: Tags,
   properties: SlidersHorizontal,
 } as const;
@@ -93,11 +67,13 @@ const DEFAULT_TAB = "profile";
 const TAB_QUERY_KEY = "tab";
 
 // Legacy `?tab=…` values that have been collapsed into another tab. Old
-// bookmarks still land on the correct surface without us preserving a
-// dead TabsContent entry. Lark used to be its own top-level workspace
-// tab; it now lives inside Integrations.
+// bookmarks still land on the closest supported settings surface without us
+// preserving a dead TabsContent entry.
 const LEGACY_WORKSPACE_TAB_REDIRECTS: Record<string, string> = {
-  lark: "integrations",
+  lark: "workspace",
+  integrations: "workspace",
+  notifications: "profile",
+  permissions: "roles",
 };
 
 const SETTINGS_TAB_TRIGGER_CLASS =
@@ -111,7 +87,7 @@ export interface ExtraSettingsTab {
 }
 
 interface SettingsPageProps {
-  /** Additional tabs injected by platform (e.g. desktop daemon settings) */
+  /** Additional account tabs injected by a platform shell. */
   extraAccountTabs?: ExtraSettingsTab[];
 }
 
@@ -129,7 +105,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
   const visibleWorkspaceTabKeys = React.useMemo(
     () =>
       WORKSPACE_TAB_KEYS.filter(
-        (key) => key !== "permissions" || canViewPermissions,
+        (key) => key !== "roles" || canViewPermissions,
       ),
     [canViewPermissions],
   );
@@ -154,7 +130,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
   const activeTab =
     candidateTab && validTabs.has(candidateTab)
       ? candidateTab
-      : candidateTab === "permissions" && !canViewPermissions
+      : candidateTab === "roles" && !canViewPermissions
         ? "workspace"
         : DEFAULT_TAB;
 
@@ -238,17 +214,11 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
           <TabsContent value="preferences"><PreferencesTab /></TabsContent>
           <TabsContent value="shortcuts"><KeyboardShortcutsTab /></TabsContent>
           <TabsContent value="issue"><IssueTab /></TabsContent>
-          <TabsContent value="chat"><ChatTab /></TabsContent>
-          <TabsContent value="notifications"><NotificationsTab /></TabsContent>
           <TabsContent value="tokens"><TokensTab /></TabsContent>
           <TabsContent value="workspace"><WorkspaceTab /></TabsContent>
-          <TabsContent value="repositories"><RepositoriesTab /></TabsContent>
-          <TabsContent value="github"><GitHubTab /></TabsContent>
-          <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
-          <TabsContent value="labs"><LabsTab /></TabsContent>
           <TabsContent value="members"><MembersTab /></TabsContent>
           {canViewPermissions ? (
-            <TabsContent value="permissions"><PermissionsTab /></TabsContent>
+            <TabsContent value="roles"><RolesTab /></TabsContent>
           ) : null}
           <TabsContent value="labels"><LabelsTab /></TabsContent>
           <TabsContent value="properties"><PropertiesTab /></TabsContent>

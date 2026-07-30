@@ -5,381 +5,138 @@
     {
       "id": "workspace",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/workspace.sql"
-        ],
-        "backend": [
-          "server/internal/handler/workspace.go",
-          "server/internal/middleware/workspace.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/workspace.ts",
-          "packages/core/workspace/queries.ts",
-          "packages/core/workspace/mutations.ts"
-        ],
-        "experience": [
-          "packages/views/workspace/create-workspace-form.tsx",
-          "packages/views/settings/components/workspace-tab.tsx",
-          "apps/web/app/(auth)/workspaces/new/page.tsx",
-          "apps/desktop/src/renderer/src/components/workspace-route-layout.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_workspace.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/workspaces.mdx"
-        ],
-        "tests": [
-          "server/internal/handler/workspace_test.go",
-          "server/internal/middleware/workspace_test.go",
-          "server/cmd/multica/cmd_workspace_test.go",
-          "packages/core/workspace/mutations.test.tsx",
-          "packages/views/workspace/create-workspace-form.test.tsx"
-        ]
+        "database": ["server/pkg/db/queries/workspace.sql"],
+        "backend": ["server/internal/handler/workspace.go", "server/internal/middleware/workspace.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/workspace.ts", "packages/core/workspace/queries.ts", "packages/core/workspace/mutations.ts"],
+        "experience": ["packages/views/workspace/create-workspace-form.tsx", "packages/views/settings/components/workspace-tab.tsx"],
+        "cli": ["server/cmd/multica/cmd_workspace.go"],
+        "docs": ["apps/docs/content/docs/workspaces.mdx"],
+        "tests": ["packages/core/workspace/mutations.test.tsx", "packages/views/workspace/create-workspace-form.test.tsx"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Route(\"/api/workspaces\"",
-            "r.Post(\"/\", h.CreateWorkspace)",
-            "h.DeleteWorkspace"
-          ]
+          "values": ["r.Route(\"/api/workspaces\"", "h.CreateWorkspace", "h.DeleteWorkspace"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventWorkspaceUpdated",
-            "EventWorkspaceDeleted"
-          ]
+          "values": ["EventWorkspaceUpdated", "EventWorkspaceDeleted"]
         }
       ]
     },
     {
       "id": "member",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/member.sql"
-        ],
-        "backend": [
-          "server/internal/handler/workspace.go",
-          "server/internal/auth/membership_cache.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/workspace.ts",
-          "packages/core/workspace/queries.ts",
-          "packages/core/permissions/use-current-member.ts"
-        ],
-        "experience": [
-          "packages/views/settings/components/members-tab.tsx",
-          "packages/views/members/member-detail-page.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/members/[id]/page.tsx",
-          "apps/desktop/src/renderer/src/pages/member-detail-page.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_workspace.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/members-roles.mdx"
-        ],
-        "tests": [
-          "server/internal/handler/workspace_test.go",
-          "server/internal/auth/membership_cache_test.go",
-          "server/cmd/multica/cmd_workspace_test.go",
-          "packages/core/workspace/hooks.test.tsx",
-          "packages/views/settings/components/workspace-tab.test.tsx"
-        ]
+        "database": ["server/pkg/db/queries/member.sql"],
+        "backend": ["server/internal/handler/workspace.go", "server/internal/handler/workspace_permissions.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/workspace.ts", "packages/core/permissions/rules.ts", "packages/core/workspace/queries.ts"],
+        "experience": ["packages/views/settings/components/members-tab.tsx", "packages/views/settings/components/roles-tab.tsx"],
+        "cli": ["server/cmd/multica/cmd_workspace.go"],
+        "docs": ["apps/docs/content/docs/members-roles.mdx"],
+        "tests": ["packages/views/settings/components/members-tab.test.tsx", "packages/views/settings/components/roles-tab.test.tsx"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Get(\"/members\", h.ListMembersWithUser)",
-            "r.Post(\"/members\", h.CreateInvitation)",
-            "r.Patch(\"/\", h.UpdateMember)",
-            "r.Delete(\"/\", h.DeleteMember)"
-          ]
+          "values": ["r.Get(\"/members\", h.ListMembersWithUser)", "r.Post(\"/members\", h.CreateInvitation)", "r.Patch(\"/members/{memberId}\", h.UpdateMember)"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventMemberAdded",
-            "EventMemberUpdated",
-            "EventMemberRemoved"
-          ]
+          "values": ["EventMemberAdded", "EventMemberUpdated", "EventMemberRemoved"]
         }
       ]
     },
     {
       "id": "project",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/project.sql",
-          "server/pkg/db/queries/project_resource.sql"
-        ],
-        "backend": [
-          "server/internal/handler/project.go",
-          "server/internal/handler/project_resource.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/project.ts",
-          "packages/core/projects/queries.ts",
-          "packages/core/projects/mutations.ts",
-          "packages/core/projects/resource-queries.ts"
-        ],
-        "experience": [
-          "packages/views/projects/components/projects-page.tsx",
-          "packages/views/projects/components/project-detail.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/projects/page.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/projects/[id]/page.tsx",
-          "apps/desktop/src/renderer/src/pages/project-detail-page.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_project.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/projects.mdx",
-          "apps/docs/content/docs/project-resources.mdx"
-        ],
-        "tests": [
-          "server/internal/handler/project_validation_test.go",
-          "server/internal/handler/project_resource_test.go",
-          "server/cmd/multica/cmd_project_test.go",
-          "packages/core/projects/mutations.test.tsx",
-          "packages/views/projects/components/projects-page.test.tsx"
-        ]
+        "database": ["server/pkg/db/queries/project.sql"],
+        "backend": ["server/internal/handler/project.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/project.ts", "packages/core/projects/queries.ts", "packages/core/projects/mutations.ts"],
+        "experience": ["packages/views/projects/components/projects-page.tsx", "packages/views/projects/components/project-detail.tsx", "apps/web/app/[workspaceSlug]/(dashboard)/projects/page.tsx"],
+        "cli": ["server/cmd/multica/cmd_project.go"],
+        "docs": ["apps/docs/content/docs/projects.mdx"],
+        "tests": ["packages/core/projects/mutations.test.tsx", "packages/views/projects/components/projects-page.test.tsx"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Route(\"/api/projects\"",
-            "h.CreateProject",
-            "h.DeleteProject",
-            "h.CreateProjectResource"
-          ]
+          "values": ["r.Route(\"/api/projects\"", "h.CreateProject", "h.UpdateProject", "h.DeleteProject"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventProjectCreated",
-            "EventProjectUpdated",
-            "EventProjectDeleted",
-            "EventProjectResourceCreated"
-          ]
+          "values": ["EventProjectCreated", "EventProjectUpdated", "EventProjectDeleted"]
         }
       ]
     },
     {
       "id": "issue",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/issue.sql",
-          "server/pkg/db/queries/issue_property.sql",
-          "server/pkg/db/queries/issue_label.sql"
-        ],
-        "backend": [
-          "server/internal/handler/issue.go",
-          "server/internal/handler/issue_move.go",
-          "server/internal/service/issue.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/issue.ts",
-          "packages/core/issues/queries.ts",
-          "packages/core/issues/mutations.ts",
-          "packages/core/issues/ws-updaters.ts"
-        ],
-        "experience": [
-          "packages/views/issues/components/issues-page.tsx",
-          "packages/views/issues/components/issue-detail.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/issues/page.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/issues/[id]/page.tsx",
-          "apps/desktop/src/renderer/src/pages/issue-detail-page.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_issue.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/issues.mdx",
-          "apps/docs/content/docs/assigning-issues.mdx"
-        ],
-        "tests": [
-          "server/cmd/server/integration_test.go",
-          "server/internal/handler/issue_validation_test.go",
-          "server/cmd/multica/cmd_issue_test.go",
-          "packages/core/issues/mutations.test.tsx",
-          "packages/views/issues/components/issues-page.test.tsx"
-        ]
+        "database": ["server/pkg/db/queries/issue.sql", "server/pkg/db/queries/comment.sql", "server/pkg/db/queries/issue_label.sql"],
+        "backend": ["server/internal/handler/issue.go", "server/internal/handler/comment.go", "server/internal/service/issue.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/issue.ts", "packages/core/types/comment.ts", "packages/core/issues/queries.ts", "packages/core/issues/mutations.ts"],
+        "experience": ["packages/views/issues/components/issues-page.tsx", "packages/views/issues/components/issue-detail.tsx", "apps/web/app/[workspaceSlug]/(dashboard)/issues/page.tsx"],
+        "cli": ["server/cmd/multica/cmd_issue.go"],
+        "docs": ["apps/docs/content/docs/issues.mdx"],
+        "tests": ["packages/core/issues/queries.test.ts", "packages/views/issues/components/issues-page.test.tsx"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Route(\"/api/issues\"",
-            "h.CreateIssue",
-            "h.UpdateIssue",
-            "h.DeleteIssue",
-            "h.ListTasksByIssue"
-          ]
+          "values": ["r.Route(\"/api/issues\"", "h.CreateIssue", "h.UpdateIssue", "h.DeleteIssue", "h.CreateComment"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventIssueCreated",
-            "EventIssueUpdated",
-            "EventIssueDeleted"
-          ]
+          "values": ["EventIssueCreated", "EventIssueUpdated", "EventIssueDeleted", "EventCommentCreated"]
         }
       ]
     },
     {
       "id": "task",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/agent.sql",
-          "server/pkg/db/queries/task_message.sql",
-          "server/pkg/db/queries/task_usage.sql",
-          "server/pkg/db/queries/task_token.sql"
-        ],
-        "backend": [
-          "server/internal/service/task.go",
-          "server/internal/handler/task_lifecycle.go",
-          "server/internal/handler/daemon.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/pkg/protocol/messages.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/agent.ts",
-          "packages/core/types/events.ts",
-          "packages/core/agents/queries.ts"
-        ],
-        "experience": [
-          "packages/views/issues/components/execution-log-section.tsx",
-          "packages/views/common/task-transcript/agent-transcript-dialog.tsx",
-          "packages/views/chat/components/task-status-pill.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_issue.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/tasks.mdx"
-        ],
-        "tests": [
-          "server/internal/service/task_claim_race_test.go",
-          "server/internal/service/task_complete_race_test.go",
-          "server/internal/service/task_cancel_finalize_test.go",
-          "server/internal/handler/task_terminal_wakeup_test.go",
-          "packages/views/issues/components/execution-log-section.test.tsx"
-        ]
+        "database": ["server/pkg/db/queries/task.sql", "server/migrations/235_task_domain.up.sql"],
+        "backend": ["server/internal/handler/task.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/task.ts", "packages/core/tasks/queries.ts", "packages/core/tasks/mutations.ts"],
+        "experience": ["packages/views/tasks/tasks-page.tsx", "apps/web/app/[workspaceSlug]/(dashboard)/tasks/page.tsx"],
+        "cli": ["server/cmd/multica/cmd_task.go"],
+        "docs": ["apps/docs/content/docs/tasks.mdx"],
+        "tests": ["packages/core/tasks/queries.test.ts"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Post(\"/tasks/{taskId}/start\", h.StartTask)",
-            "r.Post(\"/tasks/{taskId}/progress\", h.ReportTaskProgress)",
-            "r.Post(\"/tasks/{taskId}/complete\", h.CompleteTask)",
-            "r.Post(\"/tasks/{taskId}/fail\", h.FailTask)",
-            "r.Post(\"/api/tasks/{taskId}/cancel\", h.CancelTaskByUser)"
-          ]
+          "values": ["r.Route(\"/api/tasks\"", "h.CreateTask", "h.UpdateTask", "h.DeleteTask"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventTaskQueued",
-            "EventTaskDispatch",
-            "EventTaskRunning",
-            "EventTaskCompleted",
-            "EventTaskFailed",
-            "EventTaskCancelled"
-          ]
+          "values": ["EventTaskCreated", "EventTaskUpdated", "EventTaskDeleted"]
         }
       ]
     },
     {
       "id": "skill",
       "layers": {
-        "database": [
-          "server/pkg/db/queries/skill.sql"
-        ],
-        "backend": [
-          "server/internal/handler/skill.go",
-          "server/internal/handler/skill_create.go",
-          "server/internal/handler/skill_import_archive.go",
-          "server/internal/handler/runtime_local_skills.go",
-          "server/internal/daemon/skill_cache.go"
-        ],
-        "protocol": [
-          "server/pkg/protocol/events.go",
-          "server/pkg/protocol/messages.go",
-          "server/cmd/server/router.go"
-        ],
-        "client": [
-          "packages/core/types/agent.ts",
-          "packages/core/workspace/queries.ts",
-          "packages/core/skills/stores/view-store.ts",
-          "packages/core/skills/frontmatter.ts"
-        ],
-        "experience": [
-          "packages/views/skills/components/skills-page.tsx",
-          "packages/views/skills/components/skill-detail-page.tsx",
-          "packages/views/skills/components/runtime-local-skill-import-panel.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/skills/page.tsx",
-          "apps/web/app/[workspaceSlug]/(dashboard)/skills/[id]/page.tsx",
-          "apps/desktop/src/renderer/src/pages/skill-detail-page.tsx"
-        ],
-        "cli": [
-          "server/cmd/multica/cmd_skill.go"
-        ],
-        "docs": [
-          "apps/docs/content/docs/skills.mdx"
-        ],
-        "tests": [
-          "server/internal/handler/skill_test.go",
-          "server/internal/handler/skill_import_archive_test.go",
-          "server/internal/daemon/skill_bundle_resolve_test.go",
-          "server/cmd/multica/cmd_skill_test.go",
-          "packages/core/skills/frontmatter.test.ts"
-        ]
+        "database": ["server/pkg/db/queries/skill.sql"],
+        "backend": ["server/internal/handler/skill.go", "server/internal/handler/skill_create.go", "server/internal/handler/skill_import_archive.go"],
+        "protocol": ["server/pkg/protocol/events.go", "server/cmd/server/router.go"],
+        "client": ["packages/core/types/skill.ts", "packages/core/workspace/queries.ts", "packages/core/skills/frontmatter.ts"],
+        "experience": ["packages/views/skills/components/skills-page.tsx", "packages/views/skills/components/skill-detail-page.tsx", "apps/web/app/[workspaceSlug]/(dashboard)/skills/page.tsx"],
+        "cli": ["server/cmd/multica/cmd_skill.go"],
+        "docs": ["apps/docs/content/docs/skills.mdx"],
+        "tests": ["packages/core/skills/frontmatter.test.ts", "packages/views/skills/hooks/use-can-edit-skill.test.ts"]
       },
       "markers": [
         {
           "file": "server/cmd/server/router.go",
-          "values": [
-            "r.Route(\"/api/skills\"",
-            "h.CreateSkill",
-            "h.ImportSkill",
-            "h.UpdateSkill",
-            "h.DeleteSkill",
-            "h.ResolveTaskSkillBundles"
-          ]
+          "values": ["r.Route(\"/api/skills\"", "h.CreateSkill", "h.ImportSkill", "h.UpdateSkill", "h.DeleteSkill"]
         },
         {
           "file": "server/pkg/protocol/events.go",
-          "values": [
-            "EventSkillCreated",
-            "EventSkillUpdated",
-            "EventSkillDeleted"
-          ]
+          "values": ["EventSkillCreated", "EventSkillUpdated", "EventSkillDeleted"]
         }
       ]
     }

@@ -13,19 +13,22 @@ WHERE id = $1;
 SELECT * FROM project
 WHERE id = $1 AND workspace_id = $2;
 
--- name: LockProjectForChatSessionCreate :one
--- Conflicts with project deletion so a chat session cannot commit a soft
--- project reference after the delete transaction has swept existing sessions.
-SELECT id FROM project
-WHERE id = $1 AND workspace_id = $2
-FOR KEY SHARE;
-
 -- name: LockProjectForDelete :one
--- Serializes project deletion with chat-session creation. The handler locks,
--- clears every soft chat reference, and deletes the project in one transaction.
 SELECT id FROM project
 WHERE id = $1 AND workspace_id = $2
 FOR UPDATE;
+
+-- name: ClearIssueProjectByProject :exec
+UPDATE issue SET project_id = NULL, updated_at = now()
+WHERE project_id = $1 AND workspace_id = $2;
+
+-- name: ClearTaskProjectByProject :exec
+UPDATE task SET project_id = NULL, updated_at = now()
+WHERE project_id = $1 AND workspace_id = $2;
+
+-- name: DeleteProjectResourcesByProject :exec
+DELETE FROM project_resource
+WHERE project_id = $1 AND workspace_id = $2;
 
 -- name: CreateProject :one
 INSERT INTO project (

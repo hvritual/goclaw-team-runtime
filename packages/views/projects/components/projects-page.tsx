@@ -128,7 +128,7 @@ const STATUS_ORDER: Record<ProjectStatus, number> = {
 const progressOf = (p: Project) =>
   p.issue_count > 0 ? p.done_count / p.issue_count : -1;
 
-// Composite "type:id" lead value so the string[] filter holds member/agent
+// Composite "type:id" lead value used by the project filter.
 // refs alike.
 function leadFilterValue(p: Project): string | null {
   return p.lead_type && p.lead_id ? `${p.lead_type}:${p.lead_id}` : null;

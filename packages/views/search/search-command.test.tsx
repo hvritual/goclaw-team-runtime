@@ -35,8 +35,6 @@ const {
   mockPathname,
   mockGetShareableUrl,
   mockMembers,
-  mockAgents,
-  mockSquads,
   mockOpenModal,
   mockToastSuccess,
   mockClipboardWrite,
@@ -64,20 +62,6 @@ const {
       created_at: string;
       name: string;
       email: string;
-      avatar_url: string | null;
-    }>,
-  },
-  mockAgents: {
-    current: [] as Array<{
-      id: string;
-      name: string;
-      avatar_url: string | null;
-    }>,
-  },
-  mockSquads: {
-    current: [] as Array<{
-      id: string;
-      name: string;
       avatar_url: string | null;
     }>,
   },
@@ -110,11 +94,7 @@ vi.mock("../common/actor-avatar", () => ({
     const name =
       actorType === "member"
         ? mockMembers.current.find((m) => m.user_id === actorId)?.name
-        : actorType === "agent"
-          ? mockAgents.current.find((a) => a.id === actorId)?.name
-          : actorType === "squad"
-            ? mockSquads.current.find((s) => s.id === actorId)?.name
-            : undefined;
+        : undefined;
     return (
       <span
         data-testid="issue-assignee-avatar"
@@ -165,18 +145,15 @@ vi.mock("@multica/core/paths", async (importOriginal) => ({
   // derive each nav page's icon from its href) stay intact.
   ...(await importOriginal<typeof import("@multica/core/paths")>()),
   useWorkspacePaths: () => ({
-    inbox: () => "/ws-test/inbox",
     myIssues: () => "/ws-test/my-issues",
     issues: () => "/ws-test/issues",
     projects: () => "/ws-test/projects",
-    agents: () => "/ws-test/agents",
-    runtimes: () => "/ws-test/runtimes",
+    tasks: () => "/ws-test/tasks",
     skills: () => "/ws-test/skills",
     settings: () => "/ws-test/settings",
     issueDetail: (id: string) => `/ws-test/issues/${id}`,
     memberDetail: (id: string) => `/ws-test/members/${id}`,
-    agentDetail: (id: string) => `/ws-test/agents/${id}`,
-    squadDetail: (id: string) => `/ws-test/squads/${id}`,
+    taskDetail: (id: string) => `/ws-test/tasks/${id}`,
     projectDetail: (id: string) => `/ws-test/projects/${id}`,
   }),
 }));
@@ -192,8 +169,6 @@ vi.mock("@multica/core/issues/queries", () => ({
 
 vi.mock("@multica/core/workspace/queries", () => ({
   memberListOptions: () => ({ queryKey: ["workspaces", "ws-test", "members"] }),
-  agentListOptions: () => ({ queryKey: ["workspaces", "ws-test", "agents"] }),
-  squadListOptions: () => ({ queryKey: ["workspaces", "ws-test", "squads"] }),
 }));
 
 vi.mock("@multica/core/modals", () => ({
@@ -216,12 +191,6 @@ vi.mock("@tanstack/react-query", () => ({
     const key = opts.queryKey;
     if (key[0] === "workspaces" && key[2] === "members") {
       return { data: mockMembers.current };
-    }
-    if (key[0] === "workspaces" && key[2] === "agents") {
-      return { data: mockAgents.current };
-    }
-    if (key[0] === "workspaces" && key[2] === "squads") {
-      return { data: mockSquads.current };
     }
     if (opts.enabled === false) return { data: undefined };
     return { data: resolveIssue(key) };
@@ -259,8 +228,6 @@ describe("SearchCommand", () => {
     mockSearchProjects.mockReset().mockResolvedValue({ projects: [] });
     mockRecentItems.current = [];
     mockAllIssues.current = [];
-    mockAgents.current = [];
-    mockSquads.current = [];
     mockSetTheme.mockReset();
     mockTheme.current = "system";
     mockPathname.current = "/ws-test/issues";
@@ -705,15 +672,26 @@ describe("SearchCommand", () => {
 
   it("shows the assignee avatar instead of status text for recent issues", () => {
     mockRecentItems.current = [{ id: "issue-1", visitedAt: 1000 }];
-    mockAgents.current = [{ id: "agent-1", name: "Niko", avatar_url: null }];
+    mockMembers.current = [
+      {
+        id: "member-1",
+        workspace_id: "ws-test",
+        user_id: "user-1",
+        role: "member",
+        created_at: "2026-01-01T00:00:00Z",
+        name: "Niko",
+        email: "niko@example.com",
+        avatar_url: null,
+      },
+    ];
     mockAllIssues.current = [
       {
         id: "issue-1",
         identifier: "MUL-1",
         title: "Recent assigned issue",
         status: "done",
-        assignee_type: "agent",
-        assignee_id: "agent-1",
+        assignee_type: "member",
+        assignee_id: "user-1",
       },
     ];
 

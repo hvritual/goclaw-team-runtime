@@ -79,8 +79,9 @@ var capabilities = []Capability{
 	capability("issue.delete", DomainIssue, AccessAllowed, AccessAllowed, AccessAllowed),
 
 	capability("task.view", DomainTask, AccessAllowed, AccessAllowed, AccessAllowed),
-	capability("task.run", DomainTask, AccessConditional, AccessConditional, AccessConditional),
-	capability("task.cancel", DomainTask, AccessConditional, AccessConditional, AccessConditional),
+	capability("task.create", DomainTask, AccessAllowed, AccessAllowed, AccessAllowed),
+	capability("task.update", DomainTask, AccessAllowed, AccessAllowed, AccessAllowed),
+	capability("task.delete", DomainTask, AccessAllowed, AccessAllowed, AccessAllowed),
 
 	capability("skill.view", DomainSkill, AccessAllowed, AccessAllowed, AccessAllowed),
 	capability("skill.create", DomainSkill, AccessAllowed, AccessAllowed, AccessAllowed),

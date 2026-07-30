@@ -88,11 +88,7 @@ import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { propertyListOptions } from "@multica/core/properties";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { buildActorNameResolver, useActorName } from "@multica/core/workspace/hooks";
-import {
-  agentListOptions,
-  memberListOptions,
-  squadListOptions,
-} from "@multica/core/workspace/queries";
+import { memberListOptions } from "@multica/core/workspace/queries";
 import type {
   Issue,
   IssueProperty,
@@ -139,7 +135,6 @@ import {
 } from "./table-view-model";
 import type { ChildProgress } from "./list-row";
 import { ListLoadMoreFooter } from "./list-load-more-footer";
-import { IssueAgentActivityIndicator } from "./issue-agent-activity-indicator";
 
 // Enough placeholder rows to cover a typical viewport; the virtualizer only
 // mounts what fits, so overshooting costs nothing.
@@ -719,7 +714,6 @@ export function InlineTitle({
       <span className="w-16 shrink-0 text-xs text-muted-foreground">
         {row.issue.identifier}
       </span>
-      <IssueAgentActivityIndicator issueId={row.issue.id} />
       {editing ? (
         <Input
           autoFocus
@@ -2260,13 +2254,9 @@ export function TableView({
           ),
         }),
         needsActors
-          ? Promise.all([
-              queryClient.fetchQuery(memberListOptions(wsId)),
-              queryClient.fetchQuery(agentListOptions(wsId)),
-              queryClient.fetchQuery(squadListOptions(wsId)),
-            ]).then(([members, agents, squads]) =>
-              buildActorNameResolver({ members, agents, squads }),
-            )
+          ? queryClient
+              .fetchQuery(memberListOptions(wsId))
+              .then((members) => buildActorNameResolver({ members }))
           : Promise.resolve(getActorName),
       ]);
       const headers = csvColumns.map((column) => {

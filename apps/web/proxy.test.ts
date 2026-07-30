@@ -59,15 +59,10 @@ describe("proxy legacy workspace route redirects", () => {
   it.each([
     ["issues", "/acme/issues"],
     ["projects", "/acme/projects"],
-    ["agents", "/acme/agents"],
-    ["squads", "/acme/squads"],
-    ["inbox", "/acme/inbox"],
     ["my-issues", "/acme/my-issues"],
-    ["autopilots", "/acme/autopilots"],
-    ["runtimes", "/acme/runtimes"],
     ["skills", "/acme/skills"],
     ["settings", "/acme/settings"],
-    ["usage", "/acme/usage"],
+    ["tasks", "/acme/tasks"],
   ])(
     "redirects legacy /%s URLs through the last workspace slug",
     (segment, expectedPath) => {
@@ -79,24 +74,24 @@ describe("proxy legacy workspace route redirects", () => {
 
   it("preserves nested legacy paths and query strings", () => {
     expect(
-      redirectLocation("/squads/squad-123?view=members", sessionCookies),
-    ).toBe("https://app.multica.test/acme/squads/squad-123?view=members");
+      redirectLocation("/projects/project-123?view=issues", sessionCookies),
+    ).toBe("https://app.multica.test/acme/projects/project-123?view=issues");
   });
 
   it("sends logged-out legacy URLs to login", () => {
-    expect(redirectLocation("/usage?tab=billing")).toBe(
-      "https://app.multica.test/login?tab=billing",
+    expect(redirectLocation("/tasks?status=todo")).toBe(
+      "https://app.multica.test/login?status=todo",
     );
   });
 
   it("sends logged-in legacy URLs without a last workspace cookie to root", () => {
     expect(
-      redirectLocation("/squads", { multica_logged_in: "1" }),
+      redirectLocation("/skills", { multica_logged_in: "1" }),
     ).toBe("https://app.multica.test/");
   });
 
   it("does not redirect workspace-scoped URLs whose first segment is already a slug", () => {
-    expect(redirectLocation("/acme/squads", sessionCookies)).toBeNull();
+    expect(redirectLocation("/acme/projects", sessionCookies)).toBeNull();
   });
 
   it("redirects app-host root URLs to the last workspace", () => {
@@ -163,11 +158,11 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.DOCS_URL;
     process.env.DOCS_URL = "http://docs:4000";
     try {
-      const res = proxy(makeRequest("/docs/zh/agents"));
+      const res = proxy(makeRequest("/docs/zh/issues"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
-        "http://docs:4000/docs/zh/agents",
+        "http://docs:4000/docs/zh/issues",
       );
     } finally {
       restoreEnv("DOCS_URL", previous);

@@ -58,13 +58,11 @@ vi.mock("@multica/core/auth", () => ({
 vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({
     getMemberName: (id: string) => (id === "user-1" ? "Test User" : "Unknown"),
-    getAgentName: (id: string) => (id === "agent-1" ? "Claude Agent" : "Unknown Agent"),
     getActorName: (type: string, id: string) => {
       if (type === "member" && id === "user-1") return "Test User";
-      if (type === "agent" && id === "agent-1") return "Claude Agent";
       return "Unknown";
     },
-    getActorInitials: (type: string) => (type === "member" ? "TU" : "CA"),
+    getActorInitials: () => "TU",
     getActorAvatarUrl: () => null,
   }),
 }));
@@ -536,8 +534,8 @@ const mockTimeline: TimelineEntry[] = [
   {
     type: "comment",
     id: "comment-2",
-    actor_type: "agent",
-    actor_id: "agent-1",
+    actor_type: "member",
+    actor_id: "user-1",
     content: "I can help with this",
     parent_id: null,
     created_at: "2026-01-17T00:00:00Z",
@@ -632,17 +630,11 @@ describe("IssueDetail (shared)", () => {
     mockApiObj.listIssueSubscribers.mockResolvedValue([]);
     mockApiObj.listChildIssues.mockResolvedValue({ issues: [] });
     mockApiObj.getChildIssueProgress.mockResolvedValue({ progress: [] });
-    mockApiObj.getAgentTaskSnapshot.mockResolvedValue([]);
-    mockApiObj.getWorkspaceWorkingAgents.mockResolvedValue([]);
     mockApiObj.listProperties.mockResolvedValue({ properties: [], total: 0 });
     mockApiObj.listIssues.mockResolvedValue({ issues: [], total: 0 });
-    mockApiObj.getActiveTasksForIssue.mockResolvedValue({ tasks: [] });
-    mockApiObj.listTasksByIssue.mockResolvedValue([]);
-    mockApiObj.rerunIssue.mockResolvedValue({ id: "task-rerun" });
     mockApiObj.listMembers.mockResolvedValue([
       { user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" },
     ]);
-    mockApiObj.listAgents.mockResolvedValue([]);
     // Reset project mock — individual tests override per case. Default fixture
     // has project_id: null so getProject is not invoked.
     mockApiObj.getProject.mockReset();
@@ -961,33 +953,6 @@ describe("IssueDetail (shared)", () => {
     expect(screen.getByText("I can help with this")).toBeInTheDocument();
   });
 
-  it("reruns the source task from an agent failure comment", async () => {
-    mockApiObj.listTimeline.mockResolvedValue([
-      ...mockTimeline,
-      {
-        type: "comment",
-        id: "comment-failed-task",
-        actor_type: "agent",
-        actor_id: "agent-1",
-        content: "API Error: 500 Internal server error",
-        parent_id: null,
-        created_at: "2026-01-18T00:00:00Z",
-        updated_at: "2026-01-18T00:00:00Z",
-        comment_type: "system",
-        source_task_id: "task-failed",
-      },
-    ]);
-
-    renderIssueDetail();
-
-    await screen.findByText("API Error: 500 Internal server error");
-    fireEvent.click(screen.getByRole("button", { name: "Retry task" }));
-
-    await waitFor(() => {
-      expect(mockApiObj.rerunIssue).toHaveBeenCalledWith("issue-1", "task-failed");
-    });
-  });
-
   it("does not show retry for child-done system comments", async () => {
     mockApiObj.listTimeline.mockResolvedValue([
       ...mockTimeline,
@@ -1007,51 +972,6 @@ describe("IssueDetail (shared)", () => {
     renderIssueDetail();
 
     await screen.findByText("Sub-issue MUL-123 is done.");
-    expect(screen.queryByRole("button", { name: "Retry task" })).not.toBeInTheDocument();
-  });
-
-  it("does not show retry for successful agent task comments", async () => {
-    mockApiObj.listTimeline.mockResolvedValue([
-      ...mockTimeline,
-      {
-        type: "comment",
-        id: "comment-successful-task",
-        actor_type: "agent",
-        actor_id: "agent-1",
-        content: "Finished the requested work.",
-        parent_id: null,
-        created_at: "2026-01-18T00:00:00Z",
-        updated_at: "2026-01-18T00:00:00Z",
-        comment_type: "comment",
-        source_task_id: "task-success",
-      },
-    ]);
-
-    renderIssueDetail();
-
-    await screen.findByText("Finished the requested work.");
-    expect(screen.queryByRole("button", { name: "Retry task" })).not.toBeInTheDocument();
-  });
-
-  it("does not show retry for agent system comments without a source task", async () => {
-    mockApiObj.listTimeline.mockResolvedValue([
-      ...mockTimeline,
-      {
-        type: "comment",
-        id: "comment-agent-system",
-        actor_type: "agent",
-        actor_id: "agent-1",
-        content: "System coordination update.",
-        parent_id: null,
-        created_at: "2026-01-18T00:00:00Z",
-        updated_at: "2026-01-18T00:00:00Z",
-        comment_type: "system",
-      },
-    ]);
-
-    renderIssueDetail();
-
-    await screen.findByText("System coordination update.");
     expect(screen.queryByRole("button", { name: "Retry task" })).not.toBeInTheDocument();
   });
 

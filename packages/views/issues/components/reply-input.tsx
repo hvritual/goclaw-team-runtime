@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { ContentEditor, type ContentEditorRef, useFileDropZone, FileDropOverlay, useLazyEditor, useUploadGate, useComposerSubmit } from "../../editor";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
 import { SubmitButton } from "@multica/ui/components/common/submit-button";
@@ -11,8 +11,6 @@ import { useCommentDraftStore, type CommentDraftKey } from "@multica/core/issues
 import { cn } from "@multica/ui/lib/utils";
 import type { AvatarSize } from "@multica/ui/lib/avatar-size";
 import { useT } from "../../i18n";
-import { CommentTriggerChips } from "./comment-trigger-chips";
-import { useCommentTriggerPreview } from "../hooks/use-comment-trigger-preview";
 import { useCommentUploads } from "./use-comment-uploads";
 
 // ---------------------------------------------------------------------------
@@ -21,13 +19,12 @@ import { useCommentUploads } from "./use-comment-uploads";
 
 interface ReplyInputProps {
   issueId: string;
-  parentId: string;
   placeholder?: string;
   avatarType: string;
   avatarId: string;
   /** Resolves true on success, false on failure — the reply box keeps its text
    *  (locked + spinning) until then, clearing only on success. */
-  onSubmit: (content: string, attachmentIds?: string[], suppressAgentIds?: string[]) => Promise<boolean>;
+  onSubmit: (content: string, attachmentIds?: string[]) => Promise<boolean>;
   size?: "sm" | "default";
   /** When set, hydrates/persists the in-progress reply via the draft store.
    *  Required for replies inside virtualized timeline threads, where the
@@ -41,7 +38,6 @@ interface ReplyInputProps {
 
 function ReplyInput({
   issueId,
-  parentId,
   placeholder,
   avatarType,
   avatarId,
@@ -62,11 +58,8 @@ function ReplyInput({
   const [initialDraft] = useState(() =>
     draftKey ? useCommentDraftStore.getState().getDraft(draftKey) : undefined,
   );
-  const [content, setContent] = useState(initialDraft ?? "");
   const setDraft = useCommentDraftStore((s) => s.setDraft);
   const [isEmpty, setIsEmpty] = useState(!initialDraft?.trim());
-  const [suppressedAgentIds, setSuppressedAgentIds] = useState<Set<string>>(() => new Set());
-  const triggerPreview = useCommentTriggerPreview({ issueId, parentId, content });
   // Uploads for this reply session (MUL-5181) — owned by the coordinator. With
   // a draftKey they persist in the draft store so scroll-out/close no longer
   // drops an in-flight upload; without one (no persistence context) they fall
@@ -107,27 +100,6 @@ function ReplyInput({
     };
   }, [draftKey, setDraft]);
 
-  useEffect(() => {
-    setSuppressedAgentIds(new Set());
-  }, [issueId, parentId]);
-
-  useEffect(() => {
-    const visible = new Set(triggerPreview.agents.map((agent) => agent.id));
-    setSuppressedAgentIds((prev) => {
-      const next = new Set([...prev].filter((id) => visible.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [triggerPreview.agents]);
-
-  const toggleSuppressedAgent = useCallback((agentId: string) => {
-    setSuppressedAgentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(agentId)) next.delete(agentId);
-      else next.add(agentId);
-      return next;
-    });
-  }, []);
-
   // Await-then-render send (see CommentInput): the shared hook keeps the text,
   // locks + spins, and clears only once the server accepts it.
   // Stale-submit guard — see CommentInput.
@@ -167,13 +139,9 @@ function ReplyInput({
       const activeIds = pendingAttachments
         .filter((a) => contentReferencesAttachment(content, a))
         .map((a) => a.id);
-      const suppressAgentIds = triggerPreview.agents
-        .filter((agent) => suppressedAgentIds.has(agent.id))
-        .map((agent) => agent.id);
       return onSubmit(
         content,
         activeIds.length > 0 ? activeIds : undefined,
-        suppressAgentIds.length > 0 ? suppressAgentIds : undefined,
       );
     },
     onAccepted: () => {
@@ -191,9 +159,7 @@ function ReplyInput({
         uploads.forEach((u) => removeUpload(u.clientUploadId));
       }
       editorRef.current?.clearContent();
-      setContent("");
       setIsEmpty(true);
-      setSuppressedAgentIds(new Set());
       editorScrubbedRef.current = true;
     },
   });
@@ -232,7 +198,6 @@ function ReplyInput({
             onReady={lazy.onReady}
             placeholder={placeholderText}
             onUpdate={(md) => {
-              setContent(md);
               setIsEmpty(!md.trim());
               // setDraft keeps any pending attachments and drops the entry only
               // when text AND attachments are both empty.
@@ -271,15 +236,6 @@ function ReplyInput({
             <p className="text-muted-foreground">{placeholderText}</p>
           </div>
         )}
-        <div className="absolute bottom-0 left-0 right-24 min-w-0">
-          <CommentTriggerChips
-            agents={triggerPreview.agents}
-            blocked={triggerPreview.blocked}
-            draftContent={content}
-            suppressedAgentIds={suppressedAgentIds}
-            onToggle={toggleSuppressedAgent}
-          />
-        </div>
         <div className="absolute bottom-0 right-0 flex items-center gap-1">
           <FileUploadButton
             size="sm"

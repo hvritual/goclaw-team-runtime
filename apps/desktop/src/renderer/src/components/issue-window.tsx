@@ -14,7 +14,6 @@ import { workspaceBySlugOptions } from "@multica/core/workspace";
 import { Button } from "@multica/ui/components/ui/button";
 import { MulticaIcon } from "@multica/ui/components/common/multica-icon";
 import { ModalRegistry } from "@multica/views/modals/registry";
-import { WorkspacePresencePrefetch } from "@multica/views/layout";
 import { DragStrip } from "@multica/views/platform";
 import type { IssueWindowContext } from "../../../shared/issue-window";
 import { IssueDetailPage } from "../pages/issue-detail-page";
@@ -68,7 +67,6 @@ function IssueWindowRoute() {
   return (
     <WorkspaceSlugProvider slug={workspaceSlug}>
       <IssueWindowNavigationProvider>
-        <WorkspacePresencePrefetch />
         <IssueWindowFrame>
           <IssueDetailPage onDelete={() => window.desktopAPI.closeWindow()} />
         </IssueWindowFrame>

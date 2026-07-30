@@ -18,7 +18,6 @@
 import { useMemo, type RefObject } from "react";
 import { attachmentToDraftUpload, type DraftUpload } from "@multica/core/drafts";
 import { useIssueDraftStore } from "@multica/core/issues/stores";
-import type { CreateMode } from "@multica/core/issues/stores";
 import type { UploadGate } from "../editor/use-upload-gate";
 import type { ContentEditorRef } from "../editor/content-editor";
 import {
@@ -40,7 +39,6 @@ function setSharedUploads(next: DraftUpload[]): void {
 }
 
 export function useIssueCreateUploads(
-  mode: CreateMode,
   editorGate: UploadGate,
   editorRef: RefObject<ContentEditorRef | null>,
 ): CoordinatedUploads {
@@ -48,7 +46,7 @@ export function useIssueCreateUploads(
 
   const binding = useMemo<UploadDraftBinding>(
     () => ({
-      registryKey: `issue-create:${mode}`,
+      registryKey: "issue-create",
       getUploads: sharedUploads,
       addUpload: (u) => {
         const cur = sharedUploads();
@@ -92,18 +90,16 @@ export function useIssueCreateUploads(
       },
       getBody: () => {
         const { draft } = useIssueDraftStore.getState();
-        return mode === "agent" ? draft.agent.prompt : draft.manual.description;
+        return draft.manual.description;
       },
       appendToBody: (md) => {
         const state = useIssueDraftStore.getState();
-        if (mode === "agent") {
-          state.setAgent({ prompt: appendMarkdown(state.draft.agent.prompt, md) });
-        } else {
-          state.setManual({ description: appendMarkdown(state.draft.manual.description, md) });
-        }
+        state.setManual({
+          description: appendMarkdown(state.draft.manual.description, md),
+        });
       },
     }),
-    [mode],
+    [],
   );
 
   return useCoordinatedUploads(binding, uploads, {}, editorGate, editorRef);

@@ -40,14 +40,6 @@ export interface UpdateIssueRequest {
    *  Used by the description editor to register newly uploaded files so they
    *  surface in `issueAttachments` and keep their preview Eye on refresh. */
   attachment_ids?: string[];
-  /** Skip starting the agent run this write would trigger ("暂时不启动",
-   *  MUL-3375). The assignee/status change still applies. Control field —
-   *  strip from optimistic cache patches; never written onto the Issue. */
-  suppress_run?: boolean;
-  /** Free-text handoff instruction injected into the started run's opening
-   *  context (MUL-3375). Only consumed when a run actually starts. Control
-   *  field — strip from optimistic cache patches. */
-  handoff_note?: string;
 }
 
 /**
@@ -68,32 +60,6 @@ export interface MoveIssueRequest
   after_id: string | null;
 }
 
-/** Inputs to `POST /api/issues/preview-trigger`. A nil prospective field means
- *  "leave unchanged"; `isCreate` previews a not-yet-persisted issue. */
-export interface IssueTriggerPreviewParams {
-  issueIds?: string[];
-  isCreate?: boolean;
-  assigneeType?: IssueAssigneeType | null;
-  assigneeId?: string | null;
-  status?: IssueStatus;
-}
-
-/** One issue that WILL start a run under the prospective write. `agent_id` is
- *  the runnable agent (squad leader for squads). `handoff_supported` is the
- *  soft-gate signal: false when the target runtime is too old to render a
- *  handoff note (gray the note box; the assignment still works). */
-export interface IssueTriggerPreviewItem {
-  issue_id: string;
-  agent_id: string;
-  source: string;
-  handoff_supported: boolean;
-}
-
-export interface IssueTriggerPreview {
-  triggers: IssueTriggerPreviewItem[];
-  total_count: number;
-}
-
 export interface ListIssuesParams {
   limit?: number;
   offset?: number;
@@ -108,11 +74,7 @@ export interface ListIssuesParams {
   priorities?: IssuePriority[];
   assignee_id?: string;
   assignee_ids?: string[];
-  /**
-   * Narrow to issues assigned to the given actor kinds (member / agent /
-   * squad). Same semantics as `ListGroupedIssuesParams.assignee_types` —
-   * powers the workspace Members/Agents tabs server-side.
-   */
+  /** Narrow to member-assigned issues. */
   assignee_types?: IssueAssigneeType[];
   creator_id?: string;
   project_id?: string;
@@ -125,22 +87,8 @@ export interface ListIssuesParams {
   label_ids?: string[];
   /** Restrict the window to root issues instead of filtering loaded pages. */
   top_level_only?: boolean;
-  /**
-   * Hard restriction of the window to the given issue ids (the table's
-   * agents-working facet sends the live running-issue set). An EMPTY array is
-   * meaningful and yields an EMPTY window — omit the field entirely for "no
-   * restriction".
-   */
+  /** Hard restriction of the window to the given issue ids. */
   ids?: string[];
-  /**
-   * Widen the assignee filter to issues where the user is the *indirect*
-   * assignee — assignee is one of the user's owned agents, or a squad that
-   * involves the user (human member / leader-via-owned-agent / agent member
-   * owned by the user). Direct member assignment is intentionally excluded:
-   * `involves_user_id` and `assignee_id=<user>` (tab "Assigned to me") produce
-   * disjoint result sets by construction.
-   */
-  involves_user_id?: string;
   /** JSONB containment filter on `issue.metadata`. AND across keys. */
   metadata?: IssueMetadata;
   /** Custom-property filter: definition id → accepted values (option ids or
@@ -187,8 +135,6 @@ export interface ListGroupedIssuesParams {
   assignee_ids?: string[];
   creator_id?: string;
   project_id?: string;
-  /** See `ListIssuesParams.involves_user_id` — same semantics. */
-  involves_user_id?: string;
   /** JSONB containment filter on `issue.metadata`. AND across keys. */
   metadata?: IssueMetadata;
   /** Custom-property filter: definition id → accepted values (option ids or
@@ -245,7 +191,7 @@ export type IssueTableScope =
   | { kind: "project"; project_id: string }
   | { kind: "assignee"; actor: IssueActorRef }
   | { kind: "creator"; actor: IssueActorRef }
-  | { kind: "my"; relation: "assigned" | "created" | "involved" | "any" };
+  | { kind: "my"; relation: "assigned" | "created" | "any" };
 
 export interface IssueTableFilters {
   statuses?: IssueStatus[];
@@ -262,10 +208,6 @@ export interface IssueTableFilters {
     start: string;
     end: string;
   };
-  working_only?: boolean;
-  /** Match the running-task issue projection returned by
-   *  `/api/working-agents`. An explicit empty list matches nothing. */
-  working_issue_ids?: string[];
   include_sub_issues?: boolean;
 }
 

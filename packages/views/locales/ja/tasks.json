@@ -1,0 +1,13 @@
+{
+  "title": "タスク",
+  "new_placeholder": "何をする必要がありますか？",
+  "create": "タスクを追加",
+  "empty": "タスクはありません",
+  "delete": "削除",
+  "status": {
+    "todo": "未着手",
+    "in_progress": "進行中",
+    "done": "完了",
+    "cancelled": "キャンセル"
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { cn } from "@multica/ui/lib/utils";
 import { ContentEditor, type ContentEditorRef, useFileDropZone, FileDropOverlay, useLazyEditor, useUploadGate, useComposerSubmit } from "../../editor";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
@@ -9,8 +9,6 @@ import { contentReferencesAttachment } from "@multica/core/types";
 import { formatShortcut, useShortcut } from "@multica/core/shortcuts";
 import { useCommentComposerStore, useCommentDraftStore } from "@multica/core/issues/stores";
 import { useT } from "../../i18n";
-import { CommentTriggerChips } from "./comment-trigger-chips";
-import { useCommentTriggerPreview } from "../hooks/use-comment-trigger-preview";
 import { useCommentUploads } from "./use-comment-uploads";
 
 interface CommentInputProps {
@@ -18,7 +16,7 @@ interface CommentInputProps {
   /** Resolves true on success, false on failure. The composer keeps the text
    *  (editor locked + button spinning) until this settles, then clears only on
    *  success — a failed send must not silently discard the user's draft. */
-  onSubmit: (content: string, attachmentIds?: string[], suppressAgentIds?: string[]) => Promise<boolean>;
+  onSubmit: (content: string, attachmentIds?: string[]) => Promise<boolean>;
 }
 
 function CommentInput({ issueId, onSubmit }: CommentInputProps) {
@@ -37,10 +35,7 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
   const [initialDraft] = useState(() =>
     useCommentDraftStore.getState().getDraft(draftKey),
   );
-  const [content, setContent] = useState(initialDraft ?? "");
   const [isEmpty, setIsEmpty] = useState(() => !initialDraft?.trim());
-  const [suppressedAgentIds, setSuppressedAgentIds] = useState<Set<string>>(() => new Set());
-  const triggerPreview = useCommentTriggerPreview({ issueId, content });
   // Uploads for this composer session (MUL-5181). Owned by the module-level
   // coordinator and persisted in the draft store, so closing/scrolling the
   // composer away no longer drops an in-flight upload — its result lands in the
@@ -88,27 +83,6 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
     };
   }, [draftKey, setDraft]);
 
-  useEffect(() => {
-    setSuppressedAgentIds(new Set());
-  }, [issueId]);
-
-  useEffect(() => {
-    const visible = new Set(triggerPreview.agents.map((agent) => agent.id));
-    setSuppressedAgentIds((prev) => {
-      const next = new Set([...prev].filter((id) => visible.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [triggerPreview.agents]);
-
-  const toggleSuppressedAgent = useCallback((agentId: string) => {
-    setSuppressedAgentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(agentId)) next.delete(agentId);
-      else next.add(agentId);
-      return next;
-    });
-  }, []);
-
   // Await-then-render send (MUL-5181): the shared hook reads the markdown,
   // guards empty/in-flight, re-checks the upload gate, locks + spins via
   // `submitting`, and clears only once the server accepts — a failed send keeps
@@ -151,13 +125,9 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
       const activeIds = pendingAttachments
         .filter((a) => contentReferencesAttachment(content, a))
         .map((a) => a.id);
-      const suppressAgentIds = triggerPreview.agents
-        .filter((agent) => suppressedAgentIds.has(agent.id))
-        .map((agent) => agent.id);
       return onSubmit(
         content,
         activeIds.length > 0 ? activeIds : undefined,
-        suppressAgentIds.length > 0 ? suppressAgentIds : undefined,
       );
     },
     onAccepted: () => {
@@ -174,9 +144,7 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
       if (untouched) store.clearDraft(draftKey);
       if (!mountedRef.current || !untouched) return;
       editorRef.current?.clearContent();
-      setContent("");
       setIsEmpty(true);
-      setSuppressedAgentIds(new Set());
       editorScrubbedRef.current = true;
     },
   });
@@ -209,7 +177,6 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
           onReady={lazy.onReady}
           placeholder={t(($) => $.comment.leave_comment_placeholder)}
           onUpdate={(md) => {
-            setContent(md);
             setIsEmpty(!md.trim());
             // Debounced upstream (debounceMs=100). Persist on every tick so a
             // reload or scroll-out-of-viewport restores work to the keystroke.
@@ -254,15 +221,6 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
           </div>
         </div>
       )}
-      <div className="absolute bottom-1 left-2 right-28 min-w-0">
-        <CommentTriggerChips
-          agents={triggerPreview.agents}
-          blocked={triggerPreview.blocked}
-          draftContent={content}
-          suppressedAgentIds={suppressedAgentIds}
-          onToggle={toggleSuppressedAgent}
-        />
-      </div>
       <div className="absolute bottom-1 right-1.5 flex items-center gap-1">
         <FileUploadButton
           size="sm"

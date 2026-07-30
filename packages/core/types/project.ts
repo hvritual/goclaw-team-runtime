@@ -10,7 +10,7 @@ export interface Project {
   icon: string | null;
   status: ProjectStatus;
   priority: ProjectPriority;
-  lead_type: "member" | "agent" | null;
+  lead_type: "member" | null;
   lead_id: string | null;
   // Calendar days ("YYYY-MM-DD"), no time-of-day or timezone — same contract as
   // issue.start_date / issue.due_date.
@@ -29,7 +29,7 @@ export interface CreateProjectRequest {
   icon?: string;
   status?: ProjectStatus;
   priority?: ProjectPriority;
-  lead_type?: "member" | "agent";
+  lead_type?: "member";
   lead_id?: string;
   start_date?: string;
   due_date?: string;
@@ -44,7 +44,7 @@ export interface UpdateProjectRequest {
   icon?: string | null;
   status?: ProjectStatus;
   priority?: ProjectPriority;
-  lead_type?: "member" | "agent" | null;
+  lead_type?: "member" | null;
   lead_id?: string | null;
   // Omit the key to leave the date untouched; send null (or "") to clear it.
   start_date?: string | null;
@@ -62,9 +62,7 @@ export interface ListProjectsResponse {
 //
 // Known types (UI must default-case unknown server-side additions):
 //   - github_repo: cloud-side git checkout, ref = { url, ref?, default_branch_hint? }
-//   - local_directory: in-place agent execution on a specific daemon,
-//     ref = { local_path, daemon_id, label? }
-export type ProjectResourceType = "github_repo" | "local_directory";
+export type ProjectResourceType = "github_repo";
 
 export interface GithubRepoResourceRef {
   url: string;
@@ -72,15 +70,8 @@ export interface GithubRepoResourceRef {
   default_branch_hint?: string;
 }
 
-export interface LocalDirectoryResourceRef {
-  local_path: string;
-  daemon_id: string;
-  label?: string;
-}
-
 export type ProjectResourceRef =
   | GithubRepoResourceRef
-  | LocalDirectoryResourceRef
   | Record<string, unknown>;
 
 export interface ProjectResource {

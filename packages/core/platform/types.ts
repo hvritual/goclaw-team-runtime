@@ -9,7 +9,7 @@ import type { StorageAdapter } from "../types/storage";
  *  ApiClient and WSClient so all HTTP requests and WS connections from
  *  this app instance are tagged with platform / version / os. */
 export interface ClientIdentity {
-  /** Logical client kind: "web" | "desktop" | "cli" | "daemon". */
+  /** Logical client kind: "web" | "desktop" | "cli". */
   platform?: string;
   /** Client/app version string (e.g. "0.1.0"). */
   version?: string;

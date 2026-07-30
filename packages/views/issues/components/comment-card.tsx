@@ -32,10 +32,7 @@ import { useTimeAgo } from "../../i18n";
 import { ContentEditor, type ContentEditorRef, ReadonlyContent, useFileDropZone, FileDropOverlay, Attachment as AttachmentRenderer, AttachmentDownloadProvider, useUploadGate, useComposerSubmit } from "../../editor";
 import { useCommentUploads } from "./use-comment-uploads";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
-import { api, dispatchReasonCode } from "@multica/core/api";
 import { ReplyInput } from "./reply-input";
-import { CommentTriggerChips } from "./comment-trigger-chips";
-import { useCommentTriggerPreview } from "../hooks/use-comment-trigger-preview";
 import type { TimelineEntry, Attachment } from "@multica/core/types";
 import { contentReferencesAttachment } from "@multica/core/types";
 import { useCommentCollapseStore, useCommentDraftStore } from "@multica/core/issues/stores";
@@ -105,8 +102,8 @@ interface CommentCardProps {
    * `CommentRow` has to rerun the rule per row.
    */
   canModerate?: boolean;
-  onReply: (parentId: string, content: string, attachmentIds?: string[], suppressAgentIds?: string[]) => Promise<boolean>;
-  onEdit: (commentId: string, content: string, attachmentIds: string[], suppressAgentIds?: string[]) => Promise<void>;
+  onReply: (parentId: string, content: string, attachmentIds?: string[]) => Promise<boolean>;
+  onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>;
   onDelete: (commentId: string) => void;
   onToggleReaction: (commentId: string, emoji: string) => void;
   /** Resolve/unresolve any comment in this thread (commentId = the target row). */
@@ -250,68 +247,6 @@ function initialStandaloneAttachmentIds(entry: TimelineEntry): Set<string> {
   );
 }
 
-function retryableAgentFailureComment(entry: TimelineEntry): entry is TimelineEntry & { source_task_id: string } {
-  return (
-    entry.actor_type === "agent" &&
-    entry.comment_type === "system" &&
-    typeof entry.source_task_id === "string" &&
-    entry.source_task_id.length > 0
-  );
-}
-
-function TaskCommentRetryButton({
-  issueId,
-  taskId,
-  className,
-}: {
-  issueId: string;
-  taskId: string;
-  className?: string;
-}) {
-  const { t } = useT("issues");
-  const [retrying, setRetrying] = useState(false);
-
-  const handleRetry = async () => {
-    if (retrying) return;
-    setRetrying(true);
-    try {
-      await api.rerunIssue(issueId, taskId);
-    } catch (e) {
-      // Rerun re-checks the operator's invoke permission (MUL-4525); a
-      // structured 403 is a permission block, not a transient failure.
-      toast.error(
-        dispatchReasonCode(e) === "invocation_not_allowed"
-          ? t(($) => $.execution_log.retry_blocked)
-          : e instanceof Error
-            ? e.message
-            : t(($) => $.execution_log.retry_failed),
-      );
-    } finally {
-      setRetrying(false);
-    }
-  };
-
-  return (
-    <div className={cn("flex", className)}>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={handleRetry}
-        disabled={retrying}
-        aria-label={t(($) => $.execution_log.retry_task_aria)}
-      >
-        {retrying ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <RotateCcw className="h-3.5 w-3.5" />
-        )}
-        {t(($) => $.execution_log.retry_task_tooltip)}
-      </Button>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Shared edit-attachment state hook
 // ---------------------------------------------------------------------------
@@ -319,7 +254,7 @@ function TaskCommentRetryButton({
 function useEditAttachmentState(
   issueId: string,
   entry: TimelineEntry,
-  onEdit: (commentId: string, content: string, attachmentIds: string[], suppressAgentIds?: string[]) => Promise<void>,
+  onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>,
 ) {
   const { t } = useT("issues");
   const { t: tEditor } = useT("editor");
@@ -331,7 +266,6 @@ function useEditAttachmentState(
   const uploadGate = useUploadGate(editorRef);
   const cancelledRef = useRef(false);
   const [content, setContent] = useState(entry.content ?? "");
-  const [suppressedAgentIds, setSuppressedAgentIds] = useState<Set<string>>(() => new Set());
   // Uploads for this edit session (MUL-5181) — coordinator-owned, persisted in
   // the draft store keyed by the edit draft so scroll-out/close no longer drops
   // an in-flight upload.
@@ -341,20 +275,10 @@ function useEditAttachmentState(
   const { uploads, attachments: pendingAttachments, handleUpload, removeUpload, gate } =
     useCommentUploads(draftKey, { issueId }, uploadGate, editorRef);
   const [retainedStandaloneIds, setRetainedStandaloneIds] = useState<Set<string> | null>(null);
-  const triggerPreview = useCommentTriggerPreview({
-    issueId,
-    parentId: entry.parent_id ?? undefined,
-    editingCommentId: entry.id,
-    content: editing ? content : "",
-  });
 
   const editorAttachments = pendingAttachments.length > 0
     ? [...(entry.attachments ?? []), ...pendingAttachments]
     : entry.attachments;
-
-  useEffect(() => {
-    setSuppressedAgentIds(new Set());
-  }, [issueId, entry.id, entry.parent_id]);
 
   const { isDragOver, dropZoneProps } = useFileDropZone({
     onDrop: (files) => files.forEach((f) => editorRef.current?.uploadFile(f)),
@@ -365,23 +289,6 @@ function useEditAttachmentState(
   const setDraft = useCommentDraftStore((s) => s.setDraft);
   const clearDraft = useCommentDraftStore((s) => s.clearDraft);
 
-  useEffect(() => {
-    const visible = new Set(triggerPreview.agents.map((agent) => agent.id));
-    setSuppressedAgentIds((prev) => {
-      const next = new Set([...prev].filter((id) => visible.has(id)));
-      return next.size === prev.size ? prev : next;
-    });
-  }, [triggerPreview.agents]);
-
-  const toggleSuppressedAgent = useCallback((agentId: string) => {
-    setSuppressedAgentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(agentId)) next.delete(agentId);
-      else next.add(agentId);
-      return next;
-    });
-  }, []);
-
   const standaloneEditAttachments = (entry.attachments ?? []).filter((a) =>
     retainedStandaloneIds?.has(a.id),
   );
@@ -389,7 +296,6 @@ function useEditAttachmentState(
   const resetState = () => {
     setEditing(false);
     setContent(entry.content ?? "");
-    setSuppressedAgentIds(new Set());
     setRetainedStandaloneIds(null);
     // clearDraft drops both the edit text and its pending attachments.
     clearDraft(draftKey);
@@ -448,15 +354,11 @@ function useEditAttachmentState(
       if (trimmed === (entry.content ?? "").trim() && !attachmentsChanged) {
         return true;
       }
-      const suppressAgentIds = triggerPreview.agents
-        .filter((agent) => suppressedAgentIds.has(agent.id))
-        .map((agent) => agent.id);
       try {
         await onEdit(
           entry.id,
           trimmed,
           activeIds,
-          suppressAgentIds.length > 0 ? suppressAgentIds : undefined,
         );
         return true;
       } catch (err) {
@@ -498,10 +400,7 @@ function useEditAttachmentState(
     removeUpload,
     isDragOver,
     dropZoneProps,
-    triggerPreview,
     content,
-    suppressedAgentIds,
-    toggleSuppressedAgent,
     draftKey,
     setDraft,
     setContent,
@@ -540,7 +439,7 @@ function CommentRow({
   isResolution?: boolean;
   /** True when this row is the deep-link target currently being highlighted. */
   isHighlighted?: boolean;
-  onEdit: (commentId: string, content: string, attachmentIds: string[], suppressAgentIds?: string[]) => Promise<void>;
+  onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>;
   onDelete: (commentId: string) => void;
   onToggleReaction: (commentId: string, emoji: string) => void;
   onResolveToggle?: (commentId: string, resolved: boolean) => void;
@@ -569,7 +468,7 @@ function CommentRow({
         highlighted={isHighlighted}
         className="flex items-center gap-2.5 px-4 pt-1 pb-1.5"
       >
-        <ActorAvatar actorType={entry.actor_type} actorId={entry.actor_id} size="md" enableHoverCard showStatusDot />
+        <ActorAvatar actorType={entry.actor_type} actorId={entry.actor_id} size="md" enableHoverCard />
         <span className="cursor-pointer text-sm font-medium">
           {getActorName(entry.actor_type, entry.actor_id)}
         </span>
@@ -692,15 +591,7 @@ function CommentRow({
             />
           )}
           <div className="flex items-center justify-between gap-2 mt-2">
-            <div className="min-w-0 flex-1">
-              <CommentTriggerChips
-                agents={edit.triggerPreview.agents}
-                blocked={edit.triggerPreview.blocked}
-                draftContent={edit.content}
-                suppressedAgentIds={edit.suppressedAgentIds}
-                onToggle={edit.toggleSuppressedAgent}
-              />
-            </div>
+            <div className="min-w-0 flex-1" />
             <div className="flex shrink-0 items-center gap-2">
               <FileUploadButton
                 size="sm"
@@ -729,13 +620,6 @@ function CommentRow({
             <ReadonlyContent content={entry.content ?? ""} attachments={entry.attachments} />
           </div>
           <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-12 pr-4" />
-          {retryableAgentFailureComment(entry) && (
-            <TaskCommentRetryButton
-              issueId={issueId}
-              taskId={entry.source_task_id}
-              className="mt-2 pl-12 pr-4"
-            />
-          )}
           <ReactionBar
             reactions={reactions}
             currentUserId={currentUserId}
@@ -862,7 +746,7 @@ function CommentCardImpl({
               >
                 <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />
               </button>
-              <ActorAvatar actorType={entry.actor_type} actorId={entry.actor_id} size="md" enableHoverCard showStatusDot />
+              <ActorAvatar actorType={entry.actor_type} actorId={entry.actor_id} size="md" enableHoverCard />
               <span className="shrink-0 cursor-pointer text-sm font-medium">
                 {getActorName(entry.actor_type, entry.actor_id)}
               </span>
@@ -1002,13 +886,6 @@ function CommentCardImpl({
                         }
                         />
                       )}
-                    <CommentTriggerChips
-                      agents={edit.triggerPreview.agents}
-                      blocked={edit.triggerPreview.blocked}
-                      draftContent={edit.content}
-                      suppressedAgentIds={edit.suppressedAgentIds}
-                      onToggle={edit.toggleSuppressedAgent}
-                    />
                     <FileUploadButton
                       size="sm"
                       multiple
@@ -1038,13 +915,6 @@ function CommentCardImpl({
                   <ReadonlyContent content={entry.content ?? ""} attachments={entry.attachments} />
                 </div>
                 <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-10" />
-                {retryableAgentFailureComment(entry) && (
-                  <TaskCommentRetryButton
-                    issueId={issueId}
-                    taskId={entry.source_task_id}
-                    className="mt-2 pl-10"
-                  />
-                )}
                 <ReactionBar
                   reactions={reactions}
                   currentUserId={currentUserId}
@@ -1140,13 +1010,12 @@ function CommentCardImpl({
               <div className="border-t border-border/50 px-4 py-2.5">
                 <ReplyInput
                   issueId={issueId}
-                  parentId={entry.id}
                   placeholder={t(($) => $.reply.placeholder)}
                   size="sm"
                   avatarType="member"
                   avatarId={currentUserId ?? ""}
                   draftKey={`reply:${issueId}:${entry.id}`}
-                  onSubmit={(content, attachmentIds, suppressAgentIds) => onReply(entry.id, content, attachmentIds, suppressAgentIds)}
+                  onSubmit={(content, attachmentIds) => onReply(entry.id, content, attachmentIds)}
                 />
               </div>
             </>

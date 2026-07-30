@@ -11,7 +11,6 @@ import (
 // Command group IDs used across the CLI.
 const (
 	groupCore       = "core"
-	groupRuntime    = "runtime"
 	groupAdditional = "additional"
 )
 
@@ -43,7 +42,6 @@ func initHelp(root *cobra.Command) {
 
 	root.AddGroup(
 		&cobra.Group{ID: groupCore, Title: "CORE COMMANDS"},
-		&cobra.Group{ID: groupRuntime, Title: "RUNTIME COMMANDS"},
 		&cobra.Group{ID: groupAdditional, Title: "ADDITIONAL COMMANDS"},
 	)
 
@@ -120,8 +118,7 @@ FLAGS
 EXAMPLES
   $ multica login
   $ multica issue list --output json
-  $ multica daemon start
-  $ multica agent list --output json
+  $ multica task list --output json
 
 ENVIRONMENT VARIABLES
   MULTICA_SERVER_URL    Override the default server URL

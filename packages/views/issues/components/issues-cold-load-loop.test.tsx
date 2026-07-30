@@ -140,7 +140,6 @@ const mockViewState: Record<string, unknown> = {
   labelFilters: [],
   propertyFilters: {},
   cardPropertyIds: [],
-  agentRunningFilter: false,
 };
 vi.mock("@multica/core/issues/stores/view-store-context", () => ({
   ViewStoreProvider: ({ children }: { children: ReactNode }) => children,
@@ -274,7 +273,7 @@ describe("Issues cold-load render loop (MUL-4985)", () => {
     mockViewState.swimlaneGrouping = "assignee";
     const issues = [
       makeIssue({ id: "s1", title: "Swim Card 1", assignee_type: "member", assignee_id: "user-1", status: "todo" }),
-      makeIssue({ id: "s2", title: "Swim Card 2", assignee_type: "agent", assignee_id: "agent-1", status: "in_progress" }),
+      makeIssue({ id: "s2", title: "Swim Card 2", assignee_type: "member", assignee_id: "member-2", status: "in_progress" }),
       makeIssue({ id: "s3", title: "Swim Card 3", assignee_type: null, assignee_id: null, status: "todo" }),
     ];
 

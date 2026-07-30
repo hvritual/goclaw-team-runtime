@@ -65,11 +65,6 @@ export interface IssueSurfaceData {
   projectIssues: Issue[];
   issues: Issue[];
   swimlaneIssues: Issue[];
-  /** The rows the agents-working filter would leave on screen. `undefined`
-   *  means the set is genuinely unknown: Table membership is server-owned,
-   *  and the activity chip must not reconstruct a complete issue window just
-   *  to decorate the header. */
-  workingScopeIssues: Issue[] | undefined;
   filteredGanttIssues: Issue[];
   assigneeGroups?: IssueAssigneeGroup[];
   assigneeGroupQueryKey?: QueryKey;
@@ -115,13 +110,11 @@ export function useIssueSurfaceData({
   priorityFilters,
   assigneeFilters,
   includeNoAssignee,
-  agentRunningFilter,
   creatorFilters,
   projectFilters,
   includeNoProject,
   labelFilters,
   propertyFilters,
-  workingIssueIDs,
   showSubIssues,
   loadProjects,
 }: {
@@ -141,14 +134,11 @@ export function useIssueSurfaceData({
   priorityFilters: IssueFilterState["priorityFilters"];
   assigneeFilters: IssueFilterState["assigneeFilters"];
   includeNoAssignee: boolean;
-  agentRunningFilter: boolean;
   creatorFilters: IssueFilterState["creatorFilters"];
   projectFilters: string[];
   includeNoProject: boolean;
   labelFilters: string[];
   propertyFilters: Record<string, string[]>;
-  /** Distinct running-task issue ids projected by `/api/working-agents`. */
-  workingIssueIDs: ReadonlySet<string>;
   showSubIssues: boolean;
   loadProjects: boolean;
 }): IssueSurfaceData {
@@ -201,11 +191,6 @@ export function useIssueSurfaceData({
     ...issueSurfaceGanttOptions(wsId, projectId ?? ""),
     enabled: usesGantt,
   });
-  const hasWorkingIssues = workingIssueIDs.size > 0;
-  const workingFilterContext = useMemo(
-    () => ({ runningIssueIds: workingIssueIDs }),
-    [workingIssueIDs],
-  );
   const bucketedIssues = useMemo(() => {
     return serverStatusBranches.enabled
       ? serverStatusBranches.issues
@@ -247,12 +232,10 @@ export function useIssueSurfaceData({
       includeNoProject,
       labelFilters,
       propertyFilters,
-      workingOnly: agentRunningFilter,
       showSubIssues,
     }),
     [
       assigneeFilters,
-      agentRunningFilter,
       creatorFilters,
       includeNoAssignee,
       includeNoProject,
@@ -269,16 +252,11 @@ export function useIssueSurfaceData({
     () =>
       serverStatusBranches.enabled
         ? surfaceIssues
-        : applyIssueFilters(
-            surfaceIssues,
-            baseFilterState,
-            workingFilterContext,
-          ),
+        : applyIssueFilters(surfaceIssues, baseFilterState),
     [
       baseFilterState,
       serverStatusBranches.enabled,
       surfaceIssues,
-      workingFilterContext,
     ],
   );
 
@@ -292,143 +270,38 @@ export function useIssueSurfaceData({
 
   const swimlaneIssues = useMemo(
     () =>
-      applyIssueFilters(
-        surfaceIssues,
-        statuslessFilterState,
-        workingFilterContext,
-      ),
-    [statuslessFilterState, surfaceIssues, workingFilterContext],
+      applyIssueFilters(surfaceIssues, statuslessFilterState),
+    [statuslessFilterState, surfaceIssues],
   );
 
   const filteredGanttIssues = useMemo(
     () =>
       ganttCanvasRows(
-        applyIssueFilters(ganttIssues, baseFilterState, workingFilterContext),
+        applyIssueFilters(ganttIssues, baseFilterState),
         ganttShowCompleted,
       ),
     [
       baseFilterState,
       ganttIssues,
       ganttShowCompleted,
-      workingFilterContext,
     ],
   );
 
   // The assignee-grouped board renders straight from `groups`, bypassing the
   // flat applyIssueFilters output — re-apply the remaining client-only
-  // display filters per group. Server-owned group paths encode running-task
-  // membership in the canonical query; this fallback uses the same issue ids.
+  // display filters per group.
   const filteredAssigneeGroups = useMemo(
     () =>
       filterAssigneeGroups(assigneeGroupsQuery.data?.groups, {
-        agentRunningFilter,
-        runningIssueIds: workingIssueIDs,
         showSubIssues,
         propertyFilters,
       }),
     [
       assigneeGroupsQuery.data?.groups,
-      agentRunningFilter,
       propertyFilters,
       showSubIssues,
-      workingIssueIDs,
     ],
   );
-
-  const workingFilterState = useMemo<IssueFilterState>(
-    () => ({
-      ...baseFilterState,
-      workingOnly: true,
-    }),
-    [baseFilterState],
-  );
-
-  // The rows the agents-working filter leaves on screen — i.e. exactly what
-  // you get when you click the header chip.
-  //
-  // This is deliberately a projection of the render pipeline. The controller
-  // translates `/api/working-agents` into running issue ids once; both the
-  // canonical server query and client-only Gantt/extra-child paths reuse that
-  // returned issue-id set.
-  //
-  // The chip counts AGENTS, not this list's length, so these are not equal
-  // (one agent can hold two of these rows). What this set does decide is
-  // WHICH agents the chip counts — only those working on rows that survive
-  // the filters. Re-deriving that scope from the snapshot instead is what
-  // made the chip disagree with the list it was filtering: any active
-  // status/assignee/label filter, or a sub-issue hidden by the display
-  // toggle, moved the list but not the chip (MUL-4884).
-  //
-  // Each branch below must take the SAME source the matching branch of
-  // IssueSurface renders:
-  //   - gantt          → the canvas set (scheduled + dated + showCompleted)
-  //   - assignee board → the grouped response, not the flat list
-  //   - table          → unknown unless the running set is empty; Table uses
-  //     server cursor branches and never materializes a second full window
-  //   - board / list / swimlane → the flat filtered list
-  //
-  // Swimlane deliberately has no branch: SwimLaneView draws its cards from
-  // `issues` (status filter applied) and only uses the statusless
-  // `swimlaneIssues` for LANE DISCOVERY, so scoping the chip to the
-  // statusless set would count rows the canvas never draws.
-  const workingScopeIssues = useMemo(() => {
-    if (usesGantt) {
-      return ganttCanvasRows(
-        applyIssueFilters(
-          ganttIssues,
-          workingFilterState,
-          workingFilterContext,
-        ),
-        ganttShowCompleted,
-      );
-    }
-    if (usesAssigneeBoard && !serverGroupBranches.enabled) {
-      const groupedIssues = (
-        filterAssigneeGroups(assigneeGroupsQuery.data?.groups, {
-          agentRunningFilter: true,
-          runningIssueIds: workingIssueIDs,
-          showSubIssues,
-          propertyFilters,
-        }) ?? []
-      ).flatMap((group) => group.issues);
-      return applyIssueFilters(
-        groupedIssues,
-        workingFilterState,
-        workingFilterContext,
-      );
-    }
-    if (usesTable || serverStatusBranches.enabled || serverGroupBranches.enabled) {
-      // Table membership is server-owned and cursor paged. Do not rebuild a
-      // second complete issue window merely to decorate the activity chip:
-      // that was the final hidden auto-materialization loop behind the old
-      // 1,000-row ceiling. An empty running-issue set is trivially
-      // known; otherwise keep the chip indeterminate until a bounded server
-      // facet supplies the matching task/issue projection.
-      if (!hasWorkingIssues) return EMPTY_ISSUES;
-      return undefined;
-    }
-    return applyIssueFilters(
-      surfaceIssues,
-      workingFilterState,
-      workingFilterContext,
-    );
-  }, [
-    assigneeGroupsQuery.data?.groups,
-    ganttIssues,
-    ganttShowCompleted,
-    hasWorkingIssues,
-    propertyFilters,
-    showSubIssues,
-    surfaceIssues,
-    usesAssigneeBoard,
-    usesGantt,
-    usesTable,
-    serverStatusBranches.enabled,
-    serverGroupBranches.enabled,
-    workingFilterState,
-    workingFilterContext,
-    workingIssueIDs,
-  ]);
 
   const {
     data: childProgressData,
@@ -502,8 +375,6 @@ export function useIssueSurfaceData({
       priorityFilters,
       assigneeFilters,
       includeNoAssignee,
-      agentRunningFilter,
-      runningIssueIds: workingIssueIDs,
       creatorFilters,
       projectFilters,
       includeNoProject,
@@ -513,7 +384,6 @@ export function useIssueSurfaceData({
     }),
     [
       assigneeFilters,
-      agentRunningFilter,
       creatorFilters,
       includeNoAssignee,
       includeNoProject,
@@ -522,7 +392,6 @@ export function useIssueSurfaceData({
       priorityFilters,
       projectFilters,
       showSubIssues,
-      workingIssueIDs,
     ],
   );
 
@@ -558,7 +427,6 @@ export function useIssueSurfaceData({
     projectIssues: surfaceIssues,
     issues,
     swimlaneIssues,
-    workingScopeIssues,
     filteredGanttIssues,
     assigneeGroups: usesAssigneeBoard ? filteredAssigneeGroups : undefined,
     assigneeGroupQueryKey: usesAssigneeBoard

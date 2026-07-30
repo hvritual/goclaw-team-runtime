@@ -423,7 +423,7 @@ describe("flat issue table queries", () => {
           priorities: ["high"],
           assignee_filters: [{ type: "member", id: "member-1" }],
           include_no_assignee: true,
-          creator_filters: [{ type: "agent", id: "agent-1" }],
+          creator_filters: [{ type: "member", id: "member-2" }],
           project_ids: ["project-2"],
           include_no_project: true,
           label_ids: ["label-1"],
@@ -445,7 +445,7 @@ describe("flat issue table queries", () => {
       priorities: ["high"],
       assignee_filters: [{ type: "member", id: "member-1" }],
       include_no_assignee: true,
-      creator_filters: [{ type: "agent", id: "agent-1" }],
+      creator_filters: [{ type: "member", id: "member-2" }],
       project_ids: ["project-2"],
       include_no_project: true,
       label_ids: ["label-1"],
@@ -557,10 +557,9 @@ describe("flat issue table queries", () => {
     expect(listIssues).toHaveBeenCalledTimes(2);
   });
 
-  it("deduplicates the three My Issues relations and restores global sort order", async () => {
+  it("deduplicates the member's assigned and created issues and restores global sort order", async () => {
     const shared = makeIssue(1, { status: "done" });
     const backlog = makeIssue(2, { status: "backlog" });
-    const todo = makeIssue(3, { status: "todo" });
     const listIssues = vi
       .fn<(params?: ListIssuesParams) => Promise<ListIssuesResponse>>()
       .mockImplementation(async (params) => {
@@ -570,7 +569,7 @@ describe("flat issue table queries", () => {
         if (params?.creator_id) {
           return { issues: [backlog, shared], total: 2 };
         }
-        return { issues: [todo], total: 1 };
+        return { issues: [], total: 0 };
       });
     installFakeApi(listIssues);
 
@@ -586,10 +585,9 @@ describe("flat issue table queries", () => {
 
     expect(issues.map((issue) => issue.id)).toEqual([
       backlog.id,
-      todo.id,
       shared.id,
     ]);
-    expect(listIssues).toHaveBeenCalledTimes(3);
+    expect(listIssues).toHaveBeenCalledTimes(2);
   });
 });
 

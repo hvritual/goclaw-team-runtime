@@ -11,7 +11,6 @@ describe("myIssuesRelationFromScope", () => {
     ["all", "all"],
     ["assigned", "assigned"],
     ["created", "created"],
-    ["agents", "involved"],
   ] satisfies Array<[MyIssuesScope, string]>)(
     "maps %s to the surface relation %s",
     (scope, relation) => {

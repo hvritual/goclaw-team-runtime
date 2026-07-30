@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Issue, IssueAssigneeGroup } from "@multica/core/types";
 import {
-  applyIssueFilters,
   filterAssigneeGroups,
   filterIssues,
   type IssueFilters,
@@ -48,7 +47,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
 
 const issues: Issue[] = [
   makeIssue({ id: "1", status: "todo", priority: "high", assignee_type: "member", assignee_id: "u-1", creator_type: "member", creator_id: "u-1", project_id: "p-1" }),
-  makeIssue({ id: "2", status: "in_progress", priority: "medium", assignee_type: "agent", assignee_id: "a-1", creator_type: "agent", creator_id: "a-1", project_id: "p-2" }),
+  makeIssue({ id: "2", status: "in_progress", priority: "medium", assignee_type: "member", assignee_id: "u-3", creator_type: "member", creator_id: "u-3", project_id: "p-2" }),
   makeIssue({ id: "3", status: "done", priority: "low", assignee_type: null, assignee_id: null, creator_type: "member", creator_id: "u-2", project_id: null }),
   makeIssue({ id: "4", status: "todo", priority: "urgent", assignee_type: "member", assignee_id: "u-2", creator_type: "member", creator_id: "u-1", project_id: "p-1" }),
 ];
@@ -87,7 +86,7 @@ describe("filterIssues", () => {
   it("filters by assignee + No assignee combined", () => {
     const result = filterIssues(issues, {
       ...NO_FILTER,
-      assigneeFilters: [{ type: "agent", id: "a-1" }],
+      assigneeFilters: [{ type: "member", id: "u-3" }],
       includeNoAssignee: true,
     });
     expect(result.map((i) => i.id)).toEqual(["2", "3"]);
@@ -110,7 +109,7 @@ describe("filterIssues", () => {
   it("filters by creator", () => {
     const result = filterIssues(issues, {
       ...NO_FILTER,
-      creatorFilters: [{ type: "agent", id: "a-1" }],
+      creatorFilters: [{ type: "member", id: "u-3" }],
     });
     expect(result.map((i) => i.id)).toEqual(["2"]);
   });
@@ -222,66 +221,6 @@ describe("filterIssues", () => {
     expect(result.map((i) => i.id)).not.toContain("L5");
   });
 
-  // --- Agent running quick filter ---
-  it("keeps only running issues when agentRunningFilter is on", () => {
-    const result = filterIssues(issues, {
-      ...NO_FILTER,
-      agentRunningFilter: true,
-      runningIssueIds: new Set(["2", "4"]),
-    });
-    expect(result.map((i) => i.id)).toEqual(["2", "4"]);
-  });
-
-  it("hides everything when agentRunningFilter is on but no ids running", () => {
-    const result = filterIssues(issues, {
-      ...NO_FILTER,
-      agentRunningFilter: true,
-      runningIssueIds: new Set(),
-    });
-    expect(result).toHaveLength(0);
-  });
-
-  it("ignores runningIssueIds when agentRunningFilter is off", () => {
-    // The set is irrelevant unless the toggle is true — this guards against
-    // a future refactor accidentally applying the set as an implicit
-    // pre-filter when the user hasn't asked for it.
-    const result = filterIssues(issues, {
-      ...NO_FILTER,
-      runningIssueIds: new Set(["2"]),
-    });
-    expect(result).toHaveLength(4);
-  });
-
-  it("composes agentRunningFilter with other filters (AND semantics)", () => {
-    const result = filterIssues(issues, {
-      ...NO_FILTER,
-      statusFilters: ["todo"],
-      agentRunningFilter: true,
-      runningIssueIds: new Set(["1", "2"]),
-    });
-    // Issue 2 is in_progress (filtered out by status), issue 1 is todo and
-    // in the running set → only "1" survives.
-    expect(result.map((i) => i.id)).toEqual(["1"]);
-  });
-
-  it("applies workingOnly from activity context without treating queued issues as working", () => {
-    const result = applyIssueFilters(
-      issues,
-      {
-        ...NO_FILTER,
-        workingOnly: true,
-      },
-      {
-        activityByIssueId: new Map([
-          ["1", { isWorking: true, isQueued: false, runningTasks: [], queuedTasks: [] }],
-          ["2", { isWorking: false, isQueued: true, runningTasks: [], queuedTasks: [] }],
-        ]),
-      },
-    );
-
-    expect(result.map((i) => i.id)).toEqual(["1"]);
-  });
-
   // --- Show sub-issues display toggle ---
   const parentChildIssues: Issue[] = [
     makeIssue({ id: "P1", parent_issue_id: null }),
@@ -325,7 +264,7 @@ describe("filterIssues", () => {
 describe("filterAssigneeGroups", () => {
   const group = (id: string, groupIssues: Issue[]): IssueAssigneeGroup => ({
     id,
-    assignee_type: id === "none" ? null : "agent",
+    assignee_type: id === "none" ? null : "member",
     assignee_id: id === "none" ? null : id,
     issues: groupIssues,
     total: groupIssues.length,
@@ -335,7 +274,6 @@ describe("filterAssigneeGroups", () => {
     const groups = [group("a1", [makeIssue({ id: "1" })])];
     expect(filterAssigneeGroups(groups, {})).toBe(groups);
     expect(filterAssigneeGroups(groups, { showSubIssues: true })).toBe(groups);
-    expect(filterAssigneeGroups(groups, { agentRunningFilter: false })).toBe(groups);
   });
 
   it("passes undefined through untouched", () => {
@@ -357,40 +295,6 @@ describe("filterAssigneeGroups", () => {
     ).toEqual([{ id: "a1", ids: ["P1"], total: 1 }]);
   });
 
-  it("keeps only running issues when agentRunningFilter is on", () => {
-    const groups = [
-      group("a1", [makeIssue({ id: "1" }), makeIssue({ id: "2" })]),
-      group("a2", [makeIssue({ id: "3" })]),
-      group("none", [makeIssue({ id: "4" })]),
-    ];
-    const result = filterAssigneeGroups(groups, {
-      agentRunningFilter: true,
-      runningIssueIds: new Set(["2", "4"]),
-    });
-    expect(
-      result!.map((g) => ({ id: g.id, ids: g.issues.map((i) => i.id), total: g.total })),
-    ).toEqual([
-      { id: "a1", ids: ["2"], total: 1 },
-      { id: "none", ids: ["4"], total: 1 },
-    ]);
-  });
-
-  it("composes showSubIssues and agentRunningFilter (AND semantics)", () => {
-    const groups = [
-      group("a1", [
-        makeIssue({ id: "P", parent_issue_id: null }),
-        makeIssue({ id: "C", parent_issue_id: "P" }),
-      ]),
-    ];
-    // "C" is running but is a sub-issue; "P" is a top-level issue but not
-    // running → both dropped, group removed.
-    const result = filterAssigneeGroups(groups, {
-      showSubIssues: false,
-      agentRunningFilter: true,
-      runningIssueIds: new Set(["C"]),
-    });
-    expect(result).toEqual([]);
-  });
 });
 
 describe("property filters", () => {

@@ -49,7 +49,7 @@ export function useIssueSubscribers(issueId: string, userId?: string) {
               ...old,
               {
                 issue_id: p.issue_id,
-                user_type: p.user_type as "member" | "agent",
+                user_type: "member",
                 user_id: p.user_id,
                 reason: p.reason as IssueSubscriber["reason"],
                 created_at: new Date().toISOString(),
@@ -90,7 +90,7 @@ export function useIssueSubscribers(issueId: string, userId?: string) {
   const toggleSubscriber = useCallback(
     async (
       subUserId: string,
-      userType: "member" | "agent",
+      userType: "member",
       currentlySubscribed: boolean,
     ) => {
       toggleMutation.mutate({

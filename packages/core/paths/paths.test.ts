@@ -5,26 +5,16 @@ describe("paths.workspace(slug)", () => {
   const ws = paths.workspace("acme");
 
   it("builds workspace paths with slug prefix", () => {
-    expect(ws.usage()).toBe("/acme/usage");
     expect(ws.issues()).toBe("/acme/issues");
     expect(ws.issueDetail("abc-123")).toBe("/acme/issues/abc-123");
     expect(ws.projects()).toBe("/acme/projects");
     expect(ws.projectDetail("p1")).toBe("/acme/projects/p1");
-    expect(ws.autopilots()).toBe("/acme/autopilots");
-    expect(ws.autopilotDetail("a1")).toBe("/acme/autopilots/a1");
-    expect(ws.agents()).toBe("/acme/agents");
-    expect(ws.newAgent()).toBe("/acme/agents/new");
+    expect(ws.tasks()).toBe("/acme/tasks");
+    expect(ws.taskDetail("t1")).toBe("/acme/tasks/t1");
     expect(ws.memberDetail("u1")).toBe("/acme/members/u1");
-    expect(ws.inbox()).toBe("/acme/inbox");
     expect(ws.myIssues()).toBe("/acme/my-issues");
-    expect(ws.runtimes()).toBe("/acme/runtimes");
-    expect(ws.runtimeSettings("machine/runtime", "runtime one")).toBe(
-      "/acme/runtimes/machine%2Fruntime/runtime/runtime%20one",
-    );
     expect(ws.skills()).toBe("/acme/skills");
     expect(ws.skillDetail("skl_123")).toBe("/acme/skills/skl_123");
-    expect(ws.squads()).toBe("/acme/squads");
-    expect(ws.squadDetail("sq_1")).toBe("/acme/squads/sq_1");
     expect(ws.settings()).toBe("/acme/settings");
     expect(ws.attachmentPreview("att_42")).toBe("/acme/attachments/att_42/preview");
   });

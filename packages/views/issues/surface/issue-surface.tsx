@@ -30,12 +30,6 @@ import {
 export interface IssueSurfaceRenderContext {
   controller: IssueSurfaceController;
   issues: Issue[];
-  /** The rows the agents-working filter would leave on screen, with this
-   *  surface's `clientFilter` applied — headers feed it to the working chip
-   *  so the chip's count is the post-click row count (MUL-4884). Undefined
-   *  means the set is UNKNOWN (not materialized by the server-backed Table);
-   *  the chip renders an indeterminate state instead of a number. */
-  workingIssues: Issue[] | undefined;
 }
 
 interface IssueSurfaceComponentProps extends IssueSurfaceProps {
@@ -158,20 +152,9 @@ function IssueSurfaceContent({
         : controller.swimlaneIssues,
     [clientFilter, controller.swimlaneIssues],
   );
-  // Same clientFilter the rendered rows go through, so the chip's promise
-  // survives on surfaces that narrow the list locally (e.g. a search box).
-  // An UNKNOWN scope (undefined) passes through untouched — there is nothing
-  // to filter and the chip must see it as unknown.
-  const workingIssues = useMemo(
-    () =>
-      clientFilter && controller.workingScopeIssues
-        ? controller.workingScopeIssues.filter((issue) => clientFilter(issue))
-        : controller.workingScopeIssues,
-    [clientFilter, controller.workingScopeIssues],
-  );
   const renderContext = useMemo(
-    () => ({ controller, issues, workingIssues }),
-    [controller, issues, workingIssues],
+    () => ({ controller, issues }),
+    [controller, issues],
   );
   const openCreateIssue = useCallback(
     (defaults?: IssueCreateDefaults) => {

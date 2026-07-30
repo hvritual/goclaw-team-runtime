@@ -76,8 +76,8 @@ func TestRunLoginTokenAutoWatchesDiscoveredWorkspaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runLogin: %v", err)
 	}
-	if !strings.Contains(errOut, "Found 2 workspace(s):") || !strings.Contains(errOut, "daemon start") {
-		t.Fatalf("stderr = %q, want workspace discovery and daemon hint", errOut)
+	if !strings.Contains(errOut, "Found 2 workspace(s):") || !strings.Contains(errOut, "workspace switch") {
+		t.Fatalf("stderr = %q, want workspace discovery and switching hint", errOut)
 	}
 
 	cfg, err := cli.LoadCLIConfig()

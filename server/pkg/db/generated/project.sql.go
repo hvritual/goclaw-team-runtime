@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const clearIssueProjectByProject = `-- name: ClearIssueProjectByProject :exec
+UPDATE issue SET project_id = NULL, updated_at = now()
+WHERE project_id = $1 AND workspace_id = $2
+`
+
+type ClearIssueProjectByProjectParams struct {
+	ProjectID   pgtype.UUID `json:"project_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+func (q *Queries) ClearIssueProjectByProject(ctx context.Context, arg ClearIssueProjectByProjectParams) error {
+	_, err := q.db.Exec(ctx, clearIssueProjectByProject, arg.ProjectID, arg.WorkspaceID)
+	return err
+}
+
+const clearTaskProjectByProject = `-- name: ClearTaskProjectByProject :exec
+UPDATE task SET project_id = NULL, updated_at = now()
+WHERE project_id = $1 AND workspace_id = $2
+`
+
+type ClearTaskProjectByProjectParams struct {
+	ProjectID   pgtype.UUID `json:"project_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+func (q *Queries) ClearTaskProjectByProject(ctx context.Context, arg ClearTaskProjectByProjectParams) error {
+	_, err := q.db.Exec(ctx, clearTaskProjectByProject, arg.ProjectID, arg.WorkspaceID)
+	return err
+}
+
 const countIssuesByProject = `-- name: CountIssuesByProject :one
 SELECT count(*) FROM issue
 WHERE project_id = $1
@@ -89,6 +119,21 @@ type DeleteProjectParams struct {
 // Defense-in-depth: workspace_id is a SQL-layer tenant guard. See DeleteIssue.
 func (q *Queries) DeleteProject(ctx context.Context, arg DeleteProjectParams) error {
 	_, err := q.db.Exec(ctx, deleteProject, arg.ID, arg.WorkspaceID)
+	return err
+}
+
+const deleteProjectResourcesByProject = `-- name: DeleteProjectResourcesByProject :exec
+DELETE FROM project_resource
+WHERE project_id = $1 AND workspace_id = $2
+`
+
+type DeleteProjectResourcesByProjectParams struct {
+	ProjectID   pgtype.UUID `json:"project_id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+func (q *Queries) DeleteProjectResourcesByProject(ctx context.Context, arg DeleteProjectResourcesByProjectParams) error {
+	_, err := q.db.Exec(ctx, deleteProjectResourcesByProject, arg.ProjectID, arg.WorkspaceID)
 	return err
 }
 
@@ -232,26 +277,6 @@ func (q *Queries) ListProjects(ctx context.Context, arg ListProjectsParams) ([]P
 	return items, nil
 }
 
-const lockProjectForChatSessionCreate = `-- name: LockProjectForChatSessionCreate :one
-SELECT id FROM project
-WHERE id = $1 AND workspace_id = $2
-FOR KEY SHARE
-`
-
-type LockProjectForChatSessionCreateParams struct {
-	ID          pgtype.UUID `json:"id"`
-	WorkspaceID pgtype.UUID `json:"workspace_id"`
-}
-
-// Conflicts with project deletion so a chat session cannot commit a soft
-// project reference after the delete transaction has swept existing sessions.
-func (q *Queries) LockProjectForChatSessionCreate(ctx context.Context, arg LockProjectForChatSessionCreateParams) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, lockProjectForChatSessionCreate, arg.ID, arg.WorkspaceID)
-	var id pgtype.UUID
-	err := row.Scan(&id)
-	return id, err
-}
-
 const lockProjectForDelete = `-- name: LockProjectForDelete :one
 SELECT id FROM project
 WHERE id = $1 AND workspace_id = $2
@@ -263,8 +288,6 @@ type LockProjectForDeleteParams struct {
 	WorkspaceID pgtype.UUID `json:"workspace_id"`
 }
 
-// Serializes project deletion with chat-session creation. The handler locks,
-// clears every soft chat reference, and deletes the project in one transaction.
 func (q *Queries) LockProjectForDelete(ctx context.Context, arg LockProjectForDeleteParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, lockProjectForDelete, arg.ID, arg.WorkspaceID)
 	var id pgtype.UUID

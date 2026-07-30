@@ -215,7 +215,6 @@ describe("TableView cell editors under data refresh", () => {
       listMembers: async () => [],
       listAgents: async () => [],
       listSquads: async () => [],
-      getAssigneeFrequency: async () => [],
       listIssueTableRows: async () => ({
         query_fingerprint: "test",
         group_key: null,

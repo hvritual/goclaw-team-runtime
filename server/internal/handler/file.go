@@ -55,17 +55,15 @@ const maxPreviewTextSize = 2 << 20 // 2 MB
 // ---------------------------------------------------------------------------
 
 type AttachmentResponse struct {
-	ID            string  `json:"id"`
-	WorkspaceID   string  `json:"workspace_id"`
-	IssueID       *string `json:"issue_id"`
-	CommentID     *string `json:"comment_id"`
-	ChatSessionID *string `json:"chat_session_id"`
-	ChatMessageID *string `json:"chat_message_id"`
-	UploaderType  string  `json:"uploader_type"`
-	UploaderID    string  `json:"uploader_id"`
-	Filename      string  `json:"filename"`
-	URL           string  `json:"url"`
-	DownloadURL   string  `json:"download_url"`
+	ID           string  `json:"id"`
+	WorkspaceID  string  `json:"workspace_id"`
+	IssueID      *string `json:"issue_id"`
+	CommentID    *string `json:"comment_id"`
+	UploaderType string  `json:"uploader_type"`
+	UploaderID   string  `json:"uploader_id"`
+	Filename     string  `json:"filename"`
+	URL          string  `json:"url"`
+	DownloadURL  string  `json:"download_url"`
 	// MarkdownURL is the durable, absolute-when-possible URL the client
 	// SHOULD persist into markdown bodies (issue descriptions, comments,
 	// chat messages). It is computed per deployment policy by
@@ -135,6 +133,15 @@ const (
 // the caller can process, not of the resource being requested.
 const ClientCapabilityStableAttachmentURLs = "stable_attachment_urls"
 
+func requestHasClientCapability(r *http.Request, capability string) bool {
+	for _, item := range strings.Split(r.Header.Get("X-Client-Capabilities"), ",") {
+		if strings.TrimSpace(item) == capability {
+			return true
+		}
+	}
+	return false
+}
+
 // attachmentURLModeFromRequest resolves the mode a request asked for. Absent or
 // unrecognized declarations resolve to attachmentURLModeSigned, which is what
 // makes this change safe to ship ahead of any client: the server default never
@@ -174,14 +181,6 @@ func (h *Handler) attachmentToResponse(a db.Attachment, mode attachmentURLMode) 
 	if a.CommentID.Valid {
 		s := uuidToString(a.CommentID)
 		resp.CommentID = &s
-	}
-	if a.ChatSessionID.Valid {
-		s := uuidToString(a.ChatSessionID)
-		resp.ChatSessionID = &s
-	}
-	if a.ChatMessageID.Valid {
-		s := uuidToString(a.ChatMessageID)
-		resp.ChatMessageID = &s
 	}
 	return resp
 }
@@ -338,30 +337,6 @@ func (h *Handler) groupAttachments(r *http.Request, commentIDs []pgtype.UUID) ma
 	return grouped
 }
 
-// groupChatMessageAttachments loads attachments for multiple chat messages
-// and groups them by chat_message_id. Mirrors groupAttachments — used so the
-// chat message list can surface attachment metadata to the UI bubble (file
-// cards, click-through download) without an N+1 query per message.
-func (h *Handler) groupChatMessageAttachments(ctx context.Context, workspaceID string, messageIDs []pgtype.UUID) map[string][]AttachmentResponse {
-	if len(messageIDs) == 0 {
-		return nil
-	}
-	attachments, err := h.Queries.ListAttachmentsByChatMessageIDs(ctx, db.ListAttachmentsByChatMessageIDsParams{
-		Column1:     messageIDs,
-		WorkspaceID: parseUUID(workspaceID),
-	})
-	if err != nil {
-		slog.Error("failed to load attachments for chat messages", "error", err)
-		return nil
-	}
-	grouped := make(map[string][]AttachmentResponse, len(messageIDs))
-	for _, a := range attachments {
-		mid := uuidToString(a.ChatMessageID)
-		grouped[mid] = append(grouped[mid], h.attachmentToResponse(a, attachmentURLModeSigned))
-	}
-	return grouped
-}
-
 // ---------------------------------------------------------------------------
 // UploadFile — POST /api/upload-file
 // ---------------------------------------------------------------------------
@@ -467,85 +442,6 @@ func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
 			}
 			params.IssueID = issue.ID
 		}
-		if commentID := r.FormValue("comment_id"); commentID != "" {
-			commentUUID, ok := parseUUIDOrBadRequest(w, commentID, "comment_id")
-			if !ok {
-				return
-			}
-			comment, err := h.Queries.GetComment(r.Context(), commentUUID)
-			if err != nil || uuidToString(comment.WorkspaceID) != workspaceID {
-				writeError(w, http.StatusForbidden, "invalid comment_id")
-				return
-			}
-			params.CommentID = comment.ID
-		}
-		if chatSessionID := r.FormValue("chat_session_id"); chatSessionID != "" {
-			// Re-use the existing private-agent gate so the user can still
-			// reach this session — covers role downgrade and agent
-			// visibility flips. The gate writes 4xx on failure.
-			session, ok := h.gateChatSessionForUser(w, r, userID, workspaceID, chatSessionID)
-			if !ok {
-				return
-			}
-			params.ChatSessionID = session.ID
-		}
-		// task_id upload: an agent producing an image/file for its chat reply.
-		// The row is tagged with the producing task and its chat session so
-		// CompleteTask can bind it to the assistant message it synthesizes.
-		// Gate: the request must come from a task-scoped token, the form task_id
-		// must equal that token's task, the caller must be that task's agent,
-		// and it must be a chat task (has a chat_session_id).
-		if taskID := r.FormValue("task_id"); taskID != "" {
-			// Authoritative task-token boundary (load-bearing, mirrors
-			// chat_history.go:chatHistorySession). X-Task-ID is only trustworthy
-			// when the auth middleware set it from a task-scoped `mat_` token —
-			// that path is also the ONLY one that stamps X-Actor-Source=task_token
-			// and strips a client-forged X-Task-ID. A normal JWT / `mul_` PAT
-			// leaves X-Actor-Source empty and does NOT strip a forged X-Task-ID,
-			// and resolveActor's fallback will accept a real X-Agent-ID +
-			// X-Task-ID pair. So without this gate a member who learns a task ID
-			// could forge both headers and inject an attachment onto another chat
-			// task's assistant reply — a cross-session/privacy leak.
-			if r.Header.Get("X-Actor-Source") != "task_token" {
-				writeError(w, http.StatusForbidden, "task_id upload is only available from within an agent task")
-				return
-			}
-			taskUUID, ok := parseUUIDOrBadRequest(w, taskID, "task_id")
-			if !ok {
-				return
-			}
-			// Pin to the run's own task: the middleware-injected X-Task-ID is the
-			// single source of truth for which task this token may act on, so a
-			// run authorized for task A cannot tag an attachment onto task B —
-			// even another chat task of the same agent, whose session may belong
-			// to a different user.
-			boundTaskID := strings.TrimSpace(r.Header.Get("X-Task-ID"))
-			if boundTaskID == "" || !strings.EqualFold(boundTaskID, strings.TrimSpace(taskID)) {
-				writeError(w, http.StatusForbidden, "task_id must match the request's task token")
-				return
-			}
-			task, err := h.Queries.GetAgentTaskInWorkspace(r.Context(), db.GetAgentTaskInWorkspaceParams{
-				ID:          taskUUID,
-				WorkspaceID: parseUUID(workspaceID),
-			})
-			if err != nil {
-				writeError(w, http.StatusForbidden, "invalid task_id")
-				return
-			}
-			if uploaderType != "agent" || uuidToString(task.AgentID) != uploaderID {
-				writeError(w, http.StatusForbidden, "task_id upload requires the task's own agent")
-				return
-			}
-			if !task.ChatSessionID.Valid {
-				writeError(w, http.StatusBadRequest, "task_id upload requires a chat task")
-				return
-			}
-			params.TaskID = task.ID
-			// Bind the session too so reads (groupChatMessageAttachments) and
-			// GC classify the row consistently before it gains a message id.
-			params.ChatSessionID = task.ChatSessionID
-		}
-
 		link, err := h.Storage.Upload(r.Context(), key, data, contentType, header.Filename)
 		if err != nil {
 			slog.Error("file upload failed", "error", err)
