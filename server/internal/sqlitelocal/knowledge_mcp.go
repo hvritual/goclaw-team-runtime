@@ -42,12 +42,13 @@ type mcpGetInput struct {
 }
 
 type mcpProposeInput struct {
-	ProjectID string                `json:"project_id,omitempty" jsonschema:"Optional Multica project ID."`
-	Kind      knowledge.Kind        `json:"kind" jsonschema:"Knowledge kind."`
-	Title     string                `json:"title" jsonschema:"Concise candidate title."`
-	Content   string                `json:"content" jsonschema:"Proposed knowledge content."`
-	Reason    string                `json:"reason" jsonschema:"Why this content should become governed knowledge."`
-	Sources   []knowledge.SourceRef `json:"source_refs,omitempty" jsonschema:"Optional provenance references."`
+	ProjectID   string                `json:"project_id,omitempty" jsonschema:"Optional Multica project ID."`
+	KnowledgeID string                `json:"knowledge_id,omitempty" jsonschema:"Optional published knowledge ID to revise."`
+	Kind        knowledge.Kind        `json:"kind" jsonschema:"Knowledge kind."`
+	Title       string                `json:"title" jsonschema:"Concise candidate title."`
+	Content     string                `json:"content" jsonschema:"Proposed knowledge content."`
+	Reason      string                `json:"reason" jsonschema:"Why this content should become governed knowledge."`
+	Sources     []knowledge.SourceRef `json:"source_refs,omitempty" jsonschema:"Optional provenance references."`
 }
 
 type mcpKnowledgePage struct {
@@ -207,7 +208,15 @@ func (s *Server) verifyMCPToken(
 		return nil, err
 	}
 	allowedScopes := []string{scopeKnowledgeRead, scopeKnowledgePropose}
-	if role == string(workspacepermissions.RoleOwner) || role == string(workspacepermissions.RoleAdmin) {
+	candidateGlobal := role == string(workspacepermissions.RoleOwner) || role == string(workspacepermissions.RoleAdmin)
+	var candidateProjectIDs []string
+	if !candidateGlobal {
+		_, candidateProjectIDs, err = s.knowledgeReviewScope(ctx, workspaceID, tokenInfo.UserID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if candidateGlobal || len(candidateProjectIDs) > 0 {
 		allowedScopes = append(allowedScopes, scopeKnowledgeCandidateRead)
 	}
 	if s.mcpExternalVerifier == nil {
@@ -216,8 +225,10 @@ func (s *Server) verifyMCPToken(
 		tokenInfo.Scopes = intersectScopes(tokenInfo.Scopes, allowedScopes)
 	}
 	tokenInfo.Extra = map[string]any{
-		"workspace_id":   workspaceID,
-		"workspace_slug": workspaceSlug,
+		"workspace_id":          workspaceID,
+		"workspace_slug":        workspaceSlug,
+		"candidate_global":      candidateGlobal,
+		"candidate_project_ids": candidateProjectIDs,
 	}
 	return tokenInfo, nil
 }
@@ -303,11 +314,19 @@ func (s *Server) runMCPSearch(
 		if !slices.Contains(identity.Scopes, scopeKnowledgeCandidateRead) {
 			return nil, mcpKnowledgePage{}, errors.New("insufficient knowledge candidate scope")
 		}
+		if input.ProjectID != "" &&
+			!identity.CandidateGlobal &&
+			!slices.Contains(identity.CandidateProjectIDs, input.ProjectID) {
+			return nil, mcpKnowledgePage{}, errors.New("project is outside the knowledge candidate scope")
+		}
 		candidateQuery := knowledge.CandidateQuery{
 			WorkspaceID: identity.WorkspaceID,
 			ProjectID:   input.ProjectID,
 			Limit:       input.Limit,
 			Cursor:      input.CandidateCursor,
+		}
+		if !identity.CandidateGlobal {
+			candidateQuery.ProjectIDs = identity.CandidateProjectIDs
 		}
 		if input.Kind != "" {
 			candidateQuery.Kinds = []knowledge.Kind{knowledge.Kind(input.Kind)}
@@ -359,14 +378,15 @@ func (s *Server) mcpProposeKnowledge(
 		return nil, mcpKnowledgeCandidate{}, errors.New("project not found in workspace")
 	}
 	candidate, err := s.knowledgeService.Propose(ctx, knowledge.ProposalInput{
-		WorkspaceID: identity.WorkspaceID,
-		ProjectID:   input.ProjectID,
-		Kind:        input.Kind,
-		Title:       input.Title,
-		Content:     input.Content,
-		Reason:      input.Reason,
-		ProposedBy:  identity.UserID,
-		SourceRefs:  input.Sources,
+		WorkspaceID:   identity.WorkspaceID,
+		ProjectID:     input.ProjectID,
+		TargetEntryID: input.KnowledgeID,
+		Kind:          input.Kind,
+		Title:         input.Title,
+		Content:       input.Content,
+		Reason:        input.Reason,
+		ProposedBy:    identity.UserID,
+		SourceRefs:    input.Sources,
 	})
 	if err != nil {
 		return nil, mcpKnowledgeCandidate{}, err
@@ -404,9 +424,11 @@ func (s *Server) mcpReadKnowledgeResource(
 }
 
 type mcpIdentity struct {
-	UserID      string
-	WorkspaceID string
-	Scopes      []string
+	UserID              string
+	WorkspaceID         string
+	Scopes              []string
+	CandidateGlobal     bool
+	CandidateProjectIDs []string
 }
 
 func requireMCPIdentity(ctx context.Context, scope string) (mcpIdentity, error) {
@@ -415,13 +437,17 @@ func requireMCPIdentity(ctx context.Context, scope string) (mcpIdentity, error) 
 		return mcpIdentity{}, errors.New("insufficient knowledge scope")
 	}
 	workspaceID, _ := tokenInfo.Extra["workspace_id"].(string)
+	candidateGlobal, _ := tokenInfo.Extra["candidate_global"].(bool)
+	candidateProjectIDs, _ := tokenInfo.Extra["candidate_project_ids"].([]string)
 	if tokenInfo.UserID == "" || workspaceID == "" {
 		return mcpIdentity{}, errors.New("invalid MCP identity")
 	}
 	return mcpIdentity{
-		UserID:      tokenInfo.UserID,
-		WorkspaceID: workspaceID,
-		Scopes:      append([]string(nil), tokenInfo.Scopes...),
+		UserID:              tokenInfo.UserID,
+		WorkspaceID:         workspaceID,
+		Scopes:              append([]string(nil), tokenInfo.Scopes...),
+		CandidateGlobal:     candidateGlobal,
+		CandidateProjectIDs: append([]string(nil), candidateProjectIDs...),
 	}, nil
 }
 

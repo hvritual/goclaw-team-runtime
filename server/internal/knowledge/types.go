@@ -33,30 +33,33 @@ const (
 )
 
 type ProposalInput struct {
-	WorkspaceID string
-	ProjectID   string
-	Kind        Kind
-	Title       string
-	Content     string
-	Reason      string
-	ProposedBy  string
-	SourceRefs  []SourceRef
+	WorkspaceID   string
+	ProjectID     string
+	TargetEntryID string
+	Kind          Kind
+	Title         string
+	Content       string
+	Reason        string
+	ProposedBy    string
+	SourceRefs    []SourceRef
 }
 
 type Candidate struct {
-	ID          string
-	WorkspaceID string
-	ProjectID   string
-	Kind        Kind
-	Title       string
-	Content     string
-	Reason      string
-	Status      Status
-	Revision    int64
-	ProposedBy  string
-	SourceRefs  []SourceRef
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID             string
+	WorkspaceID    string
+	ProjectID      string
+	TargetEntryID  string
+	TargetRevision int64
+	Kind           Kind
+	Title          string
+	Content        string
+	Reason         string
+	Status         Status
+	Revision       int64
+	ProposedBy     string
+	SourceRefs     []SourceRef
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 type SourceRef struct {
@@ -94,12 +97,13 @@ type Review struct {
 }
 
 type Revision struct {
-	Number     int64       `json:"number"`
-	Title      string      `json:"title"`
-	Content    string      `json:"content"`
-	CreatedBy  string      `json:"created_by"`
-	CreatedAt  time.Time   `json:"created_at"`
-	SourceRefs []SourceRef `json:"source_refs"`
+	Number             int64       `json:"number"`
+	SupersedesRevision int64       `json:"supersedes_revision"`
+	Title              string      `json:"title"`
+	Content            string      `json:"content"`
+	CreatedBy          string      `json:"created_by"`
+	CreatedAt          time.Time   `json:"created_at"`
+	SourceRefs         []SourceRef `json:"source_refs"`
 }
 
 type Entry struct {
@@ -116,12 +120,14 @@ type Entry struct {
 }
 
 type ReviewCommand struct {
-	CandidateID      string
-	WorkspaceID      string
-	ExpectedRevision int64
-	NewStatus        Status
-	Review           Review
-	Entry            *Entry
+	CandidateID           string
+	WorkspaceID           string
+	ExpectedRevision      int64
+	ExpectedEntryRevision int64
+	NewStatus             Status
+	Review                Review
+	Entry                 *Entry
+	AppendRevision        *Revision
 }
 
 type Evidence struct {
@@ -197,6 +203,7 @@ type SearchPage struct {
 type CandidateQuery struct {
 	WorkspaceID string
 	ProjectID   string
+	ProjectIDs  []string
 	Statuses    []Status
 	Kinds       []Kind
 	Limit       int

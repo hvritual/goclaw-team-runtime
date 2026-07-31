@@ -287,9 +287,30 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := h.Queries.CreateTask(r.Context(), params)
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start task transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	task, err := qtx.CreateTask(r.Context(), params)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create task")
+		return
+	}
+	if task.Status == "done" || task.Status == "cancelled" {
+		if err := h.enqueueKnowledgeEvidence(
+			r.Context(),
+			tx,
+			taskKnowledgeEvidence(task, creatorID, "task.completed"),
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record task evidence")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to commit task create")
 		return
 	}
 	response := taskToResponse(task)
@@ -414,13 +435,36 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	task, err := h.Queries.UpdateTask(r.Context(), params)
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start task transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	task, err := qtx.UpdateTask(r.Context(), params)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			writeError(w, http.StatusNotFound, "task not found")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, "failed to update task")
+		return
+	}
+	wasTerminal := existing.Status == "done" || existing.Status == "cancelled"
+	isTerminal := task.Status == "done" || task.Status == "cancelled"
+	if !wasTerminal && isTerminal {
+		if err := h.enqueueKnowledgeEvidence(
+			r.Context(),
+			tx,
+			taskKnowledgeEvidence(task, requestUserID(r), "task.completed"),
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record task evidence")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to commit task update")
 		return
 	}
 	response := taskToResponse(task)

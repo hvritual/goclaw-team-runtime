@@ -15,6 +15,10 @@ type repositoryFactory struct {
 	open func(*testing.T) (knowledge.Repository, func())
 }
 
+type allowProjects struct{}
+
+func (allowProjects) ValidateProject(context.Context, string, string) error { return nil }
+
 func TestRepositoryContractStoresPublishedKnowledgeByWorkspace(t *testing.T) {
 	factories := []repositoryFactory{
 		{
@@ -197,6 +201,60 @@ func TestRepositoryContractListsCandidatesByWorkspaceAndStatus(t *testing.T) {
 			}
 			if len(page.Candidates) != 1 || page.Candidates[0].WorkspaceID != "workspace-1" {
 				t.Fatalf("candidate page = %#v", page)
+			}
+		})
+	}
+}
+
+func TestRepositoryContractListsCandidatesForReviewableProjects(t *testing.T) {
+	factories := []repositoryFactory{
+		{
+			name: "memory",
+			open: func(*testing.T) (knowledge.Repository, func()) {
+				return memory.New(), func() {}
+			},
+		},
+		{
+			name: "sqlite",
+			open: func(t *testing.T) (knowledge.Repository, func()) {
+				store, err := knowledgeSqlite.Open(filepath.Join(t.TempDir(), "knowledge.db"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return store, func() { _ = store.Close() }
+			},
+		},
+	}
+
+	for _, factory := range factories {
+		t.Run(factory.name, func(t *testing.T) {
+			store, closeStore := factory.open(t)
+			t.Cleanup(closeStore)
+			service := knowledge.NewService(store, nil, allowProjects{})
+			for _, projectID := range []string{"project-led", "project-unrelated", ""} {
+				if _, err := service.Propose(context.Background(), knowledge.ProposalInput{
+					WorkspaceID: "workspace-1",
+					ProjectID:   projectID,
+					Kind:        knowledge.KindLesson,
+					Title:       "Project lesson " + projectID,
+					Content:     "A candidate scoped to its delivery project.",
+					Reason:      "Verify lead-scoped governance.",
+					ProposedBy:  "user-1",
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			page, err := store.ListCandidates(context.Background(), knowledge.CandidateQuery{
+				WorkspaceID: "workspace-1",
+				ProjectIDs:  []string{"project-led"},
+				Statuses:    []knowledge.Status{knowledge.StatusCandidate},
+				Limit:       10,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(page.Candidates) != 1 || page.Candidates[0].ProjectID != "project-led" {
+				t.Fatalf("lead-scoped candidates = %#v", page.Candidates)
 			}
 		})
 	}

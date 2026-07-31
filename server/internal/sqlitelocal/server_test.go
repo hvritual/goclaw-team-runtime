@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/multica-ai/multica/server/internal/knowledge"
 )
 
 type testClient struct {
@@ -328,6 +331,30 @@ func TestSQLiteLocalKnowledgeCapturesProjectEvidenceAndReviewsCandidates(t *test
 	if len(sources["sources"].([]any)) == 0 {
 		t.Fatalf("knowledge sources = %#v", sources)
 	}
+	revisionProposal := client.request(http.MethodPost, "/api/knowledge/proposals", map[string]any{
+		"knowledge_id": entry["id"],
+		"project_id":   entry["project_id"],
+		"kind":         entry["kind"],
+		"title":        "Reliable recovery after validation",
+		"content":      "Recover without deleting evidence and checkpoint before backup.",
+		"reason":       "The restore drill added a required checkpoint.",
+	}, http.StatusCreated)
+	if revisionProposal["knowledge_id"] != entry["id"] || revisionProposal["target_revision"] != float64(1) {
+		t.Fatalf("revision proposal = %#v", revisionProposal)
+	}
+	revisionReview := client.request(
+		http.MethodPost,
+		"/api/knowledge/candidates/"+revisionProposal["id"].(string)+"/review",
+		map[string]any{
+			"action": "approve", "expected_revision": 1,
+			"rationale": "The updated recovery steps passed validation.",
+		},
+		http.StatusOK,
+	)
+	revisedEntry := revisionReview["entry"].(map[string]any)
+	if revisedEntry["id"] != entry["id"] || revisedEntry["current_revision"] != float64(2) {
+		t.Fatalf("revised entry = %#v", revisedEntry)
+	}
 }
 
 func TestSQLiteLocalMembersCannotInspectKnowledgeCandidates(t *testing.T) {
@@ -377,6 +404,85 @@ func TestSQLiteLocalMembersCannotInspectKnowledgeCandidates(t *testing.T) {
 	}, http.StatusCreated)
 	if proposal["status"] != "candidate" {
 		t.Fatalf("member proposal = %#v", proposal)
+	}
+}
+
+func TestSQLiteLocalProjectLeadReviewsOnlyTheirProjectKnowledge(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com", "code": "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Lead Review Team", "slug": "lead-review-team",
+	}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+
+	lead := &testClient{t: t, app: app, slug: owner.slug}
+	leadLogin := lead.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "lead@example.com", "code": "888888",
+	}, http.StatusOK)
+	lead.token = leadLogin["token"].(string)
+	leadUserID := leadLogin["user"].(map[string]any)["id"].(string)
+	if _, err := app.db.Exec(`
+		INSERT INTO members(id, workspace_id, user_id, role, created_at)
+		VALUES (?, ?, ?, 'member', ?)`, newID(), workspace["id"], leadUserID, now()); err != nil {
+		t.Fatal(err)
+	}
+
+	ledProject := owner.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Led delivery", "lead_type": "member", "lead_id": leadUserID,
+	}, http.StatusCreated)
+	unrelatedProject := owner.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Unrelated delivery",
+	}, http.StatusCreated)
+
+	ownerLed := owner.request(
+		http.MethodGet,
+		"/api/knowledge/candidates?project_id="+ledProject["id"].(string),
+		nil,
+		http.StatusOK,
+	)
+	ownerUnrelated := owner.request(
+		http.MethodGet,
+		"/api/knowledge/candidates?project_id="+unrelatedProject["id"].(string),
+		nil,
+		http.StatusOK,
+	)
+	ledCandidate := ownerLed["candidates"].([]any)[0].(map[string]any)
+	unrelatedCandidate := ownerUnrelated["candidates"].([]any)[0].(map[string]any)
+
+	leadCandidates := lead.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	items := leadCandidates["candidates"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["project_id"] != ledProject["id"] {
+		t.Fatalf("lead candidate scope = %#v", leadCandidates)
+	}
+	lead.request(
+		http.MethodPost,
+		"/api/knowledge/candidates/"+unrelatedCandidate["id"].(string)+"/review",
+		map[string]any{
+			"action": "approve", "expected_revision": 1,
+			"rationale": "Must not review another project.",
+		},
+		http.StatusForbidden,
+	)
+	reviewed := lead.request(
+		http.MethodPost,
+		"/api/knowledge/candidates/"+ledCandidate["id"].(string)+"/review",
+		map[string]any{
+			"action": "approve", "expected_revision": 1,
+			"rationale": "Verified within the led project.",
+		},
+		http.StatusOK,
+	)
+	if reviewed["entry"] == nil {
+		t.Fatalf("lead review response = %#v", reviewed)
 	}
 }
 
@@ -919,6 +1025,21 @@ type bearerRoundTripper struct {
 	base  http.RoundTripper
 }
 
+type cancellationAwareKnowledgeStore struct {
+	knowledgeOperationalStore
+	canceled chan struct{}
+	once     sync.Once
+}
+
+func (store *cancellationAwareKnowledgeStore) Search(
+	ctx context.Context,
+	_ knowledge.SearchQuery,
+) (knowledge.SearchPage, error) {
+	<-ctx.Done()
+	store.once.Do(func() { close(store.canceled) })
+	return knowledge.SearchPage{}, ctx.Err()
+}
+
 func (transport bearerRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	cloned := request.Clone(request.Context())
 	cloned.Header.Set("Authorization", "Bearer "+transport.token)
@@ -998,6 +1119,16 @@ func TestSQLiteLocalKnowledgeMCPListsOnlySafeToolsAndCreatesCandidates(t *testin
 	if result.IsError {
 		t.Fatalf("knowledge_propose returned an MCP error: %#v", result.Content)
 	}
+	if _, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_propose",
+		Arguments: map[string]any{
+			"kind": "lesson", "title": "Second MCP proposal",
+			"content": "Independent candidate pagination must not skip results.",
+			"reason":  "Verify candidate pagination.",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "knowledge_search",
 		Arguments: map[string]any{
@@ -1011,8 +1142,47 @@ func TestSQLiteLocalKnowledgeMCPListsOnlySafeToolsAndCreatesCandidates(t *testin
 	if result.IsError {
 		t.Fatalf("candidate-scoped knowledge_search returned an MCP error: %#v", result.Content)
 	}
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_list",
+		Arguments: map[string]any{
+			"include_candidates": true,
+			"limit":              1,
+		},
+	})
+	if err != nil || result.IsError {
+		t.Fatalf("first candidate page: result=%#v err=%v", result, err)
+	}
+	firstPage, ok := result.StructuredContent.(map[string]any)
+	if !ok || firstPage["candidate_next_cursor"] == nil || firstPage["candidate_next_cursor"] == "" {
+		t.Fatalf("first candidate page omitted cursor: %#v", result.StructuredContent)
+	}
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_list",
+		Arguments: map[string]any{
+			"include_candidates": true,
+			"limit":              1,
+			"candidate_cursor":   firstPage["candidate_next_cursor"],
+		},
+	})
+	if err != nil || result.IsError {
+		t.Fatalf("second candidate page: result=%#v err=%v", result, err)
+	}
+	secondPage, ok := result.StructuredContent.(map[string]any)
+	if !ok || len(secondPage["candidates"].([]any)) != 1 {
+		t.Fatalf("second candidate page = %#v", result.StructuredContent)
+	}
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "knowledge_search",
+		Arguments: map[string]any{"query": ""},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.IsError {
+		t.Fatalf("empty knowledge search should return a tool error: %#v", result)
+	}
 	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
-	if candidates["total"].(float64) != 1 {
+	if candidates["total"].(float64) != 2 {
 		t.Fatalf("MCP proposal candidates = %#v", candidates)
 	}
 }
@@ -1042,5 +1212,52 @@ func TestSQLiteLocalKnowledgeMCPRejectsMissingTokenAndCrossOriginRequests(t *tes
 	app.Handler().ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("cross-origin status = %d, want %d", response.Code, http.StatusForbidden)
+	}
+}
+
+func TestSQLiteLocalKnowledgeMCPPropagatesRequestCancellation(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com", "code": "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Cancellation Team", "slug": "cancellation-team",
+	}, http.StatusCreated)
+
+	cancelAware := &cancellationAwareKnowledgeStore{
+		knowledgeOperationalStore: app.knowledgeStore,
+		canceled:                  make(chan struct{}),
+	}
+	app.knowledgeStore = cancelAware
+	httpServer := httptest.NewServer(app.Handler())
+	t.Cleanup(httpServer.Close)
+	httpClient := &http.Client{Transport: bearerRoundTripper{
+		token: client.token, base: http.DefaultTransport,
+	}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "cancel-test", Version: "1.0.0"}, nil)
+	session, err := mcpClient.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint:   httpServer.URL + "/mcp/cancellation-team/knowledge",
+		HTTPClient: httpClient, DisableStandaloneSSE: true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+
+	callContext, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, _ = session.CallTool(callContext, &mcp.CallToolParams{
+		Name: "knowledge_search", Arguments: map[string]any{"query": "wait"},
+	})
+	select {
+	case <-cancelAware.canceled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("MCP request cancellation did not reach the knowledge search adapter")
 	}
 }

@@ -22,7 +22,16 @@ import (
 //go:embed schema.sql
 var schema string
 
-const SchemaVersion = 1
+const SchemaVersion = 2
+
+const revisionProposalMigration = `
+ALTER TABLE knowledge_candidate
+    ADD COLUMN target_entry_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE knowledge_candidate
+    ADD COLUMN target_revision INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE knowledge_revision
+    ADD COLUMN supersedes_revision INTEGER NOT NULL DEFAULT 0;
+`
 
 type migration struct {
 	version int
@@ -31,6 +40,7 @@ type migration struct {
 
 var migrations = []migration{
 	{version: 1, sql: schema},
+	{version: 2, sql: revisionProposalMigration},
 }
 
 type Store struct {
@@ -288,12 +298,15 @@ func (s *Store) CreateCandidate(ctx context.Context, candidate knowledge.Candida
 	}
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO knowledge_candidate(
-			id, workspace_id, project_id, kind, title, content, reason, status,
+			id, workspace_id, project_id, target_entry_id, target_revision,
+			kind, title, content, reason, status,
 			revision, proposed_by, source_refs_json, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		candidate.ID,
 		candidate.WorkspaceID,
 		candidate.ProjectID,
+		candidate.TargetEntryID,
+		candidate.TargetRevision,
 		candidate.Kind,
 		candidate.Title,
 		candidate.Content,
@@ -313,7 +326,8 @@ func (s *Store) CreateCandidate(ctx context.Context, candidate knowledge.Candida
 
 func (s *Store) GetCandidate(ctx context.Context, id string) (knowledge.Candidate, error) {
 	return scanCandidate(s.db.QueryRowContext(ctx, `
-		SELECT id, workspace_id, project_id, kind, title, content, reason, status,
+		SELECT id, workspace_id, project_id, target_entry_id, target_revision,
+		       kind, title, content, reason, status,
 		       revision, proposed_by, source_refs_json, created_at, updated_at
 		FROM knowledge_candidate WHERE id = ?`, id))
 }
@@ -328,7 +342,7 @@ func (s *Store) GetEntry(ctx context.Context, workspaceID, id string) (knowledge
 		return knowledge.Entry{}, err
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT revision, title, content, created_by, created_at, source_refs_json
+		SELECT revision, supersedes_revision, title, content, created_by, created_at, source_refs_json
 		FROM knowledge_revision
 		WHERE entry_id = ?
 		ORDER BY revision`, entry.ID)
@@ -366,6 +380,17 @@ func (s *Store) ListCandidates(
 	if query.ProjectID != "" {
 		where = append(where, "project_id = ?")
 		arguments = append(arguments, query.ProjectID)
+	} else if query.ProjectIDs != nil {
+		if len(query.ProjectIDs) == 0 {
+			where = append(where, "1 = 0")
+		} else {
+			placeholders := make([]string, 0, len(query.ProjectIDs))
+			for _, projectID := range query.ProjectIDs {
+				placeholders = append(placeholders, "?")
+				arguments = append(arguments, projectID)
+			}
+			where = append(where, "project_id IN ("+strings.Join(placeholders, ",")+")")
+		}
 	}
 	if len(query.Statuses) > 0 {
 		placeholders := make([]string, 0, len(query.Statuses))
@@ -385,7 +410,8 @@ func (s *Store) ListCandidates(
 	}
 	arguments = append(arguments, limit+1, offset)
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, workspace_id, project_id, kind, title, content, reason, status,
+		SELECT id, workspace_id, project_id, target_entry_id, target_revision,
+		       kind, title, content, reason, status,
 		       revision, proposed_by, source_refs_json, created_at, updated_at
 		FROM knowledge_candidate
 		WHERE `+strings.Join(where, " AND ")+`
@@ -425,7 +451,8 @@ func (s *Store) ReviewCandidate(
 	defer tx.Rollback()
 
 	candidate, err := scanCandidate(tx.QueryRowContext(ctx, `
-		SELECT id, workspace_id, project_id, kind, title, content, reason, status,
+		SELECT id, workspace_id, project_id, target_entry_id, target_revision,
+		       kind, title, content, reason, status,
 		       revision, proposed_by, source_refs_json, created_at, updated_at
 		FROM knowledge_candidate WHERE id = ?`, command.CandidateID))
 	if err != nil {
@@ -439,6 +466,42 @@ func (s *Store) ReviewCandidate(
 	}
 	if candidate.Status != knowledge.StatusCandidate && candidate.Status != knowledge.StatusInReview {
 		return knowledge.Candidate{}, nil, errors.New("knowledge candidate is already reviewed")
+	}
+	if command.AppendRevision != nil {
+		entry, err := scanEntry(tx.QueryRowContext(ctx, `
+			SELECT id, workspace_id, project_id, candidate_id, kind, status,
+			       current_revision, created_at, updated_at
+			FROM knowledge_entry
+			WHERE id = ? AND workspace_id = ?`, candidate.TargetEntryID, command.WorkspaceID))
+		if err != nil {
+			return knowledge.Candidate{}, nil, err
+		}
+		if entry.CurrentRevision != command.ExpectedEntryRevision {
+			return knowledge.Candidate{}, nil, knowledge.ErrRevisionConflict
+		}
+		if err := insertRevision(ctx, tx, entry.ID, *command.AppendRevision); err != nil {
+			return knowledge.Candidate{}, nil, err
+		}
+		result, err := tx.ExecContext(ctx, `
+			UPDATE knowledge_entry
+			SET current_revision = ?, updated_at = ?
+			WHERE id = ? AND workspace_id = ? AND current_revision = ?`,
+			command.AppendRevision.Number,
+			formatTime(command.AppendRevision.CreatedAt),
+			entry.ID,
+			command.WorkspaceID,
+			command.ExpectedEntryRevision,
+		)
+		if err != nil {
+			return knowledge.Candidate{}, nil, fmt.Errorf("advance knowledge entry revision: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return knowledge.Candidate{}, nil, fmt.Errorf("inspect knowledge entry revision: %w", err)
+		}
+		if affected != 1 {
+			return knowledge.Candidate{}, nil, knowledge.ErrRevisionConflict
+		}
 	}
 	result, err := tx.ExecContext(ctx, `
 		UPDATE knowledge_candidate
@@ -485,7 +548,7 @@ func (s *Store) ReviewCandidate(
 	if err := tx.Commit(); err != nil {
 		return knowledge.Candidate{}, nil, fmt.Errorf("commit knowledge review: %w", err)
 	}
-	if command.Entry != nil {
+	if command.Entry != nil || command.AppendRevision != nil {
 		if err := s.Rebuild(ctx); err != nil {
 			s.disableFTS5()
 		}
@@ -493,6 +556,13 @@ func (s *Store) ReviewCandidate(
 	candidate.Status = command.NewStatus
 	candidate.Revision++
 	candidate.UpdatedAt = command.Review.ReviewedAt
+	if command.AppendRevision != nil {
+		entry, err := s.GetEntry(ctx, command.WorkspaceID, candidate.TargetEntryID)
+		if err != nil {
+			return knowledge.Candidate{}, nil, err
+		}
+		return candidate, &entry, nil
+	}
 	return candidate, command.Entry, nil
 }
 
@@ -592,12 +662,15 @@ func insertCandidate(ctx context.Context, tx *sql.Tx, candidate knowledge.Candid
 	}
 	_, err = tx.ExecContext(ctx, `
 		INSERT INTO knowledge_candidate(
-			id, workspace_id, project_id, kind, title, content, reason, status,
+			id, workspace_id, project_id, target_entry_id, target_revision,
+			kind, title, content, reason, status,
 			revision, proposed_by, source_refs_json, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		candidate.ID,
 		candidate.WorkspaceID,
 		candidate.ProjectID,
+		candidate.TargetEntryID,
+		candidate.TargetRevision,
 		candidate.Kind,
 		candidate.Title,
 		candidate.Content,
@@ -634,24 +707,33 @@ func insertEntry(ctx context.Context, tx *sql.Tx, entry knowledge.Entry) error {
 		return fmt.Errorf("create knowledge entry: %w", err)
 	}
 	for _, revision := range entry.Revisions {
-		sourceRefs, err := json.Marshal(revision.SourceRefs)
-		if err != nil {
-			return fmt.Errorf("encode knowledge revision sources: %w", err)
+		if err := insertRevision(ctx, tx, entry.ID, revision); err != nil {
+			return err
 		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO knowledge_revision(
-				entry_id, revision, title, content, created_by, created_at, source_refs_json
-			) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			entry.ID,
-			revision.Number,
-			revision.Title,
-			revision.Content,
-			revision.CreatedBy,
-			formatTime(revision.CreatedAt),
-			string(sourceRefs),
-		); err != nil {
-			return fmt.Errorf("create knowledge revision: %w", err)
-		}
+	}
+	return nil
+}
+
+func insertRevision(ctx context.Context, tx *sql.Tx, entryID string, revision knowledge.Revision) error {
+	sourceRefs, err := json.Marshal(revision.SourceRefs)
+	if err != nil {
+		return fmt.Errorf("encode knowledge revision sources: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO knowledge_revision(
+			entry_id, revision, supersedes_revision, title, content,
+			created_by, created_at, source_refs_json
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		entryID,
+		revision.Number,
+		revision.SupersedesRevision,
+		revision.Title,
+		revision.Content,
+		revision.CreatedBy,
+		formatTime(revision.CreatedAt),
+		string(sourceRefs),
+	); err != nil {
+		return fmt.Errorf("create knowledge revision: %w", err)
 	}
 	return nil
 }
@@ -671,6 +753,8 @@ func scanCandidate(row rowScanner) (knowledge.Candidate, error) {
 		&candidate.ID,
 		&candidate.WorkspaceID,
 		&candidate.ProjectID,
+		&candidate.TargetEntryID,
+		&candidate.TargetRevision,
 		&candidate.Kind,
 		&candidate.Title,
 		&candidate.Content,
@@ -744,6 +828,7 @@ func scanRevision(row rowScanner) (knowledge.Revision, error) {
 	)
 	if err := row.Scan(
 		&revision.Number,
+		&revision.SupersedesRevision,
 		&revision.Title,
 		&revision.Content,
 		&revision.CreatedBy,
@@ -826,7 +911,7 @@ func (s *Store) searchPortable(ctx context.Context, query knowledge.SearchQuery)
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT e.id, e.workspace_id, e.project_id, e.candidate_id, e.kind, e.status,
 		       e.current_revision, e.created_at, e.updated_at,
-		       r.revision, r.title, r.content, r.created_by, r.created_at,
+		       r.revision, r.supersedes_revision, r.title, r.content, r.created_by, r.created_at,
 		       r.source_refs_json
 		FROM knowledge_entry e
 		JOIN knowledge_revision r ON r.entry_id = e.id
@@ -858,6 +943,7 @@ func (s *Store) searchPortable(ctx context.Context, query knowledge.SearchQuery)
 			&entryCreatedAt,
 			&entryUpdatedAt,
 			&revision.Number,
+			&revision.SupersedesRevision,
 			&revision.Title,
 			&revision.Content,
 			&revision.CreatedBy,
@@ -935,7 +1021,7 @@ func (s *Store) searchFTS(ctx context.Context, query knowledge.SearchQuery) (kno
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT e.id, e.workspace_id, e.project_id, e.candidate_id, e.kind, e.status,
 		       e.current_revision, e.created_at, e.updated_at,
-		       r.revision, r.title, r.content, r.created_by, r.created_at,
+		       r.revision, r.supersedes_revision, r.title, r.content, r.created_by, r.created_at,
 		       r.source_refs_json
 		FROM knowledge_search_fts
 		JOIN knowledge_entry e ON e.id = knowledge_search_fts.entry_id
@@ -973,6 +1059,7 @@ func scanSearchPage(rows *sql.Rows, limit, offset int) (knowledge.SearchPage, er
 			&entryCreatedAt,
 			&entryUpdatedAt,
 			&revision.Number,
+			&revision.SupersedesRevision,
 			&revision.Title,
 			&revision.Content,
 			&revision.CreatedBy,

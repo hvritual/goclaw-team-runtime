@@ -132,6 +132,138 @@ func TestApprovedCandidatePublishesAnImmutableFirstRevision(t *testing.T) {
 	}
 }
 
+func TestApprovedRevisionProposalAppendsToPublishedEntry(t *testing.T) {
+	store := memory.New()
+	service := knowledge.NewService(store, nil, allowProjects{})
+	ctx := context.Background()
+
+	first := proposeAndApprove(t, ctx, service, "Original procedure", "Stop writes before backup.")
+	candidate, err := service.Propose(ctx, knowledge.ProposalInput{
+		WorkspaceID:   "workspace-1",
+		ProjectID:     "project-1",
+		TargetEntryID: first.ID,
+		Kind:          knowledge.KindProcedure,
+		Title:         "Verified backup procedure",
+		Content:       "Stop writes, checkpoint WAL, then create the backup.",
+		Reason:        "Recovery testing identified a missing checkpoint step.",
+		ProposedBy:    "user-2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if candidate.TargetEntryID != first.ID || candidate.TargetRevision != 1 {
+		t.Fatalf("revision target = %#v, want entry %q revision 1", candidate, first.ID)
+	}
+
+	_, revised, err := service.Review(ctx, knowledge.ReviewInput{
+		WorkspaceID:      "workspace-1",
+		CandidateID:      candidate.ID,
+		ExpectedRevision: 1,
+		Action:           knowledge.ReviewApprove,
+		ReviewerID:       "admin-1",
+		Rationale:        "The revised procedure passed a restore drill.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if revised == nil || revised.ID != first.ID || revised.CurrentRevision != 2 {
+		t.Fatalf("revised entry = %#v", revised)
+	}
+	if len(revised.Revisions) != 2 {
+		t.Fatalf("revisions = %#v, want immutable two-revision history", revised.Revisions)
+	}
+	if revised.Revisions[1].SupersedesRevision != 1 {
+		t.Fatalf("supersedes revision = %d, want 1", revised.Revisions[1].SupersedesRevision)
+	}
+	if revised.Revisions[0].Content != "Stop writes before backup." {
+		t.Fatalf("original revision was mutated: %#v", revised.Revisions[0])
+	}
+}
+
+func TestRevisionProposalConflictsAfterTargetAdvances(t *testing.T) {
+	store := memory.New()
+	service := knowledge.NewService(store, nil, allowProjects{})
+	ctx := context.Background()
+	first := proposeAndApprove(t, ctx, service, "Original", "Version one")
+
+	proposeRevision := func(title string) knowledge.Candidate {
+		candidate, err := service.Propose(ctx, knowledge.ProposalInput{
+			WorkspaceID:   "workspace-1",
+			ProjectID:     "project-1",
+			TargetEntryID: first.ID,
+			Kind:          knowledge.KindProcedure,
+			Title:         title,
+			Content:       title + " content",
+			Reason:        "Independent follow-up proposal.",
+			ProposedBy:    "user-2",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return candidate
+	}
+	accepted := proposeRevision("Version two")
+	stale := proposeRevision("Conflicting version two")
+
+	if _, _, err := service.Review(ctx, knowledge.ReviewInput{
+		WorkspaceID:      "workspace-1",
+		CandidateID:      accepted.ID,
+		ExpectedRevision: 1,
+		Action:           knowledge.ReviewApprove,
+		ReviewerID:       "admin-1",
+		Rationale:        "Accepted first.",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := service.Review(ctx, knowledge.ReviewInput{
+		WorkspaceID:      "workspace-1",
+		CandidateID:      stale.ID,
+		ExpectedRevision: 1,
+		Action:           knowledge.ReviewApprove,
+		ReviewerID:       "admin-1",
+		Rationale:        "This proposal is now stale.",
+	}); err != knowledge.ErrRevisionConflict {
+		t.Fatalf("stale revision review error = %v, want %v", err, knowledge.ErrRevisionConflict)
+	}
+}
+
+func proposeAndApprove(
+	t *testing.T,
+	ctx context.Context,
+	service *knowledge.Service,
+	title string,
+	content string,
+) knowledge.Entry {
+	t.Helper()
+	candidate, err := service.Propose(ctx, knowledge.ProposalInput{
+		WorkspaceID: "workspace-1",
+		ProjectID:   "project-1",
+		Kind:        knowledge.KindProcedure,
+		Title:       title,
+		Content:     content,
+		Reason:      "Create the governed baseline.",
+		ProposedBy:  "user-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, entry, err := service.Review(ctx, knowledge.ReviewInput{
+		WorkspaceID:      "workspace-1",
+		CandidateID:      candidate.ID,
+		ExpectedRevision: 1,
+		Action:           knowledge.ReviewApprove,
+		ReviewerID:       "admin-1",
+		Rationale:        "Verified baseline.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
+		t.Fatal("expected published entry")
+	}
+	return *entry
+}
+
 func TestEvidenceIngestionIsIdempotent(t *testing.T) {
 	store := memory.New()
 	service := knowledge.NewService(store, knowledge.DefaultPromotionPolicy{}, allowProjects{})

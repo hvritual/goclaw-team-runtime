@@ -22,6 +22,7 @@ var (
 	ErrInvalidProposal   = errors.New("invalid knowledge proposal")
 	ErrProjectScope      = errors.New("knowledge project does not belong to workspace")
 	ErrProjectValidator  = errors.New("knowledge project validator is required")
+	ErrRevisionTarget    = errors.New("invalid knowledge revision target")
 )
 
 type Repository interface {
@@ -110,20 +111,40 @@ func (s *Service) Propose(ctx context.Context, input ProposalInput) (Candidate, 
 	if s.store == nil {
 		return Candidate{}, ErrStoreRequired
 	}
-	if err := s.validateProject(ctx, input.WorkspaceID, input.ProjectID); err != nil {
+	workspaceID := strings.TrimSpace(input.WorkspaceID)
+	projectID := strings.TrimSpace(input.ProjectID)
+	targetEntryID := strings.TrimSpace(input.TargetEntryID)
+	var targetRevision int64
+	if targetEntryID != "" {
+		target, err := s.store.GetEntry(ctx, workspaceID, targetEntryID)
+		if err != nil {
+			return Candidate{}, err
+		}
+		if target.Status != StatusPublished || target.Kind != input.Kind {
+			return Candidate{}, ErrRevisionTarget
+		}
+		if projectID != "" && projectID != target.ProjectID {
+			return Candidate{}, ErrProjectScope
+		}
+		projectID = target.ProjectID
+		targetRevision = target.CurrentRevision
+	}
+	if err := s.validateProject(ctx, workspaceID, projectID); err != nil {
 		return Candidate{}, err
 	}
 	return s.store.CreateCandidate(ctx, Candidate{
-		WorkspaceID: strings.TrimSpace(input.WorkspaceID),
-		ProjectID:   strings.TrimSpace(input.ProjectID),
-		Kind:        input.Kind,
-		Title:       strings.TrimSpace(input.Title),
-		Content:     strings.TrimSpace(input.Content),
-		Reason:      strings.TrimSpace(input.Reason),
-		Status:      StatusCandidate,
-		Revision:    1,
-		ProposedBy:  strings.TrimSpace(input.ProposedBy),
-		SourceRefs:  input.SourceRefs,
+		WorkspaceID:    workspaceID,
+		ProjectID:      projectID,
+		TargetEntryID:  targetEntryID,
+		TargetRevision: targetRevision,
+		Kind:           input.Kind,
+		Title:          strings.TrimSpace(input.Title),
+		Content:        strings.TrimSpace(input.Content),
+		Reason:         strings.TrimSpace(input.Reason),
+		Status:         StatusCandidate,
+		Revision:       1,
+		ProposedBy:     strings.TrimSpace(input.ProposedBy),
+		SourceRefs:     input.SourceRefs,
 	})
 }
 
@@ -266,33 +287,60 @@ func (s *Service) Review(ctx context.Context, input ReviewInput) (Candidate, *En
 		NewRevision: candidate.Revision + 1,
 	}
 	var entry *Entry
+	var appendRevision *Revision
 	if input.Action == ReviewApprove {
-		entry = &Entry{
-			ID:              uuid.NewString(),
-			WorkspaceID:     candidate.WorkspaceID,
-			ProjectID:       candidate.ProjectID,
-			CandidateID:     candidate.ID,
-			Kind:            candidate.Kind,
-			Status:          StatusPublished,
-			CurrentRevision: 1,
-			Revisions: []Revision{{
-				Number:     1,
-				Title:      candidate.Title,
-				Content:    candidate.Content,
-				CreatedBy:  review.ReviewerID,
-				CreatedAt:  currentTime,
-				SourceRefs: append([]SourceRef(nil), candidate.SourceRefs...),
-			}},
-			CreatedAt: currentTime,
-			UpdatedAt: currentTime,
+		if candidate.TargetEntryID != "" {
+			target, err := s.store.GetEntry(ctx, candidate.WorkspaceID, candidate.TargetEntryID)
+			if err != nil {
+				return Candidate{}, nil, err
+			}
+			if target.Status != StatusPublished ||
+				target.Kind != candidate.Kind ||
+				target.ProjectID != candidate.ProjectID {
+				return Candidate{}, nil, ErrRevisionTarget
+			}
+			if target.CurrentRevision != candidate.TargetRevision {
+				return Candidate{}, nil, ErrRevisionConflict
+			}
+			appendRevision = &Revision{
+				Number:             target.CurrentRevision + 1,
+				SupersedesRevision: target.CurrentRevision,
+				Title:              candidate.Title,
+				Content:            candidate.Content,
+				CreatedBy:          review.ReviewerID,
+				CreatedAt:          currentTime,
+				SourceRefs:         append([]SourceRef(nil), candidate.SourceRefs...),
+			}
+		} else {
+			entry = &Entry{
+				ID:              uuid.NewString(),
+				WorkspaceID:     candidate.WorkspaceID,
+				ProjectID:       candidate.ProjectID,
+				CandidateID:     candidate.ID,
+				Kind:            candidate.Kind,
+				Status:          StatusPublished,
+				CurrentRevision: 1,
+				Revisions: []Revision{{
+					Number:     1,
+					Title:      candidate.Title,
+					Content:    candidate.Content,
+					CreatedBy:  review.ReviewerID,
+					CreatedAt:  currentTime,
+					SourceRefs: append([]SourceRef(nil), candidate.SourceRefs...),
+				}},
+				CreatedAt: currentTime,
+				UpdatedAt: currentTime,
+			}
 		}
 	}
 	return s.store.ReviewCandidate(ctx, ReviewCommand{
-		CandidateID:      candidate.ID,
-		WorkspaceID:      candidate.WorkspaceID,
-		ExpectedRevision: input.ExpectedRevision,
-		NewStatus:        newStatus,
-		Review:           review,
-		Entry:            entry,
+		CandidateID:           candidate.ID,
+		WorkspaceID:           candidate.WorkspaceID,
+		ExpectedRevision:      input.ExpectedRevision,
+		ExpectedEntryRevision: candidate.TargetRevision,
+		NewStatus:             newStatus,
+		Review:                review,
+		Entry:                 entry,
+		AppendRevision:        appendRevision,
 	})
 }

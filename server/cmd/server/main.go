@@ -14,6 +14,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/realtime"
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
 var (
@@ -38,7 +39,13 @@ func main() {
 	hub := realtime.NewHub()
 	go hub.Run()
 	bus := events.New()
-	router := NewRouter(pool, hub, bus, analytics.NoopClient{}, nil)
+	knowledgeRuntime := openKnowledgeRuntime(pool, db.New(pool))
+	defer func() {
+		if err := knowledgeRuntime.Close(); err != nil {
+			slog.Warn("close knowledge store", "error", err)
+		}
+	}()
+	router := NewRouter(pool, hub, bus, analytics.NoopClient{}, nil, knowledgeRuntime)
 
 	port := os.Getenv("PORT")
 	if port == "" {

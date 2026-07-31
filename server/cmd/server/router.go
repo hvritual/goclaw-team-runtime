@@ -78,6 +78,7 @@ func NewRouter(
 	bus *events.Bus,
 	analyticsClient analytics.Client,
 	rdb *redis.Client,
+	knowledgeRuntime *knowledgeRuntime,
 ) chi.Router {
 	queries := db.New(pool)
 	var store storage.Storage
@@ -110,6 +111,19 @@ func NewRouter(
 	patCache := auth.NewPATCache(rdb)
 	h.PATCache = patCache
 	h.MembershipCache = auth.NewMembershipCache(rdb)
+	if knowledgeRuntime != nil {
+		h.ConfigureKnowledge(
+			knowledgeRuntime.store,
+			knowledgeRuntime.service,
+			knowledgeRuntime.unavailable,
+		)
+		h.ConfigureKnowledgeHealth(knowledgeRuntime)
+		h.ConfigureKnowledgeEvidence(knowledgeRuntime.enabled)
+		h.ConfigureKnowledgeMCP(
+			config.PublicURL,
+			splitKnowledgeAuthorizationServers(os.Getenv("MULTICA_MCP_AUTHORIZATION_SERVERS")),
+		)
+	}
 
 	r := chi.NewRouter()
 	r.Use(chimw.RequestID)
@@ -148,6 +162,9 @@ func NewRouter(
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 	r.Get("/api/config", h.GetConfig)
+	r.Get("/.well-known/oauth-protected-resource", h.KnowledgeMCPMetadata)
+	r.Get("/.well-known/oauth-protected-resource/mcp/{workspaceSlug}/knowledge", h.KnowledgeMCPMetadata)
+	r.Handle("/mcp/{workspaceSlug}/knowledge", h.KnowledgeMCPHandler())
 	r.Post("/auth/send-code", h.SendCode)
 	r.Post("/auth/verify-code", h.VerifyCode)
 	r.Post("/auth/google", h.GoogleLogin)
@@ -209,6 +226,8 @@ func NewRouter(
 
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireWorkspaceMember(queries))
+
+			r.Route("/api/knowledge", h.RegisterKnowledgeRoutes)
 
 			r.Route("/api/issues", func(r chi.Router) {
 				r.Post("/table/groups", h.ListIssueTableGroups)
@@ -318,6 +337,17 @@ func NewRouter(
 		})
 	})
 	return r
+}
+
+func splitKnowledgeAuthorizationServers(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }
 
 type membershipChecker struct {

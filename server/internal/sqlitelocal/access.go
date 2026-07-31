@@ -3,11 +3,74 @@ package sqlitelocal
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
 )
+
+func (s *Server) knowledgeReviewScope(
+	ctx context.Context,
+	workspaceID string,
+	userID string,
+) (bool, []string, error) {
+	role, err := workspaceRole(ctx, s.db, workspaceID, userID)
+	if err != nil {
+		return false, nil, err
+	}
+	if role == workspacepermissions.RoleOwner || role == workspacepermissions.RoleAdmin {
+		return true, nil, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id
+		FROM projects
+		WHERE workspace_id = ? AND lead_type = 'member' AND lead_id = ?
+		ORDER BY id`, workspaceID, userID)
+	if err != nil {
+		return false, nil, err
+	}
+	defer rows.Close()
+	projectIDs := make([]string, 0)
+	for rows.Next() {
+		var projectID string
+		if err := rows.Scan(&projectID); err != nil {
+			return false, nil, err
+		}
+		projectIDs = append(projectIDs, projectID)
+	}
+	if err := rows.Err(); err != nil {
+		return false, nil, err
+	}
+	return false, projectIDs, nil
+}
+
+func (s *Server) requireKnowledgeReviewer(
+	w http.ResponseWriter,
+	r *http.Request,
+	workspaceID string,
+	projectID string,
+) ([]string, bool) {
+	global, projectIDs, err := s.knowledgeReviewScope(
+		r.Context(),
+		workspaceID,
+		currentUserID(r),
+	)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		writeError(w, http.StatusInternalServerError, "failed to resolve knowledge review scope")
+		return nil, false
+	}
+	if global {
+		return nil, true
+	}
+	for _, ledProjectID := range projectIDs {
+		if projectID == "" || projectID == ledProjectID {
+			return projectIDs, true
+		}
+	}
+	writeError(w, http.StatusForbidden, "insufficient workspace role")
+	return nil, false
+}
 
 type sqlRowQuerier interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row

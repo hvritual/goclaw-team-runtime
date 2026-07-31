@@ -14,9 +14,11 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/multica-ai/multica/server/internal/analytics"
 	"github.com/multica-ai/multica/server/internal/auth"
 	"github.com/multica-ai/multica/server/internal/events"
+	"github.com/multica-ai/multica/server/internal/knowledge"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/middleware"
 	"github.com/multica-ai/multica/server/internal/realtime"
@@ -91,21 +93,30 @@ type Config struct {
 }
 
 type Handler struct {
-	Queries         *db.Queries
-	DB              dbExecutor
-	TxStarter       txStarter
-	Hub             *realtime.Hub
-	Bus             *events.Bus
-	IssueService    *service.IssueService
-	EmailService    *service.EmailService
-	FeatureFlags    *featureflag.Service
-	Storage         storage.Storage
-	CFSigner        *auth.CloudFrontSigner
-	Analytics       analytics.Client
-	Metrics         *obsmetrics.BusinessMetrics
-	PATCache        *auth.PATCache
-	MembershipCache *auth.MembershipCache
-	cfg             Config
+	Queries                          *db.Queries
+	DB                               dbExecutor
+	TxStarter                        txStarter
+	Hub                              *realtime.Hub
+	Bus                              *events.Bus
+	IssueService                     *service.IssueService
+	EmailService                     *service.EmailService
+	FeatureFlags                     *featureflag.Service
+	Storage                          storage.Storage
+	CFSigner                         *auth.CloudFrontSigner
+	Analytics                        analytics.Client
+	Metrics                          *obsmetrics.BusinessMetrics
+	PATCache                         *auth.PATCache
+	MembershipCache                  *auth.MembershipCache
+	knowledgeStore                   knowledgeOperationalStore
+	knowledgeService                 *knowledge.Service
+	knowledgeUnavailable             error
+	knowledgeHealth                  knowledgeHealthProvider
+	knowledgeEvidenceEnabled         bool
+	knowledgeMCPHandler              http.Handler
+	knowledgeMCPVerifier             mcpauth.TokenVerifier
+	knowledgeMCPPublicURL            string
+	knowledgeMCPAuthorizationServers []string
+	cfg                              Config
 }
 
 func New(

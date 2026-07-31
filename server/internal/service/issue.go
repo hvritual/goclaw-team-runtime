@@ -89,6 +89,12 @@ type IssueCreateOpts struct {
 	// ActorID overrides the actor ID used for the broadcast. Empty falls back
 	// to CreatorID.
 	ActorID string
+
+	// BeforeCommit runs after the issue and its transactional children are
+	// written but before commit. It is intended for source outbox writes that
+	// must share the issue transaction. Returning an error rolls everything
+	// back.
+	BeforeCommit func(context.Context, pgx.Tx, db.Issue) error
 }
 
 // ErrActiveDuplicate signals that the duplicate guard found an active
@@ -262,6 +268,11 @@ func (s *IssueService) Create(ctx context.Context, p IssueCreateParams, opts Iss
 			WorkspaceID: p.WorkspaceID,
 		}); err != nil {
 			return IssueCreateResult{}, fmt.Errorf("attach issue label: %w", err)
+		}
+	}
+	if opts.BeforeCommit != nil {
+		if err := opts.BeforeCommit(ctx, tx, issue); err != nil {
+			return IssueCreateResult{}, fmt.Errorf("before issue commit: %w", err)
 		}
 	}
 

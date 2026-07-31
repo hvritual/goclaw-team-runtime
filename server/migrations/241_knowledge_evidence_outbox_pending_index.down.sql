@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS knowledge_evidence_outbox_pending_idx;

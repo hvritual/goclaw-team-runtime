@@ -85,6 +85,7 @@ func (s *Store) ListCandidates(
 	for _, candidate := range s.candidates {
 		if candidate.WorkspaceID != query.WorkspaceID ||
 			(query.ProjectID != "" && candidate.ProjectID != query.ProjectID) ||
+			(query.ProjectID == "" && !projectAllowed(candidate.ProjectID, query.ProjectIDs)) ||
 			!statusAllowed(candidate.Status, query.Statuses) ||
 			!kindAllowed(candidate.Kind, query.Kinds) {
 			continue
@@ -114,6 +115,18 @@ func (s *Store) ListCandidates(
 	}, nil
 }
 
+func projectAllowed(projectID string, allowed []string) bool {
+	if allowed == nil {
+		return true
+	}
+	for _, candidate := range allowed {
+		if projectID == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Store) ReviewCandidate(
 	_ context.Context,
 	command knowledge.ReviewCommand,
@@ -134,6 +147,24 @@ func (s *Store) ReviewCandidate(
 	if candidate.Status != knowledge.StatusCandidate && candidate.Status != knowledge.StatusInReview {
 		return knowledge.Candidate{}, nil, errors.New("knowledge candidate is already reviewed")
 	}
+	var revised *knowledge.Entry
+	if command.AppendRevision != nil {
+		entry, ok := s.entries[candidate.TargetEntryID]
+		if !ok || entry.WorkspaceID != command.WorkspaceID {
+			return knowledge.Candidate{}, nil, knowledge.ErrNotFound
+		}
+		if entry.CurrentRevision != command.ExpectedEntryRevision {
+			return knowledge.Candidate{}, nil, knowledge.ErrRevisionConflict
+		}
+		revision := *command.AppendRevision
+		revision.SourceRefs = append([]knowledge.SourceRef(nil), revision.SourceRefs...)
+		entry.Revisions = append(entry.Revisions, revision)
+		entry.CurrentRevision = revision.Number
+		entry.UpdatedAt = revision.CreatedAt
+		s.entries[entry.ID] = cloneEntry(entry)
+		value := cloneEntry(entry)
+		revised = &value
+	}
 
 	candidate.Status = command.NewStatus
 	candidate.Revision++
@@ -141,7 +172,7 @@ func (s *Store) ReviewCandidate(
 	s.candidates[candidate.ID] = candidate
 
 	if command.Entry == nil {
-		return candidate, nil, nil
+		return candidate, revised, nil
 	}
 	entry := cloneEntry(*command.Entry)
 	s.entries[entry.ID] = entry

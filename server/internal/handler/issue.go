@@ -2109,6 +2109,13 @@ func (h *Handler) CreateIssue(w http.ResponseWriter, r *http.Request) {
 		AllowDuplicate: req.AllowDuplicate,
 	}, service.IssueCreateOpts{
 		ActorID: actualCreatorID,
+		BeforeCommit: func(ctx context.Context, tx pgx.Tx, issue db.Issue) error {
+			return h.enqueueKnowledgeEvidence(
+				ctx,
+				tx,
+				issueKnowledgeEvidence(issue, actualCreatorID, "issue.created"),
+			)
+		},
 		BroadcastPayload: func(issue db.Issue, atts []db.Attachment, labels []db.IssueLabel) map[string]any {
 			payload := issueToResponse(issue, prefix)
 			payload.Attachments = buildAttachmentResponses(atts)
@@ -2365,10 +2372,31 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issue, err := h.Queries.UpdateIssue(r.Context(), params)
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start issue transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	issue, err := qtx.UpdateIssue(r.Context(), params)
 	if err != nil {
 		slog.Warn("update issue failed", append(logger.RequestAttrs(r), "error", err, "issue_id", id, "workspace_id", workspaceID)...)
 		writeError(w, http.StatusInternalServerError, "failed to update issue: "+err.Error())
+		return
+	}
+	if prevIssue.Status != "done" && issue.Status == "done" {
+		if err := h.enqueueKnowledgeEvidence(
+			r.Context(),
+			tx,
+			issueKnowledgeEvidence(issue, userID, "issue.accepted"),
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to commit issue update")
 		return
 	}
 

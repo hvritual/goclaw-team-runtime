@@ -149,12 +149,13 @@ func (s *Server) proposeKnowledge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		ProjectID  string                `json:"project_id"`
-		Kind       knowledge.Kind        `json:"kind"`
-		Title      string                `json:"title"`
-		Content    string                `json:"content"`
-		Reason     string                `json:"reason"`
-		SourceRefs []knowledge.SourceRef `json:"source_refs"`
+		ProjectID   string                `json:"project_id"`
+		KnowledgeID string                `json:"knowledge_id"`
+		Kind        knowledge.Kind        `json:"kind"`
+		Title       string                `json:"title"`
+		Content     string                `json:"content"`
+		Reason      string                `json:"reason"`
+		SourceRefs  []knowledge.SourceRef `json:"source_refs"`
 	}
 	if !decodeJSON(w, r, &request) {
 		return
@@ -166,14 +167,15 @@ func (s *Server) proposeKnowledge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	candidate, err := s.knowledgeService.Propose(r.Context(), knowledge.ProposalInput{
-		WorkspaceID: workspaceValue.ID,
-		ProjectID:   request.ProjectID,
-		Kind:        request.Kind,
-		Title:       request.Title,
-		Content:     request.Content,
-		Reason:      request.Reason,
-		ProposedBy:  currentUserID(r),
-		SourceRefs:  request.SourceRefs,
+		WorkspaceID:   workspaceValue.ID,
+		ProjectID:     request.ProjectID,
+		TargetEntryID: strings.TrimSpace(request.KnowledgeID),
+		Kind:          request.Kind,
+		Title:         request.Title,
+		Content:       request.Content,
+		Reason:        request.Reason,
+		ProposedBy:    currentUserID(r),
+		SourceRefs:    request.SourceRefs,
 	})
 	if err != nil {
 		writeKnowledgeError(w, err)
@@ -190,18 +192,15 @@ func (s *Server) listKnowledgeCandidates(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(
-		w,
-		r,
-		workspaceValue.ID,
-		workspacepermissions.RoleOwner,
-		workspacepermissions.RoleAdmin,
-	) {
+	projectID := strings.TrimSpace(r.URL.Query().Get("project_id"))
+	projectIDs, ok := s.requireKnowledgeReviewer(w, r, workspaceValue.ID, projectID)
+	if !ok {
 		return
 	}
 	query := knowledge.CandidateQuery{
 		WorkspaceID: workspaceValue.ID,
-		ProjectID:   strings.TrimSpace(r.URL.Query().Get("project_id")),
+		ProjectID:   projectID,
+		ProjectIDs:  projectIDs,
 		Limit:       parseKnowledgeLimit(r.URL.Query().Get("limit")),
 		Cursor:      strings.TrimSpace(r.URL.Query().Get("cursor")),
 	}
@@ -240,13 +239,16 @@ func (s *Server) reviewKnowledgeCandidate(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(
-		w,
-		r,
-		workspaceValue.ID,
-		workspacepermissions.RoleOwner,
-		workspacepermissions.RoleAdmin,
-	) {
+	candidate, err := s.knowledgeStore.GetCandidate(r.Context(), chi.URLParam(r, "id"))
+	if errors.Is(err, knowledge.ErrNotFound) || candidate.WorkspaceID != workspaceValue.ID {
+		writeError(w, http.StatusNotFound, "knowledge record not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load knowledge candidate")
+		return
+	}
+	if _, ok := s.requireKnowledgeReviewer(w, r, workspaceValue.ID, candidate.ProjectID); !ok {
 		return
 	}
 	var request struct {
@@ -327,19 +329,21 @@ func (s *Server) getKnowledgeHealth(w http.ResponseWriter, r *http.Request) {
 
 func knowledgeCandidateResponse(candidate knowledge.Candidate) map[string]any {
 	return map[string]any{
-		"id":           candidate.ID,
-		"workspace_id": candidate.WorkspaceID,
-		"project_id":   nullable(candidate.ProjectID),
-		"kind":         candidate.Kind,
-		"title":        candidate.Title,
-		"content":      candidate.Content,
-		"reason":       candidate.Reason,
-		"status":       candidate.Status,
-		"revision":     candidate.Revision,
-		"proposed_by":  candidate.ProposedBy,
-		"source_refs":  candidate.SourceRefs,
-		"created_at":   candidate.CreatedAt,
-		"updated_at":   candidate.UpdatedAt,
+		"id":              candidate.ID,
+		"workspace_id":    candidate.WorkspaceID,
+		"project_id":      nullable(candidate.ProjectID),
+		"knowledge_id":    nullable(candidate.TargetEntryID),
+		"target_revision": candidate.TargetRevision,
+		"kind":            candidate.Kind,
+		"title":           candidate.Title,
+		"content":         candidate.Content,
+		"reason":          candidate.Reason,
+		"status":          candidate.Status,
+		"revision":        candidate.Revision,
+		"proposed_by":     candidate.ProposedBy,
+		"source_refs":     candidate.SourceRefs,
+		"created_at":      candidate.CreatedAt,
+		"updated_at":      candidate.UpdatedAt,
 	}
 }
 
@@ -383,6 +387,7 @@ func writeKnowledgeError(w http.ResponseWriter, err error) {
 		errors.Is(err, knowledge.ErrRationaleRequired),
 		errors.Is(err, knowledge.ErrReviewerRequired),
 		errors.Is(err, knowledge.ErrInvalidProposal),
+		errors.Is(err, knowledge.ErrRevisionTarget),
 		errors.Is(err, knowledge.ErrInvalidReview):
 		writeError(w, http.StatusBadRequest, err.Error())
 	default:

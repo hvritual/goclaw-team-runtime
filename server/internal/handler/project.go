@@ -284,7 +284,14 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	project, err := h.Queries.CreateProject(r.Context(), db.CreateProjectParams{
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start project transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	project, err := qtx.CreateProject(r.Context(), db.CreateProjectParams{
 		WorkspaceID: workspaceUUID, Title: strings.TrimSpace(req.Title),
 		Description: ptrToText(req.Description), Icon: ptrToText(req.Icon),
 		Status: status, Priority: priority, LeadType: leadType, LeadID: leadID,
@@ -292,6 +299,18 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		h.writeProjectWriteError(w, r, err, "create")
+		return
+	}
+	if err := h.enqueueKnowledgeEvidence(
+		r.Context(),
+		tx,
+		projectKnowledgeEvidence(project, userID, "project.created"),
+	); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to record project evidence")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to commit project create")
 		return
 	}
 	response := projectToResponse(project)
@@ -420,9 +439,30 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 			params.DueDate = pgtype.Date{Valid: false} // explicit null = clear date
 		}
 	}
-	project, err := h.Queries.UpdateProject(r.Context(), params)
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start project transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	project, err := qtx.UpdateProject(r.Context(), params)
 	if err != nil {
 		h.writeProjectWriteError(w, r, err, "update")
+		return
+	}
+	if prevProject.Status != "completed" && project.Status == "completed" {
+		if err := h.enqueueKnowledgeEvidence(
+			r.Context(),
+			tx,
+			projectKnowledgeEvidence(project, userID, "project.completed"),
+		); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record project evidence")
+			return
+		}
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to commit project update")
 		return
 	}
 	resp := projectToResponse(project)

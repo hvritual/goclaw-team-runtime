@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX CONCURRENTLY knowledge_evidence_outbox_idempotency_idx ON knowledge_evidence_outbox(idempotency_key);
