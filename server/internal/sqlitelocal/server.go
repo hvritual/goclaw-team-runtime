@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -54,16 +55,25 @@ type Options struct {
 	MCPTokenVerifier        mcpauth.TokenVerifier
 }
 
+type knowledgeOperationalStore interface {
+	knowledge.Repository
+	knowledge.SearchIndex
+	Capabilities(context.Context) (knowledge.StoreCapabilities, error)
+	Close() error
+}
+
 type Server struct {
 	db                      *sql.DB
 	handler                 http.Handler
 	verificationCode        string
-	knowledgeStore          *knowledgeSqlite.Store
+	knowledgeStore          knowledgeOperationalStore
 	knowledgeService        *knowledge.Service
 	knowledgeUnavailable    error
 	knowledgeDispatcher     *outbox.Dispatcher
 	knowledgeCancel         context.CancelFunc
 	knowledgeDone           chan struct{}
+	knowledgeDispatchMu     sync.RWMutex
+	knowledgeDispatchError  string
 	mcpHandler              http.Handler
 	mcpPublicURL            string
 	mcpAuthorizationServers []string
@@ -116,7 +126,11 @@ func Open(path string, options Options) (*Server, error) {
 			server.knowledgeUnavailable = fmt.Errorf("open knowledge store: %w", err)
 		} else {
 			server.knowledgeStore = knowledgeStore
-			server.knowledgeService = knowledge.NewService(knowledgeStore, knowledge.DefaultPromotionPolicy{})
+			server.knowledgeService = knowledge.NewService(
+				knowledgeStore,
+				knowledge.DefaultPromotionPolicy{},
+				server,
+			)
 			server.knowledgeDispatcher = outbox.NewDispatcher(
 				&sqliteEvidenceOutbox{db: db},
 				server.knowledgeService,
@@ -129,6 +143,13 @@ func Open(path string, options Options) (*Server, error) {
 	}
 	server.handler = server.routes(options.FrontendOrigin)
 	return server, nil
+}
+
+func (s *Server) ValidateProject(ctx context.Context, workspaceID, projectID string) error {
+	if s.belongsToWorkspace(ctx, "projects", projectID, workspaceID) {
+		return nil
+	}
+	return knowledge.ErrProjectScope
 }
 
 func migrateLegacyTaskSchema(db *sql.DB) error {
@@ -1741,6 +1762,7 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	previousStatus := value.Status
 	var req projectRequest
 	if !decodeJSON(w, r, &req) {
 		return
@@ -1775,7 +1797,7 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update project")
 		return
 	}
-	if value.Status == "completed" || value.Status == "done" {
+	if previousStatus != value.Status && (value.Status == "completed" || value.Status == "done") {
 		if err := enqueueKnowledgeEvidence(r.Context(), tx, projectEvidence(value, currentUserID(r), "project.completed")); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to record project evidence")
 			return
@@ -2019,6 +2041,7 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	previousStatus := value.Status
 	var req issueRequest
 	if !decodeJSON(w, r, &req) {
 		return
@@ -2072,7 +2095,7 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update issue")
 		return
 	}
-	if value.Status == "done" {
+	if previousStatus != value.Status && value.Status == "done" {
 		if err := enqueueKnowledgeEvidence(r.Context(), tx, issueEvidence(value, currentUserID(r), "issue.accepted")); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
 			return

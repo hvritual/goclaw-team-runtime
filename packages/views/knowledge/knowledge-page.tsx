@@ -57,8 +57,8 @@ export function KnowledgePage() {
   const candidateQuery = useQuery(
     knowledgeCandidateListOptions(workspaceId, canReview),
   );
-  const propose = useProposeKnowledge();
-  const review = useReviewKnowledge();
+  const propose = useProposeKnowledge(workspaceId);
+  const review = useReviewKnowledge(workspaceId);
 
   const submitProposal = () => {
     if (!title.trim() || !content.trim() || !reason.trim()) return;
@@ -98,11 +98,13 @@ export function KnowledgePage() {
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
         <BookOpenText className="size-4 text-muted-foreground" />
-        <h1 className="text-sm font-semibold">{t(($) => $.title)}</h1>
+        <h1 className="text-sm font-semibold">
+          {t(($) => $.header.title)}
+        </h1>
         <div className="ml-auto">
           <Button size="sm" onClick={() => setShowProposal(true)}>
             <Plus className="size-4" />
-            {t(($) => $.propose)}
+            {t(($) => $.header.propose)}
           </Button>
         </div>
       </header>
@@ -112,13 +114,13 @@ export function KnowledgePage() {
           <section className="space-y-3 rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">
-                {t(($) => $.proposal_title)}
+                {t(($) => $.proposal.title)}
               </h2>
               <Button
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => setShowProposal(false)}
-                aria-label={t(($) => $.cancel)}
+                aria-label={t(($) => $.proposal.cancel)}
               >
                 <X className="size-4" />
               </Button>
@@ -138,19 +140,19 @@ export function KnowledgePage() {
               <Input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder={t(($) => $.proposal_title_placeholder)}
+                placeholder={t(($) => $.proposal.title_placeholder)}
               />
             </div>
             <Textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              placeholder={t(($) => $.proposal_content_placeholder)}
+              placeholder={t(($) => $.proposal.content_placeholder)}
               className="min-h-28"
             />
             <Textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder={t(($) => $.proposal_reason_placeholder)}
+              placeholder={t(($) => $.proposal.reason_placeholder)}
               className="min-h-20"
             />
             <div className="flex justify-end">
@@ -168,7 +170,7 @@ export function KnowledgePage() {
                 ) : (
                   <Plus className="size-4" />
                 )}
-                {t(($) => $.submit)}
+                {t(($) => $.proposal.submit)}
               </Button>
             </div>
           </section>
@@ -180,7 +182,7 @@ export function KnowledgePage() {
             variant={section === "published" ? "secondary" : "ghost"}
             onClick={() => setSection("published")}
           >
-            {t(($) => $.published)}
+            {t(($) => $.tabs.published)}
           </Button>
           {canReview ? (
             <Button
@@ -188,7 +190,7 @@ export function KnowledgePage() {
               variant={section === "review" ? "secondary" : "ghost"}
               onClick={() => setSection("review")}
             >
-              {t(($) => $.review_queue)}
+              {t(($) => $.tabs.review_queue)}
               {(candidateQuery.data?.total ?? 0) > 0 ? (
                 <Badge variant="secondary">
                   {candidateQuery.data?.total ?? 0}
@@ -205,16 +207,16 @@ export function KnowledgePage() {
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={t(($) => $.search_placeholder)}
+                placeholder={t(($) => $.search.placeholder)}
                 className="pl-9"
               />
             </div>
             {listQuery.isLoading ? (
-              <LoadingState label={t(($) => $.loading)} />
+              <LoadingState label={t(($) => $.states.loading)} />
             ) : listQuery.isError ? (
-              <ErrorState label={t(($) => $.load_failed)} />
+              <ErrorState label={t(($) => $.states.load_failed)} />
             ) : (listQuery.data?.entries.length ?? 0) === 0 ? (
-              <EmptyState label={t(($) => $.empty)} />
+              <EmptyState label={t(($) => $.states.empty)} />
             ) : (
               <div className="grid gap-3">
                 {listQuery.data?.entries.map((entry) => {
@@ -242,7 +244,7 @@ export function KnowledgePage() {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {t(($) => $.source_count, {
+                        {t(($) => $.source.count, {
                           count: revision?.sourceRefs.length ?? 0,
                         })}
                       </p>
@@ -254,11 +256,11 @@ export function KnowledgePage() {
           </>
         ) : canReview ? (
           candidateQuery.isLoading ? (
-            <LoadingState label={t(($) => $.loading)} />
+            <LoadingState label={t(($) => $.states.loading)} />
           ) : candidateQuery.isError ? (
-            <ErrorState label={t(($) => $.load_failed)} />
+            <ErrorState label={t(($) => $.states.load_failed)} />
           ) : (candidateQuery.data?.candidates.length ?? 0) === 0 ? (
-            <EmptyState label={t(($) => $.empty_candidates)} />
+            <EmptyState label={t(($) => $.states.empty_candidates)} />
           ) : (
             <div className="grid gap-3">
               {candidateQuery.data?.candidates.map((candidate) => (
@@ -286,7 +288,7 @@ export function KnowledgePage() {
                         [candidate.id]: event.target.value,
                       }))
                     }
-                    placeholder={t(($) => $.review_rationale_placeholder)}
+                    placeholder={t(($) => $.review.rationale_placeholder)}
                     className="min-h-20"
                   />
                   <div className="flex flex-wrap justify-end gap-2">
@@ -302,7 +304,7 @@ export function KnowledgePage() {
                       }
                     >
                       <ShieldAlert className="size-4" />
-                      {t(($) => $.quarantine)}
+                      {t(($) => $.review.quarantine)}
                     </Button>
                     <Button
                       size="sm"
@@ -314,7 +316,7 @@ export function KnowledgePage() {
                       onClick={() => reviewCandidate(candidate, "reject")}
                     >
                       <X className="size-4" />
-                      {t(($) => $.reject)}
+                      {t(($) => $.review.reject)}
                     </Button>
                     <Button
                       size="sm"
@@ -325,7 +327,7 @@ export function KnowledgePage() {
                       onClick={() => reviewCandidate(candidate, "approve")}
                     >
                       <Check className="size-4" />
-                      {t(($) => $.approve)}
+                      {t(($) => $.review.approve)}
                     </Button>
                   </div>
                 </article>

@@ -9,6 +9,12 @@ import (
 	"github.com/multica-ai/multica/server/internal/knowledge/adapter/memory"
 )
 
+type allowProjects struct{}
+
+func (allowProjects) ValidateProject(context.Context, string, string) error {
+	return nil
+}
+
 func TestManualProposalRequiresReason(t *testing.T) {
 	service := knowledge.NewService(nil, nil)
 
@@ -59,7 +65,7 @@ func TestManualProposalRequiresWorkspaceContentAndActor(t *testing.T) {
 
 func TestManualProposalCreatesCandidate(t *testing.T) {
 	store := memory.New()
-	service := knowledge.NewService(store, nil)
+	service := knowledge.NewService(store, nil, allowProjects{})
 
 	candidate, err := service.Propose(context.Background(), knowledge.ProposalInput{
 		WorkspaceID: "workspace-1",
@@ -86,7 +92,7 @@ func TestManualProposalCreatesCandidate(t *testing.T) {
 
 func TestApprovedCandidatePublishesAnImmutableFirstRevision(t *testing.T) {
 	store := memory.New()
-	service := knowledge.NewService(store, nil)
+	service := knowledge.NewService(store, nil, allowProjects{})
 	ctx := context.Background()
 	candidate, err := service.Propose(ctx, knowledge.ProposalInput{
 		WorkspaceID: "workspace-1",
@@ -128,7 +134,7 @@ func TestApprovedCandidatePublishesAnImmutableFirstRevision(t *testing.T) {
 
 func TestEvidenceIngestionIsIdempotent(t *testing.T) {
 	store := memory.New()
-	service := knowledge.NewService(store, knowledge.DefaultPromotionPolicy{})
+	service := knowledge.NewService(store, knowledge.DefaultPromotionPolicy{}, allowProjects{})
 	ctx := context.Background()
 	evidence := knowledge.Evidence{
 		ID:             "evidence-1",

@@ -1,14 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import { useWorkspaceId } from "../hooks";
 import type {
   ProposeKnowledgeRequest,
   ReviewKnowledgeRequest,
 } from "../types";
 import { knowledgeKeys } from "./queries";
 
-export function useProposeKnowledge() {
-  const workspaceId = useWorkspaceId();
+export function useProposeKnowledge(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (request: ProposeKnowledgeRequest) =>
@@ -18,8 +16,7 @@ export function useProposeKnowledge() {
   });
 }
 
-export function useReviewKnowledge() {
-  const workspaceId = useWorkspaceId();
+export function useReviewKnowledge(workspaceId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,14 +36,8 @@ var migrations = []migration{
 type Store struct {
 	db          *sql.DB
 	path        string
+	searchMu    sync.RWMutex
 	fts5Enabled bool
-}
-
-type Capabilities struct {
-	SchemaVersion int
-	JournalMode   string
-	ForeignKeys   bool
-	FTS5          bool
 }
 
 func Open(path string) (*Store, error) {
@@ -153,21 +148,21 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-func (s *Store) Capabilities(ctx context.Context) (Capabilities, error) {
-	var result Capabilities
+func (s *Store) Capabilities(ctx context.Context) (knowledge.StoreCapabilities, error) {
+	var result knowledge.StoreCapabilities
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version), 0) FROM knowledge_schema_version`).
 		Scan(&result.SchemaVersion); err != nil {
-		return Capabilities{}, fmt.Errorf("read knowledge schema version: %w", err)
+		return knowledge.StoreCapabilities{}, fmt.Errorf("read knowledge schema version: %w", err)
 	}
 	if err := s.db.QueryRowContext(ctx, `PRAGMA journal_mode`).Scan(&result.JournalMode); err != nil {
-		return Capabilities{}, fmt.Errorf("read knowledge journal mode: %w", err)
+		return knowledge.StoreCapabilities{}, fmt.Errorf("read knowledge journal mode: %w", err)
 	}
 	var foreignKeys int
 	if err := s.db.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
-		return Capabilities{}, fmt.Errorf("read knowledge foreign key mode: %w", err)
+		return knowledge.StoreCapabilities{}, fmt.Errorf("read knowledge foreign key mode: %w", err)
 	}
 	result.ForeignKeys = foreignKeys != 0
-	result.FTS5 = s.fts5Enabled
+	result.FTS5 = s.hasFTS5()
 	return result, nil
 }
 
@@ -175,8 +170,22 @@ func (s *Store) detectFTS5() bool {
 	if _, err := s.db.Exec(`CREATE VIRTUAL TABLE temp.knowledge_fts_probe USING fts5(content)`); err != nil {
 		return false
 	}
-	_, _ = s.db.Exec(`DROP TABLE temp.knowledge_fts_probe`)
+	if _, err := s.db.Exec(`DROP TABLE temp.knowledge_fts_probe`); err != nil {
+		return false
+	}
 	return true
+}
+
+func (s *Store) hasFTS5() bool {
+	s.searchMu.RLock()
+	defer s.searchMu.RUnlock()
+	return s.fts5Enabled
+}
+
+func (s *Store) disableFTS5() {
+	s.searchMu.Lock()
+	defer s.searchMu.Unlock()
+	s.fts5Enabled = false
 }
 
 func (s *Store) ensureFTS(ctx context.Context) error {
@@ -196,7 +205,7 @@ func (s *Store) ensureFTS(ctx context.Context) error {
 }
 
 func (s *Store) Rebuild(ctx context.Context) error {
-	if !s.fts5Enabled {
+	if !s.hasFTS5() {
 		return nil
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -477,7 +486,9 @@ func (s *Store) ReviewCandidate(
 		return knowledge.Candidate{}, nil, fmt.Errorf("commit knowledge review: %w", err)
 	}
 	if command.Entry != nil {
-		_ = s.Rebuild(ctx)
+		if err := s.Rebuild(ctx); err != nil {
+			s.disableFTS5()
+		}
 	}
 	candidate.Status = command.NewStatus
 	candidate.Revision++
@@ -567,7 +578,9 @@ func (s *Store) IngestEvidence(
 		return knowledge.IngestionResult{}, fmt.Errorf("commit knowledge ingestion: %w", err)
 	}
 	if command.Entry != nil {
-		_ = s.Rebuild(ctx)
+		if err := s.Rebuild(ctx); err != nil {
+			s.disableFTS5()
+		}
 	}
 	return result, nil
 }
@@ -770,7 +783,7 @@ func boolInt(value bool) int {
 }
 
 func (s *Store) Search(ctx context.Context, query knowledge.SearchQuery) (knowledge.SearchPage, error) {
-	if s.fts5Enabled && strings.TrimSpace(query.Text) != "" {
+	if s.hasFTS5() && strings.TrimSpace(query.Text) != "" {
 		return s.searchFTS(ctx, query)
 	}
 	return s.searchPortable(ctx, query)

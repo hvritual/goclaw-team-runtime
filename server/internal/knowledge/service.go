@@ -20,6 +20,8 @@ var (
 	ErrInvalidReview     = errors.New("invalid knowledge review action")
 	ErrInvalidEvidence   = errors.New("invalid knowledge evidence")
 	ErrInvalidProposal   = errors.New("invalid knowledge proposal")
+	ErrProjectScope      = errors.New("knowledge project does not belong to workspace")
+	ErrProjectValidator  = errors.New("knowledge project validator is required")
 )
 
 type Repository interface {
@@ -38,6 +40,10 @@ type PromotionPolicy interface {
 type SearchIndex interface {
 	Search(context.Context, SearchQuery) (SearchPage, error)
 	Rebuild(context.Context) error
+}
+
+type ProjectValidator interface {
+	ValidateProject(context.Context, string, string) error
 }
 
 type DefaultPromotionPolicy struct{}
@@ -70,15 +76,24 @@ func (DefaultPromotionPolicy) Decide(evidence Evidence) PromotionDecision {
 }
 
 type Service struct {
-	store  Repository
-	policy PromotionPolicy
+	store    Repository
+	policy   PromotionPolicy
+	projects ProjectValidator
 }
 
-func NewService(store Repository, policy PromotionPolicy) *Service {
+func NewService(
+	store Repository,
+	policy PromotionPolicy,
+	projectValidators ...ProjectValidator,
+) *Service {
 	if policy == nil {
 		policy = DefaultPromotionPolicy{}
 	}
-	return &Service{store: store, policy: policy}
+	var projects ProjectValidator
+	if len(projectValidators) > 0 {
+		projects = projectValidators[0]
+	}
+	return &Service{store: store, policy: policy, projects: projects}
 }
 
 func (s *Service) Propose(ctx context.Context, input ProposalInput) (Candidate, error) {
@@ -94,6 +109,9 @@ func (s *Service) Propose(ctx context.Context, input ProposalInput) (Candidate, 
 	}
 	if s.store == nil {
 		return Candidate{}, ErrStoreRequired
+	}
+	if err := s.validateProject(ctx, input.WorkspaceID, input.ProjectID); err != nil {
+		return Candidate{}, err
 	}
 	return s.store.CreateCandidate(ctx, Candidate{
 		WorkspaceID: strings.TrimSpace(input.WorkspaceID),
@@ -121,6 +139,9 @@ func validKind(kind Kind) bool {
 func (s *Service) IngestEvidence(ctx context.Context, evidence Evidence) (IngestionResult, error) {
 	if s.store == nil {
 		return IngestionResult{}, ErrStoreRequired
+	}
+	if err := s.validateProject(ctx, evidence.WorkspaceID, evidence.ProjectID); err != nil {
+		return IngestionResult{}, err
 	}
 	if strings.TrimSpace(evidence.ID) == "" ||
 		strings.TrimSpace(evidence.WorkspaceID) == "" ||
@@ -185,6 +206,24 @@ func (s *Service) IngestEvidence(ctx context.Context, evidence Evidence) (Ingest
 		return IngestionResult{}, ErrInvalidEvidence
 	}
 	return s.store.IngestEvidence(ctx, command)
+}
+
+func (s *Service) validateProject(ctx context.Context, workspaceID, projectID string) error {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return nil
+	}
+	if s.projects == nil {
+		return ErrProjectValidator
+	}
+	if err := s.projects.ValidateProject(
+		ctx,
+		strings.TrimSpace(workspaceID),
+		projectID,
+	); err != nil {
+		return errors.Join(ErrProjectScope, err)
+	}
+	return nil
 }
 
 func (s *Service) Review(ctx context.Context, input ReviewInput) (Candidate, *Entry, error) {

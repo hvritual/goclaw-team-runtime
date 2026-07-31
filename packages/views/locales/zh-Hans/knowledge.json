@@ -1,24 +1,38 @@
 {
-  "title": "知识库",
-  "search_placeholder": "搜索已发布知识",
-  "published": "已发布",
-  "review_queue": "审核队列",
-  "propose": "提议知识",
-  "proposal_title": "新建知识提议",
-  "proposal_title_placeholder": "填写简明标题",
-  "proposal_content_placeholder": "团队需要沉淀什么？",
-  "proposal_reason_placeholder": "为什么应将其纳入受治理知识？",
-  "submit": "提交提议",
-  "cancel": "取消",
-  "empty": "还没有已发布知识",
-  "empty_candidates": "当前没有待审核候选",
-  "loading": "正在加载知识库",
-  "load_failed": "无法加载知识库",
-  "source_count": "{{count}} 个来源",
-  "review_rationale_placeholder": "填写审核理由",
-  "approve": "批准",
-  "reject": "拒绝",
-  "quarantine": "隔离",
+  "header": {
+    "title": "知识库",
+    "propose": "提议知识"
+  },
+  "search": {
+    "placeholder": "搜索已发布知识"
+  },
+  "tabs": {
+    "published": "已发布",
+    "review_queue": "审核队列"
+  },
+  "proposal": {
+    "title": "新建知识提议",
+    "title_placeholder": "填写简明标题",
+    "content_placeholder": "团队需要沉淀什么？",
+    "reason_placeholder": "为什么应将其纳入受治理知识？",
+    "submit": "提交提议",
+    "cancel": "取消"
+  },
+  "states": {
+    "empty": "还没有已发布知识",
+    "empty_candidates": "当前没有待审核候选",
+    "loading": "正在加载知识库",
+    "load_failed": "无法加载知识库"
+  },
+  "source": {
+    "count_other": "{{count}} 个来源"
+  },
+  "review": {
+    "rationale_placeholder": "填写审核理由",
+    "approve": "批准",
+    "reject": "拒绝",
+    "quarantine": "隔离"
+  },
   "kinds": {
     "goal": "目标",
     "decision": "决策",

@@ -133,7 +133,8 @@ func (s *Server) startKnowledgeDispatcher() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for {
-			_, _ = s.knowledgeDispatcher.Drain(ctx, 50)
+			_, err := s.knowledgeDispatcher.Drain(ctx, 50)
+			s.recordKnowledgeDispatch(err)
 			select {
 			case <-ctx.Done():
 				return
@@ -147,7 +148,23 @@ func (s *Server) dispatchKnowledgeEvidence(ctx context.Context) {
 	if s.knowledgeDispatcher == nil {
 		return
 	}
-	_, _ = s.knowledgeDispatcher.Drain(ctx, 50)
+	_, err := s.knowledgeDispatcher.Drain(ctx, 50)
+	s.recordKnowledgeDispatch(err)
+}
+
+func (s *Server) recordKnowledgeDispatch(err error) {
+	s.knowledgeDispatchMu.Lock()
+	defer s.knowledgeDispatchMu.Unlock()
+	s.knowledgeDispatchError = ""
+	if err != nil {
+		s.knowledgeDispatchError = err.Error()
+	}
+}
+
+func (s *Server) knowledgeDispatchStatus() string {
+	s.knowledgeDispatchMu.RLock()
+	defer s.knowledgeDispatchMu.RUnlock()
+	return s.knowledgeDispatchError
 }
 
 func (s *Server) knowledgeOutboxStats(ctx context.Context, workspaceID string) (map[string]any, error) {
@@ -169,6 +186,7 @@ func (s *Server) knowledgeOutboxStats(ctx context.Context, workspaceID string) (
 		"pending":           pending,
 		"failed":            failed,
 		"last_delivered_at": nullable(lastDelivered.String),
+		"last_error":        nullable(s.knowledgeDispatchStatus()),
 	}, nil
 }
 
@@ -195,7 +213,7 @@ func projectEvidence(value project, actorID, eventType string) knowledge.Evidenc
 	if value.Description.Valid && strings.TrimSpace(value.Description.String) != "" {
 		content += "\n\n" + value.Description.String
 	}
-	return newProjectEvidence(
+	return newKnowledgeEvidence(
 		value.WorkspaceID,
 		value.ID,
 		value.ID,
@@ -214,7 +232,7 @@ func issueEvidence(value issue, actorID, eventType string) knowledge.Evidence {
 	if value.Description.Valid && strings.TrimSpace(value.Description.String) != "" {
 		content += "\n\n" + value.Description.String
 	}
-	return newProjectEvidence(
+	return newKnowledgeEvidence(
 		value.WorkspaceID,
 		optionalString(value.ProjectID),
 		value.ID,
@@ -233,7 +251,7 @@ func taskEvidence(value task, actorID, eventType string) knowledge.Evidence {
 	if strings.TrimSpace(value.Description) != "" {
 		content += "\n\n" + value.Description
 	}
-	return newProjectEvidence(
+	return newKnowledgeEvidence(
 		value.WorkspaceID,
 		optionalString(value.ProjectID),
 		value.ID,
@@ -247,7 +265,7 @@ func taskEvidence(value task, actorID, eventType string) knowledge.Evidence {
 	)
 }
 
-func newProjectEvidence(
+func newKnowledgeEvidence(
 	workspaceID string,
 	projectID string,
 	sourceID string,

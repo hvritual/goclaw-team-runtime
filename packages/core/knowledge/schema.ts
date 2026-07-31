@@ -7,6 +7,32 @@ import type {
   ReviewKnowledgeResponse,
 } from "../types";
 
+const knowledgeKindSchema = z
+  .enum([
+    "goal",
+    "decision",
+    "constraint",
+    "requirement",
+    "procedure",
+    "lesson",
+    "reference",
+  ])
+  .catch("reference");
+
+const publishedKnowledgeStatusSchema = z
+  .enum(["published", "superseded"])
+  .catch("published");
+
+const candidateKnowledgeStatusSchema = z
+  .enum([
+    "candidate",
+    "in_review",
+    "published",
+    "rejected",
+    "quarantined",
+  ])
+  .catch("candidate");
+
 const sourceRefSchema = z.object({
   type: z.string(),
   id: z.string(),
@@ -48,8 +74,8 @@ export const knowledgeEntrySchema = z.object({
   workspace_id: z.string(),
   project_id: z.string().nullable().optional().default(null),
   candidate_id: z.string().nullable().optional().default(null),
-  kind: z.string(),
-  status: z.string(),
+  kind: knowledgeKindSchema,
+  status: publishedKnowledgeStatusSchema,
   current_revision: z.number(),
   revisions: z.array(revisionSchema).default([]),
   created_at: z.string(),
@@ -75,11 +101,11 @@ export const knowledgeCandidateSchema = z.object({
   id: z.string(),
   workspace_id: z.string(),
   project_id: z.string().nullable().optional().default(null),
-  kind: z.string(),
+  kind: knowledgeKindSchema,
   title: z.string(),
   content: z.string(),
   reason: z.string(),
-  status: z.string(),
+  status: candidateKnowledgeStatusSchema,
   revision: z.number(),
   proposed_by: z.string(),
   source_refs: z.array(sourceRefSchema).default([]),

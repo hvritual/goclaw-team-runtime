@@ -207,6 +207,11 @@ func (s *Server) listKnowledgeCandidates(w http.ResponseWriter, r *http.Request)
 	}
 	if rawStatus := strings.TrimSpace(r.URL.Query().Get("status")); rawStatus != "" {
 		query.Statuses = []knowledge.Status{knowledge.Status(rawStatus)}
+	} else {
+		query.Statuses = []knowledge.Status{
+			knowledge.StatusCandidate,
+			knowledge.StatusInReview,
+		}
 	}
 	if rawKind := strings.TrimSpace(r.URL.Query().Get("kind")); rawKind != "" {
 		query.Kinds = []knowledge.Kind{knowledge.Kind(rawKind)}
@@ -372,6 +377,8 @@ func writeKnowledgeError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "knowledge revision conflict")
 	case errors.Is(err, knowledge.ErrWorkspaceMismatch):
 		writeError(w, http.StatusForbidden, "knowledge access denied")
+	case errors.Is(err, knowledge.ErrProjectScope):
+		writeError(w, http.StatusBadRequest, "project not found in workspace")
 	case errors.Is(err, knowledge.ErrReasonRequired),
 		errors.Is(err, knowledge.ErrRationaleRequired),
 		errors.Is(err, knowledge.ErrReviewerRequired),

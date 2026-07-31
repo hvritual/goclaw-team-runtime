@@ -156,8 +156,15 @@ The implementation uses the official Go MCP SDK:
   Issue creation/acceptance, and terminal Task completion. Comment decisions,
   deliverable revisions, acceptance conclusions, and retrospectives remain
   future evidence producers behind the same envelope.
-- Project-lead review is not introduced because the six-domain baseline has no
-  canonical Project-lead role. Existing owner/admin authorization is used.
+- Project-lead review is not introduced as a separate role. The existing
+  Project `lead_id` capability still needs candidate filtering and review
+  authorization; owner/admin authorization is used in this increment.
+- The default PostgreSQL server composition does not yet register the
+  knowledge API, source outbox, or MCP transport. Deployment must use the
+  SQLite-local composition until that wiring is added.
+- Published-entry supersession and subsequent revision proposals remain to be
+  implemented. The current model preserves immutable first revisions and
+  optimistic candidate-review revisions.
 - The local server has no standalone backup or index-rebuild CLI yet; both
   operations are available at the adapter boundary and covered by tests.
 - SQLite is the first adapter, not the product-level storage contract.

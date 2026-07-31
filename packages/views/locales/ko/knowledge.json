@@ -1,29 +1,43 @@
 {
-  "title": "지식",
-  "search_placeholder": "게시된 지식 검색",
-  "published": "게시됨",
-  "review_queue": "검토 대기열",
-  "propose": "지식 제안",
-  "proposal_title": "새 지식 제안",
-  "proposal_title_placeholder": "간결한 제목",
-  "proposal_content_placeholder": "팀이 무엇을 보존해야 하나요?",
-  "proposal_reason_placeholder": "왜 관리되는 지식이 되어야 하나요?",
-  "submit": "제안 제출",
-  "cancel": "취소",
-  "empty": "게시된 지식이 없습니다",
-  "empty_candidates": "검토할 후보가 없습니다",
-  "loading": "지식 불러오는 중",
-  "load_failed": "지식을 불러올 수 없습니다",
-  "source_count": "출처 {{count}}개",
-  "review_rationale_placeholder": "검토 사유 추가",
-  "approve": "승인",
-  "reject": "거절",
-  "quarantine": "격리",
+  "header": {
+    "title": "지식",
+    "propose": "지식 제안"
+  },
+  "search": {
+    "placeholder": "게시된 지식 검색"
+  },
+  "tabs": {
+    "published": "게시됨",
+    "review_queue": "검토 대기열"
+  },
+  "proposal": {
+    "title": "새 지식 제안",
+    "title_placeholder": "간결한 제목",
+    "content_placeholder": "팀이 보존해야 할 내용은 무엇인가요?",
+    "reason_placeholder": "이 내용을 관리 지식으로 보존해야 하는 이유는 무엇인가요?",
+    "submit": "제안 제출",
+    "cancel": "취소"
+  },
+  "states": {
+    "empty": "아직 게시된 지식이 없습니다",
+    "empty_candidates": "검토할 후보가 없습니다",
+    "loading": "지식을 불러오는 중",
+    "load_failed": "지식을 불러올 수 없습니다"
+  },
+  "source": {
+    "count_other": "출처 {{count}}개"
+  },
+  "review": {
+    "rationale_placeholder": "검토 근거 추가",
+    "approve": "승인",
+    "reject": "거부",
+    "quarantine": "격리"
+  },
   "kinds": {
     "goal": "목표",
     "decision": "결정",
     "constraint": "제약",
-    "requirement": "요구 사항",
+    "requirement": "요구사항",
     "procedure": "절차",
     "lesson": "교훈",
     "reference": "참조"

@@ -34,6 +34,7 @@ type mcpSearchInput struct {
 	IncludeCandidates bool   `json:"include_candidates,omitempty" jsonschema:"Include governed candidates when the token has knowledge:candidate:read."`
 	Limit             int    `json:"limit,omitempty" jsonschema:"Maximum number of results, from 1 to 100."`
 	Cursor            string `json:"cursor,omitempty" jsonschema:"Opaque pagination cursor from a previous result."`
+	CandidateCursor   string `json:"candidate_cursor,omitempty" jsonschema:"Independent candidate pagination cursor from a previous result."`
 }
 
 type mcpGetInput struct {
@@ -50,9 +51,10 @@ type mcpProposeInput struct {
 }
 
 type mcpKnowledgePage struct {
-	Entries    []map[string]any `json:"entries"`
-	Candidates []map[string]any `json:"candidates,omitempty"`
-	NextCursor string           `json:"next_cursor,omitempty"`
+	Entries             []map[string]any `json:"entries"`
+	Candidates          []map[string]any `json:"candidates,omitempty"`
+	NextCursor          string           `json:"next_cursor,omitempty"`
+	CandidateNextCursor string           `json:"candidate_next_cursor,omitempty"`
 }
 
 type mcpKnowledgeEntry struct {
@@ -216,7 +218,6 @@ func (s *Server) verifyMCPToken(
 	tokenInfo.Extra = map[string]any{
 		"workspace_id":   workspaceID,
 		"workspace_slug": workspaceSlug,
-		"role":           role,
 	}
 	return tokenInfo, nil
 }
@@ -306,7 +307,7 @@ func (s *Server) runMCPSearch(
 			WorkspaceID: identity.WorkspaceID,
 			ProjectID:   input.ProjectID,
 			Limit:       input.Limit,
-			Cursor:      input.Cursor,
+			Cursor:      input.CandidateCursor,
 		}
 		if input.Kind != "" {
 			candidateQuery.Kinds = []knowledge.Kind{knowledge.Kind(input.Kind)}
@@ -323,6 +324,7 @@ func (s *Server) runMCPSearch(
 			}
 			result.Candidates = append(result.Candidates, knowledgeCandidateResponse(candidate))
 		}
+		result.CandidateNextCursor = candidates.NextCursor
 	}
 	return nil, result, nil
 }
@@ -404,7 +406,6 @@ func (s *Server) mcpReadKnowledgeResource(
 type mcpIdentity struct {
 	UserID      string
 	WorkspaceID string
-	Role        string
 	Scopes      []string
 }
 
@@ -414,14 +415,12 @@ func requireMCPIdentity(ctx context.Context, scope string) (mcpIdentity, error) 
 		return mcpIdentity{}, errors.New("insufficient knowledge scope")
 	}
 	workspaceID, _ := tokenInfo.Extra["workspace_id"].(string)
-	role, _ := tokenInfo.Extra["role"].(string)
 	if tokenInfo.UserID == "" || workspaceID == "" {
 		return mcpIdentity{}, errors.New("invalid MCP identity")
 	}
 	return mcpIdentity{
 		UserID:      tokenInfo.UserID,
 		WorkspaceID: workspaceID,
-		Role:        role,
 		Scopes:      append([]string(nil), tokenInfo.Scopes...),
 	}, nil
 }
@@ -439,7 +438,10 @@ func intersectScopes(actual, allowed []string) []string {
 func workspaceSlugFromMCPPath(path string) string {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	if len(parts) == 3 && parts[0] == "mcp" && parts[2] == "knowledge" {
-		value, _ := url.PathUnescape(parts[1])
+		value, err := url.PathUnescape(parts[1])
+		if err != nil {
+			return ""
+		}
 		return value
 	}
 	return ""

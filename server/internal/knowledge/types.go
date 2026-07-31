@@ -2,6 +2,13 @@ package knowledge
 
 import "time"
 
+type StoreCapabilities struct {
+	SchemaVersion int
+	JournalMode   string
+	ForeignKeys   bool
+	FTS5          bool
+}
+
 type Kind string
 
 const (

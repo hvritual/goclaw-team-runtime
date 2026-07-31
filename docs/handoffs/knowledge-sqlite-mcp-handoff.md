@@ -2,8 +2,10 @@
 
 ## Status
 
-The accepted product and architecture decisions have been implemented on the
-current feature branch. The staged delivery record lives in
+The accepted product and architecture decisions have been implemented for the
+SQLite-local composition on the current feature branch. Remaining production
+composition and governance gaps are listed in `docs/knowledge.md` instead of
+being treated as complete. The staged delivery record lives in
 [`docs/plans/knowledge-sqlite-mcp-implementation.md`](../plans/knowledge-sqlite-mcp-implementation.md),
 and configuration and recovery guidance lives in
 [`docs/knowledge.md`](../knowledge.md).

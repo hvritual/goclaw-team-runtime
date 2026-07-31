@@ -13,9 +13,11 @@ query types.
 
 ## Implementation status
 
-All delivery stages are implemented on the feature branch. Verification and
-commit evidence are recorded in the final handoff report. Deferred evidence
-producers and the absence of a standalone operations CLI are documented in
+Stages 1–6 are implemented for the SQLite-local composition, and stage 7
+verification is recorded in the final handoff report. Production PostgreSQL
+composition, published-entry supersession, and Project-lead review remain
+explicit follow-up work; they are not hidden behind compatibility shims.
+Deferred evidence producers and operations limits are documented in
 [`docs/knowledge.md`](../knowledge.md).
 
 ## Confirmed boundaries
