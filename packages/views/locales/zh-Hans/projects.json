@@ -27,6 +27,24 @@
     "created": "创建时间",
     "issues": "Issue 数"
   },
+  "implementation_knowledge": {
+    "record_action": "记录复盘",
+    "dialog_title": "记录项目复盘",
+    "dialog_description": "复盘会作为项目实施过程的知识来源，并进入知识候选审核。",
+    "summary": "复盘总结",
+    "successes": "成功经验",
+    "problems": "遇到的问题",
+    "lessons": "经验教训",
+    "follow_ups": "后续事项引用",
+    "line_placeholder": "每行一项",
+    "cancel": "取消",
+    "submit": "记录复盘",
+    "history_title": "项目复盘",
+    "knowledge_link": "查看知识库",
+    "lesson_prefix": "经验：",
+    "success": "项目复盘已记录并进入知识候选",
+    "failed": "项目复盘记录失败"
+  },
   "status": {
     "planned": "计划中",
     "in_progress": "进行中",

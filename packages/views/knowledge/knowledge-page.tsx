@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   knowledgeCandidateListOptions,
@@ -42,6 +42,7 @@ import {
   X,
 } from "lucide-react";
 import { useT } from "../i18n";
+import { useNavigation } from "../navigation";
 
 const KNOWLEDGE_KINDS: KnowledgeKind[] = [
   "goal",
@@ -55,6 +56,7 @@ const KNOWLEDGE_KINDS: KnowledgeKind[] = [
 
 export function KnowledgePage() {
   const { t } = useT("knowledge");
+  const navigation = useNavigation();
   const workspaceId = useWorkspaceId();
   const { role, userId } = useCurrentMember(workspaceId);
   const projectsQuery = useQuery(projectLeadershipListOptions(workspaceId));
@@ -65,7 +67,16 @@ export function KnowledgePage() {
       (project) => project.leadType === "member" && project.leadId === userId,
     ) === true;
   const [query, setQuery] = useState("");
-  const [section, setSection] = useState<"published" | "review">("published");
+  const sourceType = navigation.searchParams.get("source_type")?.trim();
+  const sourceId = navigation.searchParams.get("source_id")?.trim();
+  const sourceFilter = sourceType && sourceId ? { type: sourceType, id: sourceId } : null;
+  const requestedSection = navigation.searchParams.get("section") === "review" ? "review" : "published";
+  const [section, setSection] = useState<"published" | "review">(
+    requestedSection,
+  );
+  useEffect(() => {
+    setSection(requestedSection);
+  }, [requestedSection]);
   const [showProposal, setShowProposal] = useState(false);
   const [proposalTarget, setProposalTarget] = useState<KnowledgeEntry | null>(
     null,
@@ -80,6 +91,19 @@ export function KnowledgePage() {
   const candidateQuery = useQuery(
     knowledgeCandidateListOptions(workspaceId, canReview),
   );
+  const visibleCandidates = candidateQuery.data?.candidates.filter((candidate) =>
+    !sourceFilter || candidate.sourceRefs.some(
+      (source) => source.type === sourceFilter.type && source.id === sourceFilter.id,
+    ),
+  ) ?? [];
+  const visibleEntries = listQuery.data?.entries.filter((entry) =>
+    !sourceFilter || entry.revisions.some((revision) => revision.sourceRefs.some(
+      (source) => source.type === sourceFilter.type && source.id === sourceFilter.id,
+    )),
+  ) ?? [];
+  const activeSection = sourceFilter
+    ? (visibleEntries.length > 0 ? "published" : canReview ? "review" : "published")
+    : section;
   const propose = useProposeKnowledge(workspaceId);
   const review = useReviewKnowledge(workspaceId);
   const kindOptions = KNOWLEDGE_KINDS.map((value) => ({
@@ -249,7 +273,7 @@ export function KnowledgePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            variant={section === "published" ? "secondary" : "ghost"}
+            variant={activeSection === "published" ? "secondary" : "ghost"}
             onClick={() => setSection("published")}
           >
             {t(($) => $.tabs.published)}
@@ -257,7 +281,7 @@ export function KnowledgePage() {
           {canReview ? (
             <Button
               size="sm"
-              variant={section === "review" ? "secondary" : "ghost"}
+              variant={activeSection === "review" ? "secondary" : "ghost"}
               onClick={() => setSection("review")}
             >
               {t(($) => $.tabs.review_queue)}
@@ -270,7 +294,7 @@ export function KnowledgePage() {
           ) : null}
         </div>
 
-        {section === "published" ? (
+        {activeSection === "published" ? (
           <>
             <div className="relative">
               <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
@@ -293,11 +317,11 @@ export function KnowledgePage() {
               <LoadingState label={t(($) => $.states.loading)} />
             ) : listQuery.isError ? (
               <ErrorState label={t(($) => $.states.load_failed)} />
-            ) : (listQuery.data?.entries.length ?? 0) === 0 ? (
+            ) : visibleEntries.length === 0 ? (
               <EmptyState label={t(($) => $.states.empty)} />
             ) : (
               <div className="grid gap-3">
-                {listQuery.data?.entries.map((entry) => {
+                {visibleEntries.map((entry) => {
                   const revision =
                     entry.revisions.find(
                       (candidate) =>
@@ -355,11 +379,11 @@ export function KnowledgePage() {
             <LoadingState label={t(($) => $.states.loading)} />
           ) : candidateQuery.isError ? (
             <ErrorState label={t(($) => $.states.load_failed)} />
-          ) : (candidateQuery.data?.candidates.length ?? 0) === 0 ? (
+          ) : visibleCandidates.length === 0 ? (
             <EmptyState label={t(($) => $.states.empty_candidates)} />
           ) : (
             <div className="grid gap-3">
-              {candidateQuery.data?.candidates.map((candidate) => (
+              {visibleCandidates.map((candidate) => (
                 <article
                   key={candidate.id}
                   className="space-y-3 rounded-xl border bg-card p-4"

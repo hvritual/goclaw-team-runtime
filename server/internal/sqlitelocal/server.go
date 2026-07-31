@@ -345,6 +345,8 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			projects.Get("/{id}", s.getProject)
 			projects.Put("/{id}", s.updateProject)
 			projects.Delete("/{id}", s.deleteProject)
+			projects.Get("/{id}/retrospectives", s.listProjectRetrospectives)
+			projects.Post("/{id}/retrospectives", s.createProjectRetrospective)
 		})
 
 		api.Route("/api/issues", func(issues chi.Router) {
@@ -355,6 +357,8 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			issues.Patch("/{id}", s.updateIssue)
 			issues.Put("/{id}", s.updateIssue)
 			issues.Delete("/{id}", s.deleteIssue)
+			issues.Get("/{id}/acceptance-conclusions", s.listIssueAcceptanceConclusions)
+			issues.Post("/{id}/acceptance-conclusions", s.createIssueAcceptanceConclusion)
 			issues.Get("/{id}/timeline", s.listIssueTimeline)
 			issues.Get("/{id}/comments", s.listComments)
 			issues.Post("/{id}/comments", s.createComment)
@@ -1847,6 +1851,10 @@ func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_retrospective WHERE project_id = ?`, value.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project")
+		return
+	}
 	if _, err := tx.ExecContext(r.Context(), `UPDATE issues SET project_id = NULL WHERE project_id = ?`, value.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete project")
 		return
@@ -1905,19 +1913,20 @@ func (value issue) response(prefix string) map[string]any {
 }
 
 type issueRequest struct {
-	Title         string         `json:"title"`
-	Status        string         `json:"status"`
-	Priority      string         `json:"priority"`
-	Description   *string        `json:"description"`
-	AssigneeType  *string        `json:"assignee_type"`
-	AssigneeID    *string        `json:"assignee_id"`
-	ParentIssueID *string        `json:"parent_issue_id"`
-	ProjectID     *string        `json:"project_id"`
-	StartDate     *string        `json:"start_date"`
-	DueDate       *string        `json:"due_date"`
-	Stage         *int64         `json:"stage"`
-	Metadata      map[string]any `json:"metadata"`
-	Properties    map[string]any `json:"properties"`
+	Title                string                       `json:"title"`
+	Status               string                       `json:"status"`
+	Priority             string                       `json:"priority"`
+	Description          *string                      `json:"description"`
+	AssigneeType         *string                      `json:"assignee_type"`
+	AssigneeID           *string                      `json:"assignee_id"`
+	ParentIssueID        *string                      `json:"parent_issue_id"`
+	ProjectID            *string                      `json:"project_id"`
+	StartDate            *string                      `json:"start_date"`
+	DueDate              *string                      `json:"due_date"`
+	Stage                *int64                       `json:"stage"`
+	Metadata             map[string]any               `json:"metadata"`
+	Properties           map[string]any               `json:"properties"`
+	AcceptanceConclusion *acceptanceConclusionRequest `json:"acceptance_conclusion"`
 }
 
 func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
@@ -2050,7 +2059,6 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	previousStatus := value.Status
 	var req issueRequest
 	if !decodeJSON(w, r, &req) {
 		return
@@ -2088,6 +2096,16 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 	if req.Properties != nil {
 		value.Properties = encodeJSON(req.Properties, "{}")
 	}
+	if req.AcceptanceConclusion != nil {
+		if value.Status != "done" {
+			writeError(w, http.StatusBadRequest, "acceptance conclusion requires done status")
+			return
+		}
+		if err := req.AcceptanceConclusion.validate(); err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
 	value.UpdatedAt = now()
 	tx, err := s.db.BeginTx(r.Context(), nil)
 	if err != nil {
@@ -2104,8 +2122,13 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update issue")
 		return
 	}
-	if previousStatus != value.Status && value.Status == "done" {
-		if err := enqueueKnowledgeEvidence(r.Context(), tx, issueEvidence(value, currentUserID(r), "issue.accepted")); err != nil {
+	if req.AcceptanceConclusion != nil {
+		conclusion, err := insertIssueAcceptanceConclusion(r.Context(), tx, value, currentUserID(r), *req.AcceptanceConclusion)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
+			return
+		}
+		if err := enqueueKnowledgeEvidence(r.Context(), tx, acceptanceConclusionEvidence(value, conclusion)); err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
 			return
 		}
@@ -2131,6 +2154,7 @@ func (s *Server) deleteIssue(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE issue_id = ?`,
+		`DELETE FROM issue_acceptance_conclusion WHERE issue_id = ?`,
 		`UPDATE issues SET parent_issue_id = NULL WHERE parent_issue_id = ?`,
 		`DELETE FROM issues WHERE id = ?`,
 	}

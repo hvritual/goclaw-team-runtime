@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -474,6 +475,210 @@ func TestSQLiteLocalCapturesCommentDecisionAsCandidate(t *testing.T) {
 	}, http.StatusCreated)
 	client.slug = other["slug"].(string)
 	client.request(http.MethodPost, "/api/comments/"+comment["id"].(string)+"/knowledge-proposals", nil, http.StatusNotFound)
+}
+
+func TestSQLiteLocalCapturesIssueAcceptanceConclusions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com", "code": "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Acceptance Team", "slug": "acceptance-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Acceptance evidence",
+	}, http.StatusCreated)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title": "Close with explicit evidence", "project_id": project["id"],
+	}, http.StatusCreated)
+
+	completedIssue := client.request(http.MethodPut, "/api/issues/"+issue["id"].(string), map[string]any{
+		"status": "done",
+		"acceptance_conclusion": map[string]any{
+			"result": "accepted", "rationale": "All recovery checks passed.",
+			"evidence_refs": []string{"artifact://recovery-report/v2"},
+		},
+	}, http.StatusOK)
+	conclusions := client.request(http.MethodGet, "/api/issues/"+issue["id"].(string)+"/acceptance-conclusions", nil, http.StatusOK)
+	items := conclusions["acceptance_conclusions"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("acceptance conclusions = %#v", conclusions)
+	}
+	conclusion := items[0].(map[string]any)
+	if conclusion["result"] != "accepted" || conclusion["actor_id"] == nil {
+		t.Fatalf("acceptance conclusion = %#v", conclusion)
+	}
+
+	legacy := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title": "Legacy completion", "project_id": project["id"],
+	}, http.StatusCreated)
+	client.request(http.MethodPut, "/api/issues/"+legacy["id"].(string), map[string]any{"status": "done"}, http.StatusOK)
+	legacyConclusions := client.request(http.MethodGet, "/api/issues/"+legacy["id"].(string)+"/acceptance-conclusions", nil, http.StatusOK)
+	if legacyConclusions["total"] != float64(0) {
+		t.Fatalf("legacy completion fabricated a conclusion: %#v", legacyConclusions)
+	}
+
+	invalid := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title": "Atomic validation", "project_id": project["id"],
+	}, http.StatusCreated)
+	client.request(http.MethodPut, "/api/issues/"+invalid["id"].(string), map[string]any{
+		"status": "done", "acceptance_conclusion": map[string]any{"result": "accepted"},
+	}, http.StatusBadRequest)
+	unchanged := client.request(http.MethodGet, "/api/issues/"+invalid["id"].(string), nil, http.StatusOK)
+	if unchanged["status"] != "todo" {
+		t.Fatalf("invalid conclusion did not roll back issue: %#v", unchanged)
+	}
+
+	outboxFailure := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title": "Outbox rollback", "project_id": project["id"],
+	}, http.StatusCreated)
+	if _, err := app.db.Exec(`CREATE TRIGGER fail_acceptance_outbox BEFORE INSERT ON knowledge_evidence_outbox
+		BEGIN SELECT RAISE(ABORT, 'forced outbox failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	client.request(http.MethodPut, "/api/issues/"+outboxFailure["id"].(string), map[string]any{
+		"status": "done",
+		"acceptance_conclusion": map[string]any{
+			"result": "accepted", "rationale": "This transaction must roll back.",
+		},
+	}, http.StatusInternalServerError)
+	if _, err := app.db.Exec(`DROP TRIGGER fail_acceptance_outbox`); err != nil {
+		t.Fatal(err)
+	}
+	rolledBack := client.request(http.MethodGet, "/api/issues/"+outboxFailure["id"].(string), nil, http.StatusOK)
+	if rolledBack["status"] != "todo" {
+		t.Fatalf("outbox failure committed issue status: %#v", rolledBack)
+	}
+	rolledBackConclusions := client.request(http.MethodGet, "/api/issues/"+outboxFailure["id"].(string)+"/acceptance-conclusions", nil, http.StatusOK)
+	if rolledBackConclusions["total"] != float64(0) {
+		t.Fatalf("outbox failure committed acceptance conclusion: %#v", rolledBackConclusions)
+	}
+
+	client.request(http.MethodPost, "/api/issues/"+legacy["id"].(string)+"/acceptance-conclusions", map[string]any{
+		"result": "conditional", "rationale": "Accepted with monitoring follow-up.",
+		"evidence_refs": []string{"issue://follow-up"},
+	}, http.StatusCreated)
+
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	found := 0
+	for _, raw := range candidates["candidates"].([]any) {
+		candidate := raw.(map[string]any)
+		for _, sourceRaw := range candidate["source_refs"].([]any) {
+			source := sourceRaw.(map[string]any)
+			if source["type"] == "acceptance_conclusion" {
+				if source["id"] == issue["id"] && !strings.HasPrefix(source["revision"].(string), completedIssue["updated_at"].(string)+"@sha256:") {
+					t.Fatalf("acceptance source revision = %#v, issue update = %#v", source, completedIssue)
+				}
+				found++
+			}
+		}
+	}
+	if found != 2 {
+		t.Fatalf("acceptance candidates = %#v", candidates)
+	}
+}
+
+func TestAcceptanceEvidenceSeparatesIssueRevisionFromCaptureTime(t *testing.T) {
+	issueUpdatedAt := "2026-07-31T08:00:00Z"
+	conclusionCreatedAt := "2026-08-01T09:30:00Z"
+	evidence := acceptanceConclusionEvidence(issue{
+		ID: "issue-1", WorkspaceID: "workspace-1", Title: "Release acceptance",
+		UpdatedAt: issueUpdatedAt,
+	}, issueAcceptanceConclusion{
+		ID: "conclusion-1", WorkspaceID: "workspace-1", IssueID: "issue-1",
+		Result: "accepted", Rationale: "Passed", ActorID: "member-1",
+		CreatedAt: conclusionCreatedAt, UpdatedAt: conclusionCreatedAt,
+	})
+	if !strings.HasPrefix(evidence.SourceRevision, issueUpdatedAt+"@sha256:") {
+		t.Fatalf("source revision = %q", evidence.SourceRevision)
+	}
+	if got := evidence.OccurredAt.Format(time.RFC3339); got != conclusionCreatedAt {
+		t.Fatalf("occurred at = %q, want %q", got, conclusionCreatedAt)
+	}
+}
+
+func TestSQLiteLocalCapturesProjectRetrospectivesAndReplaysDelivery(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com", "code": "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Retrospective Team", "slug": "retrospective-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Delivery lessons"}, http.StatusCreated)
+	created := client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/retrospectives", map[string]any{
+		"summary":        "The first delivery completed.",
+		"successes":      []string{"Small release batches"},
+		"problems":       []string{"Late acceptance review"},
+		"lessons":        []string{"Schedule acceptance before release"},
+		"follow_up_refs": []string{"issue://next-acceptance"},
+	}, http.StatusCreated)
+	if created["project_id"] != project["id"] || created["actor_id"] == nil {
+		t.Fatalf("retrospective = %#v", created)
+	}
+	retrospectives := client.request(http.MethodGet, "/api/projects/"+project["id"].(string)+"/retrospectives", nil, http.StatusOK)
+	if retrospectives["total"] != float64(1) {
+		t.Fatalf("retrospectives = %#v", retrospectives)
+	}
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = reopened.Close() })
+	client.app = reopened
+	reopened.dispatchKnowledgeEvidence(context.Background())
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	found := 0
+	for _, raw := range candidates["candidates"].([]any) {
+		candidate := raw.(map[string]any)
+		for _, sourceRaw := range candidate["source_refs"].([]any) {
+			source := sourceRaw.(map[string]any)
+			if source["type"] == "retrospective" && source["id"] == created["id"] {
+				if !strings.Contains(candidate["content"].(string), "issue://next-acceptance") {
+					t.Fatalf("retrospective candidate omitted follow-up evidence: %#v", candidate)
+				}
+				found++
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("replayed retrospective candidates = %#v", candidates)
+	}
+	reopened.dispatchKnowledgeEvidence(context.Background())
+	candidates = client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	foundAfterSecondDrain := 0
+	for _, raw := range candidates["candidates"].([]any) {
+		candidate := raw.(map[string]any)
+		for _, sourceRaw := range candidate["source_refs"].([]any) {
+			source := sourceRaw.(map[string]any)
+			if source["type"] == "retrospective" && source["id"] == created["id"] {
+				foundAfterSecondDrain++
+			}
+		}
+	}
+	if foundAfterSecondDrain != 1 {
+		t.Fatalf("idempotent retrospective replay = %#v", candidates)
+	}
 }
 
 func TestSQLiteLocalMembersCannotInspectKnowledgeCandidates(t *testing.T) {

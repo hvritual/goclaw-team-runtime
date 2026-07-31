@@ -9,6 +9,15 @@ const listMode = {
 };
 const proposeMutate = vi.fn();
 const isProjectLead = { current: false };
+const candidatesAvailable = { current: false };
+const searchParamsRef = { current: new URLSearchParams() };
+
+vi.mock("../navigation", () => ({
+  useNavigation: () => ({
+    push: vi.fn(), replace: vi.fn(), back: vi.fn(), pathname: "/knowledge",
+    searchParams: searchParamsRef.current,
+  }),
+}));
 
 vi.mock("@multica/core/hooks", () => ({
   useWorkspaceId: () => "workspace-1",
@@ -60,7 +69,10 @@ vi.mock("@multica/core/knowledge", () => ({
                   content: "Retry delivery after the knowledge store recovers.",
                   createdBy: "admin-1",
                   createdAt: "2026-07-31T00:00:00Z",
-                  sourceRefs: [],
+                  sourceRefs: [{
+                    type: "acceptance_conclusion", id: "issue-1", revision: "1",
+                    uri: "multica://acceptance_conclusions/issue-1", checksum: "sha256:test",
+                  }],
                 },
               ],
               createdAt: "2026-07-31T00:00:00Z",
@@ -118,7 +130,28 @@ vi.mock("@multica/core/knowledge", () => ({
   }),
   knowledgeCandidateListOptions: (_workspaceId: string, enabled: boolean) => ({
     queryKey: ["knowledge", "workspace-1", "candidates"],
-    queryFn: async () => ({ candidates: [], total: 0, nextCursor: null }),
+    queryFn: async () => ({
+      candidates: candidatesAvailable.current ? [
+        {
+          id: "candidate-match", workspaceId: "workspace-1", projectId: "project-1",
+          knowledgeId: null, targetRevision: 0, kind: "requirement", title: "Matching acceptance",
+          content: "Matching candidate", reason: "Captured from delivery", status: "candidate",
+          revision: 1, proposedBy: "user-1", createdAt: "2026-08-01T00:00:00Z",
+          updatedAt: "2026-08-01T00:00:00Z",
+          sourceRefs: [{ type: "acceptance_conclusion", id: "issue-1", revision: "1", uri: "", checksum: "" }],
+        },
+        {
+          id: "candidate-other", workspaceId: "workspace-1", projectId: "project-1",
+          knowledgeId: null, targetRevision: 0, kind: "lesson", title: "Unrelated retrospective",
+          content: "Unrelated candidate", reason: "Another source", status: "candidate",
+          revision: 1, proposedBy: "user-1", createdAt: "2026-08-01T00:00:00Z",
+          updatedAt: "2026-08-01T00:00:00Z",
+          sourceRefs: [{ type: "retrospective", id: "retro-2", revision: "1", uri: "", checksum: "" }],
+        },
+      ] : [],
+      total: candidatesAvailable.current ? 2 : 0,
+      nextCursor: null,
+    }),
     enabled,
   }),
   useProposeKnowledge: () => ({
@@ -213,6 +246,9 @@ describe("KnowledgePage permissions", () => {
     listMode.current = "empty";
     proposeMutate.mockReset();
     isProjectLead.current = false;
+    candidatesAvailable.current = false;
+    searchParamsRef.current = new URLSearchParams();
+    window.history.replaceState({}, "", "/knowledge");
   });
 
   it("keeps review governance hidden from ordinary members", async () => {
@@ -228,6 +264,26 @@ describe("KnowledgePage permissions", () => {
     renderPage();
 
     expect(await screen.findByText("Review queue")).toBeInTheDocument();
+  });
+
+  it("opens a resulting source link on the matching knowledge candidate", async () => {
+    role.current = "admin";
+    candidatesAvailable.current = true;
+    searchParamsRef.current = new URLSearchParams("section=review&source_type=acceptance_conclusion&source_id=issue-1");
+    window.history.replaceState({}, "", "/knowledge?section=review&source_type=acceptance_conclusion&source_id=issue-1");
+    renderPage();
+
+    expect(await screen.findByText("Matching acceptance")).toBeInTheDocument();
+    expect(screen.queryByText("Unrelated retrospective")).not.toBeInTheDocument();
+  });
+
+  it("keeps a source link resolvable after the candidate is published", async () => {
+    listMode.current = "published";
+    searchParamsRef.current = new URLSearchParams("source_type=acceptance_conclusion&source_id=issue-1");
+    renderPage();
+
+    expect(await screen.findByText("Retain evidence")).toBeInTheDocument();
+    expect(screen.queryByText("Review queue")).not.toBeInTheDocument();
   });
 
   it("shows the review queue to a project lead without exposing unrelated governance", async () => {

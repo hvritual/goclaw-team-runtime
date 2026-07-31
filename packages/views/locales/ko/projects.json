@@ -27,6 +27,24 @@
     "created": "생성일",
     "issues": "이슈 수"
   },
+  "implementation_knowledge": {
+    "record_action": "회고 기록",
+    "dialog_title": "프로젝트 회고 기록",
+    "dialog_description": "회고는 구현 지식의 출처가 되어 지식 검토로 전송됩니다.",
+    "summary": "요약",
+    "successes": "잘된 점",
+    "problems": "문제",
+    "lessons": "배운 점",
+    "follow_ups": "후속 참조",
+    "line_placeholder": "한 줄에 한 항목",
+    "cancel": "취소",
+    "submit": "회고 기록",
+    "history_title": "프로젝트 회고",
+    "knowledge_link": "지식 보기",
+    "lesson_prefix": "배운 점:",
+    "success": "회고를 기록하고 지식 검토로 전송했습니다",
+    "failed": "프로젝트 회고를 기록하지 못했습니다"
+  },
   "status": {
     "planned": "계획됨",
     "in_progress": "진행 중",

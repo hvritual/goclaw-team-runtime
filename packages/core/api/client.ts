@@ -83,6 +83,12 @@ import type {
   ReviewKnowledgeRequest,
   ReviewKnowledgeResponse,
   CommentKnowledgeProposalResponse,
+  AcceptanceConclusion,
+  AcceptanceConclusionInput,
+  AcceptanceConclusionListResponse,
+  ProjectRetrospective,
+  ProjectRetrospectiveInput,
+  ProjectRetrospectiveListResponse,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
@@ -100,6 +106,14 @@ import {
   reviewKnowledgeResponseSchema,
   commentKnowledgeProposalResponseSchema,
 } from "../knowledge/schema";
+import {
+  EMPTY_ACCEPTANCE_CONCLUSION_LIST,
+  EMPTY_RETROSPECTIVE_LIST,
+  acceptanceConclusionListSchema,
+  acceptanceConclusionSchema,
+  projectRetrospectiveListSchema,
+  projectRetrospectiveSchema,
+} from "../implementation-knowledge/schema";
 import {
   AttachmentResponseSchema,
   ChildIssuesResponseSchema,
@@ -121,6 +135,7 @@ import {
   IssueTableFacetsResponseSchema,
   IssueTableGroupsResponseSchema,
   IssueTableRowsResponseSchema,
+  IssueSchema,
   ListIssuesResponseSchema,
   CreateIssueResponseSchema,
   SearchIssuesResponseSchema,
@@ -636,10 +651,51 @@ export class ApiClient {
   }
 
   async updateIssue(id: string, data: UpdateIssueRequest): Promise<Issue> {
-    return this.fetch(`/api/issues/${id}`, {
+    const { acceptanceConclusion, ...issueUpdate } = data;
+    const raw = await this.fetch<unknown>(`/api/issues/${id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...issueUpdate,
+        ...(acceptanceConclusion ? {
+          acceptance_conclusion: {
+            result: acceptanceConclusion.result,
+            rationale: acceptanceConclusion.rationale,
+            evidence_refs: acceptanceConclusion.evidenceRefs,
+          },
+        } : {}),
+      }),
     });
+    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
+      endpoint: "PUT /api/issues/:id",
+    });
+    if (!issue) throw new Error("Invalid issue update response");
+    return issue;
+  }
+
+  async listIssueAcceptanceConclusions(id: string): Promise<AcceptanceConclusionListResponse> {
+    const raw = await this.fetch<unknown>(`/api/issues/${id}/acceptance-conclusions`);
+    return parseWithFallback(raw, acceptanceConclusionListSchema, EMPTY_ACCEPTANCE_CONCLUSION_LIST, {
+      endpoint: "GET /api/issues/:id/acceptance-conclusions",
+    });
+  }
+
+  async createIssueAcceptanceConclusion(
+    id: string,
+    input: AcceptanceConclusionInput,
+  ): Promise<AcceptanceConclusion> {
+    const raw = await this.fetch<unknown>(`/api/issues/${id}/acceptance-conclusions`, {
+      method: "POST",
+      body: JSON.stringify({
+        result: input.result,
+        rationale: input.rationale,
+        evidence_refs: input.evidenceRefs,
+      }),
+    });
+    const conclusion = parseWithFallback(raw, acceptanceConclusionSchema.nullable(), null, {
+      endpoint: "POST /api/issues/:id/acceptance-conclusions",
+    });
+    if (!conclusion) throw new Error("Invalid acceptance conclusion response");
+    return conclusion;
   }
 
   async moveIssue(id: string, data: MoveIssueRequest): Promise<Issue> {
@@ -1162,6 +1218,34 @@ export class ApiClient {
       method: "PUT",
       body: JSON.stringify(data),
     });
+  }
+
+  async listProjectRetrospectives(id: string): Promise<ProjectRetrospectiveListResponse> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives`);
+    return parseWithFallback(raw, projectRetrospectiveListSchema, EMPTY_RETROSPECTIVE_LIST, {
+      endpoint: "GET /api/projects/:id/retrospectives",
+    });
+  }
+
+  async createProjectRetrospective(
+    id: string,
+    input: ProjectRetrospectiveInput,
+  ): Promise<ProjectRetrospective> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives`, {
+      method: "POST",
+      body: JSON.stringify({
+        summary: input.summary,
+        successes: input.successes,
+        problems: input.problems,
+        lessons: input.lessons,
+        follow_up_refs: input.followUpRefs,
+      }),
+    });
+    const retrospective = parseWithFallback(raw, projectRetrospectiveSchema.nullable(), null, {
+      endpoint: "POST /api/projects/:id/retrospectives",
+    });
+    if (!retrospective) throw new Error("Invalid project retrospective response");
+    return retrospective;
   }
 
   async deleteProject(id: string): Promise<void> {

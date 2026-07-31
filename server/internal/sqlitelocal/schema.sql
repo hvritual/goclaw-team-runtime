@@ -117,6 +117,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS issues_workspace_number_idx ON issues(workspac
 CREATE INDEX IF NOT EXISTS issues_workspace_updated_idx ON issues(workspace_id, updated_at);
 CREATE INDEX IF NOT EXISTS issues_project_idx ON issues(project_id);
 
+CREATE TABLE IF NOT EXISTS issue_acceptance_conclusion (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    issue_id TEXT NOT NULL,
+    result TEXT NOT NULL,
+    rationale TEXT NOT NULL,
+    evidence_refs TEXT NOT NULL DEFAULT '[]',
+    actor_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS issue_acceptance_conclusion_issue_idx
+    ON issue_acceptance_conclusion(issue_id, created_at);
+
+CREATE TABLE IF NOT EXISTS project_retrospective (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    successes TEXT NOT NULL DEFAULT '[]',
+    problems TEXT NOT NULL DEFAULT '[]',
+    lessons TEXT NOT NULL DEFAULT '[]',
+    follow_up_refs TEXT NOT NULL DEFAULT '[]',
+    actor_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS project_retrospective_project_idx
+    ON project_retrospective(project_id, created_at);
+
 CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     issue_id TEXT NOT NULL,
@@ -204,3 +234,6 @@ VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

@@ -71,6 +71,9 @@ import { useWorkspacePaths } from "@multica/core/paths";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useProposeCommentDecision } from "@multica/core/knowledge";
+import { useCompleteIssueWithAcceptance, useCreateAcceptanceConclusion } from "@multica/core/implementation-knowledge";
+import { AcceptanceConclusionDialog } from "../../implementation-knowledge/implementation-knowledge-dialogs";
+import { AcceptanceConclusionHistory } from "../../implementation-knowledge/implementation-knowledge-history";
 import { issueListOptions, issueDetailOptions, childIssuesOptions, childIssueProgressOptions, issueAttachmentsOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
 import { ProjectIcon } from "../../projects/components/project-icon";
@@ -921,6 +924,9 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   const [parentIssueOpen, setParentIssueOpen] = useState(true);
   const [pullRequestsOpen, setPullRequestsOpen] = useState(true);
   const [metadataOpen, setMetadataOpen] = useState(false);
+  const [acceptanceDialogOpen, setAcceptanceDialogOpen] = useState(false);
+  const completeWithAcceptance = useCompleteIssueWithAcceptance(id);
+  const createAcceptanceConclusion = useCreateAcceptanceConclusion(id);
   const githubSettings = useGitHubSettings();
 
   // Per-issue, per-session set of optional properties currently visible in
@@ -1520,6 +1526,13 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   // Called before the `if (!issue)` early return so hook order stays stable.
   const actions = useIssueActions(issue);
   const handleUpdateField = actions.updateField;
+  const handleStatusUpdate = useCallback((updates: Partial<UpdateIssueRequest>) => {
+    if (updates.status === "done" && issue?.status !== "done") {
+      setAcceptanceDialogOpen(true);
+      return;
+    }
+    handleUpdateField(updates);
+  }, [handleUpdateField, issue?.status]);
 
   // Labels live in their own query (not on the issue body) — fetch the count
   // here so seeding can decide whether the "Labels" optional row should be
@@ -1732,7 +1745,12 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
         {propertiesOpen && <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 pl-2">
           {/* Core props — always rendered. */}
           <PropRow label={t(($) => $.detail.prop_status)}>
-            <StatusPicker status={issue.status} onUpdate={handleUpdateField} align="start" />
+            <StatusPicker status={issue.status} onUpdate={handleStatusUpdate} align="start" />
+            {issue.status === "done" ? (
+              <Button variant="ghost" size="sm" onClick={() => setAcceptanceDialogOpen(true)}>
+                {t(($) => $.implementation_knowledge.capture_action)}
+              </Button>
+            ) : null}
           </PropRow>
           <PropRow label={t(($) => $.detail.prop_assignee)}>
             <AssigneePicker assigneeType={issue.assignee_type} assigneeId={issue.assignee_id} onUpdate={handleUpdateField} align="start" />
@@ -1989,6 +2007,8 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
         </div>}
       </div>
 
+      <AcceptanceConclusionHistory issueId={id} />
+
       {/* Metadata — free-form KV bag. The values almost
           never mean anything to humans, so the trigger row matches the
           sibling section headers (Pull requests / Details / Parent issue)
@@ -2146,7 +2166,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                       variant="ghost"
                       size="icon-sm"
                       className="text-muted-foreground"
-                      onClick={() => { handleUpdateField({ status: "done" }); onDone?.(); }}
+                      onClick={() => setAcceptanceDialogOpen(true)}
                     >
                       <CircleCheck />
                     </Button>
@@ -2636,20 +2656,56 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
       </div>
   );
 
+  const acceptanceDialog = (
+    <AcceptanceConclusionDialog
+      open={acceptanceDialogOpen}
+      onOpenChange={setAcceptanceDialogOpen}
+      mode={issue.status === "done" ? "capture" : "complete"}
+      pending={completeWithAcceptance.isPending || createAcceptanceConclusion.isPending}
+      onSubmit={(input) => {
+        if (issue.status === "done") {
+          if (!input) return;
+          createAcceptanceConclusion.mutate(input, {
+            onSuccess: () => {
+              setAcceptanceDialogOpen(false);
+              toast.success(t(($) => $.implementation_knowledge.capture_success));
+            },
+            onError: (error) => toast.error(error instanceof Error && error.message ? error.message : t(($) => $.implementation_knowledge.complete_failed)),
+          });
+          return;
+        }
+        completeWithAcceptance.mutate(input, {
+        onSuccess: () => {
+          setAcceptanceDialogOpen(false);
+          toast.success(input
+            ? t(($) => $.implementation_knowledge.complete_capture_success)
+            : t(($) => $.implementation_knowledge.complete_success));
+          onDone?.();
+        },
+        onError: (error) => toast.error(error instanceof Error && error.message ? error.message : t(($) => $.implementation_knowledge.complete_failed)),
+        });
+      }}
+    />
+  );
+
   if (isMobile) {
     return (
-      <div className="flex flex-1 min-h-0">
-        {detailContent}
-        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-          <SheetContent side="right" showCloseButton={false} className="w-[320px] overflow-y-auto p-4">
-            {sidebarContent}
-          </SheetContent>
-        </Sheet>
-      </div>
+      <>
+        <div className="flex flex-1 min-h-0">
+          {detailContent}
+          <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+            <SheetContent side="right" showCloseButton={false} className="w-[320px] overflow-y-auto p-4">
+              {sidebarContent}
+            </SheetContent>
+          </Sheet>
+        </div>
+        {acceptanceDialog}
+      </>
     );
   }
 
   return (
+    <>
     <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0" defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged}>
       <ResizablePanel id="content" minSize="50%">
         {detailContent}
@@ -2672,5 +2728,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
         </AnimatedRightSidebar>
       </ResizablePanel>
     </ResizablePanelGroup>
+    {acceptanceDialog}
+    </>
   );
 }

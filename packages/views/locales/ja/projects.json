@@ -27,6 +27,24 @@
     "created": "作成日",
     "issues": "Issue 数"
   },
+  "implementation_knowledge": {
+    "record_action": "振り返りを記録",
+    "dialog_title": "プロジェクト振り返りを記録",
+    "dialog_description": "振り返りは実施知識の情報源となり、知識レビューに送られます。",
+    "summary": "概要",
+    "successes": "成功したこと",
+    "problems": "問題",
+    "lessons": "学び",
+    "follow_ups": "フォローアップ参照",
+    "line_placeholder": "1行に1項目",
+    "cancel": "キャンセル",
+    "submit": "振り返りを記録",
+    "history_title": "プロジェクト振り返り",
+    "knowledge_link": "知識を見る",
+    "lesson_prefix": "学び：",
+    "success": "振り返りを記録し、知識レビューに送信しました",
+    "failed": "振り返りを記録できませんでした"
+  },
   "status": {
     "planned": "計画中",
     "in_progress": "進行中",

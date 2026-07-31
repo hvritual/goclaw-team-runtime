@@ -1,6 +1,7 @@
 import type { Issue, IssueMetadata, IssueStatus, IssuePriority, IssueAssigneeType } from "./issue";
 import type { MemberRole } from "./workspace";
 import type { Project } from "./project";
+import type { AcceptanceConclusionInput } from "./implementation-knowledge";
 
 // Issue API
 export interface CreateIssueRequest {
@@ -40,6 +41,7 @@ export interface UpdateIssueRequest {
    *  Used by the description editor to register newly uploaded files so they
    *  surface in `issueAttachments` and keep their preview Eye on refresh. */
   attachment_ids?: string[];
+  acceptanceConclusion?: AcceptanceConclusionInput;
 }
 
 /**

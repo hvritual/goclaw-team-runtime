@@ -91,3 +91,12 @@ export type {
   ReviewKnowledgeRequest,
   ReviewKnowledgeResponse,
 } from "./knowledge";
+export type {
+  AcceptanceResult,
+  AcceptanceConclusionInput,
+  AcceptanceConclusion,
+  AcceptanceConclusionListResponse,
+  ProjectRetrospectiveInput,
+  ProjectRetrospective,
+  ProjectRetrospectiveListResponse,
+} from "./implementation-knowledge";

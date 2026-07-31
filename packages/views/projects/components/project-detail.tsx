@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
@@ -70,6 +70,9 @@ import {
 import { useT } from "../../i18n";
 import { useProjectStatusLabels, useProjectPriorityLabels } from "./labels";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
+import { useCreateProjectRetrospective } from "@multica/core/implementation-knowledge";
+import { ProjectRetrospectiveDialog } from "../../implementation-knowledge/implementation-knowledge-dialogs";
+import { ProjectRetrospectiveHistory } from "../../implementation-knowledge/implementation-knowledge-history";
 
 // ---------------------------------------------------------------------------
 // Property row — sidebar property display
@@ -132,6 +135,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [progressOpen, setProgressOpen] = useState(true);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
+  const [retrospectiveOpen, setRetrospectiveOpen] = useState(false);
+  const createRetrospective = useCreateProjectRetrospective(projectId);
 
   // Sidebar panel
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -432,6 +437,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
       {/* Resources */}
       <ProjectResourcesSection projectId={projectId} />
+      <ProjectRetrospectiveHistory projectId={projectId} />
     </div>
   );
 
@@ -476,6 +482,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                   }}>
                     <Link2 className="h-3.5 w-3.5" />
                     {t(($) => $.detail.copy_link)}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRetrospectiveOpen(true)}>
+                    <BookOpen className="h-3.5 w-3.5" />
+                    {t(($) => $.implementation_knowledge.record_action)}
                   </DropdownMenuItem>
                   {isWorkspaceAdmin && (
                     <>
@@ -563,6 +573,18 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </AlertDialogContent>
         </AlertDialog>
       )}
+      <ProjectRetrospectiveDialog
+        open={retrospectiveOpen}
+        onOpenChange={setRetrospectiveOpen}
+        pending={createRetrospective.isPending}
+        onSubmit={(input) => createRetrospective.mutate(input, {
+          onSuccess: () => {
+            setRetrospectiveOpen(false);
+            toast.success(t(($) => $.implementation_knowledge.success));
+          },
+          onError: (error) => toast.error(error instanceof Error && error.message ? error.message : t(($) => $.implementation_knowledge.failed)),
+        })}
+      />
     </>
   );
 }

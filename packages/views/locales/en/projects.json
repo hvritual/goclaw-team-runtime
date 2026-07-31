@@ -28,6 +28,24 @@
     "created": "Created",
     "issues": "Issues"
   },
+  "implementation_knowledge": {
+    "record_action": "Record retrospective",
+    "dialog_title": "Record project retrospective",
+    "dialog_description": "The retrospective becomes an implementation knowledge source and enters knowledge review.",
+    "summary": "Summary",
+    "successes": "Successes",
+    "problems": "Problems",
+    "lessons": "Lessons learned",
+    "follow_ups": "Follow-up references",
+    "line_placeholder": "One item per line",
+    "cancel": "Cancel",
+    "submit": "Record retrospective",
+    "history_title": "Project retrospectives",
+    "knowledge_link": "View knowledge",
+    "lesson_prefix": "Lessons:",
+    "success": "Project retrospective recorded and sent for knowledge review",
+    "failed": "Failed to record project retrospective"
+  },
   "status": {
     "planned": "Planned",
     "in_progress": "In Progress",

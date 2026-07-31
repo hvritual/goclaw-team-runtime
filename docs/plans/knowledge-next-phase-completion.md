@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | `TGT-SLICE-01` complete in the current SQLite-only application mode; `TGT-SLICE-02` is ready to start |
+| Status | `TGT-SLICE-01` and `TGT-SLICE-02` complete in the current SQLite-only application mode; `TGT-SLICE-03` is ready to confirm |
 | Delivery mode | `change-spec` |
 | Coverage mode | `release-complete` for the capabilities selected below |
 | Scope authority | Human-confirmed in the 2026-07-31 user request |
@@ -543,7 +543,8 @@ stories.
 | Slice | Status | Executable evidence |
 | --- | --- | --- |
 | `TGT-SLICE-01` | Complete in SQLite-only mode | SQLite HTTP acceptance for comment creation/timeline, proposal, idempotency, edited revisions, comment provenance, cross-workspace denial, and ordinary-member candidate-list denial in `server/internal/sqlitelocal/server_test.go`; domain evidence/idempotency/candidate tests in `server/internal/knowledge/comment_decision_evidence_test.go`; shared Web/Desktop confirmation behavior in `packages/views/issues/components/comment-card-edit-gate.test.tsx`; Core wire-schema compatibility in `packages/core/knowledge/schema.test.ts` |
-| `TGT-SLICE-02`–`TGT-SLICE-08` | Not started | Activate one vertical slice at a time after confirming its public test seams |
+| `TGT-SLICE-02` | Complete in SQLite-only mode | Atomic Issue completion plus explicit acceptance conclusion, legacy completion without fabricated conclusions, post-completion capture, forced-outbox rollback, Project retrospective capture, separate-source replay and duplicate prevention in `server/internal/sqlitelocal/server_test.go`; malformed-response fallback and camelCase HTTP transforms in `packages/core/implementation-knowledge/schema.test.ts` and `packages/core/api/issue-update-schema.test.ts`; shared Web/Desktop dialogs, post-completion capture, and durable source-to-candidate/published navigation in `packages/views/implementation-knowledge/implementation-knowledge-dialogs.test.tsx` and `packages/views/knowledge/knowledge-page.test.tsx` |
+| `TGT-SLICE-03`–`TGT-SLICE-08` | Not started | Activate one vertical slice at a time after confirming its public test seams |
 
 The application temporarily runs on SQLite for both six-domain business data
 and governed knowledge. PostgreSQL code and migrations remain retained for a
