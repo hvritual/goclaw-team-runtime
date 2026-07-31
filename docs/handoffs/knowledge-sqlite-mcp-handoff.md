@@ -113,7 +113,75 @@ workspace configuration, or runtime agent behavior.
 
 ## Completion evidence
 
-The final report must include the implemented boundaries, SQLite schema version
-and capabilities, outbox health, MCP endpoint and scopes, authorization behavior,
-actual test commands and results, skipped checks, known limitations, commit IDs,
-and confirmation that no runtime agent behavior was reintroduced.
+Recorded on 2026-07-31 for branch `codex/multica-six-domain-baseline`.
+
+Implemented boundaries:
+
+- Knowledge remains a workspace capability outside the six primary domain
+  stores. SQLite adapter schema version 2 enables WAL, a busy timeout,
+  controlled writers, adapter-local migrations, and optional FTS5 detection;
+  it has no cross-database foreign keys.
+- The default PostgreSQL service records evidence in
+  `knowledge_evidence_outbox` inside Project, Issue, and Task source
+  transactions. The dispatcher replays source-validated historical evidence
+  even if its Project is deleted before SQLite recovers.
+- `GET /api/knowledge/health` reports enabled/available state, SQLite
+  capabilities, and outbox pending, failed, last-delivery, and last-error data
+  to owners/admins. Explicitly disabling knowledge reports `enabled: false`
+  without disabling the six primary domains.
+- HTTP routes are mounted under `/api/knowledge`. Remote MCP is mounted at
+  `/mcp/{workspaceSlug}/knowledge`, with protected-resource metadata under
+  `/.well-known/oauth-protected-resource`. Its scopes are `knowledge:read`,
+  `knowledge:candidate:read`, and `knowledge:propose`.
+- Members may read published knowledge and propose candidates. Owners/admins
+  review globally; Project leads review only led Projects. Ordinary members
+  cannot list candidates or see permission explanations. PAT authorization
+  revalidates canonical workspace membership. MCP has no review mutation.
+
+Verification results:
+
+- `go test ./... -count=1`: passed all runnable Go packages.
+- `go vet ./...`: passed.
+- `go test -race ./internal/knowledge/... ./internal/sqlitelocal ./internal/handler ./cmd/server -count=1`:
+  passed.
+- `pnpm typecheck`: passed all 6 applicable workspace tasks.
+- `pnpm --dir packages/core exec vitest run --maxWorkers=1`: 72 files and
+  492 tests passed.
+- `pnpm --dir packages/views exec vitest run --maxWorkers=1`: 158 files and
+  1,624 tests passed.
+- `pnpm lint`: passed with four pre-existing React Hook warnings outside this
+  work (desktop tab content, web login, zoom canvas, and search command).
+- `pnpm verify:six-domains`: all six boundaries passed.
+- `pnpm verify:no-runtime-agent-domains`: passed; no Runtime/Agent business
+  modules or routes were reintroduced.
+
+Skipped or environment-blocked checks:
+
+- PostgreSQL-backed integration tests for outbox-to-SQLite delivery and Project
+  lead PAT scope are committed and run automatically when `DATABASE_URL` is
+  available. They were skipped in the final direct Go run because local
+  PostgreSQL was unavailable.
+- `make check` could not pass its PostgreSQL preflight because the Docker daemon
+  was unavailable and the local Compose invocation rejected the repository
+  configuration before starting PostgreSQL. A direct migration attempt then
+  confirmed that localhost port 5432 was not accepting connections. Therefore
+  PostgreSQL integration and Playwright E2E are not claimed as passed here.
+
+Known limitations:
+
+- Current automatic evidence producers cover Project, Issue, and Task lifecycle
+  events. Comment decisions, deliverable revisions, acceptance conclusions, and
+  retrospectives remain future producers behind the same evidence envelope.
+- Backup, restore, and index rebuild are adapter capabilities and documented
+  operational procedures; a standalone administration CLI is not yet included.
+
+Implementation commits:
+
+- `0d23d533` — plan and operations record.
+- `544443b1` — SQLite governance and MCP foundation.
+- `93aef33c` — shared workspace knowledge views.
+- `093c6fdd` — governance and compatibility fixes.
+- `6467aca0` — production composition and governance completion.
+- `d87f4e5a` — revision history and Project lead review views.
+- `a2f1acd2` — completed integration documentation.
+- `2c1a08fa` — final production governance and review fixes.
