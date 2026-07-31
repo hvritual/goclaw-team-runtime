@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,8 +19,6 @@ import (
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
-var errProductionKnowledgeDisabled = errors.New("knowledge capability disabled")
-
 type knowledgeRuntime struct {
 	enabled     bool
 	store       *knowledgeSqlite.Store
@@ -37,7 +34,7 @@ type knowledgeRuntime struct {
 
 func openKnowledgeRuntime(pool *pgxpool.Pool, queries *db.Queries) *knowledgeRuntime {
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_ENABLED")), "false") {
-		return &knowledgeRuntime{unavailable: errProductionKnowledgeDisabled}
+		return &knowledgeRuntime{}
 	}
 	path := strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_SQLITE_PATH"))
 	if path == "" {

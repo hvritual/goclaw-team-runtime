@@ -24,14 +24,12 @@ vi.mock("@multica/core/permissions", () => ({
 }));
 
 vi.mock("@multica/core/projects/queries", () => ({
-  projectListOptions: () => ({
+  projectLeadershipListOptions: () => ({
     queryKey: ["projects", "workspace-1", "list"],
-    queryFn: async () => ({
-      projects: isProjectLead.current
-        ? [{ id: "project-1", lead_type: "member", lead_id: "user-1" }]
+    queryFn: async () =>
+      isProjectLead.current
+        ? [{ projectId: "project-1", leadType: "member", leadId: "user-1" }]
         : [],
-    }),
-    select: (data: { projects: unknown[] }) => data.projects,
   }),
 }));
 

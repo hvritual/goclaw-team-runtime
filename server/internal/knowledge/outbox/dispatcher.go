@@ -68,7 +68,7 @@ func (d *Dispatcher) Drain(ctx context.Context, limit int) (Report, error) {
 		var evidence knowledge.Evidence
 		deliveryErr := json.Unmarshal(message.Payload, &evidence)
 		if deliveryErr == nil {
-			_, deliveryErr = d.service.IngestEvidence(ctx, evidence)
+			_, deliveryErr = d.service.IngestOutboxEvidence(ctx, evidence)
 		}
 		if deliveryErr != nil {
 			report.Failed++

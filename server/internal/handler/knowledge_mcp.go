@@ -224,13 +224,7 @@ func (h *Handler) knowledgeMCPReviewScope(
 	if err != nil {
 		return false, nil, err
 	}
-	projectIDs := make([]string, 0)
-	for _, project := range projects {
-		if project.LeadType.String == "member" && project.LeadID == member.UserID {
-			projectIDs = append(projectIDs, util.UUIDToString(project.ID))
-		}
-	}
-	return false, projectIDs, nil
+	return false, ledKnowledgeProjectIDs(projects, member.UserID), nil
 }
 
 func (h *Handler) mcpSearchKnowledge(ctx context.Context, _ *mcp.CallToolRequest, input mcpKnowledgeSearchInput) (*mcp.CallToolResult, mcpKnowledgePage, error) {

@@ -11,7 +11,7 @@ import {
 } from "@multica/core/knowledge";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useCurrentMember } from "@multica/core/permissions";
-import { projectListOptions } from "@multica/core/projects/queries";
+import { projectLeadershipListOptions } from "@multica/core/projects/queries";
 import type {
   KnowledgeCandidate,
   KnowledgeEntry,
@@ -22,6 +22,13 @@ import { Badge } from "@multica/ui/components/ui/badge";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
 import { Textarea } from "@multica/ui/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@multica/ui/components/ui/select";
 import {
   BookOpenText,
   Check,
@@ -50,13 +57,12 @@ export function KnowledgePage() {
   const { t } = useT("knowledge");
   const workspaceId = useWorkspaceId();
   const { role, userId } = useCurrentMember(workspaceId);
-  const projectsQuery = useQuery(projectListOptions(workspaceId));
+  const projectsQuery = useQuery(projectLeadershipListOptions(workspaceId));
   const canReview =
     role === "owner" ||
     role === "admin" ||
     projectsQuery.data?.some(
-      (project) =>
-        project.lead_type === "member" && project.lead_id === userId,
+      (project) => project.leadType === "member" && project.leadId === userId,
     ) === true;
   const [query, setQuery] = useState("");
   const [section, setSection] = useState<"published" | "review">("published");
@@ -76,6 +82,10 @@ export function KnowledgePage() {
   );
   const propose = useProposeKnowledge(workspaceId);
   const review = useReviewKnowledge(workspaceId);
+  const kindOptions = KNOWLEDGE_KINDS.map((value) => ({
+    value,
+    label: t(($) => $.kinds[value]),
+  }));
 
   const openNewProposal = () => {
     setProposalTarget(null);
@@ -177,17 +187,26 @@ export function KnowledgePage() {
               </Button>
             </div>
             <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
-              <select
+              <Select
+                items={kindOptions}
                 value={kind}
-                onChange={(event) => setKind(event.target.value as KnowledgeKind)}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                onValueChange={(value) => {
+                  if (value) setKind(value as KnowledgeKind);
+                }}
               >
-                {KNOWLEDGE_KINDS.map((value) => (
-                  <option key={value} value={value}>
-                    {t(($) => $.kinds[value])}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {kindOptions.find((option) => option.value === kind)?.label}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {kindOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}

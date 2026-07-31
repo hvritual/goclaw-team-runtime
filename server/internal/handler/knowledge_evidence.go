@@ -2,13 +2,11 @@ package handler
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/knowledge"
@@ -121,21 +119,12 @@ func buildKnowledgeEvidence(
 	terminal bool,
 ) knowledge.Evidence {
 	revision := updatedAt.UTC().Format(time.RFC3339Nano)
-	checksum := sha256.Sum256([]byte(content))
-	return knowledge.Evidence{
-		ID: uuid.NewString(), WorkspaceID: workspaceID, ProjectID: projectID,
+	return knowledge.NewEvidence(knowledge.EvidenceDraft{
+		WorkspaceID: workspaceID, ProjectID: projectID,
 		SourceType: sourceType, SourceID: sourceID, SourceRevision: revision,
 		EventType: eventType, Kind: kind, Title: title, Content: content,
-		ActorID:        actorID,
-		IdempotencyKey: fmt.Sprintf("%s:%s:%s", sourceID, revision, eventType),
-		ProvenanceURI:  "multica://" + sourceType + "s/" + sourceID,
-		Checksum:       fmt.Sprintf("sha256:%x", checksum),
-		OccurredAt:     updatedAt.UTC(), Terminal: terminal, Validated: true, Confidence: 1,
-		SourceRefs: []knowledge.SourceRef{{
-			Type: sourceType, ID: sourceID, Revision: revision,
-			URI: "multica://" + sourceType + "s/" + sourceID,
-		}},
-	}
+		ActorID: actorID, OccurredAt: updatedAt, Terminal: terminal,
+	})
 }
 
 func optionalKnowledgeUUID(value pgtype.UUID) string {

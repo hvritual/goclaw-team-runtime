@@ -82,6 +82,44 @@ func TestKnowledgeRoutesKeepCandidateGovernanceHiddenFromMembers(t *testing.T) {
 	}
 }
 
+func TestKnowledgeHealthReportsDisabledCapability(t *testing.T) {
+	h := &Handler{}
+	h.ConfigureKnowledge(nil, nil, nil)
+	router := chi.NewRouter()
+	router.Route("/api/knowledge", h.RegisterKnowledgeRoutes)
+
+	response := serveKnowledgeRequest(t, router, http.MethodGet, "/api/knowledge/health", nil, "owner")
+	if response.Code != http.StatusOK {
+		t.Fatalf("health status = %d body=%s", response.Code, response.Body.String())
+	}
+	var health struct {
+		Enabled   bool   `json:"enabled"`
+		Available bool   `json:"available"`
+		Reason    string `json:"reason"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &health); err != nil {
+		t.Fatal(err)
+	}
+	if health.Enabled || health.Available || health.Reason != "knowledge disabled" {
+		t.Fatalf("health = %#v", health)
+	}
+}
+
+func TestLedKnowledgeProjectIDsOnlyReturnsMemberLeadership(t *testing.T) {
+	memberID := pgtype.UUID{Bytes: [16]byte{2}, Valid: true}
+	otherID := pgtype.UUID{Bytes: [16]byte{3}, Valid: true}
+	projects := []db.Project{
+		{ID: pgtype.UUID{Bytes: [16]byte{4}, Valid: true}, LeadType: pgtype.Text{String: "member", Valid: true}, LeadID: memberID},
+		{ID: pgtype.UUID{Bytes: [16]byte{5}, Valid: true}, LeadType: pgtype.Text{String: "member", Valid: true}, LeadID: otherID},
+		{ID: pgtype.UUID{Bytes: [16]byte{6}, Valid: true}, LeadID: memberID},
+	}
+
+	projectIDs := ledKnowledgeProjectIDs(projects, memberID)
+	if len(projectIDs) != 1 || projectIDs[0] != "04000000-0000-0000-0000-000000000000" {
+		t.Fatalf("project IDs = %#v", projectIDs)
+	}
+}
+
 func TestKnowledgeMCPPublishesDiscoveryAndRejectsUnsafeRequests(t *testing.T) {
 	store := memory.New()
 	h := &Handler{}

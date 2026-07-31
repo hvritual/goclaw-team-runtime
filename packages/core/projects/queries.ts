@@ -16,6 +16,29 @@ export function projectListOptions(wsId: string) {
   });
 }
 
+export interface ProjectLeadership {
+  projectId: string;
+  leadType: "member" | null;
+  leadId: string | null;
+}
+
+/**
+ * Keep wire-format project fields at the query boundary for consumers that
+ * only need leadership data.
+ */
+export function projectLeadershipListOptions(wsId: string) {
+  return queryOptions({
+    queryKey: projectKeys.list(wsId),
+    queryFn: () => api.listProjects(),
+    select: (data): ProjectLeadership[] =>
+      data.projects.map((project) => ({
+        projectId: project.id,
+        leadType: project.lead_type,
+        leadId: project.lead_id,
+      })),
+  });
+}
+
 export function projectDetailOptions(wsId: string, id: string) {
   return queryOptions({
     queryKey: projectKeys.detail(wsId, id),

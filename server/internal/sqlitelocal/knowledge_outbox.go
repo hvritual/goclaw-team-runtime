@@ -2,11 +2,9 @@ package sqlitelocal
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -190,15 +188,6 @@ func (s *Server) knowledgeOutboxStats(ctx context.Context, workspaceID string) (
 	}, nil
 }
 
-func evidenceSourceRef(sourceType, sourceID, revision string) []knowledge.SourceRef {
-	return []knowledge.SourceRef{{
-		Type:     sourceType,
-		ID:       sourceID,
-		Revision: revision,
-		URI:      "multica://" + sourceType + "s/" + sourceID,
-	}}
-}
-
 func optionalString(value sql.NullString) string {
 	if value.Valid {
 		return value.String
@@ -282,26 +271,10 @@ func newKnowledgeEvidence(
 	if err != nil {
 		occurredAt = time.Now().UTC()
 	}
-	sum := sha256.Sum256([]byte(content))
-	return knowledge.Evidence{
-		ID:             newID(),
-		WorkspaceID:    workspaceID,
-		ProjectID:      projectID,
-		SourceType:     sourceType,
-		SourceID:       sourceID,
-		SourceRevision: revision,
-		EventType:      eventType,
-		Kind:           kind,
-		Title:          title,
-		Content:        content,
-		ActorID:        actorID,
-		IdempotencyKey: fmt.Sprintf("%s:%s:%s", sourceID, revision, eventType),
-		ProvenanceURI:  "multica://" + sourceType + "s/" + sourceID,
-		Checksum:       fmt.Sprintf("sha256:%x", sum),
-		OccurredAt:     occurredAt,
-		Terminal:       terminal,
-		Validated:      true,
-		Confidence:     1,
-		SourceRefs:     evidenceSourceRef(sourceType, sourceID, revision),
-	}
+	return knowledge.NewEvidence(knowledge.EvidenceDraft{
+		WorkspaceID: workspaceID, ProjectID: projectID,
+		SourceType: sourceType, SourceID: sourceID, SourceRevision: revision,
+		EventType: eventType, Kind: kind, Title: title, Content: content,
+		ActorID: actorID, OccurredAt: occurredAt, Terminal: terminal,
+	})
 }

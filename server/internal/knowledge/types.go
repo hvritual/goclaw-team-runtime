@@ -154,6 +154,24 @@ type Evidence struct {
 	Metadata       map[string]string
 }
 
+// EvidenceDraft is the canonical input for evidence emitted by source-domain
+// transactions. Adapters supply source identity and content; the knowledge
+// domain derives stable provenance, checksum, and idempotency metadata.
+type EvidenceDraft struct {
+	WorkspaceID    string
+	ProjectID      string
+	SourceType     string
+	SourceID       string
+	SourceRevision string
+	EventType      string
+	Kind           Kind
+	Title          string
+	Content        string
+	ActorID        string
+	OccurredAt     time.Time
+	Terminal       bool
+}
+
 type PromotionAction string
 
 const (

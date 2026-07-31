@@ -1,9 +1,45 @@
 import { describe, expect, it } from "vitest";
 import { parseWithFallback } from "../api/schema";
 import {
+  EMPTY_KNOWLEDGE_CANDIDATE_LIST,
   EMPTY_KNOWLEDGE_LIST,
+  knowledgeCandidateListSchema,
+  knowledgeCandidateSchema,
+  knowledgeEntrySchema,
   knowledgeListSchema,
+  reviewKnowledgeResponseSchema,
 } from "./schema";
+
+const EMPTY_ENTRY = {
+  id: "",
+  workspaceId: "",
+  projectId: null,
+  candidateId: null,
+  kind: "reference" as const,
+  status: "published" as const,
+  currentRevision: 0,
+  revisions: [],
+  createdAt: "",
+  updatedAt: "",
+};
+
+const EMPTY_CANDIDATE = {
+  id: "",
+  workspaceId: "",
+  projectId: null,
+  knowledgeId: null,
+  targetRevision: 0,
+  kind: "reference" as const,
+  title: "",
+  content: "",
+  reason: "",
+  status: "candidate" as const,
+  revision: 0,
+  proposedBy: "",
+  sourceRefs: [],
+  createdAt: "",
+  updatedAt: "",
+};
 
 describe("knowledge response schemas", () => {
   it("transforms the wire response into the shared knowledge model", () => {
@@ -67,5 +103,50 @@ describe("knowledge response schemas", () => {
     );
 
     expect(result).toEqual(EMPTY_KNOWLEDGE_LIST);
+  });
+
+  it("falls back safely when a knowledge entry response is malformed", () => {
+    const result = parseWithFallback(
+      { id: 42, current_revision: "one" },
+      knowledgeEntrySchema,
+      EMPTY_ENTRY,
+      { endpoint: "GET /api/knowledge/:id" },
+    );
+
+    expect(result).toEqual(EMPTY_ENTRY);
+  });
+
+  it("falls back safely when a proposal response is malformed", () => {
+    const result = parseWithFallback(
+      { id: null, revision: "one" },
+      knowledgeCandidateSchema,
+      EMPTY_CANDIDATE,
+      { endpoint: "POST /api/knowledge/proposals" },
+    );
+
+    expect(result).toEqual(EMPTY_CANDIDATE);
+  });
+
+  it("falls back safely when a candidate list response is malformed", () => {
+    const result = parseWithFallback(
+      { candidates: [{ id: 42 }], total: "one" },
+      knowledgeCandidateListSchema,
+      EMPTY_KNOWLEDGE_CANDIDATE_LIST,
+      { endpoint: "GET /api/knowledge/candidates" },
+    );
+
+    expect(result).toEqual(EMPTY_KNOWLEDGE_CANDIDATE_LIST);
+  });
+
+  it("falls back safely when a review response is malformed", () => {
+    const fallback = { candidate: EMPTY_CANDIDATE, entry: null };
+    const result = parseWithFallback(
+      { candidate: { id: 42 }, entry: "published" },
+      reviewKnowledgeResponseSchema,
+      fallback,
+      { endpoint: "POST /api/knowledge/candidates/:id/review" },
+    );
+
+    expect(result).toEqual(fallback);
   });
 });

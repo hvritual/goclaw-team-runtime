@@ -158,11 +158,29 @@ func validKind(kind Kind) bool {
 }
 
 func (s *Service) IngestEvidence(ctx context.Context, evidence Evidence) (IngestionResult, error) {
+	return s.ingestEvidence(ctx, evidence, true)
+}
+
+// IngestOutboxEvidence replays evidence whose workspace/project scope was
+// validated in the source transaction that created the outbox record. Skipping
+// a second live lookup preserves historical evidence when the source project is
+// deleted before a temporarily unavailable knowledge store recovers.
+func (s *Service) IngestOutboxEvidence(ctx context.Context, evidence Evidence) (IngestionResult, error) {
+	return s.ingestEvidence(ctx, evidence, false)
+}
+
+func (s *Service) ingestEvidence(
+	ctx context.Context,
+	evidence Evidence,
+	validateProject bool,
+) (IngestionResult, error) {
 	if s.store == nil {
 		return IngestionResult{}, ErrStoreRequired
 	}
-	if err := s.validateProject(ctx, evidence.WorkspaceID, evidence.ProjectID); err != nil {
-		return IngestionResult{}, err
+	if validateProject {
+		if err := s.validateProject(ctx, evidence.WorkspaceID, evidence.ProjectID); err != nil {
+			return IngestionResult{}, err
+		}
 	}
 	if strings.TrimSpace(evidence.ID) == "" ||
 		strings.TrimSpace(evidence.WorkspaceID) == "" ||

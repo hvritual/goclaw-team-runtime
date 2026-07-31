@@ -6,10 +6,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/knowledge"
 	"github.com/multica-ai/multica/server/internal/middleware"
 	"github.com/multica-ai/multica/server/internal/util"
@@ -299,9 +301,13 @@ func (h *Handler) getKnowledgeHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if h.knowledgeStore == nil || h.knowledgeService == nil {
+		enabled := h.knowledgeUnavailable != nil
+		reason := "knowledge disabled"
+		if enabled {
+			reason = "knowledge store unavailable"
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"enabled": h.knowledgeUnavailable != nil, "available": false,
-			"reason": "knowledge store unavailable",
+			"enabled": enabled, "available": false, "reason": reason,
 		})
 		return
 	}
@@ -354,21 +360,25 @@ func (h *Handler) requireKnowledgeReviewer(
 		writeError(w, http.StatusInternalServerError, "failed to resolve knowledge review scope")
 		return nil, false
 	}
-	projectIDs := make([]string, 0)
-	for _, project := range projects {
-		if project.LeadType.String == "member" && project.LeadID == member.UserID {
-			ledProjectID := util.UUIDToString(project.ID)
-			projectIDs = append(projectIDs, ledProjectID)
-			if projectID != "" && projectID == ledProjectID {
-				return projectIDs, true
-			}
-		}
+	projectIDs := ledKnowledgeProjectIDs(projects, member.UserID)
+	if projectID != "" && slices.Contains(projectIDs, projectID) {
+		return projectIDs, true
 	}
 	if projectID == "" && len(projectIDs) > 0 {
 		return projectIDs, true
 	}
 	writeError(w, http.StatusForbidden, "insufficient workspace role")
 	return nil, false
+}
+
+func ledKnowledgeProjectIDs(projects []db.Project, userID pgtype.UUID) []string {
+	projectIDs := make([]string, 0)
+	for _, project := range projects {
+		if project.LeadType.String == "member" && project.LeadID == userID {
+			projectIDs = append(projectIDs, util.UUIDToString(project.ID))
+		}
+	}
+	return projectIDs
 }
 
 func (h *Handler) knowledgeProjectInWorkspace(ctx context.Context, workspaceID, projectID string) bool {

@@ -17,6 +17,12 @@ type queue struct {
 	failed    []string
 }
 
+type missingProjectValidator struct{}
+
+func (missingProjectValidator) ValidateProject(context.Context, string, string) error {
+	return errors.New("project was deleted")
+}
+
 func (q *queue) NextBatch(context.Context, int) ([]outbox.Message, error) {
 	return append([]outbox.Message(nil), q.messages...), nil
 }
@@ -83,5 +89,46 @@ func TestDispatcherRetainsFailedEvidenceForRetry(t *testing.T) {
 	}
 	if report.Failed != 1 || len(source.failed) != 1 || len(source.messages) != 1 {
 		t.Fatalf("report = %#v, failed = %#v, remaining = %#v", report, source.failed, source.messages)
+	}
+}
+
+func TestDispatcherReplaysEvidenceAfterSourceProjectDeletion(t *testing.T) {
+	service := knowledge.NewService(memory.New(), nil, missingProjectValidator{})
+	evidence := knowledge.Evidence{
+		ID:             "evidence-1",
+		WorkspaceID:    "workspace-1",
+		ProjectID:      "deleted-project",
+		SourceType:     "task",
+		SourceID:       "task-1",
+		SourceRevision: "2",
+		EventType:      "task.completed",
+		Kind:           knowledge.KindReference,
+		Title:          "Task completed",
+		Content:        "The project-scoped task completed before its project was deleted.",
+		ActorID:        "user-1",
+		IdempotencyKey: "task-1:2:task.completed",
+		OccurredAt:     time.Now().UTC(),
+		Terminal:       true,
+		Validated:      true,
+		Confidence:     1,
+		SourceRefs: []knowledge.SourceRef{{
+			Type: "task",
+			ID:   "task-1",
+			URI:  "multica://tasks/task-1",
+		}},
+	}
+	message, err := outbox.NewMessage("message-1", evidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := &queue{messages: []outbox.Message{message}}
+	dispatcher := outbox.NewDispatcher(source, service)
+
+	report, err := dispatcher.Drain(context.Background(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Delivered != 1 || len(source.delivered) != 1 {
+		t.Fatalf("report = %#v, delivered = %#v", report, source.delivered)
 	}
 }
