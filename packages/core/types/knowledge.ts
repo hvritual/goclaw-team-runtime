@@ -78,6 +78,12 @@ export interface KnowledgeCandidateListResponse {
   nextCursor: string | null;
 }
 
+export interface CommentKnowledgeProposalResponse {
+  queued: boolean;
+  evidenceId: string | null;
+  sourceRevision: string;
+}
+
 export interface ProposeKnowledgeRequest {
   projectId?: string;
   knowledgeId?: string;

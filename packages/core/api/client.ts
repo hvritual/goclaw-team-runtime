@@ -82,6 +82,7 @@ import type {
   ProposeKnowledgeRequest,
   ReviewKnowledgeRequest,
   ReviewKnowledgeResponse,
+  CommentKnowledgeProposalResponse,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
@@ -97,6 +98,7 @@ import {
   knowledgeEntrySchema,
   knowledgeListSchema,
   reviewKnowledgeResponseSchema,
+  commentKnowledgeProposalResponseSchema,
 } from "../knowledge/schema";
 import {
   AttachmentResponseSchema,
@@ -736,6 +738,23 @@ export class ApiClient {
 
   async deleteComment(commentId: string): Promise<void> {
     await this.fetch(`/api/comments/${commentId}`, { method: "DELETE" });
+  }
+
+  async proposeCommentDecision(
+    commentId: string,
+  ): Promise<CommentKnowledgeProposalResponse> {
+    const fallback: CommentKnowledgeProposalResponse = {
+      queued: false,
+      evidenceId: null,
+      sourceRevision: "",
+    };
+    const raw = await this.fetch<unknown>(
+      `/api/comments/${encodeURIComponent(commentId)}/knowledge-proposals`,
+      { method: "POST" },
+    );
+    return parseWithFallback(raw, commentKnowledgeProposalResponseSchema, fallback, {
+      endpoint: "POST /api/comments/:id/knowledge-proposals",
+    });
   }
 
   async resolveComment(commentId: string): Promise<Comment> {

@@ -355,6 +355,15 @@
     "copy_action": "コピー",
     "copied_toast": "コピーしました",
     "edit_action": "編集",
+    "knowledge": {
+      "propose_action": "決定事項として提案",
+      "confirm_title": "コメントを決定事項として提案しますか？",
+      "confirm_description": "現在のコメント版は出典を保持した知識候補になります。自動的には公開されません。",
+      "confirm_action": "決定事項を提案",
+      "queued_toast": "決定事項をレビューに提出しました",
+      "unchanged_toast": "このコメント版はすでに提出されています",
+      "failed_toast": "コメントを決定事項として提案できません"
+    },
     "update_failed": "コメントを更新できませんでした",
     "send_failed": "コメントを送信できませんでした",
     "posted_partial_trigger_other": "コメントを投稿しましたが、{{count}} 件のメンションはトリガーされませんでした",

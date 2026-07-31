@@ -5,6 +5,17 @@ import type {
   ReviewKnowledgeRequest,
 } from "../types";
 import { knowledgeKeys } from "./queries";
+import { useWorkspaceId } from "../hooks";
+
+export function useProposeCommentDecision() {
+  const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) => api.proposeCommentDecision(commentId),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: knowledgeKeys.all(workspaceId) }),
+  });
+}
 
 export function useProposeKnowledge(workspaceId: string) {
   const queryClient = useQueryClient();

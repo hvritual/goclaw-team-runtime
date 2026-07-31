@@ -70,6 +70,7 @@ import { useAuthStore } from "@multica/core/auth";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useProposeCommentDecision } from "@multica/core/knowledge";
 import { issueListOptions, issueDetailOptions, childIssuesOptions, childIssueProgressOptions, issueAttachmentsOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
 import { ProjectIcon } from "../../projects/components/project-icon";
@@ -879,6 +880,11 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
     members.find((m) => m.user_id === user?.id)?.role ?? null;
   const canModerateComments =
     currentUserRole === "owner" || currentUserRole === "admin";
+  const { mutateAsync: proposeCommentDecision } = useProposeCommentDecision();
+  const handleProposeCommentDecision = useCallback(
+    (commentId: string) => proposeCommentDecision(commentId),
+    [proposeCommentDecision],
+  );
   const { data: allIssues = [] } = useQuery(issueListOptions(wsId));
   const { getActorName } = useActorName();
   // Description autosave is deliberately NOT gated (no explicit submit; the
@@ -2045,6 +2051,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
             onEdit={editComment}
             onDelete={deleteComment}
             onToggleReaction={handleToggleReaction}
+            onProposeDecision={handleProposeCommentDecision}
             onResolveToggle={handleResolveToggle}
             onCollapseResolved={isResolved ? () => toggleResolvedExpand(item.id, false) : undefined}
             expandedResolvedIds={expandedResolved}

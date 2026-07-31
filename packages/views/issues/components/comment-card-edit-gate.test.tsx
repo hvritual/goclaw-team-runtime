@@ -154,7 +154,14 @@ const entry: TimelineEntry = {
   reactions: [],
 } as unknown as TimelineEntry;
 
-function renderCard(onEdit = vi.fn().mockResolvedValue(undefined)) {
+function renderCard(
+  onEdit = vi.fn().mockResolvedValue(undefined),
+  onProposeDecision?: (commentId: string) => Promise<{
+    queued: boolean;
+    evidenceId: string | null;
+    sourceRevision: string;
+  }>,
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = renderWithI18n(
     <QueryClientProvider client={qc}>
@@ -167,11 +174,34 @@ function renderCard(onEdit = vi.fn().mockResolvedValue(undefined)) {
         onEdit={onEdit}
         onDelete={vi.fn()}
         onToggleReaction={vi.fn()}
+        onProposeDecision={onProposeDecision}
       />
     </QueryClientProvider>,
   );
   return { ...view, onEdit };
 }
+
+describe("comment knowledge capture", () => {
+  it("confirms before proposing the current comment revision as a decision", async () => {
+    const onProposeDecision = vi.fn().mockResolvedValue({
+      queued: true,
+      evidenceId: "evidence-1",
+      sourceRevision: "2026-07-31T08:30:00Z",
+    });
+    renderCard(undefined, onProposeDecision);
+
+    const trigger = document.querySelector('button[aria-haspopup="menu"]');
+    if (!trigger) throw new Error("Expected the comment actions menu trigger");
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByText("Propose as decision"));
+
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Propose comment as decision?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Propose decision" }));
+
+    await waitFor(() => expect(onProposeDecision).toHaveBeenCalledWith("comment-1"));
+  });
+});
 
 /** Open the row's ⋯ menu and click Edit. The trigger is icon-only with no
  *  accessible name, so it is addressed by its menu popup role. */

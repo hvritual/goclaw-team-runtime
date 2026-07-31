@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { CheckCircle2, ChevronRight, ListChevronsDownUp, Copy, Loader2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, ChevronRight, ListChevronsDownUp, Copy, Loader2, MoreHorizontal, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@multica/ui/components/ui/card";
 import { Button } from "@multica/ui/components/ui/button";
@@ -33,7 +33,7 @@ import { ContentEditor, type ContentEditorRef, ReadonlyContent, useFileDropZone,
 import { useCommentUploads } from "./use-comment-uploads";
 import { FileUploadButton } from "@multica/ui/components/common/file-upload-button";
 import { ReplyInput } from "./reply-input";
-import type { TimelineEntry, Attachment } from "@multica/core/types";
+import type { TimelineEntry, Attachment, CommentKnowledgeProposalResponse } from "@multica/core/types";
 import { contentReferencesAttachment } from "@multica/core/types";
 import { useCommentCollapseStore, useCommentDraftStore } from "@multica/core/issues/stores";
 import { useT } from "../../i18n";
@@ -106,6 +106,7 @@ interface CommentCardProps {
   onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>;
   onDelete: (commentId: string) => void;
   onToggleReaction: (commentId: string, emoji: string) => void;
+  onProposeDecision?: (commentId: string) => Promise<CommentKnowledgeProposalResponse>;
   /** Resolve/unresolve any comment in this thread (commentId = the target row). */
   onResolveToggle?: (commentId: string, resolved: boolean) => void;
   /**
@@ -156,6 +157,72 @@ function DeleteCommentDialog({
           <AlertDialogCancel>{t(($) => $.comment.cancel_action)}</AlertDialogCancel>
           <AlertDialogAction variant="destructive" onClick={onConfirm}>
             {t(($) => $.comment.delete_action)}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function ProposeCommentDecisionDialog({
+  commentId,
+  onOpenChange,
+  onProposeDecision,
+}: {
+  commentId: string | null;
+  onOpenChange: (open: boolean) => void;
+  onProposeDecision: (commentId: string) => Promise<CommentKnowledgeProposalResponse>;
+}) {
+  const { t } = useT("issues");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => {
+    if (!commentId || submitting) return;
+    setSubmitting(true);
+    try {
+      const result = await onProposeDecision(commentId);
+      if (!result.sourceRevision) {
+        throw new Error("invalid comment knowledge proposal response");
+      }
+      toast.success(
+        result.queued
+          ? t(($) => $.comment.knowledge.queued_toast)
+          : t(($) => $.comment.knowledge.unchanged_toast),
+      );
+      onOpenChange(false);
+    } catch {
+      toast.error(t(($) => $.comment.knowledge.failed_toast));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AlertDialog
+      open={commentId !== null}
+      onOpenChange={(open) => {
+        if (!submitting) onOpenChange(open);
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t(($) => $.comment.knowledge.confirm_title)}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {t(($) => $.comment.knowledge.confirm_description)}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={submitting}>
+            {t(($) => $.comment.cancel_action)}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={submitting}
+            onClick={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {t(($) => $.comment.knowledge.confirm_action)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -429,6 +496,7 @@ function CommentRow({
   onEdit,
   onDelete,
   onToggleReaction,
+  onProposeDecision,
   onResolveToggle,
 }: {
   issueId: string;
@@ -442,6 +510,7 @@ function CommentRow({
   onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>;
   onDelete: (commentId: string) => void;
   onToggleReaction: (commentId: string, emoji: string) => void;
+  onProposeDecision?: (commentId: string) => void;
   onResolveToggle?: (commentId: string, resolved: boolean) => void;
 }) {
   const { t } = useT("issues");
@@ -509,6 +578,15 @@ function CommentRow({
                 <Copy className="h-3.5 w-3.5" />
                 {t(($) => $.comment.copy_action)}
               </DropdownMenuItem>
+              {onProposeDecision && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onProposeDecision(entry.id)}>
+                    <BookOpenCheck className="h-3.5 w-3.5" />
+                    {t(($) => $.comment.knowledge.propose_action)}
+                  </DropdownMenuItem>
+                </>
+              )}
               {onResolveToggle && (
                 <>
                   <DropdownMenuSeparator />
@@ -647,6 +725,7 @@ function CommentCardImpl({
   onEdit,
   onDelete,
   onToggleReaction,
+  onProposeDecision,
   onResolveToggle,
   onCollapseResolved,
   expandedResolvedIds,
@@ -670,6 +749,7 @@ function CommentCardImpl({
   const canEditEntry = isOwn || (canModerate && entry.actor_type === "member");
   const canDeleteEntry = isOwn || canModerate;
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [decisionCommentId, setDecisionCommentId] = useState<string | null>(null);
 
   const allNestedReplies = replies;
 
@@ -793,6 +873,15 @@ function CommentCardImpl({
                         <Copy className="h-3.5 w-3.5" />
                         {t(($) => $.comment.copy_action)}
                       </DropdownMenuItem>
+                      {onProposeDecision && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setDecisionCommentId(entry.id)}>
+                            <BookOpenCheck className="h-3.5 w-3.5" />
+                            {t(($) => $.comment.knowledge.propose_action)}
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       {onResolveToggle && (
                         <>
                           <DropdownMenuSeparator />
@@ -837,6 +926,15 @@ function CommentCardImpl({
                     onConfirm={() => onDelete(entry.id)}
                     hasReplies
                   />
+                  {onProposeDecision && (
+                    <ProposeCommentDecisionDialog
+                      commentId={decisionCommentId}
+                      onOpenChange={(dialogOpen) => {
+                        if (!dialogOpen) setDecisionCommentId(null);
+                      }}
+                      onProposeDecision={onProposeDecision}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -962,6 +1060,7 @@ function CommentCardImpl({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onToggleReaction={onToggleReaction}
+                    onProposeDecision={onProposeDecision ? setDecisionCommentId : undefined}
                     onResolveToggle={onResolveToggle}
                   />
                 </div>
@@ -1001,6 +1100,7 @@ function CommentCardImpl({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onToggleReaction={onToggleReaction}
+                    onProposeDecision={onProposeDecision ? setDecisionCommentId : undefined}
                     onResolveToggle={onResolveToggle}
                   />
                 </div>

@@ -5,7 +5,18 @@ import type {
   KnowledgeEntry,
   KnowledgeListResponse,
   ReviewKnowledgeResponse,
+  CommentKnowledgeProposalResponse,
 } from "../types";
+
+export const commentKnowledgeProposalResponseSchema = z.object({
+  queued: z.boolean(),
+  evidence_id: z.string().nullable(),
+  source_revision: z.string(),
+}).loose().transform((value) => ({
+  queued: value.queued,
+  evidenceId: value.evidence_id,
+  sourceRevision: value.source_revision,
+})) as z.ZodType<CommentKnowledgeProposalResponse>;
 
 const knowledgeKindSchema = z
   .enum([

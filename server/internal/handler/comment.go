@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/knowledge"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
 )
@@ -28,6 +29,12 @@ type CommentResponse struct {
 	ResolvedByID   *string              `json:"resolved_by_id"`
 	Reactions      []ReactionResponse   `json:"reactions"`
 	Attachments    []AttachmentResponse `json:"attachments"`
+}
+
+type CommentKnowledgeProposalResponse struct {
+	Queued         bool    `json:"queued"`
+	EvidenceID     *string `json:"evidence_id"`
+	SourceRevision string  `json:"source_revision"`
 }
 
 func (h *Handler) commentResponse(c db.Comment, reactions []ReactionResponse, attachments []AttachmentResponse) CommentResponse {
@@ -162,6 +169,73 @@ func (h *Handler) CreateComment(w http.ResponseWriter, r *http.Request) {
 	response := h.commentResponse(comment, nil, attachments[uuidToString(comment.ID)])
 	h.publish(protocol.EventCommentCreated, uuidToString(issue.WorkspaceID), "member", userID, map[string]any{"comment": response})
 	writeJSON(w, http.StatusCreated, response)
+}
+
+func (h *Handler) ProposeCommentDecision(w http.ResponseWriter, r *http.Request) {
+	if !h.knowledgeEvidenceEnabled {
+		writeError(w, http.StatusServiceUnavailable, "knowledge capture unavailable")
+		return
+	}
+	workspaceID, _, ok := knowledgeAccess(r)
+	if !ok {
+		writeError(w, http.StatusForbidden, "workspace access denied")
+		return
+	}
+	userID, ok := requireUserID(w, r)
+	if !ok {
+		return
+	}
+	commentID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "commentId"), "comment id")
+	if !ok {
+		return
+	}
+
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to capture comment decision")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+	source, err := qtx.GetCommentKnowledgeSourceForUpdate(r.Context(), db.GetCommentKnowledgeSourceForUpdateParams{
+		ID:          commentID,
+		WorkspaceID: parseUUID(workspaceID),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		writeError(w, http.StatusNotFound, "comment not found")
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to capture comment decision")
+		return
+	}
+	evidence := knowledge.NewCommentDecisionEvidence(knowledge.CommentDecisionEvidenceDraft{
+		WorkspaceID: uuidToString(source.WorkspaceID),
+		ProjectID:   optionalKnowledgeUUID(source.IssueProjectID),
+		CommentID:   uuidToString(source.ID),
+		Content:     source.Content,
+		UpdatedAt:   source.UpdatedAt.Time,
+		ActorID:     userID,
+	})
+	queued, err := h.appendKnowledgeEvidence(r.Context(), tx, evidence)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to capture comment decision")
+		return
+	}
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to capture comment decision")
+		return
+	}
+
+	var evidenceID *string
+	status := http.StatusOK
+	if queued {
+		evidenceID = &evidence.ID
+		status = http.StatusAccepted
+	}
+	writeJSON(w, status, CommentKnowledgeProposalResponse{
+		Queued: queued, EvidenceID: evidenceID, SourceRevision: evidence.SourceRevision,
+	})
 }
 
 func (h *Handler) loadCommentForMember(w http.ResponseWriter, r *http.Request) (db.Comment, db.Member, bool) {

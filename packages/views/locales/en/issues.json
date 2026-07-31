@@ -362,6 +362,15 @@
     "copy_action": "Copy",
     "copied_toast": "Copied",
     "edit_action": "Edit",
+    "knowledge": {
+      "propose_action": "Propose as decision",
+      "confirm_title": "Propose comment as decision?",
+      "confirm_description": "The current comment revision will become a knowledge candidate with its source preserved. It will not be published automatically.",
+      "confirm_action": "Propose decision",
+      "queued_toast": "Decision proposed for review",
+      "unchanged_toast": "This comment revision was already proposed",
+      "failed_toast": "Unable to propose this comment as a decision"
+    },
     "update_failed": "Failed to update comment",
     "send_failed": "Failed to send comment",
     "posted_partial_trigger_one": "Comment posted, but {{count}} mention wasn't triggered",

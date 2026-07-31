@@ -8,6 +8,13 @@ LIMIT $3;
 SELECT * FROM comment
 WHERE id = $1 AND workspace_id = $2;
 
+-- name: GetCommentKnowledgeSourceForUpdate :one
+SELECT c.*, i.project_id AS issue_project_id
+FROM comment c
+JOIN issue i ON i.id = c.issue_id AND i.workspace_id = c.workspace_id
+WHERE c.id = $1 AND c.workspace_id = $2
+FOR UPDATE OF c;
+
 -- name: CreateComment :one
 INSERT INTO comment (
     issue_id, workspace_id, author_type, author_id, content, type, parent_id

@@ -3,6 +3,7 @@ import { parseWithFallback } from "../api/schema";
 import {
   EMPTY_KNOWLEDGE_CANDIDATE_LIST,
   EMPTY_KNOWLEDGE_LIST,
+  commentKnowledgeProposalResponseSchema,
   knowledgeCandidateListSchema,
   knowledgeCandidateSchema,
   knowledgeEntrySchema,
@@ -42,6 +43,37 @@ const EMPTY_CANDIDATE = {
 };
 
 describe("knowledge response schemas", () => {
+  it("transforms a comment decision capture response", () => {
+    const result = parseWithFallback(
+      {
+        queued: true,
+        evidence_id: "evidence-1",
+        source_revision: "2026-07-31T08:30:00Z",
+      },
+      commentKnowledgeProposalResponseSchema,
+      { queued: false, evidenceId: null, sourceRevision: "" },
+      { endpoint: "POST /api/comments/:id/knowledge-proposals" },
+    );
+
+    expect(result).toEqual({
+      queued: true,
+      evidenceId: "evidence-1",
+      sourceRevision: "2026-07-31T08:30:00Z",
+    });
+  });
+
+  it("falls back safely when a comment decision capture response is malformed", () => {
+    const fallback = { queued: false, evidenceId: null, sourceRevision: "" };
+    const result = parseWithFallback(
+      { queued: "yes", source_revision: 42 },
+      commentKnowledgeProposalResponseSchema,
+      fallback,
+      { endpoint: "POST /api/comments/:id/knowledge-proposals" },
+    );
+
+    expect(result).toEqual(fallback);
+  });
+
   it("transforms the wire response into the shared knowledge model", () => {
     const result = parseWithFallback(
       {

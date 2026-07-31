@@ -103,6 +103,58 @@ func (q *Queries) GetCommentInWorkspace(ctx context.Context, arg GetCommentInWor
 	return i, err
 }
 
+const getCommentKnowledgeSourceForUpdate = `-- name: GetCommentKnowledgeSourceForUpdate :one
+SELECT c.id, c.issue_id, c.author_type, c.author_id, c.content, c.type, c.created_at, c.updated_at, c.parent_id, c.workspace_id, c.resolved_at, c.resolved_by_type, c.resolved_by_id, i.project_id AS issue_project_id
+FROM comment c
+JOIN issue i ON i.id = c.issue_id AND i.workspace_id = c.workspace_id
+WHERE c.id = $1 AND c.workspace_id = $2
+FOR UPDATE OF c
+`
+
+type GetCommentKnowledgeSourceForUpdateParams struct {
+	ID          pgtype.UUID `json:"id"`
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+}
+
+type GetCommentKnowledgeSourceForUpdateRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	IssueID        pgtype.UUID        `json:"issue_id"`
+	AuthorType     string             `json:"author_type"`
+	AuthorID       pgtype.UUID        `json:"author_id"`
+	Content        string             `json:"content"`
+	Type           string             `json:"type"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ParentID       pgtype.UUID        `json:"parent_id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	ResolvedAt     pgtype.Timestamptz `json:"resolved_at"`
+	ResolvedByType pgtype.Text        `json:"resolved_by_type"`
+	ResolvedByID   pgtype.UUID        `json:"resolved_by_id"`
+	IssueProjectID pgtype.UUID        `json:"issue_project_id"`
+}
+
+func (q *Queries) GetCommentKnowledgeSourceForUpdate(ctx context.Context, arg GetCommentKnowledgeSourceForUpdateParams) (GetCommentKnowledgeSourceForUpdateRow, error) {
+	row := q.db.QueryRow(ctx, getCommentKnowledgeSourceForUpdate, arg.ID, arg.WorkspaceID)
+	var i GetCommentKnowledgeSourceForUpdateRow
+	err := row.Scan(
+		&i.ID,
+		&i.IssueID,
+		&i.AuthorType,
+		&i.AuthorID,
+		&i.Content,
+		&i.Type,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ParentID,
+		&i.WorkspaceID,
+		&i.ResolvedAt,
+		&i.ResolvedByType,
+		&i.ResolvedByID,
+		&i.IssueProjectID,
+	)
+	return i, err
+}
+
 const listCommentsForIssue = `-- name: ListCommentsForIssue :many
 SELECT id, issue_id, author_type, author_id, content, type, created_at, updated_at, parent_id, workspace_id, resolved_at, resolved_by_type, resolved_by_id FROM comment
 WHERE issue_id = $1 AND workspace_id = $2

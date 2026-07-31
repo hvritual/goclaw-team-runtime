@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Scope confirmed; implementation not started |
+| Status | Implementation in progress; `TGT-SLICE-01` code complete, PostgreSQL acceptance run pending |
 | Delivery mode | `change-spec` |
 | Coverage mode | `release-complete` for the capabilities selected below |
 | Scope authority | Human-confirmed in the 2026-07-31 user request |
@@ -537,6 +537,18 @@ Every source-domain mutation:
 Only one slice may be active. Each slice crosses UI, API, domain, data, and
 tests; backend-only and frontend-only waves are not accepted as completed
 stories.
+
+### Implementation ledger
+
+| Slice | Status | Executable evidence |
+| --- | --- | --- |
+| `TGT-SLICE-01` | Code complete; PostgreSQL-backed acceptance run pending | Comment evidence/idempotency/candidate tests in `server/internal/knowledge/comment_decision_evidence_test.go`; outbox insert test in `server/internal/handler/knowledge_evidence_test.go`; environment-gated HTTP/outbox/revision/cross-workspace test in `server/internal/handler/comment_knowledge_integration_test.go`; shared Web/Desktop confirmation behavior in `packages/views/issues/components/comment-card-edit-gate.test.tsx`; Core wire-schema compatibility in `packages/core/knowledge/schema.test.ts` |
+| `TGT-SLICE-02`–`TGT-SLICE-08` | Not started | Must remain inactive until slice 01 passes against migrated PostgreSQL |
+
+The 2026-07-31 implementation environment had no `DATABASE_URL`, PostgreSQL
+client, or running Docker daemon. The PostgreSQL integration test therefore
+compiled but skipped locally; this ledger intentionally does not claim final
+acceptance until that test runs against a migrated database.
 
 ### `TGT-SLICE-01` — Comment decision capture
 

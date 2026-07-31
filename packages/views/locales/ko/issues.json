@@ -355,6 +355,15 @@
     "copy_action": "복사",
     "copied_toast": "복사했습니다",
     "edit_action": "수정",
+    "knowledge": {
+      "propose_action": "결정으로 제안",
+      "confirm_title": "댓글을 결정으로 제안할까요?",
+      "confirm_description": "현재 댓글 버전이 출처와 함께 지식 후보로 등록됩니다. 자동으로 게시되지는 않습니다.",
+      "confirm_action": "결정 제안",
+      "queued_toast": "검토할 결정으로 제안했습니다",
+      "unchanged_toast": "이 댓글 버전은 이미 제안되었습니다",
+      "failed_toast": "댓글을 결정으로 제안할 수 없습니다"
+    },
     "update_failed": "댓글을 업데이트하지 못했습니다",
     "send_failed": "댓글을 보내지 못했습니다",
     "posted_partial_trigger_other": "댓글이 게시되었지만 {{count}}개의 멘션이 트리거되지 않았습니다",

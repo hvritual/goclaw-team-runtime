@@ -85,6 +85,7 @@ export type {
   KnowledgeCandidate,
   KnowledgeListResponse,
   KnowledgeCandidateListResponse,
+  CommentKnowledgeProposalResponse,
   ProposeKnowledgeRequest,
   KnowledgeReviewAction,
   ReviewKnowledgeRequest,

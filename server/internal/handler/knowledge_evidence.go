@@ -23,14 +23,23 @@ func (h *Handler) enqueueKnowledgeEvidence(
 	executor knowledgeEvidenceExecutor,
 	evidence knowledge.Evidence,
 ) error {
+	_, err := h.appendKnowledgeEvidence(ctx, executor, evidence)
+	return err
+}
+
+func (h *Handler) appendKnowledgeEvidence(
+	ctx context.Context,
+	executor knowledgeEvidenceExecutor,
+	evidence knowledge.Evidence,
+) (bool, error) {
 	if !h.knowledgeEvidenceEnabled {
-		return nil
+		return false, nil
 	}
 	payload, err := json.Marshal(evidence)
 	if err != nil {
-		return fmt.Errorf("encode knowledge evidence: %w", err)
+		return false, fmt.Errorf("encode knowledge evidence: %w", err)
 	}
-	if _, err := executor.Exec(ctx, `
+	tag, err := executor.Exec(ctx, `
 		INSERT INTO knowledge_evidence_outbox(
 			workspace_id, evidence_id, idempotency_key, payload_json
 		) VALUES ($1, $2, $3, $4)
@@ -39,10 +48,11 @@ func (h *Handler) enqueueKnowledgeEvidence(
 		evidence.ID,
 		evidence.IdempotencyKey,
 		payload,
-	); err != nil {
-		return fmt.Errorf("append knowledge evidence outbox: %w", err)
+	)
+	if err != nil {
+		return false, fmt.Errorf("append knowledge evidence outbox: %w", err)
 	}
-	return nil
+	return tag.RowsAffected() == 1, nil
 }
 
 func projectKnowledgeEvidence(project db.Project, actorID, eventType string) knowledge.Evidence {

@@ -355,6 +355,15 @@
     "copy_action": "复制",
     "copied_toast": "已复制",
     "edit_action": "编辑",
+    "knowledge": {
+      "propose_action": "提议为决策",
+      "confirm_title": "将评论提议为决策？",
+      "confirm_description": "当前评论修订会保留来源并进入知识候选队列，不会自动发布。",
+      "confirm_action": "提议决策",
+      "queued_toast": "决策已提交复核",
+      "unchanged_toast": "该评论修订已提交过",
+      "failed_toast": "无法将该评论提议为决策"
+    },
     "update_failed": "更新评论失败",
     "send_failed": "发送评论失败",
     "posted_partial_trigger_other": "评论已发布，但有 {{count}} 个提及未触发",
