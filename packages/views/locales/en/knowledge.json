@@ -12,11 +12,25 @@
   },
   "proposal": {
     "title": "New knowledge proposal",
+    "revision_title": "Propose a knowledge revision",
     "title_placeholder": "A concise title",
     "content_placeholder": "What should the team retain?",
     "reason_placeholder": "Why should this become governed knowledge?",
     "submit": "Submit proposal",
     "cancel": "Cancel"
+  },
+  "detail": {
+    "title": "Knowledge history and sources",
+    "open": "View details",
+    "close": "Close details",
+    "loading": "Loading knowledge details",
+    "load_failed": "Knowledge details could not be loaded",
+    "propose_revision": "Propose revision",
+    "revision": "Revision {{number}}",
+    "revision_count_one": "{{count}} revision",
+    "revision_count_other": "{{count}} revisions",
+    "supersedes": "Supersedes revision {{number}}",
+    "sources": "Sources"
   },
   "states": {
     "empty": "No published knowledge yet",

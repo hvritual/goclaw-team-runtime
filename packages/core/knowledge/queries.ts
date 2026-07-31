@@ -7,6 +7,8 @@ export const knowledgeKeys = {
     [...knowledgeKeys.all(workspaceId), "list", query] as const,
   candidates: (workspaceId: string) =>
     [...knowledgeKeys.all(workspaceId), "candidates"] as const,
+  detail: (workspaceId: string, knowledgeId: string) =>
+    [...knowledgeKeys.all(workspaceId), "detail", knowledgeId] as const,
 };
 
 export function knowledgeListOptions(workspaceId: string, query = "") {
@@ -14,6 +16,17 @@ export function knowledgeListOptions(workspaceId: string, query = "") {
     queryKey: knowledgeKeys.list(workspaceId, query),
     queryFn: () => api.listKnowledge({ query }),
     enabled: Boolean(workspaceId),
+  });
+}
+
+export function knowledgeDetailOptions(
+  workspaceId: string,
+  knowledgeId: string,
+) {
+  return queryOptions({
+    queryKey: knowledgeKeys.detail(workspaceId, knowledgeId),
+    queryFn: () => api.getKnowledge(knowledgeId),
+    enabled: Boolean(workspaceId) && Boolean(knowledgeId),
   });
 }
 

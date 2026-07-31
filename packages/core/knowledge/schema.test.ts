@@ -21,6 +21,7 @@ describe("knowledge response schemas", () => {
             revisions: [
               {
                 number: 1,
+                supersedes_revision: 0,
                 title: "Keep evidence",
                 content: "Retry ingestion without deleting source evidence.",
                 created_by: "user-1",
@@ -44,7 +45,13 @@ describe("knowledge response schemas", () => {
       id: "knowledge-1",
       workspaceId: "workspace-1",
       currentRevision: 1,
-      revisions: [{ title: "Keep evidence", createdBy: "user-1" }],
+      revisions: [
+        {
+          title: "Keep evidence",
+          createdBy: "user-1",
+          supersedesRevision: 0,
+        },
+      ],
     });
   });
 

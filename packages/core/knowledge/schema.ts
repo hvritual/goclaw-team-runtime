@@ -49,12 +49,14 @@ const sourceRefSchema = z.object({
 
 const revisionSchema = z.object({
   Number: z.number().optional(),
+  SupersedesRevision: z.number().optional(),
   Title: z.string().optional(),
   Content: z.string().optional(),
   CreatedBy: z.string().optional(),
   CreatedAt: z.string().optional(),
   SourceRefs: z.array(sourceRefSchema).optional(),
   number: z.number().optional(),
+  supersedes_revision: z.number().optional(),
   title: z.string().optional(),
   content: z.string().optional(),
   created_by: z.string().optional(),
@@ -62,6 +64,8 @@ const revisionSchema = z.object({
   source_refs: z.array(sourceRefSchema).optional(),
 }).loose().transform((value) => ({
   number: value.number ?? value.Number ?? 0,
+  supersedesRevision:
+    value.supersedes_revision ?? value.SupersedesRevision ?? 0,
   title: value.title ?? value.Title ?? "",
   content: value.content ?? value.Content ?? "",
   createdBy: value.created_by ?? value.CreatedBy ?? "",
@@ -101,6 +105,8 @@ export const knowledgeCandidateSchema = z.object({
   id: z.string(),
   workspace_id: z.string(),
   project_id: z.string().nullable().optional().default(null),
+  knowledge_id: z.string().nullable().optional().default(null),
+  target_revision: z.number().optional().default(0),
   kind: knowledgeKindSchema,
   title: z.string(),
   content: z.string(),
@@ -115,6 +121,8 @@ export const knowledgeCandidateSchema = z.object({
   id: value.id,
   workspaceId: value.workspace_id,
   projectId: value.project_id,
+  knowledgeId: value.knowledge_id,
+  targetRevision: value.target_revision,
   kind: value.kind,
   title: value.title,
   content: value.content,

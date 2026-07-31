@@ -12,11 +12,24 @@
   },
   "proposal": {
     "title": "새 지식 제안",
+    "revision_title": "지식 개정 제안",
     "title_placeholder": "간결한 제목",
     "content_placeholder": "팀이 보존해야 할 내용은 무엇인가요?",
     "reason_placeholder": "이 내용을 관리 지식으로 보존해야 하는 이유는 무엇인가요?",
     "submit": "제안 제출",
     "cancel": "취소"
+  },
+  "detail": {
+    "title": "지식 이력 및 출처",
+    "open": "세부 정보 보기",
+    "close": "세부 정보 닫기",
+    "loading": "지식 세부 정보를 불러오는 중",
+    "load_failed": "지식 세부 정보를 불러올 수 없습니다",
+    "propose_revision": "개정 제안",
+    "revision": "개정 {{number}}",
+    "revision_count_other": "개정 {{count}}개",
+    "supersedes": "개정 {{number}} 대체",
+    "sources": "출처"
   },
   "states": {
     "empty": "아직 게시된 지식이 없습니다",

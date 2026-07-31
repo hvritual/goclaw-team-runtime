@@ -25,6 +25,7 @@ export interface KnowledgeSourceRef {
 
 export interface KnowledgeRevision {
   number: number;
+  supersedesRevision: number;
   title: string;
   content: string;
   createdBy: string;
@@ -51,6 +52,8 @@ export interface KnowledgeCandidate {
   id: string;
   workspaceId: string;
   projectId: string | null;
+  knowledgeId: string | null;
+  targetRevision: number;
   kind: KnowledgeKind;
   title: string;
   content: string;
@@ -77,6 +80,7 @@ export interface KnowledgeCandidateListResponse {
 
 export interface ProposeKnowledgeRequest {
   projectId?: string;
+  knowledgeId?: string;
   kind: KnowledgeKind;
   title: string;
   content: string;

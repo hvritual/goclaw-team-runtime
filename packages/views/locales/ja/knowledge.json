@@ -12,11 +12,24 @@
   },
   "proposal": {
     "title": "新しいナレッジ提案",
+    "revision_title": "ナレッジの改訂を提案",
     "title_placeholder": "簡潔なタイトル",
     "content_placeholder": "チームが残すべき内容は何ですか？",
     "reason_placeholder": "管理対象のナレッジとして残す理由を入力してください",
     "submit": "提案を送信",
     "cancel": "キャンセル"
+  },
+  "detail": {
+    "title": "ナレッジの履歴とソース",
+    "open": "詳細を表示",
+    "close": "詳細を閉じる",
+    "loading": "ナレッジの詳細を読み込み中",
+    "load_failed": "ナレッジの詳細を読み込めませんでした",
+    "propose_revision": "改訂を提案",
+    "revision": "リビジョン {{number}}",
+    "revision_count_other": "{{count}} 件のリビジョン",
+    "supersedes": "リビジョン {{number}} を置換",
+    "sources": "ソース"
   },
   "states": {
     "empty": "公開済みのナレッジはまだありません",
