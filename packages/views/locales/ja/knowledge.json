@@ -1,0 +1,31 @@
+{
+  "title": "ナレッジ",
+  "search_placeholder": "公開済みナレッジを検索",
+  "published": "公開済み",
+  "review_queue": "レビュー待ち",
+  "propose": "ナレッジを提案",
+  "proposal_title": "新しいナレッジ提案",
+  "proposal_title_placeholder": "簡潔なタイトル",
+  "proposal_content_placeholder": "チームに何を残しますか？",
+  "proposal_reason_placeholder": "なぜ管理対象のナレッジにしますか？",
+  "submit": "提案を送信",
+  "cancel": "キャンセル",
+  "empty": "公開済みナレッジはありません",
+  "empty_candidates": "レビュー待ちの候補はありません",
+  "loading": "ナレッジを読み込み中",
+  "load_failed": "ナレッジを読み込めません",
+  "source_count": "{{count}} 件の出典",
+  "review_rationale_placeholder": "レビュー理由を追加",
+  "approve": "承認",
+  "reject": "却下",
+  "quarantine": "隔離",
+  "kinds": {
+    "goal": "目標",
+    "decision": "意思決定",
+    "constraint": "制約",
+    "requirement": "要件",
+    "procedure": "手順",
+    "lesson": "学び",
+    "reference": "参照"
+  }
+}

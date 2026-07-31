@@ -1,0 +1,31 @@
+{
+  "title": "Knowledge",
+  "search_placeholder": "Search published knowledge",
+  "published": "Published",
+  "review_queue": "Review queue",
+  "propose": "Propose knowledge",
+  "proposal_title": "New knowledge proposal",
+  "proposal_title_placeholder": "A concise title",
+  "proposal_content_placeholder": "What should the team retain?",
+  "proposal_reason_placeholder": "Why should this become governed knowledge?",
+  "submit": "Submit proposal",
+  "cancel": "Cancel",
+  "empty": "No published knowledge yet",
+  "empty_candidates": "No candidates need review",
+  "loading": "Loading knowledge",
+  "load_failed": "Knowledge could not be loaded",
+  "source_count": "{{count}} sources",
+  "review_rationale_placeholder": "Add a review rationale",
+  "approve": "Approve",
+  "reject": "Reject",
+  "quarantine": "Quarantine",
+  "kinds": {
+    "goal": "Goal",
+    "decision": "Decision",
+    "constraint": "Constraint",
+    "requirement": "Requirement",
+    "procedure": "Procedure",
+    "lesson": "Lesson",
+    "reference": "Reference"
+  }
+}

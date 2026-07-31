@@ -4,6 +4,7 @@ export type RouteIconName =
   | "FolderKanban"
   | "ListChecks"
   | "BookOpenText"
+  | "LibraryBig"
   | "Settings"
   | "File"
   | "FileText"
@@ -19,6 +20,7 @@ export type NavLabelKey =
   | "issues"
   | "projects"
   | "tasks"
+  | "knowledge"
   | "skills"
   | "settings";
 
@@ -27,6 +29,7 @@ export type WorkspacePageKey =
   | "issues"
   | "projects"
   | "tasks"
+  | "knowledge"
   | "skills"
   | "settings";
 
@@ -41,6 +44,7 @@ export const WORKSPACE_PAGES: Record<WorkspacePageKey, WorkspacePage> = {
   issues: { segment: "issues", icon: "ListTodo", navKey: "issues" },
   projects: { segment: "projects", icon: "FolderKanban", navKey: "projects" },
   tasks: { segment: "tasks", icon: "ListChecks", navKey: "tasks" },
+  knowledge: { segment: "knowledge", icon: "LibraryBig", navKey: "knowledge" },
   skills: { segment: "skills", icon: "BookOpenText", navKey: "skills" },
   settings: { segment: "settings", icon: "Settings", navKey: "settings" },
 };

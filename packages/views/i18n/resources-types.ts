@@ -17,6 +17,7 @@ import type search from "../locales/en/search.json";
 import type workspace from "../locales/en/workspace.json";
 import type projects from "../locales/en/projects.json";
 import type tasks from "../locales/en/tasks.json";
+import type knowledge from "../locales/en/knowledge.json";
 import type skills from "../locales/en/skills.json";
 import type modals from "../locales/en/modals.json";
 import type layout from "../locales/en/layout.json";
@@ -51,6 +52,7 @@ declare global {
     workspace: typeof workspace;
     projects: typeof projects;
     tasks: typeof tasks;
+    knowledge: typeof knowledge;
     skills: typeof skills;
     modals: typeof modals;
     layout: typeof layout;

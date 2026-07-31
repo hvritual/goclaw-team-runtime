@@ -76,3 +76,17 @@ export type {
   ConnectVCSRequest,
   ConnectVCSResponse,
 } from "./vcs";
+export type {
+  KnowledgeKind,
+  KnowledgeStatus,
+  KnowledgeSourceRef,
+  KnowledgeRevision,
+  KnowledgeEntry,
+  KnowledgeCandidate,
+  KnowledgeListResponse,
+  KnowledgeCandidateListResponse,
+  ProposeKnowledgeRequest,
+  KnowledgeReviewAction,
+  ReviewKnowledgeRequest,
+  ReviewKnowledgeResponse,
+} from "./knowledge";

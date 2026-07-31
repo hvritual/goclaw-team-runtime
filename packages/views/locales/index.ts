@@ -13,6 +13,7 @@ import enSearch from "./en/search.json";
 import enWorkspace from "./en/workspace.json";
 import enProjects from "./en/projects.json";
 import enTasks from "./en/tasks.json";
+import enKnowledge from "./en/knowledge.json";
 import enSkills from "./en/skills.json";
 import enModals from "./en/modals.json";
 import enLayout from "./en/layout.json";
@@ -31,6 +32,7 @@ import zhHansSearch from "./zh-Hans/search.json";
 import zhHansWorkspace from "./zh-Hans/workspace.json";
 import zhHansProjects from "./zh-Hans/projects.json";
 import zhHansTasks from "./zh-Hans/tasks.json";
+import zhHansKnowledge from "./zh-Hans/knowledge.json";
 import zhHansSkills from "./zh-Hans/skills.json";
 import zhHansModals from "./zh-Hans/modals.json";
 import zhHansLayout from "./zh-Hans/layout.json";
@@ -49,6 +51,7 @@ import koSearch from "./ko/search.json";
 import koWorkspace from "./ko/workspace.json";
 import koProjects from "./ko/projects.json";
 import koTasks from "./ko/tasks.json";
+import koKnowledge from "./ko/knowledge.json";
 import koSkills from "./ko/skills.json";
 import koModals from "./ko/modals.json";
 import koLayout from "./ko/layout.json";
@@ -67,6 +70,7 @@ import jaSearch from "./ja/search.json";
 import jaWorkspace from "./ja/workspace.json";
 import jaProjects from "./ja/projects.json";
 import jaTasks from "./ja/tasks.json";
+import jaKnowledge from "./ja/knowledge.json";
 import jaSkills from "./ja/skills.json";
 import jaModals from "./ja/modals.json";
 import jaLayout from "./ja/layout.json";
@@ -91,6 +95,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     workspace: enWorkspace,
     projects: enProjects,
     tasks: enTasks,
+    knowledge: enKnowledge,
     skills: enSkills,
     modals: enModals,
     layout: enLayout,
@@ -111,6 +116,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     workspace: zhHansWorkspace,
     projects: zhHansProjects,
     tasks: zhHansTasks,
+    knowledge: zhHansKnowledge,
     skills: zhHansSkills,
     modals: zhHansModals,
     layout: zhHansLayout,
@@ -131,6 +137,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     workspace: koWorkspace,
     projects: koProjects,
     tasks: koTasks,
+    knowledge: koKnowledge,
     skills: koSkills,
     modals: koModals,
     layout: koLayout,
@@ -151,6 +158,7 @@ export const RESOURCES: Record<SupportedLocale, LocaleResources> = {
     workspace: jaWorkspace,
     projects: jaProjects,
     tasks: jaTasks,
+    knowledge: jaKnowledge,
     skills: jaSkills,
     modals: jaModals,
     layout: jaLayout,

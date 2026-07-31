@@ -1,0 +1,139 @@
+import { z } from "zod";
+import type {
+  KnowledgeCandidate,
+  KnowledgeCandidateListResponse,
+  KnowledgeEntry,
+  KnowledgeListResponse,
+  ReviewKnowledgeResponse,
+} from "../types";
+
+const sourceRefSchema = z.object({
+  type: z.string(),
+  id: z.string(),
+  revision: z.string().default(""),
+  uri: z.string().default(""),
+  checksum: z.string().default(""),
+}).loose().transform((value) => ({
+  type: value.type,
+  id: value.id,
+  revision: value.revision,
+  uri: value.uri,
+  checksum: value.checksum,
+}));
+
+const revisionSchema = z.object({
+  Number: z.number().optional(),
+  Title: z.string().optional(),
+  Content: z.string().optional(),
+  CreatedBy: z.string().optional(),
+  CreatedAt: z.string().optional(),
+  SourceRefs: z.array(sourceRefSchema).optional(),
+  number: z.number().optional(),
+  title: z.string().optional(),
+  content: z.string().optional(),
+  created_by: z.string().optional(),
+  created_at: z.string().optional(),
+  source_refs: z.array(sourceRefSchema).optional(),
+}).loose().transform((value) => ({
+  number: value.number ?? value.Number ?? 0,
+  title: value.title ?? value.Title ?? "",
+  content: value.content ?? value.Content ?? "",
+  createdBy: value.created_by ?? value.CreatedBy ?? "",
+  createdAt: value.created_at ?? value.CreatedAt ?? "",
+  sourceRefs: value.source_refs ?? value.SourceRefs ?? [],
+}));
+
+export const knowledgeEntrySchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  project_id: z.string().nullable().optional().default(null),
+  candidate_id: z.string().nullable().optional().default(null),
+  kind: z.string(),
+  status: z.string(),
+  current_revision: z.number(),
+  revisions: z.array(revisionSchema).default([]),
+  created_at: z.string(),
+  updated_at: z.string(),
+  citation: z.string().optional(),
+  score: z.number().optional(),
+}).loose().transform((value) => ({
+  id: value.id,
+  workspaceId: value.workspace_id,
+  projectId: value.project_id,
+  candidateId: value.candidate_id,
+  kind: value.kind,
+  status: value.status,
+  currentRevision: value.current_revision,
+  revisions: value.revisions,
+  createdAt: value.created_at,
+  updatedAt: value.updated_at,
+  citation: value.citation,
+  score: value.score,
+})) as z.ZodType<KnowledgeEntry>;
+
+export const knowledgeCandidateSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  project_id: z.string().nullable().optional().default(null),
+  kind: z.string(),
+  title: z.string(),
+  content: z.string(),
+  reason: z.string(),
+  status: z.string(),
+  revision: z.number(),
+  proposed_by: z.string(),
+  source_refs: z.array(sourceRefSchema).default([]),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).loose().transform((value) => ({
+  id: value.id,
+  workspaceId: value.workspace_id,
+  projectId: value.project_id,
+  kind: value.kind,
+  title: value.title,
+  content: value.content,
+  reason: value.reason,
+  status: value.status,
+  revision: value.revision,
+  proposedBy: value.proposed_by,
+  sourceRefs: value.source_refs,
+  createdAt: value.created_at,
+  updatedAt: value.updated_at,
+})) as z.ZodType<KnowledgeCandidate>;
+
+export const knowledgeListSchema = z.object({
+  entries: z.array(knowledgeEntrySchema).default([]),
+  total: z.number().default(0),
+  next_cursor: z.string().nullable().optional().default(null),
+}).loose().transform((value) => ({
+  entries: value.entries,
+  total: value.total,
+  nextCursor: value.next_cursor,
+})) as z.ZodType<KnowledgeListResponse>;
+
+export const knowledgeCandidateListSchema = z.object({
+  candidates: z.array(knowledgeCandidateSchema).default([]),
+  total: z.number().default(0),
+  next_cursor: z.string().nullable().optional().default(null),
+}).loose().transform((value) => ({
+  candidates: value.candidates,
+  total: value.total,
+  nextCursor: value.next_cursor,
+})) as z.ZodType<KnowledgeCandidateListResponse>;
+
+export const reviewKnowledgeResponseSchema = z.object({
+  candidate: knowledgeCandidateSchema,
+  entry: knowledgeEntrySchema.nullable(),
+}).loose() as z.ZodType<ReviewKnowledgeResponse>;
+
+export const EMPTY_KNOWLEDGE_LIST: KnowledgeListResponse = {
+  entries: [],
+  total: 0,
+  nextCursor: null,
+};
+
+export const EMPTY_KNOWLEDGE_CANDIDATE_LIST: KnowledgeCandidateListResponse = {
+  candidates: [],
+  total: 0,
+  nextCursor: null,
+};

@@ -75,6 +75,13 @@ import type {
   ListVCSConnectionsResponse,
   ConnectVCSRequest,
   ConnectVCSResponse,
+  KnowledgeCandidate,
+  KnowledgeCandidateListResponse,
+  KnowledgeEntry,
+  KnowledgeListResponse,
+  ProposeKnowledgeRequest,
+  ReviewKnowledgeRequest,
+  ReviewKnowledgeResponse,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
@@ -82,6 +89,15 @@ import { type Logger, noopLogger } from "../logger";
 import { createRequestId } from "../utils";
 import { getCurrentSlug } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
+import {
+  EMPTY_KNOWLEDGE_CANDIDATE_LIST,
+  EMPTY_KNOWLEDGE_LIST,
+  knowledgeCandidateListSchema,
+  knowledgeCandidateSchema,
+  knowledgeEntrySchema,
+  knowledgeListSchema,
+  reviewKnowledgeResponseSchema,
+} from "../knowledge/schema";
 import {
   AttachmentResponseSchema,
   ChildIssuesResponseSchema,
@@ -1166,6 +1182,140 @@ export class ApiClient {
 
   async deleteTask(id: string): Promise<void> {
     await this.fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  }
+
+  async listKnowledge(params?: {
+    query?: string;
+    projectId?: string;
+    kind?: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<KnowledgeListResponse> {
+    const search = new URLSearchParams();
+    if (params?.query) search.set("query", params.query);
+    if (params?.projectId) search.set("project_id", params.projectId);
+    if (params?.kind) search.set("kind", params.kind);
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.cursor) search.set("cursor", params.cursor);
+    const query = search.toString();
+    const raw = await this.fetch<unknown>(
+      `/api/knowledge${query ? `?${query}` : ""}`,
+    );
+    return parseWithFallback(
+      raw,
+      knowledgeListSchema,
+      EMPTY_KNOWLEDGE_LIST,
+      { endpoint: "GET /api/knowledge" },
+    );
+  }
+
+  async getKnowledge(id: string): Promise<KnowledgeEntry> {
+    const raw = await this.fetch<unknown>(
+      `/api/knowledge/${encodeURIComponent(id)}`,
+    );
+    return parseWithFallback(
+      raw,
+      knowledgeEntrySchema,
+      {
+        id: "",
+        workspaceId: "",
+        projectId: null,
+        candidateId: null,
+        kind: "reference",
+        status: "published",
+        currentRevision: 0,
+        revisions: [],
+        createdAt: "",
+        updatedAt: "",
+      },
+      { endpoint: "GET /api/knowledge/:id" },
+    );
+  }
+
+  async proposeKnowledge(
+    request: ProposeKnowledgeRequest,
+  ): Promise<KnowledgeCandidate> {
+    const raw = await this.fetch<unknown>("/api/knowledge/proposals", {
+      method: "POST",
+      body: JSON.stringify({
+        project_id: request.projectId,
+        kind: request.kind,
+        title: request.title,
+        content: request.content,
+        reason: request.reason,
+        source_refs: request.sourceRefs,
+      }),
+    });
+    return parseWithFallback(
+      raw,
+      knowledgeCandidateSchema,
+      {
+        id: "",
+        workspaceId: "",
+        projectId: null,
+        kind: request.kind,
+        title: request.title,
+        content: request.content,
+        reason: request.reason,
+        status: "candidate",
+        revision: 0,
+        proposedBy: "",
+        sourceRefs: [],
+        createdAt: "",
+        updatedAt: "",
+      },
+      { endpoint: "POST /api/knowledge/proposals" },
+    );
+  }
+
+  async listKnowledgeCandidates(): Promise<KnowledgeCandidateListResponse> {
+    const raw = await this.fetch<unknown>("/api/knowledge/candidates");
+    return parseWithFallback(
+      raw,
+      knowledgeCandidateListSchema,
+      EMPTY_KNOWLEDGE_CANDIDATE_LIST,
+      { endpoint: "GET /api/knowledge/candidates" },
+    );
+  }
+
+  async reviewKnowledgeCandidate(
+    candidateId: string,
+    request: ReviewKnowledgeRequest,
+  ): Promise<ReviewKnowledgeResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/knowledge/candidates/${encodeURIComponent(candidateId)}/review`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          action: request.action,
+          expected_revision: request.expectedRevision,
+          rationale: request.rationale,
+        }),
+      },
+    );
+    return parseWithFallback(
+      raw,
+      reviewKnowledgeResponseSchema,
+      {
+        candidate: {
+          id: "",
+          workspaceId: "",
+          projectId: null,
+          kind: "reference",
+          title: "",
+          content: "",
+          reason: "",
+          status: "candidate",
+          revision: 0,
+          proposedBy: "",
+          sourceRefs: [],
+          createdAt: "",
+          updatedAt: "",
+        },
+        entry: null,
+      },
+      { endpoint: "POST /api/knowledge/candidates/:id/review" },
+    );
   }
 
   // Project resources

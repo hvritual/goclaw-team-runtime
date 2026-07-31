@@ -9,6 +9,7 @@ import { AttachmentPreviewRoute } from "./pages/attachment-preview-page";
 import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { TasksPage } from "@multica/views/tasks";
+import { KnowledgePage } from "@multica/views/knowledge";
 import { MyIssuesPage } from "@multica/views/my-issues";
 import { SkillsPage } from "@multica/views/skills";
 import { SettingsPage } from "@multica/views/settings";
@@ -126,6 +127,11 @@ export const appRoutes: RouteObject[] = [
             path: "tasks",
             element: <TasksPage />,
             handle: { title: "Tasks" },
+          },
+          {
+            path: "knowledge",
+            element: <KnowledgePage />,
+            handle: { title: "Knowledge" },
           },
           {
             path: "my-issues",

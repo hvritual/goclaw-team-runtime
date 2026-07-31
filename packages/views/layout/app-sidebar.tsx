@@ -101,6 +101,7 @@ type NavKey =
   | "issues"
   | "projects"
   | "tasks"
+  | "knowledge"
   | "skills"
   | "settings";
 
@@ -111,6 +112,7 @@ type NavLabelKey =
   | "issues"
   | "projects"
   | "tasks"
+  | "knowledge"
   | "skills"
   | "settings";
 
@@ -125,6 +127,7 @@ const workspaceNav: { key: NavKey; labelKey: NavLabelKey }[] = [
   { key: "issues", labelKey: "issues" },
   { key: "projects", labelKey: "projects" },
   { key: "tasks", labelKey: "tasks" },
+  { key: "knowledge", labelKey: "knowledge" },
 ];
 
 const configureNav: { key: NavKey; labelKey: NavLabelKey }[] = [
