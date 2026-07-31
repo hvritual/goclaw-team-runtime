@@ -357,6 +357,125 @@ func TestSQLiteLocalKnowledgeCapturesProjectEvidenceAndReviewsCandidates(t *test
 	}
 }
 
+func TestSQLiteLocalCapturesCommentDecisionAsCandidate(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Decision Team",
+		"slug": "decision-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "SQLite decisions",
+	}, http.StatusCreated)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":      "Choose the initial store",
+		"project_id": project["id"],
+	}, http.StatusCreated)
+	comment := client.request(http.MethodPost, "/api/issues/"+issue["id"].(string)+"/comments", map[string]any{
+		"content": "Use SQLite first and keep the persistence port replaceable.",
+	}, http.StatusCreated)
+	timeline := client.requestList(http.MethodGet, "/api/issues/"+issue["id"].(string)+"/timeline", http.StatusOK)
+	if len(timeline) != 1 || timeline[0]["id"] != comment["id"] || timeline[0]["type"] != "comment" {
+		t.Fatalf("comment timeline = %#v", timeline)
+	}
+
+	proposal := client.request(http.MethodPost, "/api/comments/"+comment["id"].(string)+"/knowledge-proposals", nil, http.StatusAccepted)
+	if proposal["queued"] != true || proposal["source_revision"] == "" {
+		t.Fatalf("comment proposal = %#v", proposal)
+	}
+
+	var candidate map[string]any
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+		for _, raw := range candidates["candidates"].([]any) {
+			item := raw.(map[string]any)
+			sources := item["source_refs"].([]any)
+			if len(sources) == 1 && sources[0].(map[string]any)["type"] == "comment" {
+				candidate = item
+				break
+			}
+		}
+		if candidate != nil {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if candidate == nil {
+		t.Fatal("comment decision candidate was not created")
+	}
+	if candidate["kind"] != "decision" || candidate["project_id"] != project["id"] {
+		t.Fatalf("comment decision candidate = %#v", candidate)
+	}
+	sources := candidate["source_refs"].([]any)
+	if len(sources) != 1 || sources[0].(map[string]any)["type"] != "comment" {
+		t.Fatalf("comment decision provenance = %#v", sources)
+	}
+
+	repeat := client.request(http.MethodPost, "/api/comments/"+comment["id"].(string)+"/knowledge-proposals", nil, http.StatusOK)
+	if repeat["queued"] != false {
+		t.Fatalf("repeat comment proposal = %#v", repeat)
+	}
+	edited := client.request(http.MethodPut, "/api/comments/"+comment["id"].(string), map[string]any{
+		"content": "Use SQLite first, with a replaceable persistence port.",
+	}, http.StatusOK)
+	if edited["content"] == comment["content"] {
+		t.Fatalf("comment was not updated: %#v", edited)
+	}
+	client.request(http.MethodPost, "/api/comments/"+comment["id"].(string)+"/knowledge-proposals", nil, http.StatusAccepted)
+
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	commentRevisions := map[string]struct{}{}
+	for _, raw := range candidates["candidates"].([]any) {
+		item := raw.(map[string]any)
+		sources := item["source_refs"].([]any)
+		if len(sources) == 1 {
+			source := sources[0].(map[string]any)
+			if source["type"] == "comment" && source["id"] == comment["id"] {
+				commentRevisions[source["revision"].(string)] = struct{}{}
+			}
+		}
+	}
+	if len(commentRevisions) != 2 {
+		t.Fatalf("comment decision revisions = %#v", commentRevisions)
+	}
+
+	invitation := client.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{
+		"email": "member@example.com",
+		"role":  "member",
+	}, http.StatusCreated)
+	member := &testClient{t: t, app: app, slug: workspace["slug"].(string)}
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "member@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	member.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+	denied := member.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusForbidden)
+	if denied["error"] != "knowledge access denied" {
+		t.Fatalf("candidate access disclosure = %#v", denied)
+	}
+
+	other := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Other Team",
+		"slug": "other-team",
+	}, http.StatusCreated)
+	client.slug = other["slug"].(string)
+	client.request(http.MethodPost, "/api/comments/"+comment["id"].(string)+"/knowledge-proposals", nil, http.StatusNotFound)
+}
+
 func TestSQLiteLocalMembersCannotInspectKnowledgeCandidates(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "multica.db")
 	app, err := Open(path, Options{VerificationCode: "888888"})

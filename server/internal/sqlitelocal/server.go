@@ -353,7 +353,16 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			issues.Post("/query", s.listIssues)
 			issues.Get("/{id}", s.getIssue)
 			issues.Patch("/{id}", s.updateIssue)
+			issues.Put("/{id}", s.updateIssue)
 			issues.Delete("/{id}", s.deleteIssue)
+			issues.Get("/{id}/timeline", s.listIssueTimeline)
+			issues.Get("/{id}/comments", s.listComments)
+			issues.Post("/{id}/comments", s.createComment)
+		})
+
+		api.Route("/api/comments/{commentId}", func(comments chi.Router) {
+			comments.Put("/", s.updateComment)
+			comments.Post("/knowledge-proposals", s.proposeCommentDecision)
 		})
 
 		api.Route("/api/tasks", func(tasks chi.Router) {

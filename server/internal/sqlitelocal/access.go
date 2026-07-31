@@ -68,7 +68,7 @@ func (s *Server) requireKnowledgeReviewer(
 			return projectIDs, true
 		}
 	}
-	writeError(w, http.StatusForbidden, "insufficient workspace role")
+	writeError(w, http.StatusForbidden, "knowledge access denied")
 	return nil, false
 }
 

@@ -202,33 +202,34 @@ See the [CLI and Daemon Guide](CLI_AND_DAEMON.md) for the full command reference
 |-------|-------|
 | Frontend | Next.js 16 (App Router) |
 | Backend | Go (Chi router, sqlc, gorilla/websocket) |
-| Database | PostgreSQL 17 with pgvector |
+| Database | SQLite (current default; PostgreSQL path retained for future migration) |
 | Agent Runtime | Local daemon executing Claude Code, Codex, CodeBuddy, GitHub Copilot CLI, OpenCode, OpenClaw, Hermes, Pi, Cursor Agent, Kimi, Kiro CLI, Antigravity, Qoder CLI, or Trae CLI |
 
 ## Development
 
 For contributors working on the Multica codebase, see the [Contributing Guide](CONTRIBUTING.md).
 
-**Prerequisites:** [Node.js](https://nodejs.org/) v20+, [pnpm](https://pnpm.io/) v10.28+, [Go](https://go.dev/) v1.26+, [Docker](https://www.docker.com/)
+**Prerequisites:** [Node.js](https://nodejs.org/) v20+, [pnpm](https://pnpm.io/) v10.28+, [Go](https://go.dev/) v1.26+
 
 ```bash
 make dev
 ```
 
-`make dev` auto-detects your environment (main checkout or worktree), creates the env file, installs dependencies, sets up the database, runs migrations, and starts all services.
+`make dev` starts the SQLite-backed application without Docker or PostgreSQL.
+Business data is stored in `data/multica-local.db`; governed knowledge is stored
+in its sibling knowledge database. The local login code is `888888`.
 
-For a local-only six-domain environment (Workspace, Member, Project, Issue,
-Task, and Skill) without Docker or PostgreSQL, run:
+`make dev-sqlite` remains an explicit alias for the same default. The retained
+PostgreSQL development path is available only through:
 
 ```bash
-make dev-sqlite
+make dev-postgres
 ```
 
-This stores data in `data/multica-local.db`, starts the web app at
-`http://localhost:3000`, and uses the local login code `888888`. Agent
-execution, cloud integrations, analytics, and advanced scheduling are
-intentionally unavailable in this mode. PostgreSQL remains the default for
-the full product.
+SQLite mode covers the active six-domain product surface (Workspace, Member,
+Project, Issue, Task, Skill) and Knowledge, including comment decision
+capture. Runtime-agent execution, cloud integrations, analytics, and advanced
+scheduling remain unavailable.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow, worktree support, testing, and troubleshooting.
 

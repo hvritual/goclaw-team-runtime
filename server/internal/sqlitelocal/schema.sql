@@ -117,6 +117,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS issues_workspace_number_idx ON issues(workspac
 CREATE INDEX IF NOT EXISTS issues_workspace_updated_idx ON issues(workspace_id, updated_at);
 CREATE INDEX IF NOT EXISTS issues_project_idx ON issues(project_id);
 
+CREATE TABLE IF NOT EXISTS comments (
+    id TEXT PRIMARY KEY,
+    issue_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    author_type TEXT NOT NULL,
+    author_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'comment',
+    parent_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS comments_issue_created_idx ON comments(issue_id, created_at);
+CREATE INDEX IF NOT EXISTS comments_workspace_idx ON comments(workspace_id, updated_at);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -186,3 +201,6 @@ VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

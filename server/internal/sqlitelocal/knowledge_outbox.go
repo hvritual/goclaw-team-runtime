@@ -25,12 +25,21 @@ func enqueueKnowledgeEvidence(
 	executor contextExecutor,
 	evidence knowledge.Evidence,
 ) error {
+	_, err := appendKnowledgeEvidence(ctx, executor, evidence)
+	return err
+}
+
+func appendKnowledgeEvidence(
+	ctx context.Context,
+	executor contextExecutor,
+	evidence knowledge.Evidence,
+) (bool, error) {
 	payload, err := json.Marshal(evidence)
 	if err != nil {
-		return err
+		return false, err
 	}
 	timestamp := now()
-	_, err = executor.ExecContext(ctx, `
+	result, err := executor.ExecContext(ctx, `
 		INSERT OR IGNORE INTO knowledge_evidence_outbox(
 			id, workspace_id, evidence_id, idempotency_key, payload_json,
 			available_at, created_at, updated_at
@@ -44,7 +53,11 @@ func enqueueKnowledgeEvidence(
 		timestamp,
 		timestamp,
 	)
-	return err
+	if err != nil {
+		return false, err
+	}
+	inserted, err := result.RowsAffected()
+	return inserted == 1, err
 }
 
 func (s *sqliteEvidenceOutbox) NextBatch(ctx context.Context, limit int) ([]outbox.Message, error) {
