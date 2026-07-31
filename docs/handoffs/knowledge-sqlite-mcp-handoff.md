@@ -3,9 +3,10 @@
 ## Status
 
 The accepted product and architecture decisions have been implemented for the
-SQLite-local composition on the current feature branch. Remaining production
-composition and governance gaps are listed in `docs/knowledge.md` instead of
-being treated as complete. The staged delivery record lives in
+SQLite-local composition and the default PostgreSQL service composition on the
+current feature branch. PostgreSQL remains the primary six-domain store and
+SQLite remains the first replaceable knowledge adapter. The staged delivery
+record lives in
 [`docs/plans/knowledge-sqlite-mcp-implementation.md`](../plans/knowledge-sqlite-mcp-implementation.md),
 and configuration and recovery guidance lives in
 [`docs/knowledge.md`](../knowledge.md).
@@ -51,6 +52,8 @@ time, normalized content, provenance, checksum, and an idempotency key.
 - Conflicts, low-confidence content, and missing provenance are quarantined.
 - Published content is revisioned and never silently overwritten.
 - Superseded revisions remain available for history.
+- A revision proposal records the target entry and target revision; approval
+  fails with a conflict when the published entry advanced in the meantime.
 
 ## Storage boundary
 

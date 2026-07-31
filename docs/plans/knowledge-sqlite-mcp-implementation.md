@@ -13,12 +13,14 @@ query types.
 
 ## Implementation status
 
-Stages 1–6 are implemented for the SQLite-local composition, and stage 7
-verification is recorded in the final handoff report. Production PostgreSQL
-composition, published-entry supersession, and Project-lead review remain
-explicit follow-up work; they are not hidden behind compatibility shims.
-Deferred evidence producers and operations limits are documented in
-[`docs/knowledge.md`](../knowledge.md).
+Stages 1–6 are implemented for both the SQLite-local composition and the
+default PostgreSQL service composition. SQLite remains the first knowledge
+adapter; it does not replace the default service's PostgreSQL primary store.
+Published-entry revision proposals, immutable supersession history, Project
+lead review scope, shared details, transactional PostgreSQL evidence delivery,
+and remote MCP registration are included. Stage 7 verification is completed in
+the final handoff report. Deferred evidence producers and the remaining
+operations CLI limit are documented in [`docs/knowledge.md`](../knowledge.md).
 
 ## Confirmed boundaries
 

@@ -27,7 +27,7 @@ Knowledge uses a database separate from the six-domain source database. It
 stores canonical workspace and Project IDs as values and intentionally has no
 foreign keys or cascade actions.
 
-SQLite schema version: `1`.
+SQLite schema version: `2`.
 
 SQLite startup settings:
 
@@ -46,12 +46,12 @@ modification.
 
 ## Configuration
 
-The local SQLite server recognizes:
+The local SQLite server and default PostgreSQL service recognize:
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `MULTICA_KNOWLEDGE_ENABLED` | Set to `false` to disable knowledge only | enabled |
-| `MULTICA_KNOWLEDGE_SQLITE_PATH` | Knowledge SQLite file | sibling `*.knowledge.db` |
+| `MULTICA_KNOWLEDGE_SQLITE_PATH` | Knowledge SQLite file | local: sibling `*.knowledge.db`; default service: `data/multica-knowledge.db` |
 | `MULTICA_PUBLIC_URL` | Canonical base URL used by MCP protected-resource metadata | inferred only for loopback requests |
 | `MULTICA_MCP_AUTHORIZATION_SERVERS` | Comma-separated OAuth authorization-server issuer URLs | empty |
 
@@ -71,11 +71,14 @@ Published knowledge is available to workspace members:
 - `GET /api/knowledge/{id}/sources`
 - `POST /api/knowledge/proposals`
 
-Owners and admins additionally use:
+Owners, admins, and Project leads use the governed candidate endpoints. Owners
+and admins see every workspace candidate; a Project lead sees and reviews only
+candidates linked to Projects they lead:
 
 - `GET /api/knowledge/candidates`
 - `POST /api/knowledge/candidates/{id}/review`
-- `GET /api/knowledge/health`
+
+Only owners and admins use `GET /api/knowledge/health`.
 
 Every request resolves canonical workspace membership. Optional Project IDs
 must belong to the active workspace. Ordinary members are not shown candidate
@@ -84,9 +87,11 @@ queues, permission descriptions, or governance configuration.
 ## Evidence outbox and recovery
 
 Project, Issue, and terminal Task mutations append normalized evidence inside
-the source SQLite transaction. Delivery to the separate knowledge database is
-at least once and idempotent. A failed knowledge write never rolls back the
-source mutation.
+the source transaction. The SQLite-local composition uses its primary SQLite
+database; the default service uses the PostgreSQL
+`knowledge_evidence_outbox`. Delivery to the separate knowledge SQLite adapter
+is at least once and idempotent. A failed knowledge write never rolls back an
+already committed source mutation.
 
 The owner/admin health response includes:
 
@@ -138,14 +143,18 @@ Tools:
 
 The search and list tools return candidates only when
 `include_candidates: true` is requested and the token has
-`knowledge:candidate:read`. No MCP tool can approve, reject, manage roles,
+`knowledge:candidate:read`. Candidate results are further restricted to the
+authenticated Project lead's Projects unless the caller is an owner or admin.
+No MCP tool can approve, reject, manage roles,
 change permissions, configure workspaces, or invoke runtime-agent behavior.
 
 The transport is stateless Streamable HTTP with JSON responses, request-size
 limits, cancellation propagation, bearer authentication, protected-resource
-discovery, and Origin validation. Local session tokens provide a PAT-compatible
-development path. A remote deployment supplies an OAuth 2.1 token verifier and
-authorization-server metadata through server options.
+discovery, and Origin validation. Local session tokens and default-service
+personal access tokens provide compatible development and self-hosted paths.
+The transport accepts an injected OAuth 2.1 token verifier and authorization
+server metadata at the composition boundary without coupling the knowledge
+domain to a particular identity provider.
 
 The implementation uses the official Go MCP SDK:
 <https://github.com/modelcontextprotocol/go-sdk>.
@@ -156,15 +165,6 @@ The implementation uses the official Go MCP SDK:
   Issue creation/acceptance, and terminal Task completion. Comment decisions,
   deliverable revisions, acceptance conclusions, and retrospectives remain
   future evidence producers behind the same envelope.
-- Project-lead review is not introduced as a separate role. The existing
-  Project `lead_id` capability still needs candidate filtering and review
-  authorization; owner/admin authorization is used in this increment.
-- The default PostgreSQL server composition does not yet register the
-  knowledge API, source outbox, or MCP transport. Deployment must use the
-  SQLite-local composition until that wiring is added.
-- Published-entry supersession and subsequent revision proposals remain to be
-  implemented. The current model preserves immutable first revisions and
-  optimistic candidate-review revisions.
 - The local server has no standalone backup or index-rebuild CLI yet; both
   operations are available at the adapter boundary and covered by tests.
 - SQLite is the first adapter, not the product-level storage contract.
