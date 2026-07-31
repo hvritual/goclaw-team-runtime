@@ -168,3 +168,7 @@ The implementation uses the official Go MCP SDK:
 - The local server has no standalone backup or index-rebuild CLI yet; both
   operations are available at the adapter boundary and covered by tests.
 - SQLite is the first adapter, not the product-level storage contract.
+
+The approved completion scope and vertical delivery sequence for these limits
+is documented in
+[`docs/plans/knowledge-next-phase-completion.md`](plans/knowledge-next-phase-completion.md).
