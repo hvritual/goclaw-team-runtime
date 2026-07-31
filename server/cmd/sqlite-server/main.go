@@ -32,8 +32,14 @@ func main() {
 	}
 
 	app, err := sqlitelocal.Open(databasePath, sqlitelocal.Options{
-		VerificationCode: os.Getenv("MULTICA_DEV_VERIFICATION_CODE"),
-		FrontendOrigin:   os.Getenv("FRONTEND_ORIGIN"),
+		VerificationCode:       os.Getenv("MULTICA_DEV_VERIFICATION_CODE"),
+		FrontendOrigin:         os.Getenv("FRONTEND_ORIGIN"),
+		KnowledgeDatabasePath:  strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_SQLITE_PATH")),
+		DisableKnowledge:       strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_ENABLED")), "false"),
+		PublicURL:              strings.TrimSpace(os.Getenv("MULTICA_PUBLIC_URL")),
+		MCPAuthorizationServers: splitCommaSeparated(
+			os.Getenv("MULTICA_MCP_AUTHORIZATION_SERVERS"),
+		),
 	})
 	if err != nil {
 		log.Fatalf("open SQLite local server: %v", err)
@@ -63,4 +69,15 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("serve SQLite local API: %v", err)
 	}
+}
+
+func splitCommaSeparated(value string) []string {
+	parts := strings.Split(value, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part = strings.TrimSpace(part); part != "" {
+			result = append(result, part)
+		}
+	}
+	return result
 }

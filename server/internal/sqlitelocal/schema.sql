@@ -162,8 +162,27 @@ CREATE TABLE IF NOT EXISTS skill_files (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS skill_files_skill_path_idx ON skill_files(skill_id, path);
 
+CREATE TABLE IF NOT EXISTS knowledge_evidence_outbox (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    evidence_id TEXT NOT NULL UNIQUE,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    payload_json TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    available_at TEXT NOT NULL,
+    delivered_at TEXT,
+    last_error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS knowledge_evidence_outbox_pending_idx
+    ON knowledge_evidence_outbox(delivered_at, available_at, created_at);
+
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (1, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

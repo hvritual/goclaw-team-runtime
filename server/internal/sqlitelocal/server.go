@@ -25,6 +25,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
+	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/multica-ai/multica/server/internal/knowledge"
+	knowledgeSqlite "github.com/multica-ai/multica/server/internal/knowledge/adapter/sqlite"
+	"github.com/multica-ai/multica/server/internal/knowledge/outbox"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
 	_ "modernc.org/sqlite"
 )
@@ -41,14 +45,29 @@ const (
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type Options struct {
-	VerificationCode string
-	FrontendOrigin   string
+	VerificationCode        string
+	FrontendOrigin          string
+	KnowledgeDatabasePath   string
+	DisableKnowledge        bool
+	PublicURL               string
+	MCPAuthorizationServers []string
+	MCPTokenVerifier        mcpauth.TokenVerifier
 }
 
 type Server struct {
-	db               *sql.DB
-	handler          http.Handler
-	verificationCode string
+	db                      *sql.DB
+	handler                 http.Handler
+	verificationCode        string
+	knowledgeStore          *knowledgeSqlite.Store
+	knowledgeService        *knowledge.Service
+	knowledgeUnavailable    error
+	knowledgeDispatcher     *outbox.Dispatcher
+	knowledgeCancel         context.CancelFunc
+	knowledgeDone           chan struct{}
+	mcpHandler              http.Handler
+	mcpPublicURL            string
+	mcpAuthorizationServers []string
+	mcpExternalVerifier     mcpauth.TokenVerifier
 }
 
 type principal struct {
@@ -86,6 +105,28 @@ func Open(path string, options Options) (*Server, error) {
 		code = defaultVerificationCode
 	}
 	server := &Server{db: db, verificationCode: code}
+	if !options.DisableKnowledge {
+		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
+		if knowledgePath == "" {
+			extension := filepath.Ext(path)
+			knowledgePath = strings.TrimSuffix(path, extension) + ".knowledge" + extension
+		}
+		knowledgeStore, err := knowledgeSqlite.Open(knowledgePath)
+		if err != nil {
+			server.knowledgeUnavailable = fmt.Errorf("open knowledge store: %w", err)
+		} else {
+			server.knowledgeStore = knowledgeStore
+			server.knowledgeService = knowledge.NewService(knowledgeStore, knowledge.DefaultPromotionPolicy{})
+			server.knowledgeDispatcher = outbox.NewDispatcher(
+				&sqliteEvidenceOutbox{db: db},
+				server.knowledgeService,
+			)
+			server.startKnowledgeDispatcher()
+			server.configureKnowledgeMCP(options)
+		}
+	} else {
+		server.knowledgeUnavailable = errKnowledgeDisabled
+	}
 	server.handler = server.routes(options.FrontendOrigin)
 	return server, nil
 }
@@ -211,7 +252,16 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) Close() error {
-	return s.db.Close()
+	if s.knowledgeCancel != nil {
+		s.knowledgeCancel()
+		<-s.knowledgeDone
+	}
+	var closeErrors []error
+	if s.knowledgeStore != nil {
+		closeErrors = append(closeErrors, s.knowledgeStore.Close())
+	}
+	closeErrors = append(closeErrors, s.db.Close())
+	return errors.Join(closeErrors...)
 }
 
 func (s *Server) routes(frontendOrigin string) http.Handler {
@@ -233,6 +283,9 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 	})
 	r.Get("/ws", s.unsupported)
 	r.Get("/api/config", s.getConfig)
+	r.Get("/.well-known/oauth-protected-resource", s.getMCPProtectedResourceMetadata)
+	r.Get("/.well-known/oauth-protected-resource/mcp/{workspaceSlug}/knowledge", s.getMCPProtectedResourceMetadata)
+	r.Handle("/mcp/{workspaceSlug}/knowledge", s.handleKnowledgeMCP())
 	r.Post("/auth/send-code", s.sendCode)
 	r.Post("/auth/verify-code", s.verifyCode)
 	r.Post("/auth/logout", s.logout)
@@ -296,6 +349,18 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			skills.Get("/{id}", s.getSkill)
 			skills.Put("/{id}", s.updateSkill)
 			skills.Delete("/{id}", s.deleteSkill)
+		})
+
+		api.Route("/api/knowledge", func(knowledge chi.Router) {
+			knowledge.Get("/", s.listKnowledge)
+			knowledge.Get("/search", s.listKnowledge)
+			knowledge.Post("/proposals", s.proposeKnowledge)
+			knowledge.Get("/candidates", s.listKnowledgeCandidates)
+			knowledge.Post("/candidates/{id}/review", s.reviewKnowledgeCandidate)
+			knowledge.Get("/health", s.getKnowledgeHealth)
+			knowledge.Get("/{id}/revisions", s.listKnowledgeRevisions)
+			knowledge.Get("/{id}/sources", s.listKnowledgeSources)
+			knowledge.Get("/{id}", s.getKnowledgeEntry)
 		})
 
 		api.NotFound(s.unsupported)
@@ -1618,7 +1683,13 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 		req.Priority = "none"
 	}
 	id, timestamp := newID(), now()
-	_, err := s.db.ExecContext(r.Context(), `INSERT INTO projects(
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create project")
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO projects(
 		id, workspace_id, title, description, icon, status, priority, lead_type, lead_id,
 		start_date, due_date, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, workspaceValue.ID, req.Title,
@@ -1628,7 +1699,20 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create project")
 		return
 	}
-	value, _ := scanProject(s.db.QueryRowContext(r.Context(), `SELECT `+projectColumns()+` FROM projects WHERE id = ?`, id))
+	value, err := scanProject(tx.QueryRowContext(r.Context(), `SELECT `+projectColumns()+` FROM projects WHERE id = ?`, id))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load project")
+		return
+	}
+	if err := enqueueKnowledgeEvidence(r.Context(), tx, projectEvidence(value, currentUserID(r), "project.created")); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to record project evidence")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create project")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusCreated, s.projectResponse(r.Context(), value))
 }
 
@@ -1677,7 +1761,13 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 	applyNullString(&value.StartDate, req.StartDate)
 	applyNullString(&value.DueDate, req.DueDate)
 	value.UpdatedAt = now()
-	_, err := s.db.ExecContext(r.Context(), `UPDATE projects SET title = ?, description = ?, icon = ?, status = ?,
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update project")
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(r.Context(), `UPDATE projects SET title = ?, description = ?, icon = ?, status = ?,
 		priority = ?, lead_type = ?, lead_id = ?, start_date = ?, due_date = ?, updated_at = ? WHERE id = ?`,
 		value.Title, value.Description, value.Icon, value.Status, value.Priority, value.LeadType,
 		value.LeadID, value.StartDate, value.DueDate, value.UpdatedAt, value.ID)
@@ -1685,6 +1775,17 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update project")
 		return
 	}
+	if value.Status == "completed" || value.Status == "done" {
+		if err := enqueueKnowledgeEvidence(r.Context(), tx, projectEvidence(value, currentUserID(r), "project.completed")); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record project evidence")
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update project")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusOK, s.projectResponse(r.Context(), value))
 }
 
@@ -1876,11 +1977,20 @@ func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create issue")
 		return
 	}
+	value, err := scanIssue(tx.QueryRowContext(r.Context(), `SELECT `+issueColumns()+` FROM issues WHERE id = ?`, id))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load issue")
+		return
+	}
+	if err := enqueueKnowledgeEvidence(r.Context(), tx, issueEvidence(value, currentUserID(r), "issue.created")); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create issue")
 		return
 	}
-	value, _ := scanIssue(s.db.QueryRowContext(r.Context(), `SELECT `+issueColumns()+` FROM issues WHERE id = ?`, id))
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusCreated, value.response(workspaceValue.IssuePrefix))
 }
 
@@ -1947,7 +2057,13 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 		value.Properties = encodeJSON(req.Properties, "{}")
 	}
 	value.UpdatedAt = now()
-	_, err := s.db.ExecContext(r.Context(), `UPDATE issues SET title = ?, description = ?, status = ?, priority = ?,
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update issue")
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(r.Context(), `UPDATE issues SET title = ?, description = ?, status = ?, priority = ?,
 		assignee_type = ?, assignee_id = ?, parent_issue_id = ?, project_id = ?, stage = ?, start_date = ?,
 		due_date = ?, metadata = ?, properties = ?, updated_at = ? WHERE id = ?`, value.Title, value.Description,
 		value.Status, value.Priority, value.AssigneeType, value.AssigneeID, value.ParentIssueID, value.ProjectID,
@@ -1956,6 +2072,17 @@ func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update issue")
 		return
 	}
+	if value.Status == "done" {
+		if err := enqueueKnowledgeEvidence(r.Context(), tx, issueEvidence(value, currentUserID(r), "issue.accepted")); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update issue")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusOK, value.response(workspaceValue.IssuePrefix))
 }
 
@@ -2130,7 +2257,13 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	if req.Status == "done" || req.Status == "cancelled" {
 		completedAt = timestamp
 	}
-	_, err := s.db.ExecContext(r.Context(), `INSERT INTO tasks(
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create task")
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(r.Context(), `INSERT INTO tasks(
 		id, workspace_id, project_id, issue_id, title, description, status, priority,
 		assignee_id, creator_id, position, start_date, due_date, completed_at, created_at, updated_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -2155,7 +2288,7 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create task")
 		return
 	}
-	value, err := scanTask(s.db.QueryRowContext(
+	value, err := scanTask(tx.QueryRowContext(
 		r.Context(),
 		`SELECT `+taskColumns()+` FROM tasks WHERE id = ?`,
 		id,
@@ -2164,6 +2297,17 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to load task")
 		return
 	}
+	if value.Status == "done" || value.Status == "cancelled" {
+		if err := enqueueKnowledgeEvidence(r.Context(), tx, taskEvidence(value, currentUserID(r), "task.completed")); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record task evidence")
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create task")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusCreated, value.response())
 }
 
@@ -2245,6 +2389,7 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	previousStatus := value.Status
 	var req struct {
 		ProjectID   *string  `json:"project_id"`
 		IssueID     *string  `json:"issue_id"`
@@ -2321,7 +2466,13 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
 	} else {
 		value.CompletedAt = sql.NullString{}
 	}
-	_, err := s.db.ExecContext(r.Context(), `UPDATE tasks SET
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task")
+		return
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(r.Context(), `UPDATE tasks SET
 		project_id = ?, issue_id = ?, title = ?, description = ?, status = ?, priority = ?,
 		assignee_id = ?, position = ?, start_date = ?, due_date = ?, completed_at = ?, updated_at = ?
 		WHERE id = ?`,
@@ -2343,6 +2494,17 @@ func (s *Server) updateTask(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to update task")
 		return
 	}
+	if previousStatus != value.Status && (value.Status == "done" || value.Status == "cancelled") {
+		if err := enqueueKnowledgeEvidence(r.Context(), tx, taskEvidence(value, currentUserID(r), "task.completed")); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to record task evidence")
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to update task")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusOK, value.response())
 }
 

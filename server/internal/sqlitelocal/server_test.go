@@ -2,12 +2,15 @@ package sqlitelocal
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type testClient struct {
@@ -156,6 +159,224 @@ func TestSQLiteLocalSixDomainAPI(t *testing.T) {
 	unsupported := client.request(http.MethodGet, "/api/dashboard/usage", nil, http.StatusNotImplemented)
 	if unsupported["code"] != "sqlite_local_unsupported" {
 		t.Fatalf("unsupported response: %#v", unsupported)
+	}
+}
+
+func TestSQLiteLocalSixDomainsRemainAvailableWhenKnowledgeStoreCannotOpen(t *testing.T) {
+	tempDir := t.TempDir()
+	app, err := Open(
+		filepath.Join(tempDir, "multica.db"),
+		Options{
+			VerificationCode:      "888888",
+			KnowledgeDatabasePath: tempDir,
+		},
+	)
+	if err != nil {
+		t.Fatalf("open six-domain server with unavailable knowledge store: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodGet, "/health", nil, http.StatusOK)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Degraded Team",
+		"slug": "degraded-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Six domains keep working",
+	}, http.StatusCreated)
+	client.request(http.MethodGet, "/api/knowledge", nil, http.StatusServiceUnavailable)
+
+	health := client.request(http.MethodGet, "/api/knowledge/health", nil, http.StatusOK)
+	if health["enabled"] != true || health["available"] != false {
+		t.Fatalf("unexpected degraded knowledge health: %#v", health)
+	}
+}
+
+func TestSQLiteLocalReplaysQueuedKnowledgeEvidenceAfterRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{
+		VerificationCode: "888888",
+		DisableKnowledge: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Replay Team",
+		"slug": "replay-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Retain queued evidence",
+	}, http.StatusCreated)
+	client.request(http.MethodGet, "/api/knowledge", nil, http.StatusServiceUnavailable)
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.app = reopened
+	reopened.dispatchKnowledgeEvidence(context.Background())
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	if candidates["total"] != float64(1) {
+		t.Fatalf("replayed candidates = %#v", candidates)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	replayedAgain, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = replayedAgain.Close() })
+	client.app = replayedAgain
+	replayedAgain.dispatchKnowledgeEvidence(context.Background())
+	candidates = client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	if candidates["total"] != float64(1) {
+		t.Fatalf("idempotent replay candidates = %#v", candidates)
+	}
+}
+
+func TestSQLiteLocalKnowledgeCapturesProjectEvidenceAndReviewsCandidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Knowledge Team",
+		"slug": "knowledge-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title":       "Reliable recovery",
+		"description": "Recover without deleting project evidence.",
+		"status":      "in_progress",
+	}, http.StatusCreated)
+	client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":       "Define recovery acceptance",
+		"description": "Evidence remains available after retry.",
+		"project_id":  project["id"],
+	}, http.StatusCreated)
+
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	items := candidates["candidates"].([]any)
+	if len(items) < 2 {
+		t.Fatalf("knowledge candidates = %#v", candidates)
+	}
+	candidate := items[0].(map[string]any)
+	reviewed := client.request(
+		http.MethodPost,
+		"/api/knowledge/candidates/"+candidate["id"].(string)+"/review",
+		map[string]any{
+			"action":            "approve",
+			"expected_revision": candidate["revision"],
+			"rationale":         "Verified against the project acceptance criteria.",
+		},
+		http.StatusOK,
+	)
+	entry := reviewed["entry"].(map[string]any)
+	if entry["status"] != "published" {
+		t.Fatalf("reviewed entry = %#v", entry)
+	}
+	search := client.request(http.MethodGet, "/api/knowledge?query=recovery", nil, http.StatusOK)
+	if search["total"].(float64) < 1 {
+		t.Fatalf("knowledge search = %#v", search)
+	}
+	revisions := client.request(
+		http.MethodGet,
+		"/api/knowledge/"+entry["id"].(string)+"/revisions",
+		nil,
+		http.StatusOK,
+	)
+	revision := revisions["revisions"].([]any)[0].(map[string]any)
+	if revision["number"] != float64(1) || revision["created_by"] == nil {
+		t.Fatalf("knowledge revisions = %#v", revisions)
+	}
+	sources := client.request(
+		http.MethodGet,
+		"/api/knowledge/"+entry["id"].(string)+"/sources",
+		nil,
+		http.StatusOK,
+	)
+	if len(sources["sources"].([]any)) == 0 {
+		t.Fatalf("knowledge sources = %#v", sources)
+	}
+}
+
+func TestSQLiteLocalMembersCannotInspectKnowledgeCandidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	owner.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Permission Team",
+		"slug": "permission-team",
+	}, http.StatusCreated)
+
+	member := &testClient{t: t, app: app, slug: workspace["slug"].(string)}
+	member.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "member@example.com"}, http.StatusNoContent)
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "member@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	if _, err := app.db.Exec(`
+		INSERT INTO members(id, workspace_id, user_id, role, created_at)
+		VALUES (?, ?, ?, 'member', ?)`,
+		newID(),
+		workspace["id"],
+		memberLogin["user"].(map[string]any)["id"],
+		now(),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	member.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusForbidden)
+	proposal := member.request(http.MethodPost, "/api/knowledge/proposals", map[string]any{
+		"kind":    "lesson",
+		"title":   "Retry lesson",
+		"content": "Retain evidence while SQLite is unavailable.",
+		"reason":  "Observed during implementation.",
+	}, http.StatusCreated)
+	if proposal["status"] != "candidate" {
+		t.Fatalf("member proposal = %#v", proposal)
 	}
 }
 
@@ -691,4 +912,135 @@ func TestSQLiteLocalProjectAndSkillPermissionsMatchCatalog(t *testing.T) {
 		"description": "Members can maintain their own skills",
 	}, http.StatusOK)
 	member.request(http.MethodDelete, "/api/skills/"+memberSkill["id"].(string), nil, http.StatusNoContent)
+}
+
+type bearerRoundTripper struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (transport bearerRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	cloned := request.Clone(request.Context())
+	cloned.Header.Set("Authorization", "Bearer "+transport.token)
+	return transport.base.RoundTrip(cloned)
+}
+
+func TestSQLiteLocalKnowledgeMCPListsOnlySafeToolsAndCreatesCandidates(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "MCP Team",
+		"slug": "mcp-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+
+	httpServer := httptest.NewServer(app.Handler())
+	t.Cleanup(httpServer.Close)
+	httpClient := &http.Client{Transport: bearerRoundTripper{
+		token: client.token,
+		base:  http.DefaultTransport,
+	}}
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "knowledge-test", Version: "1.0.0"}, nil)
+	session, err := mcpClient.Connect(
+		context.Background(),
+		&mcp.StreamableClientTransport{
+			Endpoint:             httpServer.URL + "/mcp/mcp-team/knowledge",
+			HTTPClient:           httpClient,
+			DisableStandaloneSSE: true,
+		},
+		nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+
+	tools, err := session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make(map[string]bool)
+	for _, tool := range tools.Tools {
+		names[tool.Name] = true
+	}
+	for _, name := range []string{"knowledge_search", "knowledge_list", "knowledge_get", "knowledge_propose"} {
+		if !names[name] {
+			t.Fatalf("missing MCP tool %q in %#v", name, names)
+		}
+	}
+	if names["knowledge_approve"] || names["knowledge_reject"] {
+		t.Fatalf("unsafe MCP tools exposed: %#v", names)
+	}
+
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_propose",
+		Arguments: map[string]any{
+			"kind":    "lesson",
+			"title":   "MCP proposal",
+			"content": "MCP creates candidates, not published entries.",
+			"reason":  "Verify the remote governance boundary.",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("knowledge_propose returned an MCP error: %#v", result.Content)
+	}
+	result, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_search",
+		Arguments: map[string]any{
+			"query":              "MCP proposal",
+			"include_candidates": true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsError {
+		t.Fatalf("candidate-scoped knowledge_search returned an MCP error: %#v", result.Content)
+	}
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)
+	if candidates["total"].(float64) != 1 {
+		t.Fatalf("MCP proposal candidates = %#v", candidates)
+	}
+}
+
+func TestSQLiteLocalKnowledgeMCPRejectsMissingTokenAndCrossOriginRequests(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	request := httptest.NewRequest(http.MethodPost, "/mcp/acme/knowledge", bytes.NewBufferString(`{}`))
+	request.Host = "localhost:3000"
+	response := httptest.NewRecorder()
+	app.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("missing-token status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+	if response.Header().Get("WWW-Authenticate") == "" {
+		t.Fatal("missing-token response omitted protected resource discovery")
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/mcp/acme/knowledge", bytes.NewBufferString(`{}`))
+	request.Header.Set("Origin", "https://attacker.example")
+	response = httptest.NewRecorder()
+	app.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin status = %d, want %d", response.Code, http.StatusForbidden)
+	}
 }
