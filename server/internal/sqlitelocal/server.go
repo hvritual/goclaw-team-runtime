@@ -30,6 +30,8 @@ import (
 	"github.com/multica-ai/multica/server/internal/knowledge"
 	knowledgeSqlite "github.com/multica-ai/multica/server/internal/knowledge/adapter/sqlite"
 	"github.com/multica-ai/multica/server/internal/knowledge/outbox"
+	"github.com/multica-ai/multica/server/internal/projectrequirements"
+	projectRequirementsSQLite "github.com/multica-ai/multica/server/internal/projectrequirements/adapter/sqlite"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
 	_ "modernc.org/sqlite"
 )
@@ -78,6 +80,7 @@ type Server struct {
 	mcpPublicURL            string
 	mcpAuthorizationServers []string
 	mcpExternalVerifier     mcpauth.TokenVerifier
+	requirements            *projectrequirements.Service
 }
 
 type principal struct {
@@ -114,7 +117,7 @@ func Open(path string, options Options) (*Server, error) {
 	if code == "" {
 		code = defaultVerificationCode
 	}
-	server := &Server{db: db, verificationCode: code}
+	server := &Server{db: db, verificationCode: code, requirements: projectrequirements.NewService(projectRequirementsSQLite.New(db))}
 	if !options.DisableKnowledge {
 		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
 		if knowledgePath == "" {
@@ -345,6 +348,12 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			projects.Get("/{id}", s.getProject)
 			projects.Put("/{id}", s.updateProject)
 			projects.Delete("/{id}", s.deleteProject)
+			projects.Get("/{id}/requirement-baseline", s.getProjectRequirementBaseline)
+			projects.Put("/{id}/requirement-baseline", s.saveProjectRequirementDraft)
+			projects.Post("/{id}/requirement-baseline/submit-review", s.submitProjectRequirementReview)
+			projects.Post("/{id}/requirement-baseline/approve", s.approveProjectRequirement)
+			projects.Post("/{id}/requirement-baseline/withdraw", s.withdrawProjectRequirementReview)
+			projects.Get("/{id}/requirement-baseline/history", s.listProjectRequirementHistory)
 			projects.Get("/{id}/retrospectives", s.listProjectRetrospectives)
 			projects.Post("/{id}/retrospectives", s.createProjectRetrospective)
 		})
@@ -1006,6 +1015,8 @@ func (s *Server) deleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE workspace_id = ?`,
+		`DELETE FROM project_requirement_revision WHERE baseline_id IN (SELECT id FROM project_requirement_baseline WHERE workspace_id = ?)`,
+		`DELETE FROM project_requirement_baseline WHERE workspace_id = ?`,
 		`DELETE FROM skill_files WHERE skill_id IN (SELECT id FROM skills WHERE workspace_id = ?)`,
 		`DELETE FROM skills WHERE workspace_id = ?`,
 		`DELETE FROM issues WHERE workspace_id = ?`,
@@ -1856,6 +1867,15 @@ func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_requirement_revision
+		WHERE baseline_id IN (SELECT id FROM project_requirement_baseline WHERE workspace_id = ? AND project_id = ?)`, value.WorkspaceID, value.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project requirements")
+		return
+	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_requirement_baseline WHERE workspace_id = ? AND project_id = ?`, value.WorkspaceID, value.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project requirements")
+		return
+	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_retrospective WHERE project_id = ?`, value.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete project")
 		return

@@ -147,6 +147,39 @@ CREATE TABLE IF NOT EXISTS project_retrospective (
 CREATE INDEX IF NOT EXISTS project_retrospective_project_idx
     ON project_retrospective(project_id, created_at);
 
+CREATE TABLE IF NOT EXISTS project_requirement_baseline (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    current_revision INTEGER NOT NULL,
+    approved_revision INTEGER,
+    submitted_by TEXT,
+    submitted_at TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS project_requirement_baseline_project_idx
+    ON project_requirement_baseline(workspace_id, project_id);
+
+CREATE TABLE IF NOT EXISTS project_requirement_revision (
+    baseline_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    change_summary TEXT NOT NULL DEFAULT '',
+    actor_id TEXT NOT NULL,
+    submitted_by TEXT,
+    submitted_at TEXT,
+    approved_by TEXT,
+    approved_at TEXT,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (baseline_id, revision)
+);
+CREATE INDEX IF NOT EXISTS project_requirement_revision_baseline_idx
+    ON project_requirement_revision(baseline_id, revision DESC);
+
 CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     issue_id TEXT NOT NULL,

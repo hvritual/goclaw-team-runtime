@@ -49,6 +49,7 @@
     "./projects/queries": "./projects/queries.ts",
     "./projects/mutations": "./projects/mutations.ts",
     "./projects/config": "./projects/config.ts",
+    "./project-requirements": "./project-requirements/index.ts",
     "./tasks": "./tasks/index.ts",
     "./tasks/queries": "./tasks/queries.ts",
     "./tasks/mutations": "./tasks/mutations.ts",

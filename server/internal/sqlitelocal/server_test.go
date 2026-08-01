@@ -166,6 +166,115 @@ func TestSQLiteLocalSixDomainAPI(t *testing.T) {
 	}
 }
 
+func TestSQLiteLocalProjectRequirementBaselineLifecyclePermissionsAndScope(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	owner := &testClient{t: t, app: app}
+	owner.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Requirements", "slug": "requirements"}, http.StatusCreated)
+	owner.slug = workspace["slug"].(string)
+
+	invitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{"email": "lead@example.com", "role": "member"}, http.StatusCreated)
+	lead := &testClient{t: t, app: app, slug: owner.slug}
+	lead.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "lead@example.com"}, http.StatusNoContent)
+	leadLogin := lead.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "lead@example.com", "code": "888888"}, http.StatusOK)
+	lead.token = leadLogin["token"].(string)
+	lead.request(http.MethodPost, "/api/invitations/"+invitation["id"].(string)+"/accept", nil, http.StatusOK)
+	leadUserID := leadLogin["user"].(map[string]any)["id"].(string)
+	memberInvitation := owner.request(http.MethodPost, "/api/workspaces/"+workspace["id"].(string)+"/members", map[string]any{"email": "member@example.com", "role": "member"}, http.StatusCreated)
+	member := &testClient{t: t, app: app, slug: owner.slug}
+	member.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "member@example.com"}, http.StatusNoContent)
+	memberLogin := member.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "member@example.com", "code": "888888"}, http.StatusOK)
+	member.token = memberLogin["token"].(string)
+	member.request(http.MethodPost, "/api/invitations/"+memberInvitation["id"].(string)+"/accept", nil, http.StatusOK)
+	project := owner.request(http.MethodPost, "/api/projects", map[string]any{"title": "Versioned scope", "lead_type": "member", "lead_id": leadUserID}, http.StatusCreated)
+	projectID := project["id"].(string)
+
+	initial := owner.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline", nil, http.StatusOK)
+	if initial["baseline"] != nil {
+		t.Fatalf("unexpected initial baseline: %#v", initial)
+	}
+	content := map[string]any{"problem_statement": "Make delivery explicit", "goals": []map[string]any{{"key": "goal-1", "text": "Version requirements"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	draft := owner.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content, "change_summary": "Initial scope"}, http.StatusOK)
+	baseline := draft["baseline"].(map[string]any)
+	if baseline["status"] != "draft" || baseline["current_revision"] != float64(1) {
+		t.Fatalf("unexpected draft: %#v", draft)
+	}
+	owner.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusConflict)
+	owner.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 2}, http.StatusConflict)
+	review := owner.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	if review["baseline"].(map[string]any)["submitted_by"] != ownerLogin["user"].(map[string]any)["id"] {
+		t.Fatalf("submission audit missing: %#v", review)
+	}
+	owner.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusConflict)
+	member.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusForbidden)
+	leadApproved := lead.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusOK)
+	history := leadApproved["history"].([]any)
+	firstRevision := history[0].(map[string]any)
+	if firstRevision["approved_by"] != leadUserID || firstRevision["submitted_at"] == nil || firstRevision["approved_at"] == nil {
+		t.Fatalf("revision audit missing: %#v", history)
+	}
+
+	nextContent := map[string]any{"problem_statement": "Make delivery explicit", "goals": []map[string]any{{"key": "goal-1", "text": "Version requirements"}, {"key": "goal-2", "text": "Keep prior approval effective"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	next := owner.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 1, "content": nextContent, "change_summary": "Add approval continuity"}, http.StatusOK)
+	if next["baseline"].(map[string]any)["current_revision"] != float64(2) || next["effective_content"].(map[string]any)["goals"].([]any)[0].(map[string]any)["key"] != "goal-1" {
+		t.Fatalf("approved content was not retained: %#v", next)
+	}
+	if next["history"].([]any)[1].(map[string]any)["state"] != "approved" || next["history"].([]any)[1].(map[string]any)["approved_by"] != leadUserID {
+		t.Fatalf("effective approved history lost: %#v", next)
+	}
+	lead.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 2}, http.StatusOK)
+	approvedNext := lead.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 2}, http.StatusOK)
+	if approvedNext["history"].([]any)[1].(map[string]any)["state"] != "superseded" || approvedNext["history"].([]any)[0].(map[string]any)["state"] != "approved" {
+		t.Fatalf("supersession state incorrect: %#v", approvedNext)
+	}
+
+	other := owner.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Other", "slug": "other-requirements"}, http.StatusCreated)
+	owner.slug = other["slug"].(string)
+	owner.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline", nil, http.StatusNotFound)
+}
+
+func TestSQLiteLocalProjectRequirementBaselinePersistsAndIsDeletedWithProject(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Persistence", "slug": "requirement-persistence"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Persistent scope"}, http.StatusCreated)
+	projectID := project["id"].(string)
+	content := map[string]any{"problem_statement": "Survive restart", "goals": []map[string]any{{"key": "goal-1", "text": "Persist"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+	app, err = Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	client.app = app
+	persisted := client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline", nil, http.StatusOK)
+	if persisted["current_content"].(map[string]any)["problem_statement"] != "Survive restart" || len(persisted["history"].([]any)) != 1 {
+		t.Fatalf("baseline did not persist: %#v", persisted)
+	}
+	client.request(http.MethodDelete, "/api/projects/"+projectID, nil, http.StatusNoContent)
+	var count int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_baseline WHERE project_id = ?`, projectID).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("baseline cleanup count=%d err=%v", count, err)
+	}
+}
+
 func TestSQLiteLocalIssueStatusBoardQuery(t *testing.T) {
 	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
 	if err != nil {

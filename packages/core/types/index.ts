@@ -100,3 +100,14 @@ export type {
   ProjectRetrospective,
   ProjectRetrospectiveListResponse,
 } from "./implementation-knowledge";
+export type {
+  ProjectRequirementStatus,
+  ProjectRequirementRevisionState,
+  ProjectRequirementItem,
+  ProjectRequirementContent,
+  ProjectRequirementBaseline,
+  ProjectRequirementRevision,
+  ProjectRequirementBaselineResponse,
+  SaveProjectRequirementDraftRequest,
+  ProjectRequirementTransitionRequest,
+} from "./project-requirement";

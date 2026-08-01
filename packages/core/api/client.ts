@@ -89,6 +89,9 @@ import type {
   ProjectRetrospective,
   ProjectRetrospectiveInput,
   ProjectRetrospectiveListResponse,
+  ProjectRequirementBaselineResponse,
+  SaveProjectRequirementDraftRequest,
+  ProjectRequirementTransitionRequest,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
@@ -114,6 +117,10 @@ import {
   projectRetrospectiveListSchema,
   projectRetrospectiveSchema,
 } from "../implementation-knowledge/schema";
+import {
+  EMPTY_PROJECT_REQUIREMENT_BASELINE,
+  projectRequirementBaselineResponseSchema,
+} from "../project-requirements/schema";
 import {
   AttachmentResponseSchema,
   ChildIssuesResponseSchema,
@@ -1250,6 +1257,57 @@ export class ApiClient {
 
   async deleteProject(id: string): Promise<void> {
     await this.fetch(`/api/projects/${id}`, { method: "DELETE" });
+  }
+
+  async getProjectRequirementBaseline(id: string): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline`);
+    return parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, {
+      endpoint: "GET /api/projects/:id/requirement-baseline",
+    });
+  }
+
+  async saveProjectRequirementDraft(id: string, input: SaveProjectRequirementDraftRequest): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline`, {
+      method: "PUT", body: JSON.stringify({
+        expected_revision: input.expectedRevision,
+        content: {
+          problem_statement: input.content.problemStatement,
+          goals: input.content.goals,
+          in_scope: input.content.inScope,
+          out_of_scope: input.content.outOfScope,
+          constraints: input.content.constraints,
+          acceptance_criteria: input.content.acceptanceCriteria,
+          dependencies: input.content.dependencies,
+        },
+        change_summary: input.changeSummary,
+      }),
+    });
+    const response = parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, {
+      endpoint: "PUT /api/projects/:id/requirement-baseline",
+    });
+    if (!response.baseline) throw new Error("Invalid project requirement draft response");
+    return response;
+  }
+
+  async submitProjectRequirementReview(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(id, "submit-review", input, "POST /api/projects/:id/requirement-baseline/submit-review");
+  }
+
+  async approveProjectRequirement(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(id, "approve", input, "POST /api/projects/:id/requirement-baseline/approve");
+  }
+
+  async withdrawProjectRequirementReview(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(id, "withdraw", input, "POST /api/projects/:id/requirement-baseline/withdraw");
+  }
+
+  private async transitionProjectRequirement(id: string, action: string, input: ProjectRequirementTransitionRequest, endpoint: string): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/${action}`, {
+      method: "POST", body: JSON.stringify({ expected_revision: input.expectedRevision }),
+    });
+    const response = parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, { endpoint });
+    if (!response.baseline) throw new Error("Invalid project requirement transition response");
+    return response;
   }
 
   async listTasks(params?: {

@@ -73,6 +73,7 @@ import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { useCreateProjectRetrospective } from "@multica/core/implementation-knowledge";
 import { ProjectRetrospectiveDialog } from "../../implementation-knowledge/implementation-knowledge-dialogs";
 import { ProjectRetrospectiveHistory } from "../../implementation-knowledge/implementation-knowledge-history";
+import { ProjectRequirementBaseline } from "./project-requirement-baseline";
 
 // ---------------------------------------------------------------------------
 // Property row — sidebar property display
@@ -126,6 +127,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     const me = members.find((m) => m.user_id === userId);
     return me?.role === "owner" || me?.role === "admin";
   }, [members, userId]);
+  const isProjectLead = project?.lead_type === "member" && project.lead_id === userId;
+  const [detailView, setDetailView] = useState<"work_items" | "requirements">("work_items");
   const createPin = useCreatePin();
   const deletePinMut = useDeletePin();
   const descEditorRef = useRef<ContentEditorRef>(null);
@@ -520,10 +523,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             }
           />
 
-          <IssueSurface
-            scope={issueScope}
-            modes={["board", "list", "table", "swimlane", "gantt"]}
-          />
+          <div className="flex items-center gap-1 border-b px-4 pt-2">
+            <Button variant={detailView === "work_items" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("work_items")}>{t(($) => $.detail.work_items)}</Button>
+            <Button variant={detailView === "requirements" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("requirements")}>{t(($) => $.detail.requirements)}</Button>
+          </div>
+          {detailView === "work_items" ? (
+            <IssueSurface scope={issueScope} modes={["board", "list", "table", "swimlane", "gantt"]} />
+          ) : (
+            <ProjectRequirementBaseline projectId={projectId} canApprove={isWorkspaceAdmin || isProjectLead} />
+          )}
           </div>
         </ResizablePanel>
         {!isMobile && <ResizableHandle />}
