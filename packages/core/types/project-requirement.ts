@@ -52,6 +52,39 @@ export interface ProjectRequirementBaselineResponse {
   history: ProjectRequirementRevision[];
 }
 
+export interface ProjectRequirementLinkedIssue {
+  id: string;
+  identifier: string;
+  title: string;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ProjectRequirementCoverageItem {
+  requirementKey: string;
+  section: "goals" | "inScope" | "constraints" | "acceptanceCriteria";
+  issues: ProjectRequirementLinkedIssue[];
+}
+
+export interface ProjectRequirementCoverageSnapshot {
+  revision: number;
+  total: number;
+  linked: number;
+  unlinked: number;
+  linkedIssueDone: number;
+  linkedIssueBlocked: number;
+  items: ProjectRequirementCoverageItem[];
+}
+
+export interface ProjectRequirementCoverage {
+  current: ProjectRequirementCoverageSnapshot | null;
+  effective: ProjectRequirementCoverageSnapshot | null;
+}
+
+export interface ProjectRequirementLinkRequest { requirementKey: string; issueId: string; revision: number; }
+export interface ProjectRequirementCreateIssueRequest { revision: number; }
+
 export interface SaveProjectRequirementDraftRequest {
   expectedRevision: number;
   content: ProjectRequirementContent;

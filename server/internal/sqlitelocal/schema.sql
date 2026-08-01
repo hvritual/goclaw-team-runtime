@@ -180,6 +180,20 @@ CREATE TABLE IF NOT EXISTS project_requirement_revision (
 CREATE INDEX IF NOT EXISTS project_requirement_revision_baseline_idx
     ON project_requirement_revision(baseline_id, revision DESC);
 
+CREATE TABLE IF NOT EXISTS project_requirement_issue_link (
+    workspace_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    requirement_key TEXT NOT NULL,
+    issue_id TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (workspace_id, project_id, requirement_key, issue_id)
+);
+CREATE INDEX IF NOT EXISTS project_requirement_issue_link_project_key_idx
+    ON project_requirement_issue_link(workspace_id, project_id, requirement_key);
+CREATE INDEX IF NOT EXISTS project_requirement_issue_link_issue_idx
+    ON project_requirement_issue_link(issue_id);
+
 CREATE TABLE IF NOT EXISTS comments (
     id TEXT PRIMARY KEY,
     issue_id TEXT NOT NULL,

@@ -140,7 +140,17 @@
     "submitted": "Submitted for review",
     "approved": "Requirements approved",
     "withdrawn": "Review withdrawn",
-    "transition_failed": "Could not update the requirement status"
+    "transition_failed": "Could not update the requirement status",
+    "current_coverage": "Current coverage (v{{revision}})",
+    "effective_coverage": "Effective coverage (v{{revision}}): {{linked}}/{{total}} requirements linked · {{unlinked}} unlinked · {{done}} done issues · {{blocked}} blocked issues",
+    "coverage_summary": "{{linked}}/{{total}} requirements linked · {{unlinked}} unlinked · {{done}} done issues · {{blocked}} blocked issues",
+    "link_existing": "Link existing issue",
+    "unlink_issue": "Unlink",
+    "unlink_issue_label": "Unlink {{identifier}}",
+    "create_issue": "Create issue",
+    "link_failed": "Could not update the issue link",
+    "create_issue_failed": "Could not create the issue",
+    "save_before_tracking": "Save the draft before linking an issue."
   },
   "resources": {
     "section_header": "Resources",

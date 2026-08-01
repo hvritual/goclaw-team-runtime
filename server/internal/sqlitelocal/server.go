@@ -65,22 +65,24 @@ type knowledgeOperationalStore interface {
 }
 
 type Server struct {
-	db                      *sql.DB
-	handler                 http.Handler
-	verificationCode        string
-	knowledgeStore          knowledgeOperationalStore
-	knowledgeService        *knowledge.Service
-	knowledgeUnavailable    error
-	knowledgeDispatcher     *outbox.Dispatcher
-	knowledgeCancel         context.CancelFunc
-	knowledgeDone           chan struct{}
-	knowledgeDispatchMu     sync.RWMutex
-	knowledgeDispatchError  string
-	mcpHandler              http.Handler
-	mcpPublicURL            string
-	mcpAuthorizationServers []string
-	mcpExternalVerifier     mcpauth.TokenVerifier
-	requirements            *projectrequirements.Service
+	db                        *sql.DB
+	handler                   http.Handler
+	verificationCode          string
+	knowledgeStore            knowledgeOperationalStore
+	knowledgeService          *knowledge.Service
+	knowledgeUnavailable      error
+	knowledgeDispatcher       *outbox.Dispatcher
+	knowledgeCancel           context.CancelFunc
+	knowledgeDone             chan struct{}
+	knowledgeDispatchMu       sync.RWMutex
+	knowledgeDispatchError    string
+	mcpHandler                http.Handler
+	mcpPublicURL              string
+	mcpAuthorizationServers   []string
+	mcpExternalVerifier       mcpauth.TokenVerifier
+	requirements              *projectrequirements.Service
+	requirementTracking       *projectrequirements.TrackingService
+	requirementTrackingSQLite *projectRequirementsSQLite.TrackingRepository
 }
 
 type principal struct {
@@ -117,7 +119,8 @@ func Open(path string, options Options) (*Server, error) {
 	if code == "" {
 		code = defaultVerificationCode
 	}
-	server := &Server{db: db, verificationCode: code, requirements: projectrequirements.NewService(projectRequirementsSQLite.New(db))}
+	trackingRepository := projectRequirementsSQLite.NewTracking(db)
+	server := &Server{db: db, verificationCode: code, requirements: projectrequirements.NewService(projectRequirementsSQLite.New(db)), requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
 	if !options.DisableKnowledge {
 		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
 		if knowledgePath == "" {
@@ -354,6 +357,10 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			projects.Post("/{id}/requirement-baseline/approve", s.approveProjectRequirement)
 			projects.Post("/{id}/requirement-baseline/withdraw", s.withdrawProjectRequirementReview)
 			projects.Get("/{id}/requirement-baseline/history", s.listProjectRequirementHistory)
+			projects.Get("/{id}/requirement-baseline/coverage", s.getProjectRequirementCoverage)
+			projects.Post("/{id}/requirement-baseline/links", s.linkProjectRequirementIssue)
+			projects.Delete("/{id}/requirement-baseline/links/{requirementKey}/{issueID}", s.unlinkProjectRequirementIssue)
+			projects.Post("/{id}/requirement-baseline/items/{requirementKey}/issues", s.createIssueForProjectRequirement)
 			projects.Get("/{id}/retrospectives", s.listProjectRetrospectives)
 			projects.Post("/{id}/retrospectives", s.createProjectRetrospective)
 		})
@@ -1015,6 +1022,7 @@ func (s *Server) deleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE workspace_id = ?`,
+		`DELETE FROM project_requirement_issue_link WHERE workspace_id = ?`,
 		`DELETE FROM project_requirement_revision WHERE baseline_id IN (SELECT id FROM project_requirement_baseline WHERE workspace_id = ?)`,
 		`DELETE FROM project_requirement_baseline WHERE workspace_id = ?`,
 		`DELETE FROM skill_files WHERE skill_id IN (SELECT id FROM skills WHERE workspace_id = ?)`,
@@ -1872,6 +1880,10 @@ func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to delete project requirements")
 		return
 	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_requirement_issue_link WHERE workspace_id = ? AND project_id = ?`, value.WorkspaceID, value.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project requirement links")
+		return
+	}
 	if _, err := tx.ExecContext(r.Context(), `DELETE FROM project_requirement_baseline WHERE workspace_id = ? AND project_id = ?`, value.WorkspaceID, value.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete project requirements")
 		return
@@ -2022,33 +2034,9 @@ func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	var number int64
-	if err := tx.QueryRowContext(r.Context(), `UPDATE workspaces SET next_issue_number = next_issue_number + 1,
-		updated_at = ? WHERE id = ? RETURNING next_issue_number - 1`, now(), workspaceValue.ID).Scan(&number); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to allocate issue number")
-		return
-	}
-	id, timestamp := newID(), now()
-	_, err = tx.ExecContext(r.Context(), `INSERT INTO issues(
-		id, workspace_id, number, title, description, status, priority, assignee_type, assignee_id,
-		creator_type, creator_id, parent_issue_id, project_id, stage, start_date, due_date,
-		metadata, properties, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'member', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, workspaceValue.ID, number, req.Title, req.Description, req.Status, req.Priority,
-		req.AssigneeType, req.AssigneeID, currentUserID(r), req.ParentIssueID, req.ProjectID,
-		req.Stage, req.StartDate, req.DueDate, encodeJSON(req.Metadata, "{}"),
-		encodeJSON(req.Properties, "{}"), timestamp, timestamp)
+	value, _, err := s.createIssueTx(r.Context(), tx, workspaceValue.ID, currentUserID(r), req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create issue")
-		return
-	}
-	value, err := scanIssue(tx.QueryRowContext(r.Context(), `SELECT `+issueColumns()+` FROM issues WHERE id = ?`, id))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load issue")
-		return
-	}
-	if err := enqueueKnowledgeEvidence(r.Context(), tx, issueEvidence(value, currentUserID(r), "issue.created")); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to record issue evidence")
 		return
 	}
 	if err := tx.Commit(); err != nil {
@@ -2057,6 +2045,39 @@ func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 	}
 	s.dispatchKnowledgeEvidence(r.Context())
 	writeJSON(w, http.StatusCreated, value.response(workspaceValue.IssuePrefix))
+}
+
+func (s *Server) createIssueTx(ctx context.Context, tx *sql.Tx, workspaceID, actorID string, req issueRequest) (issue, workspace, error) {
+	workspaceValue, err := scanWorkspace(tx.QueryRowContext(ctx, `SELECT `+workspaceColumns()+` FROM workspaces WHERE id = ?`, workspaceID))
+	if err != nil {
+		return issue{}, workspace{}, err
+	}
+	var number int64
+	if err := tx.QueryRowContext(ctx, `UPDATE workspaces SET next_issue_number = next_issue_number + 1,
+		updated_at = ? WHERE id = ? RETURNING next_issue_number - 1`, now(), workspaceValue.ID).Scan(&number); err != nil {
+		return issue{}, workspace{}, err
+	}
+	id, timestamp := newID(), now()
+	_, err = tx.ExecContext(ctx, `INSERT INTO issues(
+		id, workspace_id, number, title, description, status, priority, assignee_type, assignee_id,
+		creator_type, creator_id, parent_issue_id, project_id, stage, start_date, due_date,
+		metadata, properties, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'member', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, workspaceValue.ID, number, req.Title, req.Description, req.Status, req.Priority,
+		req.AssigneeType, req.AssigneeID, actorID, req.ParentIssueID, req.ProjectID,
+		req.Stage, req.StartDate, req.DueDate, encodeJSON(req.Metadata, "{}"),
+		encodeJSON(req.Properties, "{}"), timestamp, timestamp)
+	if err != nil {
+		return issue{}, workspace{}, err
+	}
+	value, err := scanIssue(tx.QueryRowContext(ctx, `SELECT `+issueColumns()+` FROM issues WHERE id = ?`, id))
+	if err != nil {
+		return issue{}, workspace{}, err
+	}
+	if err := enqueueKnowledgeEvidence(ctx, tx, issueEvidence(value, actorID, "issue.created")); err != nil {
+		return issue{}, workspace{}, err
+	}
+	return value, workspaceValue, nil
 }
 
 func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, id string) (issue, workspace, bool) {
@@ -2179,6 +2200,7 @@ func (s *Server) deleteIssue(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE issue_id = ?`,
+		`DELETE FROM project_requirement_issue_link WHERE issue_id = ?`,
 		`DELETE FROM issue_acceptance_conclusion WHERE issue_id = ?`,
 		`UPDATE issues SET parent_issue_id = NULL WHERE parent_issue_id = ?`,
 		`DELETE FROM issues WHERE id = ?`,

@@ -1,7 +1,10 @@
 package sqlitelocal
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -18,6 +21,16 @@ type projectRequirementDraftRequest struct {
 
 type projectRequirementTransitionRequest struct {
 	ExpectedRevision int `json:"expected_revision"`
+}
+
+type projectRequirementLinkRequest struct {
+	RequirementKey string `json:"requirement_key"`
+	IssueID        string `json:"issue_id"`
+	Revision       int    `json:"revision"`
+}
+
+type projectRequirementCreateIssueRequest struct {
+	Revision int `json:"revision"`
 }
 
 func (s *Server) getProjectRequirementBaseline(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +76,7 @@ func (s *Server) saveProjectRequirementDraft(w http.ResponseWriter, r *http.Requ
 	if !decodeJSON(w, r, &request) {
 		return
 	}
+	request.Content = normalizeRequirementContent(request.Content)
 	if request.ExpectedRevision < 0 || !validRequirementContent(request.Content) {
 		writeError(w, http.StatusBadRequest, "invalid project requirement content")
 		return
@@ -133,12 +147,22 @@ func (s *Server) requireProjectRequirementApprover(w http.ResponseWriter, r *htt
 }
 
 func validRequirementContent(content projectrequirements.Content) bool {
-	return validRequirementItems(content.Goals) && validRequirementItems(content.InScope) && validRequirementItems(content.OutOfScope) &&
-		validRequirementItems(content.Constraints) && validRequirementItems(content.AcceptanceCriteria) && validRequirementItems(content.Dependencies)
+	seen := make(map[string]struct{})
+	return validRequirementItems(content.Goals, seen) && validRequirementItems(content.InScope, seen) && validRequirementItems(content.OutOfScope, seen) &&
+		validRequirementItems(content.Constraints, seen) && validRequirementItems(content.AcceptanceCriteria, seen) && validRequirementItems(content.Dependencies, seen)
 }
 
-func validRequirementItems(items []projectrequirements.Item) bool {
-	seen := make(map[string]struct{}, len(items))
+func normalizeRequirementContent(content projectrequirements.Content) projectrequirements.Content {
+	for _, items := range []*[]projectrequirements.Item{&content.Goals, &content.InScope, &content.OutOfScope, &content.Constraints, &content.AcceptanceCriteria, &content.Dependencies} {
+		for index := range *items {
+			(*items)[index].Key = strings.TrimSpace((*items)[index].Key)
+			(*items)[index].Text = strings.TrimSpace((*items)[index].Text)
+		}
+	}
+	return content
+}
+
+func validRequirementItems(items []projectrequirements.Item, seen map[string]struct{}) bool {
 	for _, item := range items {
 		key := strings.TrimSpace(item.Key)
 		if key == "" || strings.TrimSpace(item.Text) == "" {
@@ -171,3 +195,117 @@ func writeProjectRequirementError(w http.ResponseWriter, err error) bool {
 func requirementRecordResponse(record projectrequirements.Record) map[string]any {
 	return map[string]any{"baseline": record.Baseline, "current_content": record.CurrentContent, "effective_content": record.EffectiveContent, "history": record.History}
 }
+
+func (s *Server) getProjectRequirementCoverage(w http.ResponseWriter, r *http.Request) {
+	projectValue, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	coverage, err := s.requirementTracking.Coverage(r.Context(), projectValue.WorkspaceID, projectValue.ID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to load requirement coverage")
+		return
+	}
+	writeJSON(w, http.StatusOK, coverage)
+}
+
+func (s *Server) linkProjectRequirementIssue(w http.ResponseWriter, r *http.Request) {
+	projectValue, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	var request projectRequirementLinkRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	err := s.requirementTracking.Link(r.Context(), projectrequirements.LinkInput{WorkspaceID: projectValue.WorkspaceID, ProjectID: projectValue.ID, RequirementKey: strings.TrimSpace(request.RequirementKey), IssueID: strings.TrimSpace(request.IssueID), ActorID: currentUserID(r), Revision: request.Revision})
+	if !writeProjectRequirementTrackingError(w, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) unlinkProjectRequirementIssue(w http.ResponseWriter, r *http.Request) {
+	projectValue, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	revision := 0
+	if _, err := fmt.Sscanf(r.URL.Query().Get("revision"), "%d", &revision); err != nil {
+		writeError(w, http.StatusBadRequest, "valid requirement revision is required")
+		return
+	}
+	err := s.requirementTracking.Unlink(r.Context(), projectrequirements.LinkInput{WorkspaceID: projectValue.WorkspaceID, ProjectID: projectValue.ID, RequirementKey: chi.URLParam(r, "requirementKey"), IssueID: chi.URLParam(r, "issueID"), ActorID: currentUserID(r), Revision: revision})
+	if !writeProjectRequirementTrackingError(w, err) {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func writeProjectRequirementTrackingError(w http.ResponseWriter, err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, projectrequirements.ErrInvalidTracking) {
+		writeError(w, http.StatusBadRequest, "issue and requirement must belong to this project and revision")
+	} else {
+		writeError(w, http.StatusInternalServerError, "failed to update requirement issue links")
+	}
+	return false
+}
+
+func (s *Server) createIssueForProjectRequirement(w http.ResponseWriter, r *http.Request) {
+	projectValue, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
+	if !ok {
+		return
+	}
+	var request projectRequirementCreateIssueRequest
+	if !decodeJSON(w, r, &request) {
+		return
+	}
+	key := strings.TrimSpace(chi.URLParam(r, "requirementKey"))
+	section, text, err := s.requirementItem(r.Context(), projectValue, key, request.Revision)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "requirement is not available for this revision")
+		return
+	}
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create issue")
+		return
+	}
+	defer tx.Rollback()
+	issueValue, workspaceValue, err := s.createIssueTx(r.Context(), tx, projectValue.WorkspaceID, currentUserID(r), issueRequest{Title: text, Description: ptr("Requirement " + string(section) + ": " + text + " (" + key + ")"), ProjectID: ptr(projectValue.ID), Status: "todo", Priority: "none"})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create issue")
+		return
+	}
+	if err := s.requirementTrackingSQLite.LinkTx(r.Context(), tx, projectrequirements.LinkInput{WorkspaceID: projectValue.WorkspaceID, ProjectID: projectValue.ID, RequirementKey: key, IssueID: issueValue.ID, ActorID: currentUserID(r), Revision: request.Revision}); err != nil {
+		writeProjectRequirementTrackingError(w, err)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create issue")
+		return
+	}
+	s.dispatchKnowledgeEvidence(r.Context())
+	writeJSON(w, http.StatusCreated, issueValue.response(workspaceValue.IssuePrefix))
+}
+
+func (s *Server) requirementItem(ctx context.Context, projectValue project, key string, revision int) (projectrequirements.TrackableSection, string, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT content FROM project_requirement_revision WHERE baseline_id = (SELECT id FROM project_requirement_baseline WHERE workspace_id = ? AND project_id = ?) AND revision = ?`, projectValue.WorkspaceID, projectValue.ID, revision).Scan(&raw)
+	if err != nil {
+		return "", "", err
+	}
+	var content projectrequirements.Content
+	if json.Unmarshal([]byte(raw), &content) != nil {
+		return "", "", errors.New("invalid requirement content")
+	}
+	if item, ok := projectrequirements.FindTrackableItem(content, key); ok {
+		return item.Section, item.Item.Text, nil
+	}
+	return "", "", errors.New("untrackable requirement")
+}
+
+func ptr(value string) *string { return &value }

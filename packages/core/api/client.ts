@@ -92,6 +92,9 @@ import type {
   ProjectRequirementBaselineResponse,
   SaveProjectRequirementDraftRequest,
   ProjectRequirementTransitionRequest,
+  ProjectRequirementCoverage,
+  ProjectRequirementLinkRequest,
+  ProjectRequirementCreateIssueRequest,
 } from "../types";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
@@ -119,7 +122,9 @@ import {
 } from "../implementation-knowledge/schema";
 import {
   EMPTY_PROJECT_REQUIREMENT_BASELINE,
+	EMPTY_PROJECT_REQUIREMENT_COVERAGE,
   projectRequirementBaselineResponseSchema,
+	projectRequirementCoverageSchema,
 } from "../project-requirements/schema";
 import {
   AttachmentResponseSchema,
@@ -1264,6 +1269,26 @@ export class ApiClient {
     return parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, {
       endpoint: "GET /api/projects/:id/requirement-baseline",
     });
+  }
+
+  async getProjectRequirementCoverage(id: string): Promise<ProjectRequirementCoverage> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/coverage`);
+    return parseWithFallback(raw, projectRequirementCoverageSchema, EMPTY_PROJECT_REQUIREMENT_COVERAGE, { endpoint: "GET /api/projects/:id/requirement-baseline/coverage" });
+  }
+
+  async linkProjectRequirementIssue(id: string, input: ProjectRequirementLinkRequest): Promise<void> {
+    await this.fetch(`/api/projects/${id}/requirement-baseline/links`, { method: "POST", body: JSON.stringify({ requirement_key: input.requirementKey, issue_id: input.issueId, revision: input.revision }) });
+  }
+
+  async unlinkProjectRequirementIssue(id: string, input: ProjectRequirementLinkRequest): Promise<void> {
+    await this.fetch(`/api/projects/${id}/requirement-baseline/links/${encodeURIComponent(input.requirementKey)}/${encodeURIComponent(input.issueId)}?revision=${input.revision}`, { method: "DELETE" });
+  }
+
+  async createIssueForProjectRequirement(id: string, requirementKey: string, input: ProjectRequirementCreateIssueRequest): Promise<Issue> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/items/${encodeURIComponent(requirementKey)}/issues`, { method: "POST", body: JSON.stringify({ revision: input.revision }) });
+    const issue = parseWithFallback<Issue | null>(raw, CreateIssueResponseSchema, null, { endpoint: "POST /api/projects/:id/requirement-baseline/items/:key/issues" });
+    if (!issue) throw new Error("Invalid project requirement issue response");
+    return issue;
   }
 
   async saveProjectRequirementDraft(id: string, input: SaveProjectRequirementDraftRequest): Promise<ProjectRequirementBaselineResponse> {

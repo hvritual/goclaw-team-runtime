@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ProjectRequirementBaseline, ProjectRequirementBaselineResponse, ProjectRequirementContent, ProjectRequirementRevision } from "../types";
+import type { ProjectRequirementCoverage, ProjectRequirementCoverageItem, ProjectRequirementCoverageSnapshot, ProjectRequirementLinkedIssue } from "../types";
 
 const itemSchema = z.object({ key: z.string(), text: z.string() }).loose();
 const baselineStatusSchema = z.enum(["draft", "in_review", "approved"]).catch("draft");
@@ -61,4 +62,19 @@ export const projectRequirementBaselineResponseSchema = z.object({
 
 export const EMPTY_PROJECT_REQUIREMENT_BASELINE: ProjectRequirementBaselineResponse = {
   baseline: null, currentContent: null, effectiveContent: null, history: [],
+};
+
+const linkedIssueSchema = z.object({
+  id: z.string(), identifier: z.string(), title: z.string(), status: z.string(),
+  created_by: z.string(), created_at: z.string(),
+}).loose().transform((value) => ({
+  id: value.id, identifier: value.identifier, title: value.title, status: value.status,
+  createdBy: value.created_by, createdAt: value.created_at,
+})) as z.ZodType<ProjectRequirementLinkedIssue>;
+const coverageItemSchema = z.object({ requirement_key: z.string(), section: z.enum(["goals", "in_scope", "constraints", "acceptance_criteria"]), issues: z.array(linkedIssueSchema).default([]) }).loose().transform((value) => ({ requirementKey: value.requirement_key, section: value.section === "in_scope" ? "inScope" : value.section === "acceptance_criteria" ? "acceptanceCriteria" : value.section, issues: value.issues })) as z.ZodType<ProjectRequirementCoverageItem>;
+const coverageSnapshotSchema = z.object({ revision: z.number(), total: z.number(), linked: z.number(), unlinked: z.number(), linked_issue_done: z.number(), linked_issue_blocked: z.number(), items: z.array(coverageItemSchema).default([]) }).loose().transform((value) => ({ revision: value.revision, total: value.total, linked: value.linked, unlinked: value.unlinked, linkedIssueDone: value.linked_issue_done, linkedIssueBlocked: value.linked_issue_blocked, items: value.items })) as z.ZodType<ProjectRequirementCoverageSnapshot>;
+export const projectRequirementCoverageSchema = z.object({ current: coverageSnapshotSchema.nullable().default(null), effective: coverageSnapshotSchema.nullable().default(null) }).loose().transform((value) => ({ current: value.current, effective: value.effective })) as z.ZodType<ProjectRequirementCoverage>;
+export const EMPTY_PROJECT_REQUIREMENT_COVERAGE: ProjectRequirementCoverage = {
+  current: null,
+  effective: null,
 };

@@ -139,7 +139,17 @@
     "submitted": "已提交复核",
     "approved": "需求已批准",
     "withdrawn": "已撤回复核",
-    "transition_failed": "更新需求状态失败"
+    "transition_failed": "更新需求状态失败",
+    "current_coverage": "当前覆盖率（v{{revision}}）",
+    "effective_coverage": "当前有效版本覆盖率（v{{revision}}）：{{linked}}/{{total}} 项需求已关联 · {{unlinked}} 项未关联 · {{done}} 个已完成 issue · {{blocked}} 个阻塞 issue",
+    "coverage_summary": "{{linked}}/{{total}} 项需求已关联 · {{unlinked}} 项未关联 · {{done}} 个已完成 issue · {{blocked}} 个阻塞 issue",
+    "link_existing": "关联已有 issue",
+    "unlink_issue": "解除关联",
+    "unlink_issue_label": "解除 {{identifier}} 关联",
+    "create_issue": "创建 issue",
+    "link_failed": "更新 issue 关联失败",
+    "create_issue_failed": "创建 issue 失败",
+    "save_before_tracking": "请先保存草稿，再关联 issue。"
   },
   "resources": {
     "section_header": "资源",

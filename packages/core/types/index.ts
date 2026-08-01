@@ -108,6 +108,12 @@ export type {
   ProjectRequirementBaseline,
   ProjectRequirementRevision,
   ProjectRequirementBaselineResponse,
+  ProjectRequirementLinkedIssue,
+  ProjectRequirementCoverageItem,
+  ProjectRequirementCoverageSnapshot,
+  ProjectRequirementCoverage,
+  ProjectRequirementLinkRequest,
+  ProjectRequirementCreateIssueRequest,
   SaveProjectRequirementDraftRequest,
   ProjectRequirementTransitionRequest,
 } from "./project-requirement";

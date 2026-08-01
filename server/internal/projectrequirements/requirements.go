@@ -21,6 +21,7 @@ var (
 	ErrNotFound          = errors.New("project requirement baseline not found")
 	ErrRevisionConflict  = errors.New("project requirement revision conflict")
 	ErrInvalidTransition = errors.New("invalid project requirement transition")
+	ErrInvalidTracking   = errors.New("invalid project requirement tracking request")
 )
 
 type Item struct {

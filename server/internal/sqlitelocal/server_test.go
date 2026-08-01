@@ -239,6 +239,126 @@ func TestSQLiteLocalProjectRequirementBaselineLifecyclePermissionsAndScope(t *te
 	owner.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline", nil, http.StatusNotFound)
 }
 
+func TestSQLiteLocalProjectRequirementTrackingCoverageAndIssueCreation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Tracking", "slug": "tracking"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Track requirements"}, http.StatusCreated)
+	projectID := project["id"].(string)
+	content := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "goal-1", "text": "Deliver coverage"}}, "in_scope": []map[string]any{{"key": "scope-1", "text": "Keep history"}}, "out_of_scope": []map[string]any{{"key": "out-1", "text": "No tracking"}}, "constraints": []map[string]any{{"key": "constraint-1", "text": "SQLite only"}}, "acceptance_criteria": []map[string]any{{"key": "accept-1", "text": "Show status"}}, "dependencies": []map[string]any{{"key": "dependency-1", "text": "External"}}}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	duplicate := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "shared", "text": "A"}}, "in_scope": []map[string]any{{"key": "shared", "text": "B"}}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 1, "content": duplicate}, http.StatusBadRequest)
+	created := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/goal-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
+	if created["status"] != "todo" || created["priority"] != "none" || created["project_id"] != projectID {
+		t.Fatalf("created requirement issue has invalid defaults: %#v", created)
+	}
+	coverage := client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	current := coverage["current"].(map[string]any)
+	if current["total"] != float64(4) || current["linked"] != float64(1) || current["linked_issue_done"] != float64(0) {
+		t.Fatalf("unexpected coverage: %#v", current)
+	}
+	items := current["items"].([]any)
+	firstIssue := items[0].(map[string]any)["issues"].([]any)[0].(map[string]any)
+	if firstIssue["created_by"] != login["user"].(map[string]any)["id"] || firstIssue["created_at"] == "" {
+		t.Fatalf("link audit missing: %#v", firstIssue)
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "goal-1", "issue_id": created["id"], "revision": 1}, http.StatusNoContent)
+	var duplicateLinks int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE project_id = ? AND requirement_key = ?`, projectID, "goal-1").Scan(&duplicateLinks); err != nil || duplicateLinks != 1 {
+		t.Fatalf("link must be idempotent: count=%d err=%v", duplicateLinks, err)
+	}
+	coverage = client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	if len(coverage["current"].(map[string]any)["items"].([]any)[0].(map[string]any)["issues"].([]any)) != 1 {
+		t.Fatal("idempotent link duplicated coverage")
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "out-1", "issue_id": created["id"], "revision": 1}, http.StatusBadRequest)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "dependency-1", "issue_id": created["id"], "revision": 1}, http.StatusBadRequest)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "goal-1", "issue_id": created["id"], "revision": 99}, http.StatusBadRequest)
+	otherProject := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Other"}, http.StatusCreated)
+	otherIssue := client.request(http.MethodPost, "/api/issues", map[string]any{"title": "Other issue", "project_id": otherProject["id"]}, http.StatusCreated)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "goal-1", "issue_id": otherIssue["id"], "revision": 1}, http.StatusBadRequest)
+	otherWorkspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Other workspace", "slug": "other-workspace"}, http.StatusCreated)
+	client.slug = otherWorkspace["slug"].(string)
+	crossWorkspaceIssue := client.request(http.MethodPost, "/api/issues", map[string]any{"title": "Cross workspace"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "goal-1", "issue_id": crossWorkspaceIssue["id"], "revision": 1}, http.StatusBadRequest)
+	client.request(http.MethodPatch, "/api/issues/"+created["id"].(string), map[string]any{"status": "done"}, http.StatusOK)
+	coverage = client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	if coverage["current"].(map[string]any)["linked_issue_done"] != float64(1) {
+		t.Fatalf("done issue coverage missing: %#v", coverage)
+	}
+	client.request(http.MethodDelete, "/api/issues/"+created["id"].(string), nil, http.StatusNoContent)
+	coverage = client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	if coverage["current"].(map[string]any)["linked"] != float64(0) {
+		t.Fatalf("issue link was not cleaned: %#v", coverage)
+	}
+	blocked := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/constraint-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
+	client.request(http.MethodPatch, "/api/issues/"+blocked["id"].(string), map[string]any{"status": "blocked"}, http.StatusOK)
+	coverage = client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	if coverage["current"].(map[string]any)["linked_issue_blocked"] != float64(1) {
+		t.Fatalf("blocked issue coverage missing: %#v", coverage)
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusOK)
+	second := map[string]any{"problem_statement": "", "goals": []any{}, "in_scope": []map[string]any{{"key": "scope-1", "text": "Keep history"}}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 1, "content": second}, http.StatusOK)
+	coverage = client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	if coverage["current"].(map[string]any)["total"] != float64(1) || coverage["effective"].(map[string]any)["total"] != float64(4) {
+		t.Fatalf("current/effective coverage continuity missing: %#v", coverage)
+	}
+	v1Issue := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/accept-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
+	v2Issue := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/scope-1/issues", map[string]any{"revision": 2}, http.StatusCreated)
+	if v1Issue["id"] == v2Issue["id"] {
+		t.Fatal("current and effective revision issues must be distinct")
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 2}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 2}, http.StatusOK)
+	var issuesBeforeRejected, linksBeforeRejected, nextBeforeRejected int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM issues`).Scan(&issuesBeforeRejected); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE project_id = ?`, projectID).Scan(&linksBeforeRejected); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT next_issue_number FROM workspaces WHERE id = ?`, workspace["id"]).Scan(&nextBeforeRejected); err != nil {
+		t.Fatal(err)
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/links", map[string]any{"requirement_key": "accept-1", "issue_id": v2Issue["id"], "revision": 1}, http.StatusBadRequest)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/accept-1/issues", map[string]any{"revision": 1}, http.StatusBadRequest)
+	var issuesAfterRejected, linksAfterRejected, nextAfterRejected int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM issues`).Scan(&issuesAfterRejected); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE project_id = ?`, projectID).Scan(&linksAfterRejected); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT next_issue_number FROM workspaces WHERE id = ?`, workspace["id"]).Scan(&nextAfterRejected); err != nil {
+		t.Fatal(err)
+	}
+	if issuesAfterRejected != issuesBeforeRejected || linksAfterRejected != linksBeforeRejected || nextAfterRejected != nextBeforeRejected {
+		t.Fatal("superseded revision created side effects")
+	}
+	client.request(http.MethodDelete, "/api/projects/"+projectID+"/requirement-baseline/links/accept-1/"+v1Issue["id"].(string)+"?revision=1", nil, http.StatusNoContent)
+	var links int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE project_id = ?`, projectID).Scan(&links); err != nil || links == 0 {
+		t.Fatalf("expected project links before deletion: count=%d err=%v", links, err)
+	}
+	client.request(http.MethodDelete, "/api/projects/"+projectID, nil, http.StatusNoContent)
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE project_id = ?`, projectID).Scan(&links); err != nil || links != 0 {
+		t.Fatalf("project links were not cleaned: count=%d err=%v", links, err)
+	}
+}
+
 func TestSQLiteLocalProjectRequirementBaselinePersistsAndIsDeletedWithProject(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "multica.db")
 	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
@@ -255,6 +375,7 @@ func TestSQLiteLocalProjectRequirementBaselinePersistsAndIsDeletedWithProject(t 
 	projectID := project["id"].(string)
 	content := map[string]any{"problem_statement": "Survive restart", "goals": []map[string]any{{"key": "goal-1", "text": "Persist"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
 	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	linkedIssue := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/goal-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
 	if err := app.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -268,10 +389,80 @@ func TestSQLiteLocalProjectRequirementBaselinePersistsAndIsDeletedWithProject(t 
 	if persisted["current_content"].(map[string]any)["problem_statement"] != "Survive restart" || len(persisted["history"].([]any)) != 1 {
 		t.Fatalf("baseline did not persist: %#v", persisted)
 	}
+	coverage := client.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline/coverage", nil, http.StatusOK)
+	issues := coverage["current"].(map[string]any)["items"].([]any)[0].(map[string]any)["issues"].([]any)
+	if len(issues) != 1 || issues[0].(map[string]any)["id"] != linkedIssue["id"] || issues[0].(map[string]any)["created_by"] != login["user"].(map[string]any)["id"] || issues[0].(map[string]any)["created_at"] == "" {
+		t.Fatalf("link did not persist: %#v", coverage)
+	}
 	client.request(http.MethodDelete, "/api/projects/"+projectID, nil, http.StatusNoContent)
 	var count int
 	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_baseline WHERE project_id = ?`, projectID).Scan(&count); err != nil || count != 0 {
 		t.Fatalf("baseline cleanup count=%d err=%v", count, err)
+	}
+}
+
+func TestSQLiteLocalRequirementIssueLinkFailureRollsBackIssue(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Rollback", "slug": "rollback"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Rollback"}, http.StatusCreated)
+	projectID := project["id"].(string)
+	content := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "goal-1", "text": "Atomic"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	var issuesBefore, nextBefore int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM issues`).Scan(&issuesBefore); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT next_issue_number FROM workspaces WHERE id = ?`, workspace["id"]).Scan(&nextBefore); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := app.db.Exec(`CREATE TRIGGER fail_requirement_link BEFORE INSERT ON project_requirement_issue_link BEGIN SELECT RAISE(ABORT, 'link failed'); END`); err != nil {
+		t.Fatal(err)
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/goal-1/issues", map[string]any{"revision": 1}, http.StatusInternalServerError)
+	var issuesAfter, nextAfter int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM issues`).Scan(&issuesAfter); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.db.QueryRow(`SELECT next_issue_number FROM workspaces WHERE id = ?`, workspace["id"]).Scan(&nextAfter); err != nil {
+		t.Fatal(err)
+	}
+	if issuesAfter != issuesBefore || nextAfter != nextBefore {
+		t.Fatalf("failed create left orphan state: issues %d/%d, next %d/%d", issuesAfter, issuesBefore, nextAfter, nextBefore)
+	}
+}
+
+func TestSQLiteLocalWorkspaceDeletionCleansRequirementLinks(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Cleanup", "slug": "link-cleanup"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Cleanup"}, http.StatusCreated)
+	content := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "goal-1", "text": "Cleanup link"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+project["id"].(string)+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/requirement-baseline/items/goal-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
+	var before, after int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE workspace_id = ?`, workspace["id"]).Scan(&before); err != nil || before == 0 {
+		t.Fatalf("expected workspace link before deletion: %d %v", before, err)
+	}
+	client.request(http.MethodDelete, "/api/workspaces/"+workspace["id"].(string), nil, http.StatusNoContent)
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM project_requirement_issue_link WHERE workspace_id = ?`, workspace["id"]).Scan(&after); err != nil || after != 0 {
+		t.Fatalf("workspace link cleanup failed: %d %v", after, err)
 	}
 }
 
