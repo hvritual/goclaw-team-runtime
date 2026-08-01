@@ -166,6 +166,82 @@ func TestSQLiteLocalSixDomainAPI(t *testing.T) {
 	}
 }
 
+func TestSQLiteLocalIssueStatusBoardQuery(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Issue Board",
+		"slug": "issue-board",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":    "Visible on status board",
+		"status":   "todo",
+		"priority": "high",
+	}, http.StatusCreated)
+	child := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title":           "Completed child issue",
+		"status":          "done",
+		"parent_issue_id": issue["id"],
+	}, http.StatusCreated)
+
+	query := map[string]any{
+		"scope":   map[string]any{"kind": "workspace"},
+		"filters": map[string]any{},
+		"sort":    map[string]any{"field": "position", "direction": "asc"},
+	}
+	facets := client.request(http.MethodPost, "/api/issues/table/facets", map[string]any{
+		"query": query,
+		"facets": []map[string]any{
+			{"kind": "status"},
+			{"kind": "priority"},
+		},
+		"include_total": true,
+	}, http.StatusOK)
+	if facets["total"] != float64(2) {
+		t.Fatalf("issue table facet total: %#v", facets)
+	}
+
+	rows := client.request(http.MethodPost, "/api/issues/table/rows", map[string]any{
+		"query":     query,
+		"group":     map[string]any{"kind": "status"},
+		"group_key": "status:todo",
+		"hierarchy": map[string]any{"enabled": false},
+		"parent_id": nil,
+		"page":      map[string]any{"limit": 50, "cursor": nil},
+	}, http.StatusOK)
+	resultRows, ok := rows["rows"].([]any)
+	if !ok || len(resultRows) != 1 {
+		t.Fatalf("issue table rows: %#v", rows)
+	}
+	row := resultRows[0].(map[string]any)
+	gotIssue := row["issue"].(map[string]any)
+	if gotIssue["id"] != issue["id"] || rows["branch_total"] != float64(1) {
+		t.Fatalf("unexpected issue table row: %#v", rows)
+	}
+	children := client.request(http.MethodGet, "/api/issues/"+issue["id"].(string)+"/children", nil, http.StatusOK)
+	childRows := children["issues"].([]any)
+	if len(childRows) != 1 || childRows[0].(map[string]any)["id"] != child["id"] {
+		t.Fatalf("unexpected child issues: %#v", children)
+	}
+	progress := client.request(http.MethodGet, "/api/issues/child-progress", nil, http.StatusOK)
+	progressRows := progress["progress"].([]any)
+	if len(progressRows) != 1 || progressRows[0].(map[string]any)["done"] != float64(1) {
+		t.Fatalf("unexpected child progress: %#v", progress)
+	}
+}
+
 func TestSQLiteLocalSixDomainsRemainAvailableWhenKnowledgeStoreCannotOpen(t *testing.T) {
 	tempDir := t.TempDir()
 	app, err := Open(
