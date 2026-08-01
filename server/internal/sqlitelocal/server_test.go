@@ -146,6 +146,10 @@ func TestSQLiteLocalSixDomainAPI(t *testing.T) {
 	if got := client.request(http.MethodGet, "/api/issues", nil, http.StatusOK); got["total"] != float64(1) {
 		t.Fatalf("issue list total: %#v", got)
 	}
+	properties := client.request(http.MethodGet, "/api/properties", nil, http.StatusOK)
+	if properties["total"] != float64(0) || len(properties["properties"].([]any)) != 0 {
+		t.Fatalf("SQLite property catalog must start empty: %#v", properties)
+	}
 	if got := client.request(http.MethodGet, "/api/tasks?status=todo", nil, http.StatusOK); got["total"] != float64(1) {
 		t.Fatalf("task list: %#v", got)
 	}
@@ -163,6 +167,128 @@ func TestSQLiteLocalSixDomainAPI(t *testing.T) {
 	unsupported := client.request(http.MethodGet, "/api/dashboard/usage", nil, http.StatusNotImplemented)
 	if unsupported["code"] != "sqlite_local_unsupported" {
 		t.Fatalf("unsupported response: %#v", unsupported)
+	}
+}
+
+func TestSQLiteLocalIssueReactionsAndPins(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{
+		VerificationCode: "888888",
+		DisableKnowledge: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	client := &testClient{t: t, app: app}
+	client.request(http.MethodPost, "/auth/send-code", map[string]any{"email": "owner@example.com"}, http.StatusNoContent)
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com",
+		"code":  "888888",
+	}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Reaction and Pin Team",
+		"slug": "reaction-pin-team",
+	}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{
+		"title": "Pinned project",
+	}, http.StatusCreated)
+	issue := client.request(http.MethodPost, "/api/issues", map[string]any{
+		"title": "Reacted issue",
+	}, http.StatusCreated)
+	issueID := issue["id"].(string)
+
+	reaction := client.request(http.MethodPost, "/api/issues/"+issueID+"/reactions", map[string]any{
+		"emoji": "👍",
+	}, http.StatusCreated)
+	if reaction["issue_id"] != issueID || reaction["actor_type"] != "member" || reaction["emoji"] != "👍" {
+		t.Fatalf("unexpected issue reaction: %#v", reaction)
+	}
+	duplicate := client.request(http.MethodPost, "/api/issues/"+issueID+"/reactions", map[string]any{
+		"emoji": "👍",
+	}, http.StatusCreated)
+	if duplicate["id"] != reaction["id"] {
+		t.Fatalf("duplicate reaction must be idempotent: first=%#v duplicate=%#v", reaction, duplicate)
+	}
+	issueDetail := client.request(http.MethodGet, "/api/issues/"+issueID, nil, http.StatusOK)
+	if reactions := issueDetail["reactions"].([]any); len(reactions) != 1 {
+		t.Fatalf("issue detail reactions: %#v", reactions)
+	}
+	client.request(http.MethodDelete, "/api/issues/"+issueID+"/reactions", map[string]any{
+		"emoji": "👍",
+	}, http.StatusNoContent)
+	issueDetail = client.request(http.MethodGet, "/api/issues/"+issueID, nil, http.StatusOK)
+	if reactions := issueDetail["reactions"].([]any); len(reactions) != 0 {
+		t.Fatalf("removed reaction still returned: %#v", reactions)
+	}
+
+	if pins := client.requestList(http.MethodGet, "/api/pins", http.StatusOK); len(pins) != 0 {
+		t.Fatalf("new workspace pins: %#v", pins)
+	}
+	issuePin := client.request(http.MethodPost, "/api/pins", map[string]any{
+		"item_type": "issue",
+		"item_id":   issueID,
+	}, http.StatusCreated)
+	projectPin := client.request(http.MethodPost, "/api/pins", map[string]any{
+		"item_type": "project",
+		"item_id":   project["id"],
+	}, http.StatusCreated)
+	if issuePin["workspace_id"] != workspace["id"] || issuePin["position"] != float64(1) {
+		t.Fatalf("unexpected issue pin: %#v", issuePin)
+	}
+	if projectPin["position"] != float64(2) {
+		t.Fatalf("unexpected project pin: %#v", projectPin)
+	}
+	conflict := client.request(http.MethodPost, "/api/pins", map[string]any{
+		"item_type": "issue",
+		"item_id":   issueID,
+	}, http.StatusConflict)
+	if conflict["error"] != "item already pinned" {
+		t.Fatalf("unexpected duplicate pin response: %#v", conflict)
+	}
+	client.request(http.MethodPut, "/api/pins/reorder", map[string]any{
+		"items": []map[string]any{
+			{"id": issuePin["id"], "position": 2},
+			{"id": projectPin["id"], "position": 1},
+		},
+	}, http.StatusNoContent)
+	pins := client.requestList(http.MethodGet, "/api/pins", http.StatusOK)
+	if len(pins) != 2 || pins[0]["id"] != projectPin["id"] || pins[1]["id"] != issuePin["id"] {
+		t.Fatalf("reordered pins: %#v", pins)
+	}
+
+	otherWorkspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Other Team",
+		"slug": "other-team",
+	}, http.StatusCreated)
+	client.slug = otherWorkspace["slug"].(string)
+	client.request(http.MethodPost, "/api/pins", map[string]any{
+		"item_type": "issue",
+		"item_id":   issueID,
+	}, http.StatusNotFound)
+	client.slug = workspace["slug"].(string)
+
+	client.request(http.MethodPost, "/api/issues/"+issueID+"/reactions", map[string]any{
+		"emoji": "🔥",
+	}, http.StatusCreated)
+	client.request(http.MethodDelete, "/api/issues/"+issueID, nil, http.StatusNoContent)
+	pins = client.requestList(http.MethodGet, "/api/pins", http.StatusOK)
+	if len(pins) != 1 || pins[0]["item_type"] != "project" {
+		t.Fatalf("issue deletion must remove its pin: %#v", pins)
+	}
+	var reactionCount int
+	if err := app.db.QueryRow(`SELECT COUNT(*) FROM issue_reactions WHERE issue_id = ?`, issueID).Scan(&reactionCount); err != nil {
+		t.Fatal(err)
+	}
+	if reactionCount != 0 {
+		t.Fatalf("issue deletion left %d reactions", reactionCount)
+	}
+	client.request(http.MethodDelete, "/api/projects/"+project["id"].(string), nil, http.StatusNoContent)
+	if pins := client.requestList(http.MethodGet, "/api/pins", http.StatusOK); len(pins) != 0 {
+		t.Fatalf("project deletion must remove its pin: %#v", pins)
 	}
 }
 
@@ -712,11 +838,19 @@ func TestSQLiteLocalIssueStatusBoardQuery(t *testing.T) {
 		"status":   "todo",
 		"priority": "high",
 	}, http.StatusCreated)
+	metadata, metadataOK := issue["metadata"].(map[string]any)
+	properties, propertiesOK := issue["properties"].(map[string]any)
+	if !metadataOK || len(metadata) != 0 || !propertiesOK || len(properties) != 0 {
+		t.Fatalf("omitted issue maps must return empty objects: %#v", issue)
+	}
 	child := client.request(http.MethodPost, "/api/issues", map[string]any{
 		"title":           "Completed child issue",
 		"status":          "done",
 		"parent_issue_id": issue["id"],
 	}, http.StatusCreated)
+	if _, err := app.db.Exec(`UPDATE issues SET metadata = 'null', properties = 'null' WHERE id = ?`, issue["id"]); err != nil {
+		t.Fatal(err)
+	}
 
 	query := map[string]any{
 		"scope":   map[string]any{"kind": "workspace"},
@@ -751,6 +885,11 @@ func TestSQLiteLocalIssueStatusBoardQuery(t *testing.T) {
 	gotIssue := row["issue"].(map[string]any)
 	if gotIssue["id"] != issue["id"] || rows["branch_total"] != float64(1) {
 		t.Fatalf("unexpected issue table row: %#v", rows)
+	}
+	metadata, metadataOK = gotIssue["metadata"].(map[string]any)
+	properties, propertiesOK = gotIssue["properties"].(map[string]any)
+	if !metadataOK || len(metadata) != 0 || !propertiesOK || len(properties) != 0 {
+		t.Fatalf("legacy null issue maps must return empty objects: %#v", gotIssue)
 	}
 	children := client.request(http.MethodGet, "/api/issues/"+issue["id"].(string)+"/children", nil, http.StatusOK)
 	childRows := children["issues"].([]any)

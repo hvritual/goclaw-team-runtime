@@ -117,6 +117,34 @@ CREATE UNIQUE INDEX IF NOT EXISTS issues_workspace_number_idx ON issues(workspac
 CREATE INDEX IF NOT EXISTS issues_workspace_updated_idx ON issues(workspace_id, updated_at);
 CREATE INDEX IF NOT EXISTS issues_project_idx ON issues(project_id);
 
+CREATE TABLE IF NOT EXISTS issue_reactions (
+    id TEXT PRIMARY KEY,
+    issue_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    actor_type TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    emoji TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS issue_reactions_actor_emoji_idx
+    ON issue_reactions(issue_id, actor_type, actor_id, emoji);
+CREATE INDEX IF NOT EXISTS issue_reactions_issue_idx
+    ON issue_reactions(issue_id, created_at);
+
+CREATE TABLE IF NOT EXISTS pinned_items (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    item_type TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    position REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS pinned_items_workspace_user_item_idx
+    ON pinned_items(workspace_id, user_id, item_type, item_id);
+CREATE INDEX IF NOT EXISTS pinned_items_workspace_user_position_idx
+    ON pinned_items(workspace_id, user_id, position, created_at);
+
 CREATE TABLE IF NOT EXISTS issue_acceptance_conclusion (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -284,3 +312,6 @@ VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (6, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

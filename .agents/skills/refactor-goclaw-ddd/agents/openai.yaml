@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor goclaw DDD"
+  short_description: "Refactor goclaw with project-specific DDD rules"
+  default_prompt: "Use $refactor-goclaw-ddd to refactor this goclaw backend slice with its project-specific DDD constraints."

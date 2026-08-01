@@ -345,6 +345,13 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 		api.Get("/api/invitations/{id}", s.getMyInvitation)
 		api.Post("/api/invitations/{id}/accept", s.acceptInvitation)
 		api.Post("/api/invitations/{id}/decline", s.declineInvitation)
+		api.Get("/api/properties", s.listProperties)
+		api.Route("/api/pins", func(pins chi.Router) {
+			pins.Get("/", s.listPins)
+			pins.Post("/", s.createPin)
+			pins.Put("/reorder", s.reorderPins)
+			pins.Delete("/{itemType}/{itemId}", s.deletePin)
+		})
 
 		api.Route("/api/projects", func(projects chi.Router) {
 			projects.Get("/", s.listProjects)
@@ -384,6 +391,8 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			issues.Get("/{id}/timeline", s.listIssueTimeline)
 			issues.Get("/{id}/comments", s.listComments)
 			issues.Post("/{id}/comments", s.createComment)
+			issues.Post("/{id}/reactions", s.addIssueReaction)
+			issues.Delete("/{id}/reactions", s.removeIssueReaction)
 		})
 
 		api.Route("/api/comments/{commentId}", func(comments chi.Router) {
@@ -497,6 +506,9 @@ func mapJSON(value string, fallback any) any {
 	if err := json.Unmarshal([]byte(value), &decoded); err != nil {
 		return fallback
 	}
+	if decoded == nil {
+		return fallback
+	}
 	return decoded
 }
 
@@ -505,7 +517,7 @@ func encodeJSON(value any, fallback string) string {
 		return fallback
 	}
 	encoded, err := json.Marshal(value)
-	if err != nil {
+	if err != nil || string(encoded) == "null" {
 		return fallback
 	}
 	return string(encoded)
@@ -1023,6 +1035,8 @@ func (s *Server) deleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE workspace_id = ?`,
+		`DELETE FROM issue_reactions WHERE workspace_id = ?`,
+		`DELETE FROM pinned_items WHERE workspace_id = ?`,
 		`DELETE FROM project_requirement_issue_link WHERE workspace_id = ?`,
 		`DELETE FROM project_requirement_revision WHERE baseline_id IN (SELECT id FROM project_requirement_baseline WHERE workspace_id = ?)`,
 		`DELETE FROM project_requirement_baseline WHERE workspace_id = ?`,
@@ -1893,6 +1907,10 @@ func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to delete project")
 		return
 	}
+	if _, err := tx.ExecContext(r.Context(), `DELETE FROM pinned_items WHERE item_type = 'project' AND item_id = ?`, value.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete project")
+		return
+	}
 	if _, err := tx.ExecContext(r.Context(), `UPDATE issues SET project_id = NULL WHERE project_id = ?`, value.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete project")
 		return
@@ -2001,6 +2019,13 @@ func (s *Server) listIssues(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"issues": issues, "total": len(issues)})
 }
 
+func (s *Server) listProperties(w http.ResponseWriter, r *http.Request) {
+	if _, ok := s.resolveWorkspace(w, r); !ok {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"properties": []any{}, "total": 0})
+}
+
 func (s *Server) createIssue(w http.ResponseWriter, r *http.Request) {
 	workspaceValue, ok := s.resolveWorkspace(w, r)
 	if !ok {
@@ -2096,9 +2121,17 @@ func (s *Server) loadIssue(w http.ResponseWriter, r *http.Request, id string) (i
 
 func (s *Server) getIssue(w http.ResponseWriter, r *http.Request) {
 	value, workspaceValue, ok := s.loadIssue(w, r, chi.URLParam(r, "id"))
-	if ok {
-		writeJSON(w, http.StatusOK, value.response(workspaceValue.IssuePrefix))
+	if !ok {
+		return
 	}
+	response := value.response(workspaceValue.IssuePrefix)
+	reactions, err := s.listIssueReactions(r.Context(), value.ID, value.WorkspaceID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list issue reactions")
+		return
+	}
+	response["reactions"] = reactions
+	writeJSON(w, http.StatusOK, response)
 }
 
 func (s *Server) updateIssue(w http.ResponseWriter, r *http.Request) {
@@ -2201,6 +2234,8 @@ func (s *Server) deleteIssue(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 	statements := []string{
 		`DELETE FROM tasks WHERE issue_id = ?`,
+		`DELETE FROM issue_reactions WHERE issue_id = ?`,
+		`DELETE FROM pinned_items WHERE item_type = 'issue' AND item_id = ?`,
 		`DELETE FROM project_requirement_issue_link WHERE issue_id = ?`,
 		`DELETE FROM issue_acceptance_conclusion WHERE issue_id = ?`,
 		`UPDATE issues SET parent_issue_id = NULL WHERE parent_issue_id = ?`,
