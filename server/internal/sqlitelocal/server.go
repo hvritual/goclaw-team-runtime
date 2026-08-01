@@ -120,7 +120,8 @@ func Open(path string, options Options) (*Server, error) {
 		code = defaultVerificationCode
 	}
 	trackingRepository := projectRequirementsSQLite.NewTracking(db)
-	server := &Server{db: db, verificationCode: code, requirements: projectrequirements.NewService(projectRequirementsSQLite.New(db)), requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
+	server := &Server{db: db, verificationCode: code, requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
+	server.requirements = projectrequirements.NewService(projectRequirementsSQLite.NewWithApprovalHook(db, server.enqueueApprovedRequirementEvidence))
 	if !options.DisableKnowledge {
 		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
 		if knowledgePath == "" {

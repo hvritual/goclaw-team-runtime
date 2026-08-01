@@ -21,6 +21,7 @@ export interface KnowledgeSourceRef {
   revision: string;
   uri: string;
   checksum: string;
+  metadata?: Record<string, string>;
 }
 
 export interface KnowledgeRevision {

@@ -239,6 +239,228 @@ func TestSQLiteLocalProjectRequirementBaselineLifecyclePermissionsAndScope(t *te
 	owner.request(http.MethodGet, "/api/projects/"+projectID+"/requirement-baseline", nil, http.StatusNotFound)
 }
 
+func TestSQLiteLocalApprovedRequirementsBecomeGovernedKnowledge(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Requirement knowledge", "slug": "requirement-knowledge"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Governed requirements"}, http.StatusCreated)
+	projectID := project["id"].(string)
+	content := map[string]any{
+		"problem_statement": "Do not capture this", "goals": []map[string]any{{"key": "goal-1", "text": "Ship governed requirements"}},
+		"in_scope":            []map[string]any{{"key": "scope-1", "text": "Keep source provenance"}},
+		"out_of_scope":        []map[string]any{{"key": "out-1", "text": "Do not capture this"}},
+		"constraints":         []map[string]any{{"key": "constraint-1", "text": "SQLite only"}},
+		"acceptance_criteria": []map[string]any{{"key": "accept-1", "text": "MCP returns governed provenance"}},
+		"dependencies":        []map[string]any{{"key": "dependency-1", "text": "Do not capture this"}},
+	}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 0)
+	issue := client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/items/goal-1/issues", map[string]any{"revision": 1}, http.StatusCreated)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 0)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/withdraw", map[string]any{"expected_revision": 1}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 0)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 4)
+
+	candidates := client.request(http.MethodGet, "/api/knowledge/candidates?project_id="+projectID, nil, http.StatusOK)
+	requirements := requirementCandidates(candidates)
+	if len(requirements) != 4 {
+		t.Fatalf("requirement candidates = %#v", candidates)
+	}
+	byKey := make(map[string]map[string]any)
+	for _, candidate := range requirements {
+		source := candidate["source_refs"].([]any)[0].(map[string]any)
+		metadata := source["metadata"].(map[string]any)
+		key := metadata["requirement_key"].(string)
+		byKey[key] = candidate
+		if source["revision"] != "1" || metadata["section"] == nil || metadata["baseline_id"] == nil || metadata["approved_revision"] != "1" {
+			t.Fatalf("requirement source provenance = %#v", source)
+		}
+	}
+	if byKey["goal-1"]["kind"] != "goal" || byKey["constraint-1"]["kind"] != "constraint" || byKey["scope-1"]["kind"] != "requirement" || byKey["accept-1"]["kind"] != "requirement" {
+		t.Fatalf("requirement kind mapping = %#v", byKey)
+	}
+	goalSources := byKey["goal-1"]["source_refs"].([]any)
+	if len(goalSources) != 2 || goalSources[1].(map[string]any)["type"] != "issue" || goalSources[1].(map[string]any)["id"] != issue["id"] {
+		t.Fatalf("linked issue source refs = %#v", goalSources)
+	}
+
+	goalPublished := client.request(http.MethodPost, "/api/knowledge/candidates/"+byKey["goal-1"]["id"].(string)+"/review", map[string]any{"action": "approve", "expected_revision": 1, "rationale": "Approved requirement source."}, http.StatusOK)["entry"].(map[string]any)
+	constraintPublished := client.request(http.MethodPost, "/api/knowledge/candidates/"+byKey["constraint-1"]["id"].(string)+"/review", map[string]any{"action": "approve", "expected_revision": 1, "rationale": "Approved constraint source."}, http.StatusOK)["entry"].(map[string]any)
+	mcpEntry := getKnowledgeThroughMCP(t, app, client, workspace["slug"].(string), goalPublished["id"].(string))
+	mcpSources := mcpEntry["revisions"].([]any)[0].(map[string]any)["source_refs"].([]any)
+	if len(mcpSources) != 2 || mcpSources[0].(map[string]any)["type"] != "project_requirement_item" || mcpSources[0].(map[string]any)["metadata"].(map[string]any)["approved_revision"] != "1" || mcpSources[1].(map[string]any)["id"] != issue["id"] {
+		t.Fatalf("MCP requirement provenance = %#v", mcpEntry)
+	}
+	next := map[string]any{
+		"problem_statement": "Still not captured", "goals": []map[string]any{{"key": "goal-1", "text": "Ship governed requirements with rollback"}},
+		"in_scope": []map[string]any{{"key": "scope-1", "text": "Keep source provenance"}}, "out_of_scope": []any{}, "constraints": []any{},
+		"acceptance_criteria": []map[string]any{{"key": "accept-1", "text": "MCP returns governed provenance"}}, "dependencies": []any{},
+	}
+	client.request(http.MethodPut, "/api/projects/"+projectID+"/requirement-baseline", map[string]any{"expected_revision": 1, "content": next}, http.StatusOK)
+	if search := client.request(http.MethodGet, "/api/knowledge?query=SQLite%20only", nil, http.StatusOK); search["total"] != float64(1) || search["entries"].([]any)[0].(map[string]any)["id"] != constraintPublished["id"] {
+		t.Fatalf("v1 published constraint must remain searchable during v2 draft: %#v", search)
+	}
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 2}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+projectID+"/requirement-baseline/approve", map[string]any{"expected_revision": 2}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 7)
+	candidates = client.request(http.MethodGet, "/api/knowledge/candidates?project_id="+projectID, nil, http.StatusOK)
+	requirements = requirementCandidates(candidates)
+	var goalRevision map[string]any
+	for _, candidate := range requirements {
+		source := candidate["source_refs"].([]any)[0].(map[string]any)
+		if source["metadata"].(map[string]any)["requirement_key"] == "goal-1" && source["revision"] == "2" {
+			goalRevision = candidate
+		}
+	}
+	if goalRevision == nil || goalRevision["knowledge_id"] != goalPublished["id"] || goalRevision["target_revision"] != float64(1) {
+		t.Fatalf("v2 goal revision candidate = %#v", goalRevision)
+	}
+	if preserved := client.request(http.MethodGet, "/api/knowledge/"+constraintPublished["id"].(string), nil, http.StatusOK); preserved["status"] != "published" {
+		t.Fatalf("removed key hard-deleted published history: %#v", preserved)
+	}
+}
+
+func TestSQLiteLocalRequirementApprovalRollsBackWhenEvidenceOutboxFails(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Atomic requirement", "slug": "atomic-requirement"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Atomic approval"}, http.StatusCreated)
+	content := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "goal-1", "text": "Atomic evidence"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+project["id"].(string)+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	if _, err := app.db.Exec(`CREATE TRIGGER fail_requirement_evidence_outbox BEFORE INSERT ON knowledge_evidence_outbox BEGIN SELECT RAISE(ABORT, 'forced requirement outbox failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusInternalServerError)
+	if _, err := app.db.Exec(`DROP TRIGGER fail_requirement_evidence_outbox`); err != nil {
+		t.Fatal(err)
+	}
+	baseline := client.request(http.MethodGet, "/api/projects/"+project["id"].(string)+"/requirement-baseline", nil, http.StatusOK)["baseline"].(map[string]any)
+	if baseline["status"] != "in_review" || baseline["approved_revision"] != nil || baseline["approved_by"] != nil || baseline["approved_at"] != nil {
+		t.Fatalf("outbox failure committed approval audit: %#v", baseline)
+	}
+	assertRequirementEvidenceCount(t, app.db, 0)
+}
+
+func TestSQLiteLocalRequirementEvidenceReplaysIdempotentlyAfterRestart(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "multica.db")
+	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &testClient{t: t, app: app}
+	login := client.request(http.MethodPost, "/auth/verify-code", map[string]any{"email": "owner@example.com", "code": "888888"}, http.StatusOK)
+	client.token = login["token"].(string)
+	workspace := client.request(http.MethodPost, "/api/workspaces", map[string]any{"name": "Replay requirements", "slug": "replay-requirements"}, http.StatusCreated)
+	client.slug = workspace["slug"].(string)
+	project := client.request(http.MethodPost, "/api/projects", map[string]any{"title": "Queued requirements"}, http.StatusCreated)
+	content := map[string]any{"problem_statement": "", "goals": []map[string]any{{"key": "goal-1", "text": "Replay approved evidence"}}, "in_scope": []any{}, "out_of_scope": []any{}, "constraints": []any{}, "acceptance_criteria": []any{}, "dependencies": []any{}}
+	client.request(http.MethodPut, "/api/projects/"+project["id"].(string)+"/requirement-baseline", map[string]any{"expected_revision": 0, "content": content}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/requirement-baseline/submit-review", map[string]any{"expected_revision": 1}, http.StatusOK)
+	client.request(http.MethodPost, "/api/projects/"+project["id"].(string)+"/requirement-baseline/approve", map[string]any{"expected_revision": 1}, http.StatusOK)
+	assertRequirementEvidenceCount(t, app.db, 1)
+	if err := app.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.app = reopened
+	reopened.dispatchKnowledgeEvidence(context.Background())
+	if got := requirementCandidates(client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)); len(got) != 1 {
+		t.Fatalf("replayed requirement candidates = %#v", got)
+	}
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := Open(path, Options{VerificationCode: "888888"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = replayed.Close() })
+	client.app = replayed
+	replayed.dispatchKnowledgeEvidence(context.Background())
+	if got := requirementCandidates(client.request(http.MethodGet, "/api/knowledge/candidates", nil, http.StatusOK)); len(got) != 1 {
+		t.Fatalf("idempotent requirement replay = %#v", got)
+	}
+}
+
+func assertRequirementEvidenceCount(t *testing.T, db *sql.DB, want int) {
+	t.Helper()
+	var got int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM knowledge_evidence_outbox WHERE payload_json LIKE '%project_requirement.baseline_approved%'`).Scan(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("requirement evidence outbox count = %d, want %d", got, want)
+	}
+}
+
+func requirementCandidates(response map[string]any) []map[string]any {
+	result := make([]map[string]any, 0)
+	for _, raw := range response["candidates"].([]any) {
+		candidate := raw.(map[string]any)
+		sources := candidate["source_refs"].([]any)
+		if len(sources) > 0 && sources[0].(map[string]any)["type"] == "project_requirement_item" {
+			result = append(result, candidate)
+		}
+	}
+	return result
+}
+
+func getKnowledgeThroughMCP(t *testing.T, app *Server, client *testClient, workspaceSlug, knowledgeID string) map[string]any {
+	t.Helper()
+	httpServer := httptest.NewServer(app.Handler())
+	t.Cleanup(httpServer.Close)
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "requirement-provenance-test", Version: "1.0.0"}, nil)
+	session, err := mcpClient.Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint: httpServer.URL + "/mcp/" + workspaceSlug + "/knowledge",
+		HTTPClient: &http.Client{Transport: bearerRoundTripper{
+			token: client.token, base: http.DefaultTransport,
+		}},
+		DisableStandaloneSSE: true,
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close() })
+	result, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "knowledge_get", Arguments: map[string]any{"knowledge_id": knowledgeID},
+	})
+	if err != nil || result.IsError {
+		t.Fatalf("MCP knowledge_get: result=%#v err=%v", result, err)
+	}
+	payload, ok := result.StructuredContent.(map[string]any)
+	if !ok {
+		t.Fatalf("MCP knowledge_get payload = %#v", result.StructuredContent)
+	}
+	entry, ok := payload["entry"].(map[string]any)
+	if !ok {
+		t.Fatalf("MCP knowledge_get entry = %#v", payload)
+	}
+	return entry
+}
+
 func TestSQLiteLocalProjectRequirementTrackingCoverageAndIssueCreation(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "multica.db")
 	app, err := Open(path, Options{VerificationCode: "888888", DisableKnowledge: true})

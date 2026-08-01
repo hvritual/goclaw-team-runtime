@@ -363,6 +363,45 @@ func (s *Store) GetEntry(ctx context.Context, workspaceID, id string) (knowledge
 	return entry, nil
 }
 
+func (s *Store) FindPublishedEntryBySourceRef(ctx context.Context, workspaceID, projectID string, kind knowledge.Kind, source knowledge.SourceRef) (knowledge.Entry, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id
+		FROM knowledge_entry
+		WHERE workspace_id = ? AND project_id = ? AND kind = ? AND status = ?
+		ORDER BY updated_at DESC, id`, workspaceID, projectID, kind, knowledge.StatusPublished)
+	if err != nil {
+		return knowledge.Entry{}, fmt.Errorf("list published source entries: %w", err)
+	}
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return knowledge.Entry{}, fmt.Errorf("read published source entry: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return knowledge.Entry{}, fmt.Errorf("list published source entries: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return knowledge.Entry{}, fmt.Errorf("close published source entries: %w", err)
+	}
+	for _, id := range ids {
+		entry, err := s.GetEntry(ctx, workspaceID, id)
+		if err != nil {
+			return knowledge.Entry{}, err
+		}
+		for _, revision := range entry.Revisions {
+			for _, ref := range revision.SourceRefs {
+				if ref.Type == source.Type && ref.ID == source.ID {
+					return entry, nil
+				}
+			}
+		}
+	}
+	return knowledge.Entry{}, knowledge.ErrNotFound
+}
+
 func (s *Store) ListCandidates(
 	ctx context.Context,
 	query knowledge.CandidateQuery,

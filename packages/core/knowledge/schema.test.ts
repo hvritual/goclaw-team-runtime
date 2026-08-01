@@ -94,7 +94,14 @@ describe("knowledge response schemas", () => {
                 content: "Retry ingestion without deleting source evidence.",
                 created_by: "user-1",
                 created_at: "2026-07-31T00:00:00Z",
-                source_refs: [],
+                source_refs: [{
+                  type: "project_requirement_item",
+                  id: "baseline-1:scope-1",
+                  revision: "2",
+                  uri: "multica://workspaces/workspace-1/projects/project-1/requirement-baselines/baseline-1/items/scope-1",
+                  checksum: "sha256:abc",
+                  metadata: { requirement_key: "scope-1", section: "in_scope", approved_revision: "2" },
+                }],
               },
             ],
             created_at: "2026-07-31T00:00:00Z",
@@ -118,6 +125,10 @@ describe("knowledge response schemas", () => {
           title: "Keep evidence",
           createdBy: "user-1",
           supersedesRevision: 0,
+          sourceRefs: [{
+            type: "project_requirement_item",
+            metadata: { requirement_key: "scope-1", section: "in_scope", approved_revision: "2" },
+          }],
         },
       ],
     });

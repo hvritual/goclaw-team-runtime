@@ -50,12 +50,14 @@ const sourceRefSchema = z.object({
   revision: z.string().default(""),
   uri: z.string().default(""),
   checksum: z.string().default(""),
+  metadata: z.record(z.string(), z.string()).optional(),
 }).loose().transform((value) => ({
   type: value.type,
   id: value.id,
   revision: value.revision,
   uri: value.uri,
   checksum: value.checksum,
+  metadata: value.metadata,
 }));
 
 const revisionSchema = z.object({

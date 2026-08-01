@@ -34,6 +34,12 @@ type Repository interface {
 	IngestEvidence(context.Context, IngestionCommand) (IngestionResult, error)
 }
 
+// PublishedEntryLocator lets evidence producers turn a stable source identity
+// into a revision candidate without coupling the source domain to storage.
+type PublishedEntryLocator interface {
+	FindPublishedEntryBySourceRef(context.Context, string, string, Kind, SourceRef) (Entry, error)
+}
+
 type PromotionPolicy interface {
 	Decide(Evidence) PromotionDecision
 }
@@ -207,7 +213,7 @@ func (s *Service) ingestEvidence(
 		if decision.Action == PromotionQuarantine {
 			status = StatusQuarantined
 		}
-		command.Candidate = &Candidate{
+		candidate := Candidate{
 			ID:          uuid.NewString(),
 			WorkspaceID: evidence.WorkspaceID,
 			ProjectID:   evidence.ProjectID,
@@ -222,6 +228,18 @@ func (s *Service) ingestEvidence(
 			CreatedAt:   currentTime,
 			UpdatedAt:   currentTime,
 		}
+		if locator, ok := s.store.(PublishedEntryLocator); ok && len(evidence.SourceRefs) > 0 {
+			target, err := locator.FindPublishedEntryBySourceRef(
+				ctx, evidence.WorkspaceID, evidence.ProjectID, evidence.Kind, evidence.SourceRefs[0],
+			)
+			if err == nil {
+				candidate.TargetEntryID = target.ID
+				candidate.TargetRevision = target.CurrentRevision
+			} else if !errors.Is(err, ErrNotFound) {
+				return IngestionResult{}, err
+			}
+		}
+		command.Candidate = &candidate
 	case PromotionPublish:
 		command.Entry = &Entry{
 			ID:              uuid.NewString(),

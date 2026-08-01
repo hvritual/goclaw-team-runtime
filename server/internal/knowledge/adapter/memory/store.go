@@ -38,9 +38,9 @@ func (s *Store) CreateCandidate(_ context.Context, candidate knowledge.Candidate
 	candidate.ID = uuid.NewString()
 	candidate.CreatedAt = currentTime
 	candidate.UpdatedAt = currentTime
-	candidate.SourceRefs = append([]knowledge.SourceRef(nil), candidate.SourceRefs...)
+	candidate = cloneCandidate(candidate)
 	s.candidates[candidate.ID] = candidate
-	return candidate, nil
+	return cloneCandidate(candidate), nil
 }
 
 func (s *Store) GetCandidate(_ context.Context, id string) (knowledge.Candidate, error) {
@@ -51,8 +51,7 @@ func (s *Store) GetCandidate(_ context.Context, id string) (knowledge.Candidate,
 	if !ok {
 		return knowledge.Candidate{}, knowledge.ErrNotFound
 	}
-	candidate.SourceRefs = append([]knowledge.SourceRef(nil), candidate.SourceRefs...)
-	return candidate, nil
+	return cloneCandidate(candidate), nil
 }
 
 func (s *Store) GetEntry(_ context.Context, workspaceID, id string) (knowledge.Entry, error) {
@@ -64,6 +63,24 @@ func (s *Store) GetEntry(_ context.Context, workspaceID, id string) (knowledge.E
 		return knowledge.Entry{}, knowledge.ErrNotFound
 	}
 	return cloneEntry(entry), nil
+}
+
+func (s *Store) FindPublishedEntryBySourceRef(_ context.Context, workspaceID, projectID string, kind knowledge.Kind, source knowledge.SourceRef) (knowledge.Entry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, entry := range s.entries {
+		if entry.WorkspaceID != workspaceID || entry.ProjectID != projectID || entry.Kind != kind || entry.Status != knowledge.StatusPublished {
+			continue
+		}
+		for _, revision := range entry.Revisions {
+			for _, ref := range revision.SourceRefs {
+				if ref.Type == source.Type && ref.ID == source.ID {
+					return cloneEntry(entry), nil
+				}
+			}
+		}
+	}
+	return knowledge.Entry{}, knowledge.ErrNotFound
 }
 
 func (s *Store) ListCandidates(
@@ -90,8 +107,7 @@ func (s *Store) ListCandidates(
 			!kindAllowed(candidate.Kind, query.Kinds) {
 			continue
 		}
-		candidate.SourceRefs = append([]knowledge.SourceRef(nil), candidate.SourceRefs...)
-		candidates = append(candidates, candidate)
+		candidates = append(candidates, cloneCandidate(candidate))
 	}
 	sort.Slice(candidates, func(i, j int) bool {
 		if candidates[i].UpdatedAt.Equal(candidates[j].UpdatedAt) {
@@ -157,7 +173,7 @@ func (s *Store) ReviewCandidate(
 			return knowledge.Candidate{}, nil, knowledge.ErrRevisionConflict
 		}
 		revision := *command.AppendRevision
-		revision.SourceRefs = append([]knowledge.SourceRef(nil), revision.SourceRefs...)
+		revision.SourceRefs = cloneSourceRefs(revision.SourceRefs)
 		entry.Revisions = append(entry.Revisions, revision)
 		entry.CurrentRevision = revision.Number
 		entry.UpdatedAt = revision.CreatedAt
@@ -169,26 +185,41 @@ func (s *Store) ReviewCandidate(
 	candidate.Status = command.NewStatus
 	candidate.Revision++
 	candidate.UpdatedAt = command.Review.ReviewedAt
-	s.candidates[candidate.ID] = candidate
+	s.candidates[candidate.ID] = cloneCandidate(candidate)
+	resultCandidate := cloneCandidate(candidate)
 
 	if command.Entry == nil {
-		return candidate, revised, nil
+		return resultCandidate, revised, nil
 	}
 	entry := cloneEntry(*command.Entry)
 	s.entries[entry.ID] = entry
 	result := cloneEntry(entry)
-	return candidate, &result, nil
+	return resultCandidate, &result, nil
 }
 
 func cloneEntry(entry knowledge.Entry) knowledge.Entry {
 	entry.Revisions = append([]knowledge.Revision(nil), entry.Revisions...)
 	for index := range entry.Revisions {
-		entry.Revisions[index].SourceRefs = append(
-			[]knowledge.SourceRef(nil),
-			entry.Revisions[index].SourceRefs...,
-		)
+		entry.Revisions[index].SourceRefs = cloneSourceRefs(entry.Revisions[index].SourceRefs)
 	}
 	return entry
+}
+
+func cloneCandidate(candidate knowledge.Candidate) knowledge.Candidate {
+	candidate.SourceRefs = cloneSourceRefs(candidate.SourceRefs)
+	return candidate
+}
+
+func cloneSourceRefs(sourceRefs []knowledge.SourceRef) []knowledge.SourceRef {
+	if sourceRefs == nil {
+		return nil
+	}
+	result := make([]knowledge.SourceRef, len(sourceRefs))
+	copy(result, sourceRefs)
+	for index := range result {
+		result[index].Metadata = cloneMap(result[index].Metadata)
+	}
+	return result
 }
 
 func (s *Store) IngestEvidence(
@@ -206,17 +237,17 @@ func (s *Store) IngestEvidence(
 	}
 
 	evidence := command.Evidence
-	evidence.SourceRefs = append([]knowledge.SourceRef(nil), evidence.SourceRefs...)
+	evidence.SourceRefs = cloneSourceRefs(evidence.SourceRefs)
 	evidence.Metadata = cloneMap(evidence.Metadata)
 	s.evidence[evidence.ID] = evidence
 	s.idempotencyKeys[evidence.IdempotencyKey] = evidence.ID
 
 	result := knowledge.IngestionResult{}
 	if command.Candidate != nil {
-		candidate := *command.Candidate
-		candidate.SourceRefs = append([]knowledge.SourceRef(nil), candidate.SourceRefs...)
+		candidate := cloneCandidate(*command.Candidate)
 		s.candidates[candidate.ID] = candidate
-		result.Candidate = &candidate
+		resultCandidate := cloneCandidate(candidate)
+		result.Candidate = &resultCandidate
 	}
 	if command.Entry != nil {
 		entry := cloneEntry(*command.Entry)

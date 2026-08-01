@@ -13,9 +13,20 @@ import (
 	"github.com/multica-ai/multica/server/internal/projectrequirements"
 )
 
-type Repository struct{ db *sql.DB }
+type ApprovalHook func(context.Context, *sql.Tx, projectrequirements.Record) error
+
+type Repository struct {
+	db         *sql.DB
+	onApproved ApprovalHook
+}
 
 func New(db *sql.DB) *Repository { return &Repository{db: db} }
+
+// NewWithApprovalHook keeps source-transaction hooks in the storage adapter,
+// so application services do not learn SQLite transaction details.
+func NewWithApprovalHook(db *sql.DB, hook ApprovalHook) *Repository {
+	return &Repository{db: db, onApproved: hook}
+}
 
 func (r *Repository) Get(ctx context.Context, workspaceID, projectID string) (projectrequirements.Record, error) {
 	return r.get(ctx, r.db, workspaceID, projectID)
@@ -170,6 +181,15 @@ func (r *Repository) transition(ctx context.Context, input projectrequirements.T
 	}
 	if err != nil {
 		return projectrequirements.Record{}, err
+	}
+	if approve && r.onApproved != nil {
+		approved, err := r.get(ctx, tx, input.WorkspaceID, input.ProjectID)
+		if err != nil {
+			return projectrequirements.Record{}, err
+		}
+		if err := r.onApproved(ctx, tx, approved); err != nil {
+			return projectrequirements.Record{}, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return projectrequirements.Record{}, err

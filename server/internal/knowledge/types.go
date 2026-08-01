@@ -63,11 +63,12 @@ type Candidate struct {
 }
 
 type SourceRef struct {
-	Type     string `json:"type"`
-	ID       string `json:"id"`
-	Revision string `json:"revision"`
-	URI      string `json:"uri"`
-	Checksum string `json:"checksum"`
+	Type     string            `json:"type"`
+	ID       string            `json:"id"`
+	Revision string            `json:"revision"`
+	URI      string            `json:"uri"`
+	Checksum string            `json:"checksum"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 type ReviewAction string

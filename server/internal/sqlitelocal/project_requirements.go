@@ -2,13 +2,16 @@ package sqlitelocal
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/multica-ai/multica/server/internal/knowledge"
 	"github.com/multica-ai/multica/server/internal/projectrequirements"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
 )
@@ -94,22 +97,22 @@ func (s *Server) saveProjectRequirementDraft(w http.ResponseWriter, r *http.Requ
 func (s *Server) submitProjectRequirementReview(w http.ResponseWriter, r *http.Request) {
 	s.transitionProjectRequirement(w, r, func(input projectrequirements.TransitionInput) (projectrequirements.Record, error) {
 		return s.requirements.SubmitReview(r.Context(), input)
-	}, false)
+	}, false, false)
 }
 
 func (s *Server) approveProjectRequirement(w http.ResponseWriter, r *http.Request) {
 	s.transitionProjectRequirement(w, r, func(input projectrequirements.TransitionInput) (projectrequirements.Record, error) {
 		return s.requirements.Approve(r.Context(), input)
-	}, true)
+	}, true, true)
 }
 
 func (s *Server) withdrawProjectRequirementReview(w http.ResponseWriter, r *http.Request) {
 	s.transitionProjectRequirement(w, r, func(input projectrequirements.TransitionInput) (projectrequirements.Record, error) {
 		return s.requirements.Withdraw(r.Context(), input)
-	}, true)
+	}, true, false)
 }
 
-func (s *Server) transitionProjectRequirement(w http.ResponseWriter, r *http.Request, transition func(projectrequirements.TransitionInput) (projectrequirements.Record, error), requiresApprover bool) {
+func (s *Server) transitionProjectRequirement(w http.ResponseWriter, r *http.Request, transition func(projectrequirements.TransitionInput) (projectrequirements.Record, error), requiresApprover, dispatchEvidence bool) {
 	projectValue, ok := s.loadProject(w, r, chi.URLParam(r, "id"))
 	if !ok {
 		return
@@ -129,7 +132,76 @@ func (s *Server) transitionProjectRequirement(w http.ResponseWriter, r *http.Req
 	if !writeProjectRequirementError(w, err) {
 		return
 	}
+	if dispatchEvidence {
+		s.dispatchKnowledgeEvidence(r.Context())
+	}
 	writeJSON(w, http.StatusOK, requirementRecordResponse(record))
+}
+
+func (s *Server) enqueueApprovedRequirementEvidence(ctx context.Context, tx *sql.Tx, record projectrequirements.Record) error {
+	if record.Baseline.ApprovedRevision == nil || record.Baseline.ApprovedAt == nil {
+		return nil
+	}
+	approvedAt, err := time.Parse(time.RFC3339Nano, *record.Baseline.ApprovedAt)
+	if err != nil {
+		return err
+	}
+	issues, err := s.requirementIssuesForApprovedRevision(ctx, tx, record.Baseline.WorkspaceID, record.Baseline.ProjectID)
+	if err != nil {
+		return err
+	}
+	for _, item := range projectrequirements.TrackableItems(record.CurrentContent) {
+		evidence := knowledge.NewProjectRequirementEvidence(knowledge.ProjectRequirementEvidenceDraft{
+			WorkspaceID:      record.Baseline.WorkspaceID,
+			ProjectID:        record.Baseline.ProjectID,
+			BaselineID:       record.Baseline.ID,
+			ApprovedRevision: *record.Baseline.ApprovedRevision,
+			RequirementKey:   item.Item.Key,
+			Section:          string(item.Section),
+			Content:          item.Item.Text,
+			ActorID:          *record.Baseline.ApprovedBy,
+			ApprovedAt:       approvedAt,
+			LinkedIssueIDs:   issues[item.Item.Key],
+		}, requirementKnowledgeKind(item.Section))
+		if err := enqueueKnowledgeEvidence(ctx, tx, evidence); err != nil {
+			return fmt.Errorf("enqueue approved project requirement evidence: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Server) requirementIssuesForApprovedRevision(ctx context.Context, tx *sql.Tx, workspaceID, projectID string) (map[string][]string, error) {
+	rows, err := tx.QueryContext(ctx, `
+		SELECT l.requirement_key, i.id
+		FROM project_requirement_issue_link l
+		JOIN issues i ON i.id = l.issue_id
+		WHERE l.workspace_id = ? AND l.project_id = ?
+			AND i.workspace_id = ? AND i.project_id = ?
+		ORDER BY l.requirement_key, i.id`, workspaceID, projectID, workspaceID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make(map[string][]string)
+	for rows.Next() {
+		var key, issueID string
+		if err := rows.Scan(&key, &issueID); err != nil {
+			return nil, err
+		}
+		result[key] = append(result[key], issueID)
+	}
+	return result, rows.Err()
+}
+
+func requirementKnowledgeKind(section projectrequirements.TrackableSection) knowledge.Kind {
+	switch section {
+	case projectrequirements.TrackableGoal:
+		return knowledge.KindGoal
+	case projectrequirements.TrackableConstraint:
+		return knowledge.KindConstraint
+	default:
+		return knowledge.KindRequirement
+	}
 }
 
 func (s *Server) requireProjectRequirementApprover(w http.ResponseWriter, r *http.Request, projectValue project) bool {
