@@ -54,12 +54,17 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 
 **SQLite tracer completed 2026-08-02:** `DeleteMember` and `LeaveWorkspace` now share the Auth membership transaction port and last-Owner domain policy. The SQLite-local DELETE/leave handlers delegate to Auth, preserve 204 success and existing 403/404/last-Owner errors, and no longer contain a second membership-removal business branch. PostgreSQL and the final Kratos runtime cutover remain pending.
 
-### A3. Invitation lifecycle
+### A3. List workspace members
+
+- Move member-list authorization, workspace scoping, ordering and user projection behind the Auth contract.
+- Preserve the top-level JSON array and nullable avatar representation used by existing clients.
+
+### A4. Invitation lifecycle
 
 - Move create, accept, revoke and expiry behavior behind Auth application contracts.
 - Preserve public token boundaries and do not leak invitation storage types.
 
-### A4. Agent identity
+### A5. Agent identity
 
 - Introduce Agent as a team participant identity, separate from release/version/runtime state.
 - Define visibility and authorization rules before adding persistence.
@@ -105,6 +110,13 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 - Application and real SQLite tests prove actor membership authorization, workspace isolation, stable creation-time ordering, and full user projection.
 - Proto `response_body: "members"` preserves the existing top-level JSON array, while the generation postprocessor keeps the generated HTTP client and OpenAPI schema aligned with that public shape.
 - Raw Kratos HTTP, generated HTTP client, generated gRPC, SQLite-local lifecycle, and frontend runtime-schema tests cover the same member-list contract.
+
+## A4 SQLite Evidence
+
+- `RevokeInvitation` now owns Owner/Admin authorization and pending-only, workspace-scoped revocation inside an Auth invitation transaction.
+- The SQLite-local DELETE route delegates to the Auth contract and retains 204 success plus existing 403/404/500 behavior.
+- Application tests prove authorization occurs before invitation lookup; real SQLite tests prove workspace isolation and that an already non-pending invitation cannot be revoked again.
+- Raw/generated Kratos HTTP tests preserve the Proto-declared 204 response, while gRPC/local adapters carry the same workspace and invitation IDs.
 
 ## Stop Conditions
 

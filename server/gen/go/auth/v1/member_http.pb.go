@@ -21,6 +21,7 @@ const _ = http.SupportPackageIsVersion3
 const OperationMemberServiceDeleteMember = "/auth.v1.MemberService/DeleteMember"
 const OperationMemberServiceLeaveWorkspace = "/auth.v1.MemberService/LeaveWorkspace"
 const OperationMemberServiceListMembers = "/auth.v1.MemberService/ListMembers"
+const OperationMemberServiceRevokeInvitation = "/auth.v1.MemberService/RevokeInvitation"
 const OperationMemberServiceUpdateMemberRole = "/auth.v1.MemberService/UpdateMemberRole"
 
 type MemberServiceHTTPServer interface {
@@ -31,6 +32,8 @@ type MemberServiceHTTPServer interface {
 	LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error)
 	// ListMembers ListMembers returns the human memberships visible inside one workspace.
 	ListMembers(context.Context, *ListMembersRequest) (*ListMembersResponse, error)
+	// RevokeInvitation RevokeInvitation withdraws one pending invitation from a workspace.
+	RevokeInvitation(context.Context, *RevokeInvitationRequest) (*RevokeInvitationResponse, error)
 	// UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
@@ -42,6 +45,7 @@ func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer
 	r.Handle("PATCH", "/api/workspaces/{workspace_id}/members/{member_id}", _MemberService_UpdateMemberRole0_HTTP_Handler(srv))
 	r.Handle("DELETE", "/api/workspaces/{workspace_id}/members/{member_id}", _MemberService_DeleteMember0_HTTP_Handler(srv))
 	r.Handle("POST", "/api/workspaces/{workspace_id}/leave", _MemberService_LeaveWorkspace0_HTTP_Handler(srv))
+	r.Handle("DELETE", "/api/workspaces/{workspace_id}/invitations/{invitation_id}", _MemberService_RevokeInvitation0_HTTP_Handler(srv))
 }
 
 func _MemberService_ListMembers0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
@@ -134,6 +138,29 @@ func _MemberService_LeaveWorkspace0_HTTP_Handler(srv MemberServiceHTTPServer) fu
 	}
 }
 
+func _MemberService_RevokeInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in RevokeInvitationRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceRevokeInvitation)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.RevokeInvitation(ctx, req.(*RevokeInvitationRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		_ = out
+		ctx.Response().WriteHeader(204)
+		return nil
+	}
+}
+
 type MemberServiceHTTPClient interface {
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
@@ -142,6 +169,8 @@ type MemberServiceHTTPClient interface {
 	LeaveWorkspace(ctx context.Context, req *LeaveWorkspaceRequest, opts ...http.CallOption) (rsp *LeaveWorkspaceResponse, err error)
 	// ListMembers ListMembers returns the human memberships visible inside one workspace.
 	ListMembers(ctx context.Context, req *ListMembersRequest, opts ...http.CallOption) (rsp *ListMembersResponse, err error)
+	// RevokeInvitation RevokeInvitation withdraws one pending invitation from a workspace.
+	RevokeInvitation(ctx context.Context, req *RevokeInvitationRequest, opts ...http.CallOption) (rsp *RevokeInvitationResponse, err error)
 	// UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(ctx context.Context, req *UpdateMemberRoleRequest, opts ...http.CallOption) (rsp *Member, err error)
@@ -201,6 +230,23 @@ func (c *MemberServiceHTTPClientImpl) ListMembers(ctx context.Context, in *ListM
 		http.PathTemplate(pattern),
 	}, opts...)
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out.Members, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RevokeInvitation RevokeInvitation withdraws one pending invitation from a workspace.
+func (c *MemberServiceHTTPClientImpl) RevokeInvitation(ctx context.Context, in *RevokeInvitationRequest, opts ...http.CallOption) (*RevokeInvitationResponse, error) {
+	var out RevokeInvitationResponse
+	pattern := "/api/workspaces/{workspaceId}/invitations/{invitationId}"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationMemberServiceRevokeInvitation),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "DELETE", path, nil, &httpbody.HttpBody{}, opts...)
 	if err != nil {
 		return nil, err
 	}

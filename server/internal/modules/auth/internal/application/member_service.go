@@ -4,12 +4,16 @@ package application
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
 )
 
-var ErrMembershipNotFound = errors.New("membership not found")
+var (
+	ErrMembershipNotFound = errors.New("membership not found")
+	ErrInvitationNotFound = errors.New("invitation not found")
+)
 
 type MemberRepository interface {
 	FindByUserAndWorkspace(context.Context, string, string) (member.Member, error)
@@ -25,18 +29,36 @@ type MemberUnitOfWork interface {
 	WithinTransaction(context.Context, func(MemberRepository) error) error
 }
 
+type InvitationRepository interface {
+	RevokePending(context.Context, string, string, time.Time) error
+}
+
+type InvitationUnitOfWork interface {
+	WithinInvitationTransaction(context.Context, func(MemberRepository, InvitationRepository) error) error
+}
+
 type MemberServiceOption func(*MemberService)
 
 type MemberService struct {
-	unitOfWork MemberUnitOfWork
+	unitOfWork           MemberUnitOfWork
+	invitationUnitOfWork InvitationUnitOfWork
+	now                  func() time.Time
 }
 
 func WithMemberUnitOfWork(unitOfWork MemberUnitOfWork) MemberServiceOption {
 	return func(service *MemberService) { service.unitOfWork = unitOfWork }
 }
 
+func WithInvitationUnitOfWork(unitOfWork InvitationUnitOfWork) MemberServiceOption {
+	return func(service *MemberService) { service.invitationUnitOfWork = unitOfWork }
+}
+
+func WithInvitationClock(now func() time.Time) MemberServiceOption {
+	return func(service *MemberService) { service.now = now }
+}
+
 func NewMemberService(options ...MemberServiceOption) *MemberService {
-	service := &MemberService{}
+	service := &MemberService{now: time.Now}
 	for _, option := range options {
 		option(service)
 	}
@@ -232,4 +254,32 @@ func (s *MemberService) ListMembers(ctx context.Context, request contract.Member
 		return contract.Member_ListMembersResponse{}, err
 	}
 	return contract.Member_ListMembersResponse{Members: membersContract(memberships)}, nil
+}
+func (s *MemberService) RevokeInvitation(ctx context.Context, request contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_RevokeInvitationResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil {
+		return contract.Member_RevokeInvitationResponse{}, contract.ErrMemberNotImplemented
+	}
+	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, invitations InvitationRepository) error {
+			if _, findErr := findMemberManager(ctx, members, actorUserID, request.WorkspaceId); findErr != nil {
+				return findErr
+			}
+			if revokeErr := invitations.RevokePending(ctx, request.WorkspaceId, request.InvitationId, s.now().UTC()); revokeErr != nil {
+				if errors.Is(revokeErr, ErrInvitationNotFound) {
+					return contract.ErrInvitationNotFound
+				}
+				return revokeErr
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return contract.Member_RevokeInvitationResponse{}, err
+	}
+	return contract.Member_RevokeInvitationResponse{}, nil
 }

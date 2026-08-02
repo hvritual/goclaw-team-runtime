@@ -1281,26 +1281,13 @@ func (s *Server) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(
-		w,
-		r,
-		workspaceValue.ID,
-		workspacepermissions.RoleOwner,
-		workspacepermissions.RoleAdmin,
-	) {
-		return
-	}
-	result, err := s.db.ExecContext(r.Context(), `UPDATE invitations
-		SET status = 'revoked', updated_at = ?
-		WHERE id = ? AND workspace_id = ? AND status = 'pending'`,
-		now(), chi.URLParam(r, "invitationID"), workspaceValue.ID)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	_, err := s.authMembers.RevokeInvitation(ctx, authcontract.Member_RevokeInvitationRequest{
+		WorkspaceId:  workspaceValue.ID,
+		InvitationId: chi.URLParam(r, "invitationID"),
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to revoke invitation")
-		return
-	}
-	affected, err := result.RowsAffected()
-	if err != nil || affected == 0 {
-		writeError(w, http.StatusNotFound, "invitation not found")
+		writeMemberError(w, err, "failed to revoke invitation")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

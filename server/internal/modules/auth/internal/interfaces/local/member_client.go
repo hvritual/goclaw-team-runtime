@@ -27,4 +27,8 @@ func (c *MemberClient) LeaveWorkspace(ctx context.Context, request contract.Memb
 	return c.service.LeaveWorkspace(ctx, request)
 }
 
+func (c *MemberClient) RevokeInvitation(ctx context.Context, request contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
+	return c.service.RevokeInvitation(ctx, request)
+}
+
 var _ contract.MemberService = (*MemberClient)(nil)

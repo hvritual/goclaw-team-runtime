@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/application"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
@@ -20,24 +21,66 @@ func NewMemberStore(db *sql.DB) *MemberStore {
 }
 
 func (s *MemberStore) WithinTransaction(ctx context.Context, operation func(application.MemberRepository) error) error {
+	return s.withinTransaction(ctx, "member", func(tx *sql.Tx) error {
+		return operation(&memberRepository{tx: tx})
+	})
+}
+
+func (s *MemberStore) withinTransaction(ctx context.Context, label string, operation func(*sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("begin member transaction: %w", err)
+		return fmt.Errorf("begin %s transaction: %w", label, err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	repository := &memberRepository{tx: tx}
-	if err := operation(repository); err != nil {
+	if err := operation(tx); err != nil {
 		return err
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit member transaction: %w", err)
+		return fmt.Errorf("commit %s transaction: %w", label, err)
 	}
 	return nil
 }
 
+func (s *MemberStore) WithinInvitationTransaction(
+	ctx context.Context,
+	operation func(application.MemberRepository, application.InvitationRepository) error,
+) error {
+	return s.withinTransaction(ctx, "invitation", func(tx *sql.Tx) error {
+		return operation(&memberRepository{tx: tx}, &invitationRepository{tx: tx})
+	})
+}
+
 type memberRepository struct {
 	tx *sql.Tx
+}
+
+type invitationRepository struct {
+	tx *sql.Tx
+}
+
+func (r *invitationRepository) RevokePending(
+	ctx context.Context,
+	workspaceID string,
+	invitationID string,
+	updatedAt time.Time,
+) error {
+	result, err := r.tx.ExecContext(ctx, `UPDATE invitations
+		SET status = 'revoked', updated_at = ?
+		WHERE id = ? AND workspace_id = ? AND status = 'pending'`,
+		updatedAt.UTC().Format(time.RFC3339Nano), invitationID, workspaceID,
+	)
+	if err != nil {
+		return fmt.Errorf("revoke invitation: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read revoked invitation count: %w", err)
+	}
+	if affected == 0 {
+		return application.ErrInvitationNotFound
+	}
+	return nil
 }
 
 func (r *memberRepository) FindByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (member.Member, error) {
@@ -172,3 +215,4 @@ func scanMember(row memberScanner) (member.Member, error) {
 }
 
 var _ application.MemberUnitOfWork = (*MemberStore)(nil)
+var _ application.InvitationUnitOfWork = (*MemberStore)(nil)

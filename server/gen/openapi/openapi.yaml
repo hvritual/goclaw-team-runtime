@@ -43,6 +43,32 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/workspaces/{workspaceId}/invitations/{invitationId}:
+        delete:
+            tags:
+                - MemberService
+            description: RevokeInvitation withdraws one pending invitation from a workspace.
+            operationId: MemberService_RevokeInvitation
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: invitationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "204":
+                    description: No Content
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/workspaces/{workspaceId}/leave:
         post:
             tags:
@@ -333,6 +359,9 @@ components:
             properties:
                 message:
                     type: string
+        RevokeInvitationResponse:
+            type: object
+            properties: {}
         Status:
             type: object
             properties:

@@ -17,6 +17,7 @@ type successfulMemberService struct {
 	updateRequest contract.Member_UpdateMemberRoleRequest
 	deleteRequest contract.Member_DeleteMemberRequest
 	leaveRequest  contract.Member_LeaveWorkspaceRequest
+	revokeRequest contract.Member_RevokeInvitationRequest
 }
 
 func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
@@ -55,6 +56,11 @@ func (s *successfulMemberService) DeleteMember(_ context.Context, request contra
 func (s *successfulMemberService) LeaveWorkspace(_ context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
 	s.leaveRequest = request
 	return contract.Member_LeaveWorkspaceResponse{}, nil
+}
+
+func (s *successfulMemberService) RevokeInvitation(_ context.Context, request contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
+	s.revokeRequest = request
+	return contract.Member_RevokeInvitationResponse{}, nil
 }
 
 func TestAuthMemberGRPCRoundTrips(t *testing.T) {
@@ -114,5 +120,13 @@ func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 	}
 	if service.leaveRequest.WorkspaceId != "workspace-1" {
 		t.Fatalf("unexpected leave request: %+v", service.leaveRequest)
+	}
+	if _, err := client.RevokeInvitation(t.Context(), contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "workspace-1", InvitationId: "invitation-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if service.revokeRequest.WorkspaceId != "workspace-1" || service.revokeRequest.InvitationId != "invitation-1" {
+		t.Fatalf("unexpected revoke request: %+v", service.revokeRequest)
 	}
 }

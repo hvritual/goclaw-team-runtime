@@ -16,6 +16,7 @@ func TestSQLiteLocalAuthMemberFallbackErrorsRemainOperationSpecific(t *testing.T
 		"failed to update member",
 		"failed to delete member",
 		"failed to leave workspace",
+		"failed to revoke invitation",
 	}
 	for _, fallback := range tests {
 		t.Run(fallback, func(t *testing.T) {

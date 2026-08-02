@@ -16,6 +16,10 @@
     {
       "name": "LeaveWorkspace",
       "simple_string": false
+    },
+    {
+      "name": "RevokeInvitation",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
@@ -116,6 +120,25 @@
           "json_tag": "avatarUrl"
         }
       ]
+    },
+    {
+      "name": "Member_RevokeInvitationRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "InvitationId",
+          "type": "string",
+          "json_tag": "invitationId"
+        }
+      ]
+    },
+    {
+      "name": "Member_RevokeInvitationResponse",
+      "fields": null
     },
     {
       "name": "Member_StringValue",

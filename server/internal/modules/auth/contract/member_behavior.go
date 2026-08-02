@@ -10,6 +10,7 @@ var (
 	ErrInvalidMemberRole         = errors.New("role must be owner, admin, or member")
 	ErrWorkspaceMembershipHidden = errors.New("workspace not found")
 	ErrMemberNotFound            = errors.New("member not found")
+	ErrInvitationNotFound        = errors.New("invitation not found")
 	ErrInsufficientWorkspaceRole = errors.New("insufficient workspace role")
 	ErrOwnerRoleRequiresOwner    = errors.New("only owners can manage the owner role")
 	ErrOwnerRemovalRequiresOwner = errors.New("only owners can remove another owner")

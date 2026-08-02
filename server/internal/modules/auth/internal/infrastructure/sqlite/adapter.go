@@ -24,5 +24,9 @@ func NewMember(config Config) (contract.MemberService, error) {
 	if config.DB == nil {
 		return nil, errors.New("auth sqlite database is required")
 	}
-	return application.NewMemberService(application.WithMemberUnitOfWork(NewMemberStore(config.DB))), nil
+	store := NewMemberStore(config.DB)
+	return application.NewMemberService(
+		application.WithMemberUnitOfWork(store),
+		application.WithInvitationUnitOfWork(store),
+	), nil
 }

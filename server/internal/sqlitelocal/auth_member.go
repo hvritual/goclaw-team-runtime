@@ -15,6 +15,8 @@ func writeMemberError(w http.ResponseWriter, err error, fallback string) {
 		writeError(w, http.StatusNotFound, "workspace not found")
 	case errors.Is(err, contract.ErrMemberNotFound):
 		writeError(w, http.StatusNotFound, "member not found")
+	case errors.Is(err, contract.ErrInvitationNotFound):
+		writeError(w, http.StatusNotFound, "invitation not found")
 	case errors.Is(err, contract.ErrInsufficientWorkspaceRole):
 		writeError(w, http.StatusForbidden, "insufficient workspace role")
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):

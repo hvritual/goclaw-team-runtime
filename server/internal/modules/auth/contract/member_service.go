@@ -13,6 +13,7 @@ type MemberService interface {
 	UpdateMemberRole(context.Context, Member_UpdateMemberRoleRequest) (Member_Member, error)
 	DeleteMember(context.Context, Member_DeleteMemberRequest) (Member_DeleteMemberResponse, error)
 	LeaveWorkspace(context.Context, Member_LeaveWorkspaceRequest) (Member_LeaveWorkspaceResponse, error)
+	RevokeInvitation(context.Context, Member_RevokeInvitationRequest) (Member_RevokeInvitationResponse, error)
 }
 
 type Member_DeleteMemberRequest struct {
@@ -47,6 +48,14 @@ type Member_Member struct {
 	Name        string  `json:"name,omitempty"`
 	Email       string  `json:"email,omitempty"`
 	AvatarUrl   *string `json:"avatarUrl,omitempty"`
+}
+
+type Member_RevokeInvitationRequest struct {
+	WorkspaceId  string `json:"workspaceId,omitempty"`
+	InvitationId string `json:"invitationId,omitempty"`
+}
+
+type Member_RevokeInvitationResponse struct {
 }
 
 type Member_StringValue = string

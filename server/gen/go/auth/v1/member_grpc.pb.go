@@ -23,6 +23,7 @@ const (
 	MemberService_UpdateMemberRole_FullMethodName = "/auth.v1.MemberService/UpdateMemberRole"
 	MemberService_DeleteMember_FullMethodName     = "/auth.v1.MemberService/DeleteMember"
 	MemberService_LeaveWorkspace_FullMethodName   = "/auth.v1.MemberService/LeaveWorkspace"
+	MemberService_RevokeInvitation_FullMethodName = "/auth.v1.MemberService/RevokeInvitation"
 )
 
 // MemberServiceClient is the client API for MemberService service.
@@ -42,6 +43,8 @@ type MemberServiceClient interface {
 	DeleteMember(ctx context.Context, in *DeleteMemberRequest, opts ...grpc.CallOption) (*DeleteMemberResponse, error)
 	// LeaveWorkspace removes the authenticated participant's own membership.
 	LeaveWorkspace(ctx context.Context, in *LeaveWorkspaceRequest, opts ...grpc.CallOption) (*LeaveWorkspaceResponse, error)
+	// RevokeInvitation withdraws one pending invitation from a workspace.
+	RevokeInvitation(ctx context.Context, in *RevokeInvitationRequest, opts ...grpc.CallOption) (*RevokeInvitationResponse, error)
 }
 
 type memberServiceClient struct {
@@ -92,6 +95,16 @@ func (c *memberServiceClient) LeaveWorkspace(ctx context.Context, in *LeaveWorks
 	return out, nil
 }
 
+func (c *memberServiceClient) RevokeInvitation(ctx context.Context, in *RevokeInvitationRequest, opts ...grpc.CallOption) (*RevokeInvitationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeInvitationResponse)
+	err := c.cc.Invoke(ctx, MemberService_RevokeInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemberServiceServer is the server API for MemberService service.
 // All implementations must embed UnimplementedMemberServiceServer
 // for forward compatibility.
@@ -109,6 +122,8 @@ type MemberServiceServer interface {
 	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
 	// LeaveWorkspace removes the authenticated participant's own membership.
 	LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error)
+	// RevokeInvitation withdraws one pending invitation from a workspace.
+	RevokeInvitation(context.Context, *RevokeInvitationRequest) (*RevokeInvitationResponse, error)
 	mustEmbedUnimplementedMemberServiceServer()
 }
 
@@ -130,6 +145,9 @@ func (UnimplementedMemberServiceServer) DeleteMember(context.Context, *DeleteMem
 }
 func (UnimplementedMemberServiceServer) LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LeaveWorkspace not implemented")
+}
+func (UnimplementedMemberServiceServer) RevokeInvitation(context.Context, *RevokeInvitationRequest) (*RevokeInvitationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RevokeInvitation not implemented")
 }
 func (UnimplementedMemberServiceServer) mustEmbedUnimplementedMemberServiceServer() {}
 func (UnimplementedMemberServiceServer) testEmbeddedByValue()                       {}
@@ -224,6 +242,24 @@ func _MemberService_LeaveWorkspace_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemberService_RevokeInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).RevokeInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_RevokeInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).RevokeInvitation(ctx, req.(*RevokeInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemberService_ServiceDesc is the grpc.ServiceDesc for MemberService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -246,6 +282,10 @@ var MemberService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LeaveWorkspace",
 			Handler:    _MemberService_LeaveWorkspace_Handler,
+		},
+		{
+			MethodName: "RevokeInvitation",
+			Handler:    _MemberService_RevokeInvitation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

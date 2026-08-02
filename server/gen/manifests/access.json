@@ -25,6 +25,13 @@
   ],
   "permissions": [
     {
+      "code": "auth.invitation.revoke",
+      "name": "Revoke invitation",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "revoke"
+    },
+    {
       "code": "auth.member.change_role",
       "name": "Change member role",
       "module": "auth",
@@ -105,6 +112,17 @@
       "permission_code": "auth.member.list",
       "public": false,
       "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/RevokeInvitation",
+      "module": "auth",
+      "http_method": "DELETE",
+      "http_path": "/api/workspaces/{workspace_id}/invitations/{invitation_id}",
+      "permission_code": "auth.invitation.revoke",
+      "public": false,
+      "audit": true,
       "idempotent": false
     },
     {

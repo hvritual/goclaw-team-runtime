@@ -4,10 +4,44 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
 )
+
+type fakeInvitationRepository struct {
+	workspaceID  string
+	invitationID string
+	updatedAt    time.Time
+	revoked      bool
+	err          error
+}
+
+func (r *fakeInvitationRepository) RevokePending(_ context.Context, workspaceID, invitationID string, updatedAt time.Time) error {
+	r.workspaceID = workspaceID
+	r.invitationID = invitationID
+	r.updatedAt = updatedAt
+	if r.err != nil {
+		return r.err
+	}
+	r.revoked = true
+	return nil
+}
+
+type fakeInvitationUnitOfWork struct {
+	members     *fakeMemberRepository
+	invitations *fakeInvitationRepository
+	called      bool
+}
+
+func (u *fakeInvitationUnitOfWork) WithinInvitationTransaction(
+	ctx context.Context,
+	operation func(MemberRepository, InvitationRepository) error,
+) error {
+	u.called = true
+	return operation(u.members, u.invitations)
+}
 
 type fakeMemberUnitOfWork struct {
 	repository *fakeMemberRepository
@@ -288,5 +322,72 @@ func TestLeaveWorkspaceRemovesNonOwnerMembership(t *testing.T) {
 	}
 	if !repository.deleted {
 		t.Fatal("membership was not deleted")
+	}
+}
+
+func TestRevokeInvitationWithdrawsPendingInvitation(t *testing.T) {
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "admin-user", Role: member.RoleAdmin,
+	}}
+	invitations := &fakeInvitationRepository{}
+	unitOfWork := &fakeInvitationUnitOfWork{members: members, invitations: invitations}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(unitOfWork),
+		WithInvitationClock(func() time.Time { return fixedNow }),
+	)
+	ctx := contract.WithMemberActor(context.Background(), "admin-user")
+
+	_, err := service.RevokeInvitation(ctx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId:  "workspace",
+		InvitationId: "invitation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !unitOfWork.called || !invitations.revoked {
+		t.Fatal("invitation was not revoked inside the invitation transaction")
+	}
+	if invitations.workspaceID != "workspace" || invitations.invitationID != "invitation" || !invitations.updatedAt.Equal(fixedNow) {
+		t.Fatalf("unexpected revoke call: %+v", invitations)
+	}
+}
+
+func TestRevokeInvitationRequiresManagerBeforeLookingUpInvitation(t *testing.T) {
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember,
+	}}
+	invitations := &fakeInvitationRepository{err: ErrInvitationNotFound}
+	service := NewMemberService(WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{
+		members: members, invitations: invitations,
+	}))
+	ctx := contract.WithMemberActor(context.Background(), "member-user")
+
+	_, err := service.RevokeInvitation(ctx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "workspace", InvitationId: "missing-or-cross-workspace",
+	})
+	if !errors.Is(err, contract.ErrInsufficientWorkspaceRole) {
+		t.Fatalf("RevokeInvitation() error = %v", err)
+	}
+	if invitations.revoked || invitations.invitationID != "" {
+		t.Fatal("invitation lookup ran before manager authorization")
+	}
+}
+
+func TestRevokeInvitationReportsMissingPendingInvitation(t *testing.T) {
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "owner-user", Role: member.RoleOwner,
+	}}
+	invitations := &fakeInvitationRepository{err: ErrInvitationNotFound}
+	service := NewMemberService(WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{
+		members: members, invitations: invitations,
+	}))
+	ctx := contract.WithMemberActor(context.Background(), "owner-user")
+
+	_, err := service.RevokeInvitation(ctx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "workspace", InvitationId: "missing",
+	})
+	if !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("RevokeInvitation() error = %v", err)
 	}
 }

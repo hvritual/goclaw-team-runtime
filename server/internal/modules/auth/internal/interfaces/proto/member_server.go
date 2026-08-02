@@ -84,6 +84,22 @@ func (s *MemberServer) LeaveWorkspace(ctx context.Context, request *authv1.Leave
 	return response, nil
 }
 
+func (s *MemberServer) RevokeInvitation(ctx context.Context, request *authv1.RevokeInvitationRequest) (*authv1.RevokeInvitationResponse, error) {
+	var input contract.Member_RevokeInvitationRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.RevokeInvitation(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.RevokeInvitationResponse{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

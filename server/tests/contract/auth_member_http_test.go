@@ -61,6 +61,7 @@ func TestAuthMemberHTTPMutationsReturnNoContent(t *testing.T) {
 	}{
 		{method: http.MethodDelete, path: "/api/workspaces/workspace-1/members/member-1"},
 		{method: http.MethodPost, path: "/api/workspaces/workspace-1/leave"},
+		{method: http.MethodDelete, path: "/api/workspaces/workspace-1/invitations/invitation-1"},
 	}
 	for _, test := range tests {
 		t.Run(test.method+" "+test.path, func(t *testing.T) {
@@ -122,5 +123,15 @@ func TestAuthMemberGeneratedHTTPClientHandlesNoContent(t *testing.T) {
 	}
 	if service.leaveRequest.WorkspaceId != "workspace-1" {
 		t.Fatalf("unexpected leave request: %+v", service.leaveRequest)
+	}
+
+	if _, err := client.RevokeInvitation(t.Context(), &authv1.RevokeInvitationRequest{
+		WorkspaceId:  "workspace-1",
+		InvitationId: "invitation-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if service.revokeRequest.WorkspaceId != "workspace-1" || service.revokeRequest.InvitationId != "invitation-1" {
+		t.Fatalf("unexpected revoke request: %+v", service.revokeRequest)
 	}
 }

@@ -68,6 +68,19 @@ service MemberService {
       audit: true
     };
   }
+
+  // RevokeInvitation withdraws one pending invitation from a workspace.
+  rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse) {
+    option (google.api.http) = {delete: "/api/workspaces/{workspace_id}/invitations/{invitation_id}"};
+    option (annotations.v1.http_success_status) = 204;
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.revoke"
+      permission_name: "Revoke invitation"
+      resource: "auth.invitation"
+      action: "revoke"
+      audit: true
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -119,3 +132,10 @@ message LeaveWorkspaceRequest {
 }
 
 message LeaveWorkspaceResponse {}
+
+message RevokeInvitationRequest {
+  string workspace_id = 1;
+  string invitation_id = 2;
+}
+
+message RevokeInvitationResponse {}

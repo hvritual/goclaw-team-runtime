@@ -38,7 +38,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change, A2 delete/leave, and A3 list switched | PostgreSQL parity, create/invitations |
+| Auth / Member | A1 role change, A2 delete/leave, A3 list, and A4 revoke switched | PostgreSQL parity, create/list/get/accept/decline invitations |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -82,6 +82,16 @@ This checkpoint completes only the SQLite A2 tracer slice. Auth invitations/crea
 - Added application, real SQLite, raw/generated HTTP, gRPC, SQLite-local, and frontend response-schema coverage.
 
 This checkpoint completes only the SQLite A3 tracer slice. Auth invitations/create and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Auth A4 SQLite
+
+- Added the native `MemberService.RevokeInvitation` Proto/HTTP/access contract with generated 204/no-body behavior.
+- Introduced a reusable invitation transaction/repository seam alongside membership authorization in the Auth application layer.
+- Added pending-only, workspace-scoped SQLite revocation with stable not-found mapping.
+- Replaced the SQLite-local invitation-revoke SQL branch with the Auth contract and removed its duplicate role-policy branch.
+- Added application ordering/policy tests, real SQLite isolation tests, transport mapping, raw/generated HTTP, gRPC, and existing invitation-lifecycle regression coverage.
+
+This checkpoint completes only invitation revocation. Invitation creation, listing, lookup, acceptance, decline, expiry and the remaining migration matrix are still pending.
 
 ## Required Gates
 

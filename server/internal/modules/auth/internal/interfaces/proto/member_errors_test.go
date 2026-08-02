@@ -34,6 +34,10 @@ func (s *fakeMemberService) LeaveWorkspace(context.Context, contract.Member_Leav
 	return contract.Member_LeaveWorkspaceResponse{}, s.err
 }
 
+func (s *fakeMemberService) RevokeInvitation(context.Context, contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
+	return contract.Member_RevokeInvitationResponse{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -44,6 +48,7 @@ func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 		{name: "invalid role", err: contract.ErrInvalidMemberRole, code: http.StatusBadRequest},
 		{name: "hidden workspace", err: contract.ErrWorkspaceMembershipHidden, code: http.StatusNotFound},
 		{name: "member missing", err: contract.ErrMemberNotFound, code: http.StatusNotFound},
+		{name: "invitation missing", err: contract.ErrInvitationNotFound, code: http.StatusNotFound},
 		{name: "insufficient role", err: contract.ErrInsufficientWorkspaceRole, code: http.StatusForbidden},
 		{name: "owner role", err: contract.ErrOwnerRoleRequiresOwner, code: http.StatusForbidden},
 		{name: "owner removal", err: contract.ErrOwnerRemovalRequiresOwner, code: http.StatusForbidden},

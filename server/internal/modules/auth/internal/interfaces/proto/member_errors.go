@@ -51,6 +51,14 @@ func (s *memberTransportService) LeaveWorkspace(ctx context.Context, request con
 	return result, nil
 }
 
+func (s *memberTransportService) RevokeInvitation(ctx context.Context, request contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
+	result, err := s.next.RevokeInvitation(ctx, request)
+	if err != nil {
+		return contract.Member_RevokeInvitationResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func memberTransportError(err error) error {
 	switch {
 	case errors.Is(err, contract.ErrMemberActorRequired):
@@ -61,6 +69,8 @@ func memberTransportError(err error) error {
 		return kratoserrors.New(http.StatusNotFound, "WORKSPACE_NOT_FOUND", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrMemberNotFound):
 		return kratoserrors.New(http.StatusNotFound, "MEMBER_NOT_FOUND", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationNotFound):
+		return kratoserrors.New(http.StatusNotFound, "INVITATION_NOT_FOUND", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInsufficientWorkspaceRole):
 		return kratoserrors.New(http.StatusForbidden, "INSUFFICIENT_WORKSPACE_ROLE", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):

@@ -162,6 +162,74 @@ func TestSqliteMemberRemovalAndLeavePersistence(t *testing.T) {
 	}
 }
 
+func TestSqliteInvitationRevocationIsWorkspaceScopedAndPendingOnly(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-invitation-revoke?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at)
+		VALUES ('owner-user', 'Owner', 'owner@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z');
+		INSERT INTO members(id, workspace_id, user_id, role, created_at) VALUES
+			('owner-member', 'workspace', 'owner-user', 'owner', '2026-08-02T00:00:00Z'),
+			('other-owner-member', 'other-workspace', 'owner-user', 'owner', '2026-08-02T00:00:00Z');
+		INSERT INTO invitations(
+			id, workspace_id, inviter_id, invitee_email, role, status, created_at, updated_at, expires_at
+		) VALUES (
+			'invitation', 'workspace', 'owner-user', 'invitee@example.test', 'member', 'pending',
+			'2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z', '2026-08-09T00:00:00Z'
+		);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := module.MemberLocal()
+	actorCtx := contract.WithMemberActor(ctx, "owner-user")
+
+	_, err = service.RevokeInvitation(actorCtx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "other-workspace", InvitationId: "invitation",
+	})
+	if !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("cross-workspace RevokeInvitation() error = %v", err)
+	}
+	var status string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM invitations WHERE id = 'invitation'`).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "pending" {
+		t.Fatalf("cross-workspace revoke changed status to %q", status)
+	}
+
+	_, err = service.RevokeInvitation(actorCtx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "workspace", InvitationId: "invitation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT status FROM invitations WHERE id = 'invitation'`).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "revoked" {
+		t.Fatalf("invitation status = %q, want revoked", status)
+	}
+	_, err = service.RevokeInvitation(actorCtx, contract.Member_RevokeInvitationRequest{
+		WorkspaceId: "workspace", InvitationId: "invitation",
+	})
+	if !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("second RevokeInvitation() error = %v", err)
+	}
+}
+
 func TestSqliteMemberRoleTransactionRollsBack(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member-rollback?mode=memory&cache=shared")
 	if err != nil {
