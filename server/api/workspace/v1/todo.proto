@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
+
+// TodoService owns lightweight workspace todos that may reference a Project
+// or Issue. A Todo never represents an Agent execution or release operation.
+service TodoService {}

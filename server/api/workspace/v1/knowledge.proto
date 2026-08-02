@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
+
+// KnowledgeService owns governed workspace knowledge from evidence through
+// review and publication. Asset bytes remain owned by space.v1.AssetService.
+service KnowledgeService {}

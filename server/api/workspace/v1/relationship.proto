@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
+
+// RelationshipService is the source of truth for Project-to-Member and
+// Project-to-Agent relations. Member and Agent identities remain owned by
+// auth.v1; other aggregate relationships remain with their owning services.
+service RelationshipService {}
+
+enum ProjectActorType {
+  PROJECT_ACTOR_TYPE_UNSPECIFIED = 0;
+  PROJECT_ACTOR_TYPE_MEMBER = 1;
+  PROJECT_ACTOR_TYPE_AGENT = 2;
+}
+
+enum ProjectActorRole {
+  PROJECT_ACTOR_ROLE_UNSPECIFIED = 0;
+  PROJECT_ACTOR_ROLE_LEAD = 1;
+  PROJECT_ACTOR_ROLE_MEMBER = 2;
+  PROJECT_ACTOR_ROLE_AGENT = 3;
+}
+
+// ProjectActorRelation is a workspace-scoped relation. Implementations must
+// verify that the Project and Actor belong to the same Workspace.
+message ProjectActorRelation {
+  string workspace_id = 1;
+  string project_id = 2;
+  ProjectActorType actor_type = 3;
+  string actor_id = 4;
+  ProjectActorRole role = 5;
+}

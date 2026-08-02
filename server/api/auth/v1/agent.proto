@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
+
+// AgentService owns Agent identity, team membership, and authorization. Agent
+// releases, versions, upgrade policy, and execution lifecycle are not owned by
+// Auth.
+service AgentService {}
+
+// Agent identifies an intelligent team participant inside one Workspace.
+message Agent {
+  string id = 1;
+  string workspace_id = 2;
+  string name = 3;
+}

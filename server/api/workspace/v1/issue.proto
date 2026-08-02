@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
+
+// IssueService defines the application contract for workspace Issues.
+service IssueService {
+  // UpdateIssueStatus changes one Issue's workflow status.
+  //
+  // Existing HTTP contract: PUT /api/issues/{id}
+  // Access boundary: authenticated workspace member with issue.update access.
+  // Side effect: publish issue:updated with status_changed and prev_status.
+  rpc UpdateIssueStatus(UpdateIssueStatusRequest) returns (Issue);
+}
+
+message UpdateIssueStatusRequest {
+  // id accepts either the Issue UUID or its workspace-scoped identifier.
+  string id = 1;
+
+  // status must be one of: backlog, todo, in_progress, in_review, done,
+  // blocked, or cancelled. This remains a string to preserve the existing
+  // HTTP JSON representation.
+  string status = 2;
+}
+
+// Issue mirrors the response currently returned after an Issue update.
+message Issue {
+  string id = 1;
+  string workspace_id = 2;
+  int32 number = 3;
+  string identifier = 4;
+  string title = 5;
+  google.protobuf.StringValue description = 6;
+  string status = 7;
+  string priority = 8;
+  google.protobuf.StringValue assignee_type = 9;
+  google.protobuf.StringValue assignee_id = 10;
+  string creator_type = 11;
+  string creator_id = 12;
+  google.protobuf.StringValue parent_issue_id = 13;
+  google.protobuf.StringValue project_id = 14;
+  double position = 15;
+  google.protobuf.Int32Value stage = 16;
+  google.protobuf.StringValue start_date = 17;
+  google.protobuf.StringValue due_date = 18;
+  string created_at = 19;
+  string updated_at = 20;
+  google.protobuf.Struct metadata = 21;
+  google.protobuf.Struct properties = 22;
+}

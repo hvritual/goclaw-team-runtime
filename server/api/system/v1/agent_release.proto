@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package system.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/system/v1;systemv1";
+
+// AgentReleaseService owns Agent versions, release publication, compatible
+// artifacts, and upgrade policy. Agent identity and team membership remain in
+// auth.v1.AgentService.
+service AgentReleaseService {}
+
+// AgentRelease is an immutable published software version for Agents.
+message AgentRelease {
+  string id = 1;
+  string version = 2;
+  repeated AgentReleaseArtifact artifacts = 3;
+}
+
+// AgentReleaseArtifact references a verified release artifact. The Asset
+// content lifecycle may be implemented by space.v1.AssetService.
+message AgentReleaseArtifact {
+  string platform = 1;
+  string architecture = 2;
+  string asset_id = 3;
+  string checksum = 4;
+}

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package space.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/space/v1;spacev1";
+
+// AssetService owns workspace-isolated asset upload, storage, validation,
+// versioning, metadata, and access lifecycle. Consumer contexts retain the
+// business meaning of their Asset references.
+service AssetService {}
+
+// Asset is the stable identity referenced by other modules.
+message Asset {
+  string id = 1;
+  string workspace_id = 2;
+  string current_version_id = 3;
+  string filename = 4;
+}
+
+// AssetVersion is an immutable content revision of an Asset.
+message AssetVersion {
+  string id = 1;
+  string asset_id = 2;
+  string media_type = 3;
+  int64 size_bytes = 4;
+  string checksum = 5;
+}

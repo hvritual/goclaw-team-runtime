@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
+
+// MemberService owns Workspace Membership, invitations, Workspace Roles, and
+// the invariant that every Workspace retains at least one Owner.
+service MemberService {}
+
+enum WorkspaceRole {
+  WORKSPACE_ROLE_UNSPECIFIED = 0;
+  WORKSPACE_ROLE_OWNER = 1;
+  WORKSPACE_ROLE_ADMIN = 2;
+  WORKSPACE_ROLE_MEMBER = 3;
+}
+
+// Member identifies a human participant inside one Workspace.
+message Member {
+  string id = 1;
+  string workspace_id = 2;
+  string user_id = 3;
+  WorkspaceRole role = 4;
+}

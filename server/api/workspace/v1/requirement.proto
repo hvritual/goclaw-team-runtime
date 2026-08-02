@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
+
+// RequirementService owns versioned Project requirements, approval state,
+// coverage, and Requirement-to-Issue traceability.
+service RequirementService {}

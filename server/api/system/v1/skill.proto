@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package system.v1;
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/system/v1;systemv1";
+
+// SkillService owns global Skill definitions, immutable versions, and
+// publication. Workspace enablement, configuration, and Agent binding
+// references remain in the Workspace module.
+service SkillService {}
+
+// SkillDefinition is the stable system identity of a Skill.
+message SkillDefinition {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+// SkillVersion is an immutable publication candidate for one Skill.
+message SkillVersion {
+  string id = 1;
+  string skill_id = 2;
+  string version = 3;
+  repeated string asset_ids = 4;
+}
