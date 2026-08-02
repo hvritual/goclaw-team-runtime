@@ -14,7 +14,7 @@ execution: incremental
 ## Goal Capsule
 
 - **Objective:** 将后端长期能力划分为 `workspace`、`auth`、`space`、`system` 四个模块，并为每个模块建立清晰的 Proto 服务、数据所有权、依赖方向和渐进迁移顺序。
-- **Current authorized action:** 维护架构/执行文档并只落地 `.proto` 源文件；不生成 Go、gRPC、OpenAPI 或权限清单代码，不迁移业务实现。
+- **Current authorized action:** Proto 基础阶段已经完成；后续授权仅扩展到 Space 的 S1a 文件上传入口迁移，包括 Go 分层实现、现有 Chi/sqlc/storage 适配和测试。S1 的可重试清理/finalization 以及其他模块和 Space S2–S4 仍保持计划状态。
 - **Business invariant:** 工作区始终是租户和授权边界；任何工作区级数据访问都必须以 `workspace_id` 和成员资格为边界。
 - **Compatibility invariant:** 保留现有 Chi 路由、JSON 形状、错误状态、WebSocket 事件、PostgreSQL/sqlc 行为和 SQLite-local 行为，除非后续执行文档获得单独授权。
 - **Migration strategy:** 一个可验证用例一个 tracer slice；不做四模块大爆炸迁移，不保留永久转发包、双写或平行业务模型。
@@ -129,12 +129,13 @@ Execution may interleave independent tracer slices, but no slice may bypass its 
 - This master plan and all execution documents.
 - `.proto` service skeletons and the existing Issue status contract relocation.
 - Standard `protoc` syntax validation and diff review.
+- Space S1a 文件上传的 `domain → application ← dependency` 分层、Chi 接口适配和 composition-root 接线。
 
 ### Explicitly deferred
 
 - `dddgen`, Buf and generated-code bootstrap.
 - `*.pb.go`, `*_grpc.pb.go`, OpenAPI, validation and access manifests.
-- Go module packages, domain/application code, adapters and composition changes.
+- Workspace、Auth、System 以及 Space S2–S4 的 Go 模块迁移。
 - Database schema or data migration.
 - Route, response, event, authorization or SQLite-local behavior changes.
 - Real Agent execution, release, deployment or upgrade operations.

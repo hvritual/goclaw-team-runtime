@@ -273,12 +273,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.26.1"
           cache-dependency-path: server/go.sum
+
+      - name: Lint Space DDD module
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: server
+          args: ./modules/space/...
+
+      - name: Lint changed Go architecture
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: server
+          args: --new-from-rev=HEAD^ ./...
+
+      - name: Lint Space composition
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: server
+          args: --disable=unused ./cmd/server/space.go
 
       - name: Setup Helm
         uses: azure/setup-helm@v4

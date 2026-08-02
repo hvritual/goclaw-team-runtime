@@ -386,6 +386,13 @@ test: ## Run Go tests after ensuring the target DB exists and migrations are app
 	cd server && go run ./cmd/migrate up
 	bash scripts/test-go.sh --race
 
+DDD_BASE_REV ?= HEAD^
+
+lint-ddd: ## Run pinned DDD architecture lint plus changed-code coverage
+	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run ./modules/space/...
+	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --disable=unused ./cmd/server/space.go
+	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --new-from-rev=$(DDD_BASE_REV) ./...
+
 # Database
 ##@ Database
 

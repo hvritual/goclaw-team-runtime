@@ -14,24 +14,10 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/storage"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
-
-// extContentTypes overrides http.DetectContentType for extensions it gets wrong.
-// Go's sniffer returns text/xml for SVG, text/plain for CSS/JS, etc.
-var extContentTypes = map[string]string{
-	".svg":  "image/svg+xml",
-	".css":  "text/css",
-	".js":   "application/javascript",
-	".mjs":  "application/javascript",
-	".json": "application/json",
-	".wasm": "application/wasm",
-}
-
-const maxUploadSize = 100 << 20 // 100 MB
 
 const defaultAttachmentDownloadURLTTL = 30 * time.Minute
 
@@ -335,151 +321,6 @@ func (h *Handler) groupAttachments(r *http.Request, commentIDs []pgtype.UUID) ma
 		grouped[cid] = append(grouped[cid], h.attachmentToResponse(a, mode))
 	}
 	return grouped
-}
-
-// ---------------------------------------------------------------------------
-// UploadFile — POST /api/upload-file
-// ---------------------------------------------------------------------------
-
-func (h *Handler) UploadFile(w http.ResponseWriter, r *http.Request) {
-	if h.Storage == nil {
-		writeError(w, http.StatusServiceUnavailable, "file upload not configured")
-		return
-	}
-
-	userID, ok := requireUserID(w, r)
-	if !ok {
-		return
-	}
-
-	workspaceID := h.resolveWorkspaceID(r)
-
-	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-
-	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		writeError(w, http.StatusBadRequest, "file too large or invalid multipart form")
-		return
-	}
-	defer r.MultipartForm.RemoveAll()
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		writeError(w, http.StatusBadRequest, fmt.Sprintf("missing file field: %v", err))
-		return
-	}
-	defer file.Close()
-
-	// Sniff actual content type from file bytes instead of trusting the client header.
-	buf := make([]byte, 512)
-	n, err := file.Read(buf)
-	if err != nil && err != io.EOF {
-		writeError(w, http.StatusBadRequest, "failed to read file")
-		return
-	}
-	contentType := http.DetectContentType(buf[:n])
-	// Override with extension-based type when the sniffer gets it wrong.
-	if ct, ok := extContentTypes[strings.ToLower(path.Ext(header.Filename))]; ok {
-		contentType = ct
-	}
-	// Seek back so the full file is uploaded.
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to read file")
-		return
-	}
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "failed to read file")
-		return
-	}
-
-	// Generate a UUIDv7 to use as both the attachment ID and S3 key.
-	id, err := uuid.NewV7()
-	if err != nil {
-		slog.Error("failed to generate uuid", "error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	filename := id.String() + path.Ext(header.Filename)
-	var key string
-	if workspaceID != "" {
-		key = "workspaces/" + workspaceID + "/" + filename
-	} else {
-		key = "users/" + userID + "/" + filename
-	}
-
-	// If workspace context is available, validate membership before uploading.
-	if workspaceID != "" {
-		if _, err := h.getWorkspaceMember(r.Context(), userID, workspaceID); err != nil {
-			writeError(w, http.StatusForbidden, "not a member of this workspace")
-			return
-		}
-
-		uploaderType, uploaderID := h.resolveActor(r, userID, workspaceID)
-
-		params := db.CreateAttachmentParams{
-			ID:           pgtype.UUID{Bytes: id, Valid: true},
-			WorkspaceID:  parseUUID(workspaceID),
-			UploaderType: uploaderType,
-			UploaderID:   parseUUID(uploaderID),
-			Filename:     header.Filename,
-			ContentType:  contentType,
-			SizeBytes:    int64(len(data)),
-		}
-
-		if issueID := r.FormValue("issue_id"); issueID != "" {
-			issueUUID, ok := parseUUIDOrBadRequest(w, issueID, "issue_id")
-			if !ok {
-				return
-			}
-			issue, err := h.Queries.GetIssueInWorkspace(r.Context(), db.GetIssueInWorkspaceParams{
-				ID:          issueUUID,
-				WorkspaceID: parseUUID(workspaceID),
-			})
-			if err != nil {
-				writeError(w, http.StatusForbidden, "invalid issue_id")
-				return
-			}
-			params.IssueID = issue.ID
-		}
-		link, err := h.Storage.Upload(r.Context(), key, data, contentType, header.Filename)
-		if err != nil {
-			slog.Error("file upload failed", "error", err)
-			writeError(w, http.StatusInternalServerError, "upload failed")
-			return
-		}
-		params.Url = link
-
-		att, err := h.Queries.CreateAttachment(r.Context(), params)
-		if err != nil {
-			slog.Error("failed to create attachment record", "error", err)
-			// S3 upload succeeded but DB record failed — still return the link
-			// so the file is usable. Log the error for investigation.
-		} else {
-			writeJSON(w, http.StatusOK, h.attachmentToResponse(att, attachmentURLModeFromRequest(r)))
-			return
-		}
-
-		writeJSON(w, http.StatusOK, map[string]string{
-			"id":       "",
-			"url":      link,
-			"filename": header.Filename,
-		})
-		return
-	}
-
-	// No workspace context (e.g. avatar upload) — upload directly.
-	link, err := h.Storage.Upload(r.Context(), key, data, contentType, header.Filename)
-	if err != nil {
-		slog.Error("file upload failed", "error", err)
-		writeError(w, http.StatusInternalServerError, "upload failed")
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{
-		"id":       id.String(),
-		"url":      link,
-		"filename": header.Filename,
-	})
 }
 
 // ---------------------------------------------------------------------------

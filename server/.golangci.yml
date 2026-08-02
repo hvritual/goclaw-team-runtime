@@ -1,0 +1,143 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  relative-path-mode: gomod
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - containedctx
+    - contextcheck
+    - depguard
+    - errcheck
+    - errorlint
+    - exhaustive
+    - funlen
+    - gocognit
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - interfacebloat
+    - nilerr
+    - noctx
+    - nolintlint
+    - revive
+    - staticcheck
+    - unused
+  settings:
+    gocognit:
+      min-complexity: 20
+    funlen:
+      lines: 100
+      statements: 50
+      ignore-comments: true
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+    revive:
+      enable-default-rules: true
+      severity: warning
+      rules:
+        - name: context-as-argument
+        - name: import-shadowing
+        - name: unhandled-error
+        - name: unused-parameter
+        - name: unused-receiver
+    depguard:
+      rules:
+        shared-kernel:
+          list-mode: strict
+          files:
+            - "**/modules/shared/kernel/*.go"
+            - "**/modules/shared/kernel/**/*.go"
+          allow:
+            - $gostd
+        space-domain:
+          list-mode: strict
+          files:
+            - "**/modules/space/domain/*.go"
+            - "**/modules/space/domain/**/*.go"
+          allow:
+            - $gostd
+            - "github.com/multica-ai/multica/server/modules/space/domain"
+            - "github.com/multica-ai/multica/server/modules/shared/kernel"
+        space-application:
+          list-mode: lax
+          files:
+            - "**/modules/space/application/*.go"
+            - "**/modules/space/application/**/*.go"
+          deny:
+            - pkg: "github.com/multica-ai/multica/server/modules/space/dependency"
+              desc: "application must depend on ports, not dependency implementations"
+            - pkg: "github.com/multica-ai/multica/server/modules/space/interfaces"
+              desc: "application must not depend on transport adapters"
+            - pkg: "github.com/multica-ai/multica/server/modules/platform"
+              desc: "application must use an inward-facing platform port"
+        space-dependency:
+          list-mode: lax
+          files:
+            - "**/modules/space/dependency/*.go"
+            - "**/modules/space/dependency/**/*.go"
+          deny:
+            - pkg: "github.com/multica-ai/multica/server/modules/space/interfaces"
+              desc: "dependency adapters must not depend on transport adapters"
+        space-interfaces:
+          list-mode: lax
+          files:
+            - "**/modules/space/interfaces/*.go"
+            - "**/modules/space/interfaces/**/*.go"
+          deny:
+            - pkg: "github.com/multica-ai/multica/server/modules/space/dependency"
+              desc: "interfaces must call application ports, not concrete dependencies"
+            - pkg: "github.com/multica-ai/multica/server/modules/platform"
+              desc: "interfaces must not bind process infrastructure directly"
+        issue-workflow:
+          list-mode: lax
+          files:
+            - "**/internal/issueguard/*.go"
+          deny:
+            - pkg: "github.com/multica-ai/multica/server/modules/space"
+              desc: "Issue must consume its own port; map Space contracts in composition"
+        issue-space-acl:
+          list-mode: strict
+          files:
+            - "**/internal/issueguard/adapter/spaceacl/*.go"
+            - "**/internal/issueguard/adapter/spaceacl/**/*.go"
+          allow:
+            - $gostd
+            - "github.com/multica-ai/multica/server/internal/issueguard"
+            - "github.com/multica-ai/multica/server/modules/space/application"
+            - "github.com/multica-ai/multica/server/modules/space/domain"
+        upload-http-integration:
+          list-mode: strict
+          files:
+            - "**/internal/integration/uploadhttp/*.go"
+            - "**/internal/integration/uploadhttp/**/*.go"
+          allow:
+            - $gostd
+            - "github.com/multica-ai/multica/server/internal/issueguard"
+            - "github.com/multica-ai/multica/server/modules/space/application"
+            - "github.com/multica-ai/multica/server/modules/space/domain"
+            - "github.com/multica-ai/multica/server/modules/space/interfaces/http"
+        platform:
+          list-mode: lax
+          files:
+            - "**/modules/platform/*.go"
+            - "**/modules/platform/**/*.go"
+          deny:
+            - pkg: "github.com/multica-ai/multica/server/modules/space"
+              desc: "platform code must remain business-agnostic"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

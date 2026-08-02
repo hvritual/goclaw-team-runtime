@@ -108,6 +108,7 @@ func NewRouter(
 		analyticsClient,
 		config,
 	)
+	spaceUploadHandler := newSpaceUploadHandler(queries, store, cfSigner, config)
 	patCache := auth.NewPATCache(rdb)
 	h.PATCache = patCache
 	h.MembershipCache = auth.NewMembershipCache(rdb)
@@ -195,7 +196,7 @@ func NewRouter(
 		r.Get("/api/me", h.GetMe)
 		r.Patch("/api/me", h.UpdateMe)
 		r.Post("/api/cli-token", h.IssueCliToken)
-		r.Post("/api/upload-file", h.UploadFile)
+		r.Post("/api/upload-file", spaceUploadHandler.ServeHTTP)
 		r.Get("/api/attachments/{id}/download", h.DownloadAttachment)
 
 		r.Route("/api/workspaces", func(r chi.Router) {
