@@ -4,9 +4,50 @@
     {
       "name": "UpdateMemberRole",
       "simple_string": false
+    },
+    {
+      "name": "DeleteMember",
+      "simple_string": false
+    },
+    {
+      "name": "LeaveWorkspace",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
+    {
+      "name": "Member_DeleteMemberRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "MemberId",
+          "type": "string",
+          "json_tag": "memberId"
+        }
+      ]
+    },
+    {
+      "name": "Member_DeleteMemberResponse",
+      "fields": null
+    },
+    {
+      "name": "Member_LeaveWorkspaceRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        }
+      ]
+    },
+    {
+      "name": "Member_LeaveWorkspaceResponse",
+      "fields": null
+    },
     {
       "name": "Member_Member",
       "fields": [

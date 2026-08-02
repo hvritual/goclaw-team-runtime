@@ -52,6 +52,8 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 - Preserve self-event guards, navigation races and dependent cleanup behavior.
 - Keep cleanup application-owned; add no cascade action.
 
+**SQLite tracer completed 2026-08-02:** `DeleteMember` and `LeaveWorkspace` now share the Auth membership transaction port and last-Owner domain policy. The SQLite-local DELETE/leave handlers delegate to Auth, preserve 204 success and existing 403/404/last-Owner errors, and no longer contain a second membership-removal business branch. PostgreSQL and the final Kratos runtime cutover remain pending.
+
 ### A3. Invitation lifecycle
 
 - Move create, accept, revoke and expiry behavior behind Auth application contracts.
@@ -87,6 +89,15 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 - dddgen regeneration preserves the user-owned application method and regenerates the Kratos HTTP/OpenAPI/access boundaries.
 - Frontend `updateMember` validates the runtime response schema before returning it to React Query consumers.
 - Full frontend typecheck and the serial test gate pass across Core, Views, Desktop, Web, and Docs.
+
+## A2 SQLite Evidence
+
+- Domain tests cover member/admin removal permissions, Owner-only Owner removal, and last-Owner departure protection.
+- Application tests cover successful removal/leave and policy rejection before deletion.
+- Real SQLite tests cover committed deletion/leave and deletion rollback inside the module transaction.
+- SQLite-local HTTP tests cover member removal, voluntary leave, Owner-removal authorization, and sole-Owner leave rejection.
+- Bufconn contract tests prove Delete/Leave request fields cross the generated gRPC client/server boundary.
+- Proto-declared `http_success_status = 204` is applied deterministically to generated Kratos handlers, HTTP clients, and OpenAPI; raw HTTP and generated-client round trips both prove the no-body contract.
 
 ## Stop Conditions
 

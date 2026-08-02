@@ -36,6 +36,38 @@ func (s *MemberServer) UpdateMemberRole(ctx context.Context, request *authv1.Upd
 	return response, nil
 }
 
+func (s *MemberServer) DeleteMember(ctx context.Context, request *authv1.DeleteMemberRequest) (*authv1.DeleteMemberResponse, error) {
+	var input contract.Member_DeleteMemberRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.DeleteMember(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.DeleteMemberResponse{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *MemberServer) LeaveWorkspace(ctx context.Context, request *authv1.LeaveWorkspaceRequest) (*authv1.LeaveWorkspaceResponse, error) {
+	var input contract.Member_LeaveWorkspaceRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.LeaveWorkspace(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.LeaveWorkspaceResponse{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

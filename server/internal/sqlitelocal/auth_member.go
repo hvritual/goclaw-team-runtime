@@ -7,7 +7,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 )
 
-func writeMemberRoleError(w http.ResponseWriter, err error) {
+func writeMemberError(w http.ResponseWriter, err error, fallback string) {
 	switch {
 	case errors.Is(err, contract.ErrInvalidMemberRole):
 		writeError(w, http.StatusBadRequest, "role must be owner, admin, or member")
@@ -19,10 +19,12 @@ func writeMemberRoleError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusForbidden, "insufficient workspace role")
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):
 		writeError(w, http.StatusForbidden, "only owners can manage the owner role")
+	case errors.Is(err, contract.ErrOwnerRemovalRequiresOwner):
+		writeError(w, http.StatusForbidden, "only owners can remove another owner")
 	case errors.Is(err, contract.ErrLastWorkspaceOwner):
 		writeError(w, http.StatusBadRequest, "workspace must have at least one owner")
 	default:
-		writeError(w, http.StatusInternalServerError, "failed to update member")
+		writeError(w, http.StatusInternalServerError, fallback)
 	}
 }
 

@@ -239,6 +239,174 @@ func (x *UpdateMemberRoleRequest) GetRole() string {
 	return ""
 }
 
+type DeleteMemberRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	MemberId      string                 `protobuf:"bytes,2,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMemberRequest) Reset() {
+	*x = DeleteMemberRequest{}
+	mi := &file_auth_v1_member_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMemberRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMemberRequest) ProtoMessage() {}
+
+func (x *DeleteMemberRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMemberRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMemberRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeleteMemberRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *DeleteMemberRequest) GetMemberId() string {
+	if x != nil {
+		return x.MemberId
+	}
+	return ""
+}
+
+type DeleteMemberResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMemberResponse) Reset() {
+	*x = DeleteMemberResponse{}
+	mi := &file_auth_v1_member_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMemberResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMemberResponse) ProtoMessage() {}
+
+func (x *DeleteMemberResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMemberResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMemberResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{3}
+}
+
+type LeaveWorkspaceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveWorkspaceRequest) Reset() {
+	*x = LeaveWorkspaceRequest{}
+	mi := &file_auth_v1_member_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveWorkspaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveWorkspaceRequest) ProtoMessage() {}
+
+func (x *LeaveWorkspaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveWorkspaceRequest.ProtoReflect.Descriptor instead.
+func (*LeaveWorkspaceRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *LeaveWorkspaceRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type LeaveWorkspaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LeaveWorkspaceResponse) Reset() {
+	*x = LeaveWorkspaceResponse{}
+	mi := &file_auth_v1_member_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LeaveWorkspaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LeaveWorkspaceResponse) ProtoMessage() {}
+
+func (x *LeaveWorkspaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LeaveWorkspaceResponse.ProtoReflect.Descriptor instead.
+func (*LeaveWorkspaceResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{5}
+}
+
 var File_auth_v1_member_proto protoreflect.FileDescriptor
 
 const file_auth_v1_member_proto_rawDesc = "" +
@@ -258,15 +426,26 @@ const file_auth_v1_member_proto_rawDesc = "" +
 	"\x17UpdateMemberRoleRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
 	"\tmember_id\x18\x02 \x01(\tR\bmemberId\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role*~\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"U\n" +
+	"\x13DeleteMemberRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
+	"\tmember_id\x18\x02 \x01(\tR\bmemberId\"\x16\n" +
+	"\x14DeleteMemberResponse\":\n" +
+	"\x15LeaveWorkspaceRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"\x18\n" +
+	"\x16LeaveWorkspaceResponse*~\n" +
 	"\rWorkspaceRole\x12\x1e\n" +
 	"\x1aWORKSPACE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_OWNER\x10\x01\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_ADMIN\x10\x02\x12\x19\n" +
-	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\xfa\x01\n" +
+	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\x8c\x05\n" +
 	"\rMemberService\x12\xd2\x01\n" +
 	"\x10UpdateMemberRole\x12 .auth.v1.UpdateMemberRoleRequest\x1a\x0f.auth.v1.Member\"\x8a\x01\xd2\xf3\x18I\n" +
-	"\x17auth.member.change_role\x12\x12Change member role\x1a\vauth.member\"\vchange_role@\x01\x82\xd3\xe4\x93\x027:\x01*22/api/workspaces/{workspace_id}/members/{member_id}\x1a\x14\xca\xf3\x18\x10\n" +
+	"\x17auth.member.change_role\x12\x12Change member role\x1a\vauth.member\"\vchange_role@\x01\x82\xd3\xe4\x93\x027:\x01*22/api/workspaces/{workspace_id}/members/{member_id}\x12\xca\x01\n" +
+	"\fDeleteMember\x12\x1c.auth.v1.DeleteMemberRequest\x1a\x1d.auth.v1.DeleteMemberResponse\"}\xd2\xf3\x18:\n" +
+	"\x12auth.member.remove\x12\rRemove member\x1a\vauth.member\"\x06remove@\x01\xd8\xf3\x18\xcc\x01\x82\xd3\xe4\x93\x024*2/api/workspaces/{workspace_id}/members/{member_id}\x12\xc2\x01\n" +
+	"\x0eLeaveWorkspace\x12\x1e.auth.v1.LeaveWorkspaceRequest\x1a\x1f.auth.v1.LeaveWorkspaceResponse\"o\xd2\xf3\x18:\n" +
+	"\x11auth.member.leave\x12\x0fLeave workspace\x1a\vauth.member\"\x05leave@\x01\xd8\xf3\x18\xcc\x01\x82\xd3\xe4\x93\x02&\"$/api/workspaces/{workspace_id}/leave\x1a\x14\xca\xf3\x18\x10\n" +
 	"\x04auth\x12\x04Auth\x1a\x02v1B<Z:github.com/multica-ai/multica/server/gen/go/auth/v1;authv1b\x06proto3"
 
 var (
@@ -282,19 +461,27 @@ func file_auth_v1_member_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_member_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_auth_v1_member_proto_goTypes = []any{
 	(WorkspaceRole)(0),              // 0: auth.v1.WorkspaceRole
 	(*Member)(nil),                  // 1: auth.v1.Member
 	(*UpdateMemberRoleRequest)(nil), // 2: auth.v1.UpdateMemberRoleRequest
-	(*wrapperspb.StringValue)(nil),  // 3: google.protobuf.StringValue
+	(*DeleteMemberRequest)(nil),     // 3: auth.v1.DeleteMemberRequest
+	(*DeleteMemberResponse)(nil),    // 4: auth.v1.DeleteMemberResponse
+	(*LeaveWorkspaceRequest)(nil),   // 5: auth.v1.LeaveWorkspaceRequest
+	(*LeaveWorkspaceResponse)(nil),  // 6: auth.v1.LeaveWorkspaceResponse
+	(*wrapperspb.StringValue)(nil),  // 7: google.protobuf.StringValue
 }
 var file_auth_v1_member_proto_depIdxs = []int32{
-	3, // 0: auth.v1.Member.avatar_url:type_name -> google.protobuf.StringValue
+	7, // 0: auth.v1.Member.avatar_url:type_name -> google.protobuf.StringValue
 	2, // 1: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
-	1, // 2: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
+	3, // 2: auth.v1.MemberService.DeleteMember:input_type -> auth.v1.DeleteMemberRequest
+	5, // 3: auth.v1.MemberService.LeaveWorkspace:input_type -> auth.v1.LeaveWorkspaceRequest
+	1, // 4: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
+	4, // 5: auth.v1.MemberService.DeleteMember:output_type -> auth.v1.DeleteMemberResponse
+	6, // 6: auth.v1.MemberService.LeaveWorkspace:output_type -> auth.v1.LeaveWorkspaceResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -311,7 +498,7 @@ func file_auth_v1_member_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_member_proto_rawDesc), len(file_auth_v1_member_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

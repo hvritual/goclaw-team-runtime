@@ -24,6 +24,7 @@ type fakeMemberRepository struct {
 	target     member.Member
 	ownerCount int
 	updated    bool
+	deleted    bool
 }
 
 func (r *fakeMemberRepository) FindByUserAndWorkspace(context.Context, string, string) (member.Member, error) {
@@ -48,6 +49,16 @@ func (r *fakeMemberRepository) UpdateRole(_ context.Context, _, _ string, role m
 	r.updated = true
 	r.target.Role = role
 	return r.target, nil
+}
+
+func (r *fakeMemberRepository) DeleteByIDAndWorkspace(context.Context, string, string) error {
+	r.deleted = true
+	return nil
+}
+
+func (r *fakeMemberRepository) DeleteByUserAndWorkspace(context.Context, string, string) error {
+	r.deleted = true
+	return nil
 }
 
 func TestUpdateMemberRole(t *testing.T) {
@@ -144,5 +155,92 @@ func TestUpdateMemberRoleReportsMissingTargetMember(t *testing.T) {
 	})
 	if !errors.Is(err, contract.ErrMemberNotFound) {
 		t.Fatalf("UpdateMemberRole() error = %v", err)
+	}
+}
+
+func TestDeleteMemberRemovesMembership(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester: member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "admin-user", Role: member.RoleAdmin},
+		target:    member.Member{ID: "target", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember},
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "admin-user")
+
+	_, err := service.DeleteMember(ctx, contract.Member_DeleteMemberRequest{
+		WorkspaceId: "workspace",
+		MemberId:    "target",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repository.deleted {
+		t.Fatal("membership was not deleted")
+	}
+}
+
+func TestDeleteMemberRejectsAdminRemovingOwner(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester:  member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "admin-user", Role: member.RoleAdmin},
+		target:     member.Member{ID: "target", WorkspaceID: "workspace", UserID: "owner-user", Role: member.RoleOwner},
+		ownerCount: 2,
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "admin-user")
+
+	_, err := service.DeleteMember(ctx, contract.Member_DeleteMemberRequest{WorkspaceId: "workspace", MemberId: "target"})
+	if !errors.Is(err, contract.ErrOwnerRemovalRequiresOwner) {
+		t.Fatalf("DeleteMember() error = %v", err)
+	}
+	if repository.deleted {
+		t.Fatal("owner membership was deleted")
+	}
+}
+
+func TestDeleteMemberChecksManagerRoleBeforeTargetExistence(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester: member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember},
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "member-user")
+
+	_, err := service.DeleteMember(ctx, contract.Member_DeleteMemberRequest{
+		WorkspaceId: "workspace",
+		MemberId:    "missing-or-cross-workspace",
+	})
+	if !errors.Is(err, contract.ErrInsufficientWorkspaceRole) {
+		t.Fatalf("DeleteMember() error = %v", err)
+	}
+}
+
+func TestLeaveWorkspaceProtectsLastOwner(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester:  member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "owner-user", Role: member.RoleOwner},
+		ownerCount: 1,
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "owner-user")
+
+	_, err := service.LeaveWorkspace(ctx, contract.Member_LeaveWorkspaceRequest{WorkspaceId: "workspace"})
+	if !errors.Is(err, contract.ErrLastWorkspaceOwner) {
+		t.Fatalf("LeaveWorkspace() error = %v", err)
+	}
+	if repository.deleted {
+		t.Fatal("last owner membership was deleted")
+	}
+}
+
+func TestLeaveWorkspaceRemovesNonOwnerMembership(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester: member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember},
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "member-user")
+
+	_, err := service.LeaveWorkspace(ctx, contract.Member_LeaveWorkspaceRequest{WorkspaceId: "workspace"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repository.deleted {
+		t.Fatal("membership was not deleted")
 	}
 }

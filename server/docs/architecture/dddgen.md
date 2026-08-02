@@ -32,6 +32,20 @@ stages the separately distributed `dddgen` and `protoc-gen-access` binaries.
 The Kratos HTTP generator is pinned to v3; a v2 plugin produces incompatible
 transport imports and must not be used.
 
+`make generate` ends with the repository-owned `cmd/postprocess-generated`
+step. It reads Proto descriptors rather than duplicating route policy and
+normalizes two gaps in the pinned upstream generators:
+
+- RPCs annotated with `annotations.v1.http_success_status` emit the declared
+  2xx status in the Kratos server, OpenAPI response, and generated HTTP client.
+  A 204 client consumes the empty body without asking ProtoJSON to decode it.
+- Generated client path placeholders use Proto JSON field names so Kratos
+  `BuildPath` can bind snake_case Proto fields such as `workspace_id`.
+
+Treat this postprocessor as part of the native generation pipeline. Change its
+tests and contract coverage together with any new transport normalization; do
+not patch the generated files by hand.
+
 ## Runtime cutover
 
 The generated modules are compile- and contract-tested foundations. They are

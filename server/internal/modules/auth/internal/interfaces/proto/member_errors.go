@@ -27,6 +27,22 @@ func (s *memberTransportService) UpdateMemberRole(ctx context.Context, request c
 	return result, nil
 }
 
+func (s *memberTransportService) DeleteMember(ctx context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	result, err := s.next.DeleteMember(ctx, request)
+	if err != nil {
+		return contract.Member_DeleteMemberResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
+func (s *memberTransportService) LeaveWorkspace(ctx context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	result, err := s.next.LeaveWorkspace(ctx, request)
+	if err != nil {
+		return contract.Member_LeaveWorkspaceResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func memberTransportError(err error) error {
 	switch {
 	case errors.Is(err, contract.ErrMemberActorRequired):
@@ -41,6 +57,8 @@ func memberTransportError(err error) error {
 		return kratoserrors.New(http.StatusForbidden, "INSUFFICIENT_WORKSPACE_ROLE", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):
 		return kratoserrors.New(http.StatusForbidden, "OWNER_ROLE_REQUIRES_OWNER", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrOwnerRemovalRequiresOwner):
+		return kratoserrors.New(http.StatusForbidden, "OWNER_REMOVAL_REQUIRES_OWNER", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrLastWorkspaceOwner):
 		return kratoserrors.New(http.StatusBadRequest, "LAST_WORKSPACE_OWNER", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrMemberNotImplemented):

@@ -15,4 +15,12 @@ func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Me
 	return c.service.UpdateMemberRole(ctx, request)
 }
 
+func (c *MemberClient) DeleteMember(ctx context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	return c.service.DeleteMember(ctx, request)
+}
+
+func (c *MemberClient) LeaveWorkspace(ctx context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	return c.service.LeaveWorkspace(ctx, request)
+}
+
 var _ contract.MemberService = (*MemberClient)(nil)

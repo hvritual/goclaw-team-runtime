@@ -16,6 +16,8 @@ type MemberRepository interface {
 	FindByIDAndWorkspace(context.Context, string, string) (member.Member, error)
 	CountOwners(context.Context, string) (int, error)
 	UpdateRole(context.Context, string, string, member.Role) (member.Member, error)
+	DeleteByIDAndWorkspace(context.Context, string, string) error
+	DeleteByUserAndWorkspace(context.Context, string, string) error
 }
 
 type MemberUnitOfWork interface {
@@ -55,10 +57,7 @@ func (s *MemberService) UpdateMemberRole(ctx context.Context, request contract.M
 
 	var updated member.Member
 	err = s.unitOfWork.WithinTransaction(ctx, func(repository MemberRepository) error {
-		requester, findErr := repository.FindByUserAndWorkspace(ctx, actorUserID, request.WorkspaceId)
-		if errors.Is(findErr, ErrMembershipNotFound) {
-			return contract.ErrWorkspaceMembershipHidden
-		}
+		requester, findErr := findMemberManager(ctx, repository, actorUserID, request.WorkspaceId)
 		if findErr != nil {
 			return findErr
 		}
@@ -95,6 +94,8 @@ func mapMemberPolicyError(err error) error {
 		return contract.ErrInsufficientWorkspaceRole
 	case errors.Is(err, member.ErrOwnerRoleRequiresOwner):
 		return contract.ErrOwnerRoleRequiresOwner
+	case errors.Is(err, member.ErrOwnerRemovalRequiresOwner):
+		return contract.ErrOwnerRemovalRequiresOwner
 	case errors.Is(err, member.ErrLastOwner):
 		return contract.ErrLastWorkspaceOwner
 	default:
@@ -113,4 +114,88 @@ func memberContract(value member.Member) contract.Member_Member {
 		Email:       value.Email,
 		AvatarUrl:   value.AvatarURL,
 	}
+}
+func (s *MemberService) DeleteMember(ctx context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_DeleteMemberResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.unitOfWork == nil {
+		return contract.Member_DeleteMemberResponse{}, contract.ErrMemberNotImplemented
+	}
+	err := s.unitOfWork.WithinTransaction(ctx, func(repository MemberRepository) error {
+		requester, findErr := findMemberManager(ctx, repository, actorUserID, request.WorkspaceId)
+		if findErr != nil {
+			return findErr
+		}
+		target, findErr := repository.FindByIDAndWorkspace(ctx, request.MemberId, request.WorkspaceId)
+		if errors.Is(findErr, ErrMembershipNotFound) {
+			return contract.ErrMemberNotFound
+		}
+		if findErr != nil {
+			return findErr
+		}
+		ownerCount := 0
+		if target.Role == member.RoleOwner {
+			ownerCount, findErr = repository.CountOwners(ctx, request.WorkspaceId)
+			if findErr != nil {
+				return findErr
+			}
+		}
+		if policyErr := member.ValidateRemoval(requester.Role, target.Role, ownerCount); policyErr != nil {
+			return mapMemberPolicyError(policyErr)
+		}
+		return repository.DeleteByIDAndWorkspace(ctx, request.WorkspaceId, target.ID)
+	})
+	if err != nil {
+		return contract.Member_DeleteMemberResponse{}, err
+	}
+	return contract.Member_DeleteMemberResponse{}, nil
+}
+
+func findMemberManager(ctx context.Context, repository MemberRepository, actorUserID, workspaceID string) (member.Member, error) {
+	requester, err := repository.FindByUserAndWorkspace(ctx, actorUserID, workspaceID)
+	if errors.Is(err, ErrMembershipNotFound) {
+		return member.Member{}, contract.ErrWorkspaceMembershipHidden
+	}
+	if err != nil {
+		return member.Member{}, err
+	}
+	if err := member.ValidateManager(requester.Role); err != nil {
+		return member.Member{}, mapMemberPolicyError(err)
+	}
+	return requester, nil
+}
+func (s *MemberService) LeaveWorkspace(ctx context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_LeaveWorkspaceResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.unitOfWork == nil {
+		return contract.Member_LeaveWorkspaceResponse{}, contract.ErrMemberNotImplemented
+	}
+	err := s.unitOfWork.WithinTransaction(ctx, func(repository MemberRepository) error {
+		membership, findErr := repository.FindByUserAndWorkspace(ctx, actorUserID, request.WorkspaceId)
+		if errors.Is(findErr, ErrMembershipNotFound) {
+			return contract.ErrWorkspaceMembershipHidden
+		}
+		if findErr != nil {
+			return findErr
+		}
+		ownerCount := 0
+		if membership.Role == member.RoleOwner {
+			ownerCount, findErr = repository.CountOwners(ctx, request.WorkspaceId)
+			if findErr != nil {
+				return findErr
+			}
+		}
+		if policyErr := member.ValidateDeparture(membership.Role, ownerCount); policyErr != nil {
+			return mapMemberPolicyError(policyErr)
+		}
+		return repository.DeleteByUserAndWorkspace(ctx, request.WorkspaceId, actorUserID)
+	})
+	if err != nil {
+		return contract.Member_LeaveWorkspaceResponse{}, err
+	}
+	return contract.Member_LeaveWorkspaceResponse{}, nil
 }

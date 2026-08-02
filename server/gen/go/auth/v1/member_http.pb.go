@@ -9,6 +9,7 @@ package authv1
 import (
 	context "context"
 	http "github.com/go-kratos/kratos/v3/transport/http"
+	httpbody "google.golang.org/genproto/googleapis/api/httpbody"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -17,9 +18,16 @@ var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3
 
+const OperationMemberServiceDeleteMember = "/auth.v1.MemberService/DeleteMember"
+const OperationMemberServiceLeaveWorkspace = "/auth.v1.MemberService/LeaveWorkspace"
 const OperationMemberServiceUpdateMemberRole = "/auth.v1.MemberService/UpdateMemberRole"
 
 type MemberServiceHTTPServer interface {
+	// DeleteMember DeleteMember removes one membership while preserving authorization and
+	// the invariant that every workspace retains at least one Owner.
+	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
+	// LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
+	LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error)
 	// UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
@@ -28,6 +36,8 @@ type MemberServiceHTTPServer interface {
 func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer) {
 	r := s.Route("/")
 	r.Handle("PATCH", "/api/workspaces/{workspace_id}/members/{member_id}", _MemberService_UpdateMemberRole0_HTTP_Handler(srv))
+	r.Handle("DELETE", "/api/workspaces/{workspace_id}/members/{member_id}", _MemberService_DeleteMember0_HTTP_Handler(srv))
+	r.Handle("POST", "/api/workspaces/{workspace_id}/leave", _MemberService_LeaveWorkspace0_HTTP_Handler(srv))
 }
 
 func _MemberService_UpdateMemberRole0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
@@ -52,7 +62,58 @@ func _MemberService_UpdateMemberRole0_HTTP_Handler(srv MemberServiceHTTPServer) 
 	}
 }
 
+func _MemberService_DeleteMember0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in DeleteMemberRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceDeleteMember)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.DeleteMember(ctx, req.(*DeleteMemberRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		_ = out
+		ctx.Response().WriteHeader(204)
+		return nil
+	}
+}
+
+func _MemberService_LeaveWorkspace0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in LeaveWorkspaceRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceLeaveWorkspace)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.LeaveWorkspace(ctx, req.(*LeaveWorkspaceRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		_ = out
+		ctx.Response().WriteHeader(204)
+		return nil
+	}
+}
+
 type MemberServiceHTTPClient interface {
+	// DeleteMember DeleteMember removes one membership while preserving authorization and
+	// the invariant that every workspace retains at least one Owner.
+	DeleteMember(ctx context.Context, req *DeleteMemberRequest, opts ...http.CallOption) (rsp *DeleteMemberResponse, err error)
+	// LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
+	LeaveWorkspace(ctx context.Context, req *LeaveWorkspaceRequest, opts ...http.CallOption) (rsp *LeaveWorkspaceResponse, err error)
 	// UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(ctx context.Context, req *UpdateMemberRoleRequest, opts ...http.CallOption) (rsp *Member, err error)
@@ -66,11 +127,46 @@ func NewMemberServiceHTTPClient(client *http.Client) MemberServiceHTTPClient {
 	return &MemberServiceHTTPClientImpl{client}
 }
 
+// DeleteMember DeleteMember removes one membership while preserving authorization and
+// the invariant that every workspace retains at least one Owner.
+func (c *MemberServiceHTTPClientImpl) DeleteMember(ctx context.Context, in *DeleteMemberRequest, opts ...http.CallOption) (*DeleteMemberResponse, error) {
+	var out DeleteMemberResponse
+	pattern := "/api/workspaces/{workspaceId}/members/{memberId}"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationMemberServiceDeleteMember),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "DELETE", path, nil, &httpbody.HttpBody{}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
+func (c *MemberServiceHTTPClientImpl) LeaveWorkspace(ctx context.Context, in *LeaveWorkspaceRequest, opts ...http.CallOption) (*LeaveWorkspaceResponse, error) {
+	var out LeaveWorkspaceResponse
+	pattern := "/api/workspaces/{workspaceId}/leave"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationMemberServiceLeaveWorkspace),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "POST", path, nil, &httpbody.HttpBody{}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 // the invariant that every workspace has at least one Owner.
 func (c *MemberServiceHTTPClientImpl) UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...http.CallOption) (*Member, error) {
 	var out Member
-	pattern := "/api/workspaces/{workspace_id}/members/{member_id}"
+	pattern := "/api/workspaces/{workspaceId}/members/{memberId}"
 	path := http.BuildPath(pattern, in)
 	opts = append([]http.CallOption{
 		http.Accept("application/protojson"),

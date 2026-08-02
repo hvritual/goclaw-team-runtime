@@ -10,6 +10,23 @@ var ErrMemberNotImplemented = errors.New("MemberService application method requi
 
 type MemberService interface {
 	UpdateMemberRole(context.Context, Member_UpdateMemberRoleRequest) (Member_Member, error)
+	DeleteMember(context.Context, Member_DeleteMemberRequest) (Member_DeleteMemberResponse, error)
+	LeaveWorkspace(context.Context, Member_LeaveWorkspaceRequest) (Member_LeaveWorkspaceResponse, error)
+}
+
+type Member_DeleteMemberRequest struct {
+	WorkspaceId string `json:"workspaceId,omitempty"`
+	MemberId    string `json:"memberId,omitempty"`
+}
+
+type Member_DeleteMemberResponse struct {
+}
+
+type Member_LeaveWorkspaceRequest struct {
+	WorkspaceId string `json:"workspaceId,omitempty"`
+}
+
+type Member_LeaveWorkspaceResponse struct {
 }
 
 type Member_Member struct {

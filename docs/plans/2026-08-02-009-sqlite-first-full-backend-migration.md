@@ -38,7 +38,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change switched; other use cases pending | PostgreSQL A1, list/create/delete/leave/invitations |
+| Auth / Member | A1 role change and A2 delete/leave switched | PostgreSQL parity, list/create/invitations |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -62,6 +62,16 @@ of full migration.
 - Passed DDD lint/vet/race gates, full Go test/vet/build, frontend typecheck, and the serial frontend test suite.
 
 This checkpoint completes only the SQLite A1 tracer slice. The matrix and full migration goal remain in progress.
+
+## Checkpoint 2026-08-02 — Auth A2 SQLite
+
+- Added native DeleteMember and LeaveWorkspace Proto/HTTP/access contracts.
+- Reused the Auth removal/departure policy and transactional SQLite membership repository.
+- Replaced both SQLite-local business branches while preserving the frontend-facing 204 behavior.
+- Extended the generation chain with a Proto-owned HTTP success-status option so Kratos server/client and OpenAPI preserve 204/no-body semantics, including generated-client path binding.
+- Added domain, application, real SQLite rollback, HTTP lifecycle, transport error, generated HTTP client, and gRPC round-trip coverage.
+
+This checkpoint completes only the SQLite A2 tracer slice. Auth invitations/create/list and the remaining migration matrix are still pending.
 
 ## Required Gates
 

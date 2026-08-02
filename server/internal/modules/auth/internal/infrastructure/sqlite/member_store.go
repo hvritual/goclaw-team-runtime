@@ -80,6 +80,34 @@ func (r *memberRepository) UpdateRole(ctx context.Context, workspaceID, memberID
 		WHERE m.id = ? AND m.workspace_id = ?`, memberID, workspaceID))
 }
 
+func (r *memberRepository) DeleteByIDAndWorkspace(ctx context.Context, workspaceID, memberID string) error {
+	return deleteMembership(r.tx.ExecContext(ctx,
+		`DELETE FROM members WHERE id = ? AND workspace_id = ?`,
+		memberID, workspaceID,
+	))
+}
+
+func (r *memberRepository) DeleteByUserAndWorkspace(ctx context.Context, workspaceID, userID string) error {
+	return deleteMembership(r.tx.ExecContext(ctx,
+		`DELETE FROM members WHERE workspace_id = ? AND user_id = ?`,
+		workspaceID, userID,
+	))
+}
+
+func deleteMembership(result sql.Result, err error) error {
+	if err != nil {
+		return fmt.Errorf("delete membership: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read deleted membership count: %w", err)
+	}
+	if affected == 0 {
+		return application.ErrMembershipNotFound
+	}
+	return nil
+}
+
 const memberProjection = `SELECT m.id, m.workspace_id, m.user_id, m.role, m.created_at,
 	u.name, u.email, u.avatar_url
 	FROM members m

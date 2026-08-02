@@ -22,6 +22,14 @@ func (s *fakeMemberService) UpdateMemberRole(_ context.Context, request contract
 	return s.result, s.err
 }
 
+func (s *fakeMemberService) DeleteMember(context.Context, contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	return contract.Member_DeleteMemberResponse{}, s.err
+}
+
+func (s *fakeMemberService) LeaveWorkspace(context.Context, contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	return contract.Member_LeaveWorkspaceResponse{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -34,6 +42,7 @@ func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 		{name: "member missing", err: contract.ErrMemberNotFound, code: http.StatusNotFound},
 		{name: "insufficient role", err: contract.ErrInsufficientWorkspaceRole, code: http.StatusForbidden},
 		{name: "owner role", err: contract.ErrOwnerRoleRequiresOwner, code: http.StatusForbidden},
+		{name: "owner removal", err: contract.ErrOwnerRemovalRequiresOwner, code: http.StatusForbidden},
 		{name: "last owner", err: contract.ErrLastWorkspaceOwner, code: http.StatusBadRequest},
 		{name: "unexpected", err: errors.New("database unavailable"), code: http.StatusInternalServerError},
 	}

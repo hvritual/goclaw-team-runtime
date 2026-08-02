@@ -13,11 +13,13 @@ import (
 )
 
 type successfulMemberService struct {
-	request contract.Member_UpdateMemberRoleRequest
+	updateRequest contract.Member_UpdateMemberRoleRequest
+	deleteRequest contract.Member_DeleteMemberRequest
+	leaveRequest  contract.Member_LeaveWorkspaceRequest
 }
 
 func (s *successfulMemberService) UpdateMemberRole(_ context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
-	s.request = request
+	s.updateRequest = request
 	return contract.Member_Member{
 		Id:          request.MemberId,
 		WorkspaceId: request.WorkspaceId,
@@ -29,7 +31,17 @@ func (s *successfulMemberService) UpdateMemberRole(_ context.Context, request co
 	}, nil
 }
 
-func TestAuthMemberGRPCRoundTripPreservesRoleString(t *testing.T) {
+func (s *successfulMemberService) DeleteMember(_ context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	s.deleteRequest = request
+	return contract.Member_DeleteMemberResponse{}, nil
+}
+
+func (s *successfulMemberService) LeaveWorkspace(_ context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	s.leaveRequest = request
+	return contract.Member_LeaveWorkspaceResponse{}, nil
+}
+
+func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 	service := &successfulMemberService{}
 	extension := auth.NewMemberExtensionWithService(service)
 	listener := bufconn.Listen(1024 * 1024)
@@ -56,10 +68,28 @@ func TestAuthMemberGRPCRoundTripPreservesRoleString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if service.request.Role != "admin" || result.Role != "admin" {
-		t.Fatalf("role round trip request=%q result=%q", service.request.Role, result.Role)
+	if service.updateRequest.Role != "admin" || result.Role != "admin" {
+		t.Fatalf("role round trip request=%q result=%q", service.updateRequest.Role, result.Role)
 	}
 	if result.Id != "member-1" || result.WorkspaceId != "workspace-1" {
 		t.Fatalf("unexpected member result: %+v", result)
+	}
+	client := auth.NewMemberGRPCClient(connection)
+	if _, err := client.DeleteMember(t.Context(), contract.Member_DeleteMemberRequest{
+		WorkspaceId: "workspace-1",
+		MemberId:    "member-2",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if service.deleteRequest.WorkspaceId != "workspace-1" || service.deleteRequest.MemberId != "member-2" {
+		t.Fatalf("unexpected delete request: %+v", service.deleteRequest)
+	}
+	if _, err := client.LeaveWorkspace(t.Context(), contract.Member_LeaveWorkspaceRequest{
+		WorkspaceId: "workspace-1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if service.leaveRequest.WorkspaceId != "workspace-1" {
+		t.Fatalf("unexpected leave request: %+v", service.leaveRequest)
 	}
 }

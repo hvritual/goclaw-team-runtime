@@ -406,6 +406,7 @@ generate: ## Reconcile dddgen services and regenerate Proto, OpenAPI, and access
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf dep update
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf lint
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf generate
+	cd server && go run ./cmd/postprocess-generated
 
 generated-clean: generate ## Fail when committed dddgen or Proto artifacts are stale
 	@changes=$$(git status --porcelain --untracked-files=all -- server/gen server/internal/modules server/tests/contract); \

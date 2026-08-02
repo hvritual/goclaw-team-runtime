@@ -12,6 +12,7 @@ var (
 	ErrMemberNotFound            = errors.New("member not found")
 	ErrInsufficientWorkspaceRole = errors.New("insufficient workspace role")
 	ErrOwnerRoleRequiresOwner    = errors.New("only owners can manage the owner role")
+	ErrOwnerRemovalRequiresOwner = errors.New("only owners can remove another owner")
 	ErrLastWorkspaceOwner        = errors.New("workspace must have at least one owner")
 )
 

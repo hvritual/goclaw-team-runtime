@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	MemberService_UpdateMemberRole_FullMethodName = "/auth.v1.MemberService/UpdateMemberRole"
+	MemberService_DeleteMember_FullMethodName     = "/auth.v1.MemberService/DeleteMember"
+	MemberService_LeaveWorkspace_FullMethodName   = "/auth.v1.MemberService/LeaveWorkspace"
 )
 
 // MemberServiceClient is the client API for MemberService service.
@@ -32,6 +34,11 @@ type MemberServiceClient interface {
 	// UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...grpc.CallOption) (*Member, error)
+	// DeleteMember removes one membership while preserving authorization and
+	// the invariant that every workspace retains at least one Owner.
+	DeleteMember(ctx context.Context, in *DeleteMemberRequest, opts ...grpc.CallOption) (*DeleteMemberResponse, error)
+	// LeaveWorkspace removes the authenticated participant's own membership.
+	LeaveWorkspace(ctx context.Context, in *LeaveWorkspaceRequest, opts ...grpc.CallOption) (*LeaveWorkspaceResponse, error)
 }
 
 type memberServiceClient struct {
@@ -52,6 +59,26 @@ func (c *memberServiceClient) UpdateMemberRole(ctx context.Context, in *UpdateMe
 	return out, nil
 }
 
+func (c *memberServiceClient) DeleteMember(ctx context.Context, in *DeleteMemberRequest, opts ...grpc.CallOption) (*DeleteMemberResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteMemberResponse)
+	err := c.cc.Invoke(ctx, MemberService_DeleteMember_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberServiceClient) LeaveWorkspace(ctx context.Context, in *LeaveWorkspaceRequest, opts ...grpc.CallOption) (*LeaveWorkspaceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LeaveWorkspaceResponse)
+	err := c.cc.Invoke(ctx, MemberService_LeaveWorkspace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemberServiceServer is the server API for MemberService service.
 // All implementations must embed UnimplementedMemberServiceServer
 // for forward compatibility.
@@ -62,6 +89,11 @@ type MemberServiceServer interface {
 	// UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
+	// DeleteMember removes one membership while preserving authorization and
+	// the invariant that every workspace retains at least one Owner.
+	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
+	// LeaveWorkspace removes the authenticated participant's own membership.
+	LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error)
 	mustEmbedUnimplementedMemberServiceServer()
 }
 
@@ -74,6 +106,12 @@ type UnimplementedMemberServiceServer struct{}
 
 func (UnimplementedMemberServiceServer) UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateMemberRole not implemented")
+}
+func (UnimplementedMemberServiceServer) DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteMember not implemented")
+}
+func (UnimplementedMemberServiceServer) LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LeaveWorkspace not implemented")
 }
 func (UnimplementedMemberServiceServer) mustEmbedUnimplementedMemberServiceServer() {}
 func (UnimplementedMemberServiceServer) testEmbeddedByValue()                       {}
@@ -114,6 +152,42 @@ func _MemberService_UpdateMemberRole_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemberService_DeleteMember_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMemberRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).DeleteMember(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_DeleteMember_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).DeleteMember(ctx, req.(*DeleteMemberRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberService_LeaveWorkspace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LeaveWorkspaceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).LeaveWorkspace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_LeaveWorkspace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).LeaveWorkspace(ctx, req.(*LeaveWorkspaceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemberService_ServiceDesc is the grpc.ServiceDesc for MemberService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -124,6 +198,14 @@ var MemberService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateMemberRole",
 			Handler:    _MemberService_UpdateMemberRole_Handler,
+		},
+		{
+			MethodName: "DeleteMember",
+			Handler:    _MemberService_DeleteMember_Handler,
+		},
+		{
+			MethodName: "LeaveWorkspace",
+			Handler:    _MemberService_LeaveWorkspace_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

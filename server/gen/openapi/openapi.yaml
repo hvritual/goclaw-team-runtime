@@ -43,7 +43,55 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/workspaces/{workspaceId}/leave:
+        post:
+            tags:
+                - MemberService
+            description: LeaveWorkspace removes the authenticated participant's own membership.
+            operationId: MemberService_LeaveWorkspace
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "204":
+                    description: No Content
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/workspaces/{workspaceId}/members/{memberId}:
+        delete:
+            tags:
+                - MemberService
+            description: |-
+                DeleteMember removes one membership while preserving authorization and
+                 the invariant that every workspace retains at least one Owner.
+            operationId: MemberService_DeleteMember
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: memberId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "204":
+                    description: No Content
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
         patch:
             tags:
                 - MemberService
@@ -155,6 +203,9 @@ paths:
                                 $ref: '#/components/schemas/Status'
 components:
     schemas:
+        DeleteMemberResponse:
+            type: object
+            properties: {}
         GoogleProtobufAny:
             type: object
             properties:
@@ -214,6 +265,9 @@ components:
                 properties:
                     type: object
             description: Issue mirrors the response currently returned after an Issue update.
+        LeaveWorkspaceResponse:
+            type: object
+            properties: {}
         Member:
             type: object
             properties:

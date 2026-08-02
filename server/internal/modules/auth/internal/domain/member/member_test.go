@@ -43,3 +43,27 @@ func TestValidateRoleChange(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRemoval(t *testing.T) {
+	tests := []struct {
+		name       string
+		requester  Role
+		target     Role
+		ownerCount int
+		want       error
+	}{
+		{name: "owner removes member", requester: RoleOwner, target: RoleMember},
+		{name: "admin removes member", requester: RoleAdmin, target: RoleMember},
+		{name: "member cannot remove", requester: RoleMember, target: RoleMember, want: ErrInsufficientWorkspaceRole},
+		{name: "admin cannot remove owner", requester: RoleAdmin, target: RoleOwner, ownerCount: 2, want: ErrOwnerRemovalRequiresOwner},
+		{name: "last owner remains", requester: RoleOwner, target: RoleOwner, ownerCount: 1, want: ErrLastOwner},
+		{name: "owner removes another owner", requester: RoleOwner, target: RoleOwner, ownerCount: 2},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := ValidateRemoval(test.requester, test.target, test.ownerCount); !errors.Is(err, test.want) {
+				t.Fatalf("ValidateRemoval() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}

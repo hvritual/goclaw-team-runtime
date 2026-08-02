@@ -31,6 +31,38 @@ func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Me
 	return result, nil
 }
 
+func (c *MemberClient) DeleteMember(ctx context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
+	protoRequest := &authv1.DeleteMemberRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_DeleteMemberResponse{}, err
+	}
+	response, err := c.client.DeleteMember(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_DeleteMemberResponse{}, err
+	}
+	var result contract.Member_DeleteMemberResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_DeleteMemberResponse{}, err
+	}
+	return result, nil
+}
+
+func (c *MemberClient) LeaveWorkspace(ctx context.Context, request contract.Member_LeaveWorkspaceRequest) (contract.Member_LeaveWorkspaceResponse, error) {
+	protoRequest := &authv1.LeaveWorkspaceRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_LeaveWorkspaceResponse{}, err
+	}
+	response, err := c.client.LeaveWorkspace(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_LeaveWorkspaceResponse{}, err
+	}
+	var result contract.Member_LeaveWorkspaceResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_LeaveWorkspaceResponse{}, err
+	}
+	return result, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

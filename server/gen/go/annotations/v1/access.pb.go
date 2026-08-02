@@ -355,6 +355,14 @@ var file_annotations_v1_access_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "bytes,51002,opt,name=access",
 		Filename:      "annotations/v1/access.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
+		ExtensionType: (*int32)(nil),
+		Field:         51003,
+		Name:          "annotations.v1.http_success_status",
+		Tag:           "varint,51003,opt,name=http_success_status",
+		Filename:      "annotations/v1/access.proto",
+	},
 }
 
 // Extension fields to descriptorpb.ServiceOptions.
@@ -367,6 +375,12 @@ var (
 var (
 	// optional annotations.v1.Access access = 51002;
 	E_Access = &file_annotations_v1_access_proto_extTypes[1]
+	// http_success_status overrides generators that otherwise hard-code 200.
+	// The repository post-generation step applies it to Kratos HTTP handlers
+	// and OpenAPI responses while keeping the Proto method authoritative.
+	//
+	// optional int32 http_success_status = 51003;
+	E_HttpSuccessStatus = &file_annotations_v1_access_proto_extTypes[2]
 )
 
 var File_annotations_v1_access_proto protoreflect.FileDescriptor
@@ -403,7 +417,8 @@ const file_annotations_v1_access_proto_rawDesc = "" +
 	"idempotent\x18\t \x01(\bR\n" +
 	"idempotent:Q\n" +
 	"\x06module\x12\x1f.google.protobuf.ServiceOptions\x18\xb9\x8e\x03 \x01(\v2\x16.annotations.v1.ModuleR\x06module:P\n" +
-	"\x06access\x12\x1e.google.protobuf.MethodOptions\x18\xba\x8e\x03 \x01(\v2\x16.annotations.v1.AccessR\x06accessBJZHgithub.com/multica-ai/multica/server/gen/go/annotations/v1;annotationsv1b\x06proto3"
+	"\x06access\x12\x1e.google.protobuf.MethodOptions\x18\xba\x8e\x03 \x01(\v2\x16.annotations.v1.AccessR\x06access:P\n" +
+	"\x13http_success_status\x12\x1e.google.protobuf.MethodOptions\x18\xbb\x8e\x03 \x01(\x05R\x11httpSuccessStatusBJZHgithub.com/multica-ai/multica/server/gen/go/annotations/v1;annotationsv1b\x06proto3"
 
 var (
 	file_annotations_v1_access_proto_rawDescOnce sync.Once
@@ -431,12 +446,13 @@ var file_annotations_v1_access_proto_depIdxs = []int32{
 	2, // 1: annotations.v1.Access.button:type_name -> annotations.v1.Button
 	4, // 2: annotations.v1.module:extendee -> google.protobuf.ServiceOptions
 	5, // 3: annotations.v1.access:extendee -> google.protobuf.MethodOptions
-	0, // 4: annotations.v1.module:type_name -> annotations.v1.Module
-	3, // 5: annotations.v1.access:type_name -> annotations.v1.Access
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	4, // [4:6] is the sub-list for extension type_name
-	2, // [2:4] is the sub-list for extension extendee
+	5, // 4: annotations.v1.http_success_status:extendee -> google.protobuf.MethodOptions
+	0, // 5: annotations.v1.module:type_name -> annotations.v1.Module
+	3, // 6: annotations.v1.access:type_name -> annotations.v1.Access
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	5, // [5:7] is the sub-list for extension type_name
+	2, // [2:5] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
 }
 
@@ -452,7 +468,7 @@ func file_annotations_v1_access_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_annotations_v1_access_proto_rawDesc), len(file_annotations_v1_access_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
-			NumExtensions: 2,
+			NumExtensions: 3,
 			NumServices:   0,
 		},
 		GoTypes:           file_annotations_v1_access_proto_goTypes,

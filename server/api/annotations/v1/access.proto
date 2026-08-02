@@ -49,4 +49,8 @@ extend google.protobuf.ServiceOptions {
 
 extend google.protobuf.MethodOptions {
   Access access = 51002;
+  // http_success_status overrides generators that otherwise hard-code 200.
+  // The repository post-generation step applies it to Kratos HTTP handlers
+  // and OpenAPI responses while keeping the Proto method authoritative.
+  int32 http_success_status = 51003;
 }

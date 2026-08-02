@@ -28,6 +28,33 @@ service MemberService {
       audit: true
     };
   }
+
+  // DeleteMember removes one membership while preserving authorization and
+  // the invariant that every workspace retains at least one Owner.
+  rpc DeleteMember(DeleteMemberRequest) returns (DeleteMemberResponse) {
+    option (google.api.http) = {delete: "/api/workspaces/{workspace_id}/members/{member_id}"};
+    option (annotations.v1.http_success_status) = 204;
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.remove"
+      permission_name: "Remove member"
+      resource: "auth.member"
+      action: "remove"
+      audit: true
+    };
+  }
+
+  // LeaveWorkspace removes the authenticated participant's own membership.
+  rpc LeaveWorkspace(LeaveWorkspaceRequest) returns (LeaveWorkspaceResponse) {
+    option (google.api.http) = {post: "/api/workspaces/{workspace_id}/leave"};
+    option (annotations.v1.http_success_status) = 204;
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.leave"
+      permission_name: "Leave workspace"
+      resource: "auth.member"
+      action: "leave"
+      audit: true
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -56,3 +83,16 @@ message UpdateMemberRoleRequest {
   string member_id = 2;
   string role = 3;
 }
+
+message DeleteMemberRequest {
+  string workspace_id = 1;
+  string member_id = 2;
+}
+
+message DeleteMemberResponse {}
+
+message LeaveWorkspaceRequest {
+  string workspace_id = 1;
+}
+
+message LeaveWorkspaceResponse {}

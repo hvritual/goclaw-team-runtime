@@ -1505,7 +1505,7 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 		Role:        req.Role,
 	})
 	if err != nil {
-		writeMemberRoleError(w, err)
+		writeMemberError(w, err, "failed to update member")
 		return
 	}
 	writeJSON(w, http.StatusOK, memberContractResponse(updated))
@@ -1516,48 +1516,13 @@ func (s *Server) deleteMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	memberID := chi.URLParam(r, "memberID")
-	tx, err := s.db.BeginTx(r.Context(), nil)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	_, err := s.authMembers.DeleteMember(ctx, authcontract.Member_DeleteMemberRequest{
+		WorkspaceId: workspaceValue.ID,
+		MemberId:    chi.URLParam(r, "memberID"),
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete member")
-		return
-	}
-	defer tx.Rollback()
-
-	requesterRole, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
-	if err != nil ||
-		(requesterRole != workspacepermissions.RoleOwner &&
-			requesterRole != workspacepermissions.RoleAdmin) {
-		writeError(w, http.StatusForbidden, "insufficient workspace role")
-		return
-	}
-	targetRole, err := workspaceMemberRole(r.Context(), tx, workspaceValue.ID, memberID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if targetRole == workspacepermissions.RoleOwner &&
-		requesterRole != workspacepermissions.RoleOwner {
-		writeError(w, http.StatusForbidden, "only owners can remove another owner")
-		return
-	}
-	if targetRole == workspacepermissions.RoleOwner &&
-		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
-		return
-	}
-
-	result, err := tx.ExecContext(r.Context(), `DELETE FROM members WHERE id = ? AND workspace_id = ?`, memberID, workspaceValue.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete member")
-		return
-	}
-	affected, err := result.RowsAffected()
-	if err != nil || affected == 0 {
-		writeError(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to delete member")
+		writeMemberError(w, err, "failed to delete member")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -1568,35 +1533,12 @@ func (s *Server) leaveWorkspace(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	tx, err := s.db.BeginTx(r.Context(), nil)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	_, err := s.authMembers.LeaveWorkspace(ctx, authcontract.Member_LeaveWorkspaceRequest{
+		WorkspaceId: workspaceValue.ID,
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
-		return
-	}
-	defer tx.Rollback()
-
-	role, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
-	if err != nil {
-		writeError(w, http.StatusNotFound, "membership not found")
-		return
-	}
-	if role == workspacepermissions.RoleOwner &&
-		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
-		return
-	}
-	result, err := tx.ExecContext(r.Context(), `DELETE FROM members WHERE workspace_id = ? AND user_id = ?`,
-		workspaceValue.ID, currentUserID(r))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
-		return
-	}
-	affected, err := result.RowsAffected()
-	if err != nil || affected == 0 {
-		writeError(w, http.StatusNotFound, "membership not found")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to leave workspace")
+		writeMemberError(w, err, "failed to leave workspace")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

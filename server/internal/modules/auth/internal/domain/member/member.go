@@ -7,6 +7,7 @@ var (
 	ErrInvalidRole               = errors.New("invalid member role")
 	ErrInsufficientWorkspaceRole = errors.New("insufficient workspace role")
 	ErrOwnerRoleRequiresOwner    = errors.New("owner role requires owner permission")
+	ErrOwnerRemovalRequiresOwner = errors.New("owner removal requires owner permission")
 	ErrLastOwner                 = errors.New("workspace must retain an owner")
 )
 
@@ -45,13 +46,40 @@ type Member struct {
 
 // ValidateRoleChange enforces role-management and last-owner invariants.
 func ValidateRoleChange(requester, target, next Role, ownerCount int) error {
-	if requester != RoleOwner && requester != RoleAdmin {
-		return ErrInsufficientWorkspaceRole
+	if err := ValidateManager(requester); err != nil {
+		return err
 	}
 	if (target == RoleOwner || next == RoleOwner) && requester != RoleOwner {
 		return ErrOwnerRoleRequiresOwner
 	}
 	if target == RoleOwner && next != RoleOwner && ownerCount <= 1 {
+		return ErrLastOwner
+	}
+	return nil
+}
+
+// ValidateRemoval enforces membership-management and last-owner invariants.
+func ValidateRemoval(requester, target Role, ownerCount int) error {
+	if err := ValidateManager(requester); err != nil {
+		return err
+	}
+	if target == RoleOwner && requester != RoleOwner {
+		return ErrOwnerRemovalRequiresOwner
+	}
+	return ValidateDeparture(target, ownerCount)
+}
+
+// ValidateManager requires the fixed Owner or Admin workspace role.
+func ValidateManager(role Role) error {
+	if role != RoleOwner && role != RoleAdmin {
+		return ErrInsufficientWorkspaceRole
+	}
+	return nil
+}
+
+// ValidateDeparture prevents the final Owner from leaving a workspace.
+func ValidateDeparture(role Role, ownerCount int) error {
+	if role == RoleOwner && ownerCount <= 1 {
 		return ErrLastOwner
 	}
 	return nil
