@@ -146,6 +146,38 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+        post:
+            tags:
+                - MemberService
+            description: |-
+                CreateInvitation invites one human participant into a workspace. Existing
+                 clients continue to use the historical POST /members route.
+            operationId: MemberService_CreateInvitation
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateInvitationRequest'
+                required: true
+            responses:
+                "201":
+                    description: Created
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Invitation'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/workspaces/{workspaceId}/members/{memberId}:
         delete:
             tags:
@@ -285,6 +317,15 @@ paths:
                                 $ref: '#/components/schemas/Status'
 components:
     schemas:
+        CreateInvitationRequest:
+            type: object
+            properties:
+                workspaceId:
+                    type: string
+                email:
+                    type: string
+                role:
+                    type: string
         DeleteMemberResponse:
             type: object
             properties: {}

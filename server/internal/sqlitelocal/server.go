@@ -44,7 +44,6 @@ var schema string
 const (
 	defaultVerificationCode = "888888"
 	authCookieName          = "multica_auth"
-	invitationLifetime      = 7 * 24 * time.Hour
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
@@ -1137,13 +1136,16 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(
-		w,
-		r,
-		workspaceValue.ID,
-		workspacepermissions.RoleOwner,
-		workspacepermissions.RoleAdmin,
-	) {
+	authorizer, ok := s.authMembers.(authcontract.InvitationCreationAuthorizer)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "failed to authorize invitation")
+		return
+	}
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	if err := authorizer.AuthorizeCreateInvitation(ctx, authcontract.Member_CreateInvitationRequest{
+		WorkspaceId: workspaceValue.ID,
+	}); err != nil {
+		writeMemberError(w, err, "failed to authorize invitation")
 		return
 	}
 	var req struct {
@@ -1153,82 +1155,16 @@ func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	if req.Role == "" {
-		req.Role = "member"
-	}
-	if req.Role != "admin" && req.Role != "member" {
-		writeError(w, http.StatusBadRequest, "role must be admin or member")
-		return
-	}
-	email := strings.ToLower(strings.TrimSpace(req.Email))
-	if !strings.Contains(email, "@") {
-		writeError(w, http.StatusBadRequest, "valid email is required")
-		return
-	}
-
-	var memberCount int
-	err := s.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM members m
-		JOIN users u ON u.id = m.user_id
-		WHERE m.workspace_id = ? AND lower(u.email) = ?`, workspaceValue.ID, email).Scan(&memberCount)
+	value, err := s.authMembers.CreateInvitation(ctx, authcontract.Member_CreateInvitationRequest{
+		WorkspaceId: workspaceValue.ID,
+		Email:       req.Email,
+		Role:        req.Role,
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check workspace membership")
+		writeMemberError(w, err, "failed to create invitation")
 		return
 	}
-	if memberCount > 0 {
-		writeError(w, http.StatusConflict, "user is already a member")
-		return
-	}
-
-	timestamp := now()
-	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
-		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending' AND expires_at <= ?`,
-		timestamp, workspaceValue.ID, email, timestamp); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
-		return
-	}
-
-	var pendingCount int
-	if err := s.db.QueryRowContext(r.Context(), `SELECT COUNT(*) FROM invitations
-		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending'`,
-		workspaceValue.ID, email).Scan(&pendingCount); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to check pending invitation")
-		return
-	}
-	if pendingCount > 0 {
-		writeError(w, http.StatusConflict, "invitation already pending for this email")
-		return
-	}
-
-	var inviteeUserID sql.NullString
-	err = s.db.QueryRowContext(r.Context(), `SELECT id FROM users WHERE email = ?`, email).Scan(&inviteeUserID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		writeError(w, http.StatusInternalServerError, "failed to resolve invitee")
-		return
-	}
-
-	id := newID()
-	expiresAt := time.Now().UTC().Add(invitationLifetime).Format(time.RFC3339Nano)
-	_, err = s.db.ExecContext(r.Context(), `INSERT INTO invitations(
-		id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
-		created_at, updated_at, expires_at
-	) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
-		id, workspaceValue.ID, currentUserID(r), email, inviteeUserID, req.Role,
-		timestamp, timestamp, expiresAt)
-	if err != nil {
-		writeError(w, http.StatusConflict, "invitation already pending for this email")
-		return
-	}
-
-	value, err := scanInvitation(s.db.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
-		FROM invitations i
-		JOIN workspaces w ON w.id = i.workspace_id
-		JOIN users u ON u.id = i.inviter_id
-		WHERE i.id = ?`, id))
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to load invitation")
-		return
-	}
-	writeJSON(w, http.StatusCreated, invitationResponse(value))
+	writeJSON(w, http.StatusCreated, invitationContractResponse(value))
 }
 
 func (s *Server) listWorkspaceInvitations(w http.ResponseWriter, r *http.Request) {

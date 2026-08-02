@@ -53,4 +53,9 @@ extend google.protobuf.MethodOptions {
   // The repository post-generation step applies it to Kratos HTTP handlers
   // and OpenAPI responses while keeping the Proto method authoritative.
   int32 http_success_status = 51003;
+  // authorize_before_body asks the generated HTTP adapter to invoke the
+  // method-specific authorization hook after binding path variables but before
+  // decoding the request body. The application method remains authoritative
+  // and repeats authorization inside its mutation transaction.
+  bool authorize_before_body = 51004;
 }

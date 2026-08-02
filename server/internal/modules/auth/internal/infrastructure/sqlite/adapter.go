@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/application"
 	workspacecontract "github.com/multica-ai/multica/server/internal/modules/workspace/contract"
@@ -18,6 +19,7 @@ type Config struct {
 	DB                  *sql.DB
 	WorkspaceIdentities workspacecontract.WorkspaceIdentityReader
 	Now                 func() time.Time
+	NewInvitationID     func() string
 }
 
 func New(Config) contract.Service {
@@ -34,6 +36,11 @@ func NewMember(config Config) (contract.MemberService, error) {
 		application.WithInvitationUnitOfWork(store),
 		application.WithWorkspaceIdentityReader(config.WorkspaceIdentities),
 	}
+	newInvitationID := config.NewInvitationID
+	if newInvitationID == nil {
+		newInvitationID = uuid.NewString
+	}
+	options = append(options, application.WithInvitationIDGenerator(newInvitationID))
 	if config.Now != nil {
 		options = append(options, application.WithInvitationClock(config.Now))
 	}

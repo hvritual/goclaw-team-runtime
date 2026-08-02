@@ -127,6 +127,17 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
   nullable `invitee_user_id`, stable ordering, and existing 403/500 behavior.
 - Workspace identity, application, real SQLite, bootstrap composition,
   raw/generated HTTP, gRPC and frontend malformed-response tests cover the slice.
+- `CreateInvitation` now owns Owner/Admin authorization, normalized invitee
+  identity, member/pending conflicts, expiry rollover and pending insertion in
+  one Auth transaction; Workspace display identity is resolved afterward.
+- The compatible `POST /api/workspaces/{workspace_id}/members` route delegates
+  to Auth and retains 201 plus the full Invitation response. The Proto annotation
+  drives generated Kratos, HTTP client, OpenAPI and access-manifest behavior.
+- Proto `authorize_before_body` generation and the Auth preauthorization seam
+  preserve the legacy 403-before-malformed-JSON ordering in both Kratos and Chi,
+  while the mutation repeats authorization within its transaction.
+- Domain, application, real SQLite, raw/generated HTTP, gRPC, SQLite-local
+  lifecycle and frontend malformed-response tests cover invitation creation.
 
 ## Stop Conditions
 

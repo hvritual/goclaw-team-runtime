@@ -18,6 +18,7 @@ var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3
 
+const OperationMemberServiceCreateInvitation = "/auth.v1.MemberService/CreateInvitation"
 const OperationMemberServiceDeleteMember = "/auth.v1.MemberService/DeleteMember"
 const OperationMemberServiceLeaveWorkspace = "/auth.v1.MemberService/LeaveWorkspace"
 const OperationMemberServiceListMembers = "/auth.v1.MemberService/ListMembers"
@@ -26,6 +27,9 @@ const OperationMemberServiceRevokeInvitation = "/auth.v1.MemberService/RevokeInv
 const OperationMemberServiceUpdateMemberRole = "/auth.v1.MemberService/UpdateMemberRole"
 
 type MemberServiceHTTPServer interface {
+	// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
+	// clients continue to use the historical POST /members route.
+	CreateInvitation(context.Context, *CreateInvitationRequest) (*Invitation, error)
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
@@ -41,6 +45,7 @@ type MemberServiceHTTPServer interface {
 	// UpdateMemberRole UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
+	AuthorizeCreateInvitation(context.Context, *CreateInvitationRequest) error
 }
 
 func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer) {
@@ -51,6 +56,7 @@ func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer
 	r.Handle("POST", "/api/workspaces/{workspace_id}/leave", _MemberService_LeaveWorkspace0_HTTP_Handler(srv))
 	r.Handle("DELETE", "/api/workspaces/{workspace_id}/invitations/{invitation_id}", _MemberService_RevokeInvitation0_HTTP_Handler(srv))
 	r.Handle("GET", "/api/workspaces/{workspace_id}/invitations", _MemberService_ListWorkspaceInvitations0_HTTP_Handler(srv))
+	r.Handle("POST", "/api/workspaces/{workspace_id}/members", _MemberService_CreateInvitation0_HTTP_Handler(srv))
 }
 
 func _MemberService_ListMembers0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
@@ -194,7 +200,38 @@ func _MemberService_ListWorkspaceInvitations0_HTTP_Handler(srv MemberServiceHTTP
 	}
 }
 
+func _MemberService_CreateInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CreateInvitationRequest
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceCreateInvitation)
+		h := ctx.Middleware(func(callCtx context.Context, req interface{}) (interface{}, error) {
+			if err := srv.AuthorizeCreateInvitation(callCtx, &in); err != nil {
+				return nil, err
+			}
+			if err := ctx.Bind(&in); err != nil {
+				return nil, err
+			}
+			if err := ctx.BindVars(&in); err != nil {
+				return nil, err
+			}
+			return srv.CreateInvitation(callCtx, req.(*CreateInvitationRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*Invitation)
+		return ctx.Result(201, reply)
+	}
+}
+
 type MemberServiceHTTPClient interface {
+	// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
+	// clients continue to use the historical POST /members route.
+	CreateInvitation(ctx context.Context, req *CreateInvitationRequest, opts ...http.CallOption) (rsp *Invitation, err error)
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(ctx context.Context, req *DeleteMemberRequest, opts ...http.CallOption) (rsp *DeleteMemberResponse, err error)
@@ -218,6 +255,25 @@ type MemberServiceHTTPClientImpl struct {
 
 func NewMemberServiceHTTPClient(client *http.Client) MemberServiceHTTPClient {
 	return &MemberServiceHTTPClientImpl{client}
+}
+
+// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
+// clients continue to use the historical POST /members route.
+func (c *MemberServiceHTTPClientImpl) CreateInvitation(ctx context.Context, in *CreateInvitationRequest, opts ...http.CallOption) (*Invitation, error) {
+	var out Invitation
+	pattern := "/api/workspaces/{workspaceId}/members"
+	path := http.BuildPath(pattern, in)
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.ContentType("application/protojson"),
+		http.Operation(OperationMemberServiceCreateInvitation),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // DeleteMember DeleteMember removes one membership while preserving authorization and

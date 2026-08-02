@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/go-kratos/kratos/v3/middleware"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	authv1 "github.com/multica-ai/multica/server/gen/go/auth/v1"
 	"github.com/multica-ai/multica/server/internal/modules/auth"
@@ -16,6 +18,21 @@ import (
 type memberListJSONService struct{ successfulMemberService }
 
 type emptyWorkspaceInvitationService struct{ successfulMemberService }
+
+type forbiddenInvitationCreationService struct{ successfulMemberService }
+
+type actorAwareInvitationCreationService struct{ successfulMemberService }
+
+func (*forbiddenInvitationCreationService) AuthorizeCreateInvitation(context.Context, contract.Member_CreateInvitationRequest) error {
+	return contract.ErrInsufficientWorkspaceRole
+}
+
+func (*actorAwareInvitationCreationService) AuthorizeCreateInvitation(ctx context.Context, _ contract.Member_CreateInvitationRequest) error {
+	if _, ok := contract.MemberActor(ctx); !ok {
+		return contract.ErrMemberActorRequired
+	}
+	return nil
+}
 
 func (*emptyWorkspaceInvitationService) ListWorkspaceInvitations(context.Context, contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
 	return contract.Member_ListWorkspaceInvitationsResponse{Invitations: make([]contract.Member_Invitation, 0)}, nil
@@ -91,6 +108,81 @@ func TestAuthMemberHTTPInvitationListPreservesEmptyArray(t *testing.T) {
 
 	if response.Code != http.StatusOK || response.Body.String() != "[]" {
 		t.Fatalf("status = %d; body=%q, want []", response.Code, response.Body.String())
+	}
+}
+
+func TestAuthMemberHTTPCreateInvitationReturnsCreatedBody(t *testing.T) {
+	service := &successfulMemberService{}
+	extension := auth.NewMemberExtensionWithService(service)
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/workspaces/workspace-1/members",
+		strings.NewReader(`{"workspaceId":"body-workspace","email":"invitee@example.test","role":"admin"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusCreated, response.Body.String())
+	}
+	var invitation map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &invitation); err != nil {
+		t.Fatalf("response is not an invitation object: %v; body=%s", err, response.Body.String())
+	}
+	if service.createInvitationRequest.WorkspaceId != "workspace-1" || service.createInvitationRequest.Role != "admin" {
+		t.Fatalf("unexpected create request: %+v", service.createInvitationRequest)
+	}
+	if invitation["id"] != "invitation-created" || invitation["workspace_name"] != "Acme" {
+		t.Fatalf("unexpected created invitation: %+v", invitation)
+	}
+	if inviteeUserID, exists := invitation["invitee_user_id"]; !exists || inviteeUserID != nil {
+		t.Fatalf("nil invitee_user_id must be present as JSON null: %+v", invitation)
+	}
+}
+
+func TestAuthMemberHTTPCreateInvitationAuthorizesBeforeBody(t *testing.T) {
+	extension := auth.NewMemberExtensionWithService(&forbiddenInvitationCreationService{})
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodPost, "/api/workspaces/workspace-1/members", strings.NewReader("{"),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusForbidden, response.Body.String())
+	}
+}
+
+func TestAuthMemberHTTPPreBodyAuthorizationReceivesMiddlewareContext(t *testing.T) {
+	extension := auth.NewMemberExtensionWithService(&actorAwareInvitationCreationService{})
+	server := kratoshttp.NewServer(kratoshttp.Middleware(func(next middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, request any) (any, error) {
+			return next(contract.WithMemberActor(ctx, "owner-user"), request)
+		}
+	}))
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/workspaces/workspace-1/members",
+		strings.NewReader(`{"email":"invitee@example.test","role":"admin"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusCreated, response.Body.String())
 	}
 }
 
@@ -187,5 +279,15 @@ func TestAuthMemberGeneratedHTTPClientHandlesNoContent(t *testing.T) {
 	}
 	if service.listInvitationsRequest.WorkspaceId != "workspace-1" || len(invitationList.GetInvitations()) != 1 || invitationList.GetInvitations()[0].GetWorkspaceName() != "Acme" {
 		t.Fatalf("unexpected generated-client invitation list request=%+v result=%+v", service.listInvitationsRequest, invitationList)
+	}
+
+	created, err := client.CreateInvitation(t.Context(), &authv1.CreateInvitationRequest{
+		WorkspaceId: "workspace-1", Email: "invitee@example.test", Role: "admin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.createInvitationRequest.Email != "invitee@example.test" || created.GetId() != "invitation-created" || created.GetRole() != "admin" {
+		t.Fatalf("unexpected generated-client invitation create request=%+v result=%+v", service.createInvitationRequest, created)
 	}
 }

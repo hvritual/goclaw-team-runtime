@@ -116,6 +116,22 @@ func (s *MemberServer) ListWorkspaceInvitations(ctx context.Context, request *au
 	return response, nil
 }
 
+func (s *MemberServer) CreateInvitation(ctx context.Context, request *authv1.CreateInvitationRequest) (*authv1.Invitation, error) {
+	var input contract.Member_CreateInvitationRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.CreateInvitation(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.Invitation{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

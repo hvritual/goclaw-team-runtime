@@ -25,6 +25,7 @@ const (
 	MemberService_LeaveWorkspace_FullMethodName           = "/auth.v1.MemberService/LeaveWorkspace"
 	MemberService_RevokeInvitation_FullMethodName         = "/auth.v1.MemberService/RevokeInvitation"
 	MemberService_ListWorkspaceInvitations_FullMethodName = "/auth.v1.MemberService/ListWorkspaceInvitations"
+	MemberService_CreateInvitation_FullMethodName         = "/auth.v1.MemberService/CreateInvitation"
 )
 
 // MemberServiceClient is the client API for MemberService service.
@@ -49,6 +50,9 @@ type MemberServiceClient interface {
 	// ListWorkspaceInvitations returns pending invitations manageable by an
 	// Owner or Admin in one workspace.
 	ListWorkspaceInvitations(ctx context.Context, in *ListWorkspaceInvitationsRequest, opts ...grpc.CallOption) (*ListWorkspaceInvitationsResponse, error)
+	// CreateInvitation invites one human participant into a workspace. Existing
+	// clients continue to use the historical POST /members route.
+	CreateInvitation(ctx context.Context, in *CreateInvitationRequest, opts ...grpc.CallOption) (*Invitation, error)
 }
 
 type memberServiceClient struct {
@@ -119,6 +123,16 @@ func (c *memberServiceClient) ListWorkspaceInvitations(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *memberServiceClient) CreateInvitation(ctx context.Context, in *CreateInvitationRequest, opts ...grpc.CallOption) (*Invitation, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Invitation)
+	err := c.cc.Invoke(ctx, MemberService_CreateInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemberServiceServer is the server API for MemberService service.
 // All implementations must embed UnimplementedMemberServiceServer
 // for forward compatibility.
@@ -141,6 +155,9 @@ type MemberServiceServer interface {
 	// ListWorkspaceInvitations returns pending invitations manageable by an
 	// Owner or Admin in one workspace.
 	ListWorkspaceInvitations(context.Context, *ListWorkspaceInvitationsRequest) (*ListWorkspaceInvitationsResponse, error)
+	// CreateInvitation invites one human participant into a workspace. Existing
+	// clients continue to use the historical POST /members route.
+	CreateInvitation(context.Context, *CreateInvitationRequest) (*Invitation, error)
 	mustEmbedUnimplementedMemberServiceServer()
 }
 
@@ -168,6 +185,9 @@ func (UnimplementedMemberServiceServer) RevokeInvitation(context.Context, *Revok
 }
 func (UnimplementedMemberServiceServer) ListWorkspaceInvitations(context.Context, *ListWorkspaceInvitationsRequest) (*ListWorkspaceInvitationsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListWorkspaceInvitations not implemented")
+}
+func (UnimplementedMemberServiceServer) CreateInvitation(context.Context, *CreateInvitationRequest) (*Invitation, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateInvitation not implemented")
 }
 func (UnimplementedMemberServiceServer) mustEmbedUnimplementedMemberServiceServer() {}
 func (UnimplementedMemberServiceServer) testEmbeddedByValue()                       {}
@@ -298,6 +318,24 @@ func _MemberService_ListWorkspaceInvitations_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemberService_CreateInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).CreateInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_CreateInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).CreateInvitation(ctx, req.(*CreateInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemberService_ServiceDesc is the grpc.ServiceDesc for MemberService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -328,6 +366,10 @@ var MemberService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListWorkspaceInvitations",
 			Handler:    _MemberService_ListWorkspaceInvitations_Handler,
+		},
+		{
+			MethodName: "CreateInvitation",
+			Handler:    _MemberService_CreateInvitation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

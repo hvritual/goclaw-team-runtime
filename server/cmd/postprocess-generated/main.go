@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,6 +32,13 @@ type statusOverride struct {
 	status      int
 }
 
+type preBodyAuthorizationOverride struct {
+	protoPath   string
+	serviceName string
+	methodName  string
+	requestName string
+}
+
 type responseBodyOverride struct {
 	serviceName           string
 	methodName            string
@@ -52,6 +60,18 @@ func main() {
 		path := filepath.Join("gen/go", strings.TrimSuffix(override.protoPath, ".proto")+"_http.pb.go")
 		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
 			return applyGoHTTPStatus(input, override)
+		}); err != nil {
+			fatal(err)
+		}
+	}
+	preBodyAuthorizations, err := declaredPreBodyAuthorizations()
+	if err != nil {
+		fatal(err)
+	}
+	for _, override := range preBodyAuthorizations {
+		path := filepath.Join("gen/go", strings.TrimSuffix(override.protoPath, ".proto")+"_http.pb.go")
+		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
+			return applyGoHTTPPreBodyAuthorization(input, override)
 		}); err != nil {
 			fatal(err)
 		}
@@ -82,6 +102,86 @@ func main() {
 	}); err != nil {
 		fatal(err)
 	}
+}
+
+func declaredPreBodyAuthorizations() ([]preBodyAuthorizationOverride, error) {
+	var overrides []preBodyAuthorizationOverride
+	var declarationErr error
+	protoregistry.GlobalFiles.RangeFiles(func(file protoreflect.FileDescriptor) bool {
+		services := file.Services()
+		for serviceIndex := 0; serviceIndex < services.Len(); serviceIndex++ {
+			service := services.Get(serviceIndex)
+			methods := service.Methods()
+			for methodIndex := 0; methodIndex < methods.Len(); methodIndex++ {
+				method := methods.Get(methodIndex)
+				options, ok := method.Options().(*descriptorpb.MethodOptions)
+				if !ok || !proto.HasExtension(options, annotationsv1.E_AuthorizeBeforeBody) {
+					continue
+				}
+				enabled, ok := proto.GetExtension(options, annotationsv1.E_AuthorizeBeforeBody).(bool)
+				if !ok {
+					declarationErr = fmt.Errorf("invalid authorize_before_body option on %s.%s", service.Name(), method.Name())
+					return false
+				}
+				if enabled {
+					overrides = append(overrides, preBodyAuthorizationOverride{
+						protoPath: file.Path(), serviceName: string(service.Name()),
+						methodName: string(method.Name()), requestName: string(method.Input().Name()),
+					})
+				}
+			}
+		}
+		return true
+	})
+	return overrides, declarationErr
+}
+
+func applyGoHTTPPreBodyAuthorization(input []byte, override preBodyAuthorizationOverride) ([]byte, error) {
+	output := string(input)
+	interfaceStart := strings.Index(output, "type "+override.serviceName+"HTTPServer interface {")
+	if interfaceStart < 0 {
+		return nil, fmt.Errorf("HTTP server interface not found for %s", override.serviceName)
+	}
+	interfaceEndOffset := strings.Index(output[interfaceStart:], "\n}")
+	if interfaceEndOffset < 0 {
+		return nil, fmt.Errorf("HTTP server interface is incomplete for %s", override.serviceName)
+	}
+	interfaceEnd := interfaceStart + interfaceEndOffset
+	hookName := "Authorize" + override.methodName
+	hookDeclaration := "\t" + hookName + "(context.Context, *" + override.requestName + ") error"
+	output = output[:interfaceEnd] + "\n" + hookDeclaration + output[interfaceEnd:]
+
+	functionPrefix := "func _" + override.serviceName + "_" + override.methodName
+	handlerStart := strings.Index(output, functionPrefix)
+	if handlerStart < 0 {
+		return nil, fmt.Errorf("HTTP handler not found for %s.%s", override.serviceName, override.methodName)
+	}
+	handlerEndOffset := strings.Index(output[handlerStart:], "\n}\n")
+	if handlerEndOffset < 0 {
+		return nil, fmt.Errorf("HTTP handler is incomplete for %s.%s", override.serviceName, override.methodName)
+	}
+	handlerEnd := handlerStart + handlerEndOffset + len("\n}\n")
+	segment := output[handlerStart:handlerEnd]
+	bodyThenVars := "\t\tif err := ctx.Bind(&in); err != nil {\n\t\t\treturn err\n\t\t}\n" +
+		"\t\tif err := ctx.BindVars(&in); err != nil {\n\t\t\treturn err\n\t\t}"
+	varsOnly := "\t\tif err := ctx.BindVars(&in); err != nil {\n\t\t\treturn err\n\t\t}"
+	if !strings.Contains(segment, bodyThenVars) {
+		return nil, fmt.Errorf("body/path binding block not found for %s.%s", override.serviceName, override.methodName)
+	}
+	segment = strings.Replace(segment, bodyThenVars, varsOnly, 1)
+	generatedMiddleware := "\t\th := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {\n" +
+		"\t\t\treturn srv." + override.methodName + "(ctx, req.(*" + override.requestName + "))\n\t\t})"
+	authorizedMiddleware := "\t\th := ctx.Middleware(func(callCtx context.Context, req interface{}) (interface{}, error) {\n" +
+		"\t\t\tif err := srv." + hookName + "(callCtx, &in); err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n" +
+		"\t\t\tif err := ctx.Bind(&in); err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n" +
+		"\t\t\tif err := ctx.BindVars(&in); err != nil {\n\t\t\t\treturn nil, err\n\t\t\t}\n" +
+		"\t\t\treturn srv." + override.methodName + "(callCtx, req.(*" + override.requestName + "))\n\t\t})"
+	if !strings.Contains(segment, generatedMiddleware) {
+		return nil, fmt.Errorf("middleware block not found for %s.%s", override.serviceName, override.methodName)
+	}
+	segment = strings.Replace(segment, generatedMiddleware, authorizedMiddleware, 1)
+	output = output[:handlerStart] + segment + output[handlerEnd:]
+	return []byte(output), nil
 }
 
 func declaredResponseBodyOverrides() ([]responseBodyOverride, error) {
@@ -337,6 +437,10 @@ func rewriteFile(path string, transform func([]byte) ([]byte, error)) error {
 }
 
 func applyGoHTTPStatus(input []byte, override statusOverride) ([]byte, error) {
+	if override.status != http.StatusNoContent {
+		output, err := applyGoHTTPServerBodyStatus(string(input), override)
+		return []byte(output), err
+	}
 	output, err := applyGoHTTPServerStatus(string(input), override)
 	if err != nil {
 		return nil, err
@@ -346,6 +450,31 @@ func applyGoHTTPStatus(input []byte, override statusOverride) ([]byte, error) {
 		return nil, err
 	}
 	return []byte(ensureGoImport(output, `httpbody "google.golang.org/genproto/googleapis/api/httpbody"`)), nil
+}
+
+func applyGoHTTPServerBodyStatus(input string, override statusOverride) (string, error) {
+	functionPrefix := "func _" + override.serviceName + "_" + override.methodName
+	start := strings.Index(input, functionPrefix)
+	if start < 0 {
+		return "", fmt.Errorf("handler not found for %s.%s", override.serviceName, override.methodName)
+	}
+	relativeEnd := strings.Index(input[start:], "\n}\n")
+	if relativeEnd < 0 {
+		return "", fmt.Errorf("unterminated handler for %s.%s", override.serviceName, override.methodName)
+	}
+	end := start + relativeEnd + len("\n}\n")
+	segment := input[start:end]
+	generatedResult := "\t\treturn ctx.Result(200, reply)"
+	if !strings.Contains(segment, generatedResult) {
+		return "", fmt.Errorf("200 response result not found for %s.%s", override.serviceName, override.methodName)
+	}
+	segment = strings.Replace(
+		segment,
+		generatedResult,
+		"\t\treturn ctx.Result("+strconv.Itoa(override.status)+", reply)",
+		1,
+	)
+	return input[:start] + segment + input[end:], nil
 }
 
 func applyGoHTTPServerStatus(input string, override statusOverride) (string, error) {
@@ -640,8 +769,16 @@ func applyOpenAPIOperationStatus(lines []string, override statusOverride) ([]str
 	if statusLine < 0 {
 		return nil, fmt.Errorf("OpenAPI 200 response for %s not found", operationID)
 	}
-	nextResponse := findNextResponseLine(lines, statusLine+1, responseIndent)
 	prefix := strings.Repeat(" ", responseIndent)
+	if override.status != http.StatusNoContent {
+		lines[statusLine] = prefix + "\"" + strconv.Itoa(override.status) + "\":"
+		descriptionLine := statusLine + 1
+		if descriptionLine < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[descriptionLine]), "description:") {
+			lines[descriptionLine] = strings.Repeat(" ", responseIndent+4) + "description: " + http.StatusText(override.status)
+		}
+		return lines, nil
+	}
+	nextResponse := findNextResponseLine(lines, statusLine+1, responseIndent)
 	replacement := []string{
 		prefix + "\"" + strconv.Itoa(override.status) + "\":",
 		prefix + "    description: No Content",

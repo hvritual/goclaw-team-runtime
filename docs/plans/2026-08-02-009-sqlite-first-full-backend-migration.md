@@ -107,9 +107,33 @@ This checkpoint completes only invitation revocation. Invitation creation, listi
 - Added Workspace provider, Auth application/SQLite, bootstrap composition,
   raw/generated HTTP, gRPC, SQLite-local and frontend schema coverage.
 
-This checkpoint completes only the workspace-scoped invitation list. Invitation
-creation, personal listing, lookup, acceptance, decline and the remaining
-migration matrix are still pending.
+This checkpoint completes only the workspace-scoped invitation list. Personal
+listing, lookup, acceptance, decline and the remaining migration matrix are
+still pending.
+
+## Checkpoint 2026-08-02 — Auth A4 Invitation Creation
+
+- Added the Proto-owned `CreateInvitation` operation on the compatible
+  `POST /api/workspaces/{workspace_id}/members` route, with generated 201
+  response-body and access-manifest behavior.
+- Added the pending Invitation constructor for normalized email, allowed invite
+  roles, timestamps and seven-day expiry.
+- Moved Owner/Admin authorization, member/pending conflict checks, expired
+  invitation rollover, registered-user resolution and insertion into the Auth
+  application transaction and SQLite provider.
+- Kept Workspace name lookup behind the Workspace public contract and outside
+  the Auth transaction, preserving the single-connection SQLite runtime.
+- Replaced the SQLite-local creation SQL/policy branch with the Auth contract and
+  added domain, application, real SQLite, raw/generated HTTP, gRPC and frontend
+  response-schema coverage.
+- Generalized the generated-status postprocessor so 204 remains no-content while
+  201 preserves its response body and OpenAPI schema.
+- Added the Proto-driven `authorize_before_body` adapter hook so both Kratos and
+  Chi resolve Owner/Admin authorization before decoding invitation JSON; the
+  mutation repeats the check inside its transaction to remain authoritative.
+
+This checkpoint completes invitation creation. Personal listing, lookup,
+acceptance, decline and the remaining migration matrix are still pending.
 
 ## Required Gates
 

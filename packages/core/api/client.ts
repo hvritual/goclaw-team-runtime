@@ -183,6 +183,7 @@ import {
   EMPTY_WORKSPACE_PERMISSION_CATALOG,
   MemberWithUserSchema,
   MemberListSchema,
+  InvitationSchema,
   InvitationListSchema,
 } from "./schemas";
 
@@ -988,10 +989,18 @@ export class ApiClient {
   }
 
   async createMember(workspaceId: string, data: CreateMemberRequest): Promise<Invitation> {
-    return this.fetch(`/api/workspaces/${workspaceId}/members`, {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/members`, {
       method: "POST",
       body: JSON.stringify(data),
     });
+    const invitation = parseWithFallback<Invitation | null>(
+      raw,
+      InvitationSchema.nullable(),
+      null,
+      { endpoint: "POST /api/workspaces/:id/members" },
+    );
+    if (!invitation) throw new Error("Invalid invitation response");
+    return invitation;
   }
 
   async updateMember(

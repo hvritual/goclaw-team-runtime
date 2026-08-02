@@ -9,6 +9,14 @@ import (
 
 func writeMemberError(w http.ResponseWriter, err error, fallback string) {
 	switch {
+	case errors.Is(err, contract.ErrInvalidInvitationEmail):
+		writeError(w, http.StatusBadRequest, "valid email is required")
+	case errors.Is(err, contract.ErrInvalidInvitationRole):
+		writeError(w, http.StatusBadRequest, "role must be admin or member")
+	case errors.Is(err, contract.ErrInviteeAlreadyMember):
+		writeError(w, http.StatusConflict, "user is already a member")
+	case errors.Is(err, contract.ErrInvitationAlreadyPending):
+		writeError(w, http.StatusConflict, "invitation already pending for this email")
 	case errors.Is(err, contract.ErrInvalidMemberRole):
 		writeError(w, http.StatusBadRequest, "role must be owner, admin, or member")
 	case errors.Is(err, contract.ErrWorkspaceMembershipHidden):

@@ -363,6 +363,14 @@ var file_annotations_v1_access_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "varint,51003,opt,name=http_success_status",
 		Filename:      "annotations/v1/access.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         51004,
+		Name:          "annotations.v1.authorize_before_body",
+		Tag:           "varint,51004,opt,name=authorize_before_body",
+		Filename:      "annotations/v1/access.proto",
+	},
 }
 
 // Extension fields to descriptorpb.ServiceOptions.
@@ -381,6 +389,13 @@ var (
 	//
 	// optional int32 http_success_status = 51003;
 	E_HttpSuccessStatus = &file_annotations_v1_access_proto_extTypes[2]
+	// authorize_before_body asks the generated HTTP adapter to invoke the
+	// method-specific authorization hook after binding path variables but before
+	// decoding the request body. The application method remains authoritative
+	// and repeats authorization inside its mutation transaction.
+	//
+	// optional bool authorize_before_body = 51004;
+	E_AuthorizeBeforeBody = &file_annotations_v1_access_proto_extTypes[3]
 )
 
 var File_annotations_v1_access_proto protoreflect.FileDescriptor
@@ -418,7 +433,8 @@ const file_annotations_v1_access_proto_rawDesc = "" +
 	"idempotent:Q\n" +
 	"\x06module\x12\x1f.google.protobuf.ServiceOptions\x18\xb9\x8e\x03 \x01(\v2\x16.annotations.v1.ModuleR\x06module:P\n" +
 	"\x06access\x12\x1e.google.protobuf.MethodOptions\x18\xba\x8e\x03 \x01(\v2\x16.annotations.v1.AccessR\x06access:P\n" +
-	"\x13http_success_status\x12\x1e.google.protobuf.MethodOptions\x18\xbb\x8e\x03 \x01(\x05R\x11httpSuccessStatusBJZHgithub.com/multica-ai/multica/server/gen/go/annotations/v1;annotationsv1b\x06proto3"
+	"\x13http_success_status\x12\x1e.google.protobuf.MethodOptions\x18\xbb\x8e\x03 \x01(\x05R\x11httpSuccessStatus:T\n" +
+	"\x15authorize_before_body\x12\x1e.google.protobuf.MethodOptions\x18\xbc\x8e\x03 \x01(\bR\x13authorizeBeforeBodyBJZHgithub.com/multica-ai/multica/server/gen/go/annotations/v1;annotationsv1b\x06proto3"
 
 var (
 	file_annotations_v1_access_proto_rawDescOnce sync.Once
@@ -447,12 +463,13 @@ var file_annotations_v1_access_proto_depIdxs = []int32{
 	4, // 2: annotations.v1.module:extendee -> google.protobuf.ServiceOptions
 	5, // 3: annotations.v1.access:extendee -> google.protobuf.MethodOptions
 	5, // 4: annotations.v1.http_success_status:extendee -> google.protobuf.MethodOptions
-	0, // 5: annotations.v1.module:type_name -> annotations.v1.Module
-	3, // 6: annotations.v1.access:type_name -> annotations.v1.Access
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	5, // [5:7] is the sub-list for extension type_name
-	2, // [2:5] is the sub-list for extension extendee
+	5, // 5: annotations.v1.authorize_before_body:extendee -> google.protobuf.MethodOptions
+	0, // 6: annotations.v1.module:type_name -> annotations.v1.Module
+	3, // 7: annotations.v1.access:type_name -> annotations.v1.Access
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	6, // [6:8] is the sub-list for extension type_name
+	2, // [2:6] is the sub-list for extension extendee
 	0, // [0:2] is the sub-list for field type_name
 }
 
@@ -468,7 +485,7 @@ func file_annotations_v1_access_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_annotations_v1_access_proto_rawDesc), len(file_annotations_v1_access_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
-			NumExtensions: 3,
+			NumExtensions: 4,
 			NumServices:   0,
 		},
 		GoTypes:           file_annotations_v1_access_proto_goTypes,

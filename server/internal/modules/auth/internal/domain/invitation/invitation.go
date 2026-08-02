@@ -2,12 +2,17 @@ package invitation
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
 )
 
-var ErrInvalidStatus = errors.New("invalid invitation status")
+var (
+	ErrInvalidStatus = errors.New("invalid invitation status")
+	ErrInvalidEmail  = errors.New("invalid invitation email")
+	ErrInvalidRole   = errors.New("invalid invitation role")
+)
 
 type Status string
 
@@ -43,4 +48,38 @@ type Invitation struct {
 	ExpiresAt     time.Time
 	InviterName   string
 	InviterEmail  string
+}
+
+// NewPending creates the initial Invitation state. Workspace authorization,
+// duplicate checks and persistence remain application concerns.
+func NewPending(
+	id string,
+	workspaceID string,
+	inviterID string,
+	inviteeEmail string,
+	role member.Role,
+	inviteeUserID *string,
+	now time.Time,
+	lifetime time.Duration,
+) (Invitation, error) {
+	email := strings.ToLower(strings.TrimSpace(inviteeEmail))
+	if !strings.Contains(email, "@") {
+		return Invitation{}, ErrInvalidEmail
+	}
+	if role != member.RoleAdmin && role != member.RoleMember {
+		return Invitation{}, ErrInvalidRole
+	}
+	timestamp := now.UTC()
+	return Invitation{
+		ID:            id,
+		WorkspaceID:   workspaceID,
+		InviterID:     inviterID,
+		InviteeEmail:  email,
+		InviteeUserID: inviteeUserID,
+		Role:          role,
+		Status:        StatusPending,
+		CreatedAt:     timestamp,
+		UpdatedAt:     timestamp,
+		ExpiresAt:     timestamp.Add(lifetime),
+	}, nil
 }

@@ -18,6 +18,8 @@ func TestSQLiteLocalAuthMemberFallbackErrorsRemainOperationSpecific(t *testing.T
 		"failed to leave workspace",
 		"failed to revoke invitation",
 		"failed to list invitations",
+		"failed to create invitation",
+		"failed to authorize invitation",
 	}
 	for _, fallback := range tests {
 		t.Run(fallback, func(t *testing.T) {
@@ -109,6 +111,49 @@ func TestSQLiteLocalAuthModuleHidesWorkspaceBeforeDecodingRoleChange(t *testing.
 
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusNotFound, recorder.Body.String())
+	}
+}
+
+func TestSQLiteLocalInvitationCreationAuthorizesBeforeDecodingBody(t *testing.T) {
+	app, err := Open(filepath.Join(t.TempDir(), "multica.db"), Options{
+		VerificationCode: "888888",
+		DisableKnowledge: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = app.Close() })
+
+	owner := &testClient{t: t, app: app}
+	ownerLogin := owner.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "owner@example.com", "code": "888888",
+	}, http.StatusOK)
+	owner.token = ownerLogin["token"].(string)
+	workspace := owner.request(http.MethodPost, "/api/workspaces", map[string]any{
+		"name": "Invitation Authorization", "slug": "invitation-authorization",
+	}, http.StatusCreated)
+	workspaceID := workspace["id"].(string)
+	created := owner.request(http.MethodPost, "/api/workspaces/"+workspaceID+"/members", map[string]any{
+		"email": "member@example.com", "role": "member",
+	}, http.StatusCreated)
+
+	memberClient := &testClient{t: t, app: app}
+	memberLogin := memberClient.request(http.MethodPost, "/auth/verify-code", map[string]any{
+		"email": "member@example.com", "code": "888888",
+	}, http.StatusOK)
+	memberClient.token = memberLogin["token"].(string)
+	memberClient.request(http.MethodPost, "/api/invitations/"+created["id"].(string)+"/accept", nil, http.StatusOK)
+
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodPost, "/api/workspaces/"+workspaceID+"/members", bytes.NewBufferString("{"),
+	)
+	request.Header.Set("Authorization", "Bearer "+memberClient.token)
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	app.Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", response.Code, http.StatusForbidden, response.Body.String())
 	}
 }
 

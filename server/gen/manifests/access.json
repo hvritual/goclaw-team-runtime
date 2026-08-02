@@ -25,6 +25,13 @@
   ],
   "permissions": [
     {
+      "code": "auth.invitation.create",
+      "name": "Create invitation",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "create"
+    },
+    {
       "code": "auth.invitation.list",
       "name": "List workspace invitations",
       "module": "auth",
@@ -86,6 +93,17 @@
       "http_path": "/v1/auth/ping",
       "public": true,
       "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/CreateInvitation",
+      "module": "auth",
+      "http_method": "POST",
+      "http_path": "/api/workspaces/{workspace_id}/members",
+      "permission_code": "auth.invitation.create",
+      "public": false,
+      "audit": true,
       "idempotent": false
     },
     {

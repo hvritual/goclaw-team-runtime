@@ -50,6 +50,41 @@ func (c *MemberServiceHTTPClientImpl) DeleteMember(ctx context.Context, in *Dele
 	}
 }
 
+func TestApplyGoHTTPStatusPreservesCreatedResponseBody(t *testing.T) {
+	input := []byte(`package authv1
+
+func _MemberService_CreateInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*Invitation)
+		return ctx.Result(200, reply)
+	}
+}
+
+func (c *MemberServiceHTTPClientImpl) CreateInvitation(ctx context.Context, in *CreateInvitationRequest, opts ...http.CallOption) (*Invitation, error) {
+	var out Invitation
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	return &out, err
+}
+`)
+	output, err := applyGoHTTPStatus(input, statusOverride{
+		serviceName: "MemberService", methodName: "CreateInvitation", status: 201,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, "return ctx.Result(201, reply)") || strings.Contains(text, "WriteHeader(201)") {
+		t.Fatalf("created handler lost response body:\n%s", text)
+	}
+	if !strings.Contains(text, "in, &out, opts...)") || strings.Contains(text, "httpbody.HttpBody") {
+		t.Fatalf("created client lost response target:\n%s", text)
+	}
+}
+
 func TestApplyOpenAPIStatuses(t *testing.T) {
 	input := []byte(`paths:
     /members/{id}:
@@ -79,6 +114,36 @@ func TestApplyOpenAPIStatuses(t *testing.T) {
 	}
 	if !strings.Contains(text, "default:") {
 		t.Fatalf("default response was removed:\n%s", text)
+	}
+}
+
+func TestApplyOpenAPIStatusesPreservesCreatedSchema(t *testing.T) {
+	input := []byte(`paths:
+    /members:
+        post:
+            operationId: MemberService_CreateInvitation
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Invitation'
+                default:
+                    description: Default error response
+`)
+	output, err := applyOpenAPIStatuses(input, []statusOverride{{
+		serviceName: "MemberService", methodName: "CreateInvitation", status: 201,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, `"201":`) || !strings.Contains(text, "#/components/schemas/Invitation'") {
+		t.Fatalf("created OpenAPI response lost schema:\n%s", text)
+	}
+	if strings.Contains(text, "description: No Content") || !strings.Contains(text, "default:") {
+		t.Fatalf("created OpenAPI response was treated as no-content:\n%s", text)
 	}
 }
 
@@ -214,5 +279,46 @@ components:
 	}
 	if !strings.Contains(text, "avatarUrl:\n                    type: string\n                    nullable: true") {
 		t.Fatalf("optional response-body field is not nullable:\n%s", text)
+	}
+}
+
+func TestApplyGoHTTPPreBodyAuthorization(t *testing.T) {
+	input := []byte(`type MemberServiceHTTPServer interface {
+	CreateInvitation(context.Context, *CreateInvitationRequest) (*Invitation, error)
+}
+
+func _MemberService_CreateInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in CreateInvitationRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.CreateInvitation(ctx, req.(*CreateInvitationRequest))
+		})
+		_, err := h(ctx, &in)
+		return err
+	}
+}
+`)
+	output, err := applyGoHTTPPreBodyAuthorization(input, preBodyAuthorizationOverride{
+		serviceName: "MemberService", methodName: "CreateInvitation", requestName: "CreateInvitationRequest",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	authorize := strings.Index(text, "srv.AuthorizeCreateInvitation(callCtx, &in)")
+	bindBody := strings.Index(text, "ctx.Bind(&in)")
+	bindVars := strings.Index(text, "ctx.BindVars(&in)")
+	rebindVars := strings.LastIndex(text, "ctx.BindVars(&in)")
+	if bindVars < 0 || authorize < bindVars || bindBody < authorize || rebindVars <= bindBody {
+		t.Fatalf("authorization order is not path, authorize, body, path:\n%s", text)
+	}
+	if !strings.Contains(text, "AuthorizeCreateInvitation(context.Context, *CreateInvitationRequest) error") {
+		t.Fatalf("HTTP server authorization hook is missing:\n%s", text)
 	}
 }

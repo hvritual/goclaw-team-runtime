@@ -13,14 +13,19 @@ import (
 )
 
 var (
-	ErrMembershipNotFound = errors.New("membership not found")
-	ErrInvitationNotFound = errors.New("invitation not found")
+	ErrMembershipNotFound      = errors.New("membership not found")
+	ErrInvitationNotFound      = errors.New("invitation not found")
+	ErrPendingInvitationExists = errors.New("pending invitation exists")
 )
+
+const defaultInvitationLifetime = 7 * 24 * time.Hour
 
 type MemberRepository interface {
 	FindByUserAndWorkspace(context.Context, string, string) (member.Member, error)
 	FindByIDAndWorkspace(context.Context, string, string) (member.Member, error)
 	ListByWorkspace(context.Context, string) ([]member.Member, error)
+	ExistsByEmail(context.Context, string, string) (bool, error)
+	FindUserIDByEmail(context.Context, string) (*string, error)
 	CountOwners(context.Context, string) (int, error)
 	UpdateRole(context.Context, string, string, member.Role) (member.Member, error)
 	DeleteByIDAndWorkspace(context.Context, string, string) error
@@ -33,7 +38,10 @@ type MemberUnitOfWork interface {
 
 type InvitationRepository interface {
 	ExpirePendingByWorkspace(context.Context, string, time.Time) error
+	ExpirePendingByWorkspaceAndEmail(context.Context, string, string, time.Time) error
+	PendingExistsByWorkspaceAndEmail(context.Context, string, string) (bool, error)
 	ListPendingByWorkspace(context.Context, string) ([]invitation.Invitation, error)
+	Create(context.Context, invitation.Invitation) error
 	RevokePending(context.Context, string, string, time.Time) error
 }
 
@@ -48,6 +56,8 @@ type MemberService struct {
 	invitationUnitOfWork InvitationUnitOfWork
 	workspaceIdentities  workspacecontract.WorkspaceIdentityReader
 	now                  func() time.Time
+	newInvitationID      func() string
+	invitationLifetime   time.Duration
 }
 
 func WithMemberUnitOfWork(unitOfWork MemberUnitOfWork) MemberServiceOption {
@@ -62,12 +72,20 @@ func WithInvitationClock(now func() time.Time) MemberServiceOption {
 	return func(service *MemberService) { service.now = now }
 }
 
+func WithInvitationIDGenerator(generator func() string) MemberServiceOption {
+	return func(service *MemberService) { service.newInvitationID = generator }
+}
+
+func WithInvitationLifetime(lifetime time.Duration) MemberServiceOption {
+	return func(service *MemberService) { service.invitationLifetime = lifetime }
+}
+
 func WithWorkspaceIdentityReader(reader workspacecontract.WorkspaceIdentityReader) MemberServiceOption {
 	return func(service *MemberService) { service.workspaceIdentities = reader }
 }
 
 func NewMemberService(options ...MemberServiceOption) *MemberService {
-	service := &MemberService{now: time.Now}
+	service := &MemberService{now: time.Now, invitationLifetime: defaultInvitationLifetime}
 	for _, option := range options {
 		option(service)
 	}
@@ -344,4 +362,137 @@ func invitationContracts(values []invitation.Invitation, workspaceName string) [
 		})
 	}
 	return result
+}
+func (s *MemberService) CreateInvitation(ctx context.Context, request contract.Member_CreateInvitationRequest) (contract.Member_Invitation, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_Invitation{}, contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil || s.newInvitationID == nil {
+		return contract.Member_Invitation{}, contract.ErrMemberNotImplemented
+	}
+
+	var created invitation.Invitation
+	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, invitations InvitationRepository) error {
+			requester, findErr := findMemberManager(ctx, members, actorUserID, request.WorkspaceId)
+			if findErr != nil {
+				return findErr
+			}
+			pending, createErr := s.newPendingInvitation(actorUserID, request)
+			if createErr != nil {
+				return createErr
+			}
+			pending.InviterName = requester.Name
+			pending.InviterEmail = requester.Email
+			if createErr := persistPendingInvitation(ctx, members, invitations, &pending); createErr != nil {
+				return createErr
+			}
+			created = pending
+			return nil
+		},
+	)
+	if err != nil {
+		return contract.Member_Invitation{}, err
+	}
+	identity, err := s.workspaceIdentities.FindIdentity(ctx, request.WorkspaceId)
+	if errors.Is(err, workspacecontract.ErrWorkspaceNotFound) {
+		return contract.Member_Invitation{}, contract.ErrWorkspaceMembershipHidden
+	}
+	if err != nil {
+		return contract.Member_Invitation{}, err
+	}
+	return invitationContracts([]invitation.Invitation{created}, identity.Name)[0], nil
+}
+
+func (s *MemberService) AuthorizeCreateInvitation(
+	ctx context.Context,
+	request contract.Member_CreateInvitationRequest,
+) error {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil {
+		return contract.ErrMemberNotImplemented
+	}
+	return s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, _ InvitationRepository) error {
+			_, err := findMemberManager(ctx, members, actorUserID, request.WorkspaceId)
+			return err
+		},
+	)
+}
+
+func (s *MemberService) newPendingInvitation(
+	actorUserID string,
+	request contract.Member_CreateInvitationRequest,
+) (invitation.Invitation, error) {
+	role, err := invitationRole(request.Role)
+	if err != nil {
+		return invitation.Invitation{}, err
+	}
+	pending, err := invitation.NewPending(
+		s.newInvitationID(), request.WorkspaceId, actorUserID, request.Email,
+		role, nil, s.now(), s.invitationLifetime,
+	)
+	switch {
+	case errors.Is(err, invitation.ErrInvalidEmail):
+		return invitation.Invitation{}, contract.ErrInvalidInvitationEmail
+	case errors.Is(err, invitation.ErrInvalidRole):
+		return invitation.Invitation{}, contract.ErrInvalidInvitationRole
+	default:
+		return pending, err
+	}
+}
+
+func persistPendingInvitation(
+	ctx context.Context,
+	members MemberRepository,
+	invitations InvitationRepository,
+	pending *invitation.Invitation,
+) error {
+	memberExists, err := members.ExistsByEmail(ctx, pending.WorkspaceID, pending.InviteeEmail)
+	if err != nil {
+		return err
+	}
+	if memberExists {
+		return contract.ErrInviteeAlreadyMember
+	}
+	if err := invitations.ExpirePendingByWorkspaceAndEmail(
+		ctx, pending.WorkspaceID, pending.InviteeEmail, pending.CreatedAt,
+	); err != nil {
+		return err
+	}
+	pendingExists, err := invitations.PendingExistsByWorkspaceAndEmail(
+		ctx, pending.WorkspaceID, pending.InviteeEmail,
+	)
+	if err != nil {
+		return err
+	}
+	if pendingExists {
+		return contract.ErrInvitationAlreadyPending
+	}
+	pending.InviteeUserID, err = members.FindUserIDByEmail(ctx, pending.InviteeEmail)
+	if err != nil {
+		return err
+	}
+	err = invitations.Create(ctx, *pending)
+	if errors.Is(err, ErrPendingInvitationExists) {
+		return contract.ErrInvitationAlreadyPending
+	}
+	return err
+}
+
+func invitationRole(value string) (member.Role, error) {
+	if value == "" {
+		return member.RoleMember, nil
+	}
+	role, err := member.ParseRole(value)
+	if err != nil || role == member.RoleOwner {
+		return "", contract.ErrInvalidInvitationRole
+	}
+	return role, nil
 }

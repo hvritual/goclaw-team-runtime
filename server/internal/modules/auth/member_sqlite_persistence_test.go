@@ -308,6 +308,87 @@ func TestSqliteWorkspaceInvitationListExpiresAndScopesPendingInvitations(t *test
 	}
 }
 
+func TestSqliteCreateInvitationPersistsAndRejectsConflicts(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-invitation-create?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at) VALUES
+			('owner-user', 'Owner', 'owner@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('invitee-user', 'Invitee', 'invitee@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('member-user', 'Member', 'member@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z');
+		INSERT INTO members(id, workspace_id, user_id, role, created_at) VALUES
+			('owner-member', 'workspace', 'owner-user', 'owner', '2026-08-02T00:00:00Z'),
+			('member-member', 'workspace', 'member-user', 'member', '2026-08-02T00:00:00Z');
+		INSERT INTO invitations(
+			id, workspace_id, inviter_id, invitee_email, role, status, created_at, updated_at, expires_at
+		) VALUES (
+			'expired-pending', 'workspace', 'owner-user', 'invitee@example.test', 'member', 'pending',
+			'2026-07-01T00:00:00Z', '2026-07-01T00:00:00Z', '2026-08-01T00:00:00Z'
+		);
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{
+		DB: db,
+		WorkspaceIdentities: staticWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{
+			ID: "workspace", Name: "Acme",
+		}},
+		Now:             func() time.Time { return fixedNow },
+		NewInvitationID: func() string { return "new-invitation" },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := module.MemberLocal()
+	actorCtx := contract.WithMemberActor(ctx, "owner-user")
+
+	created, err := service.CreateInvitation(actorCtx, contract.Member_CreateInvitationRequest{
+		WorkspaceId: "workspace", Email: " Invitee@Example.TEST ", Role: "admin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Id != "new-invitation" || created.InviteeUserId == nil || *created.InviteeUserId != "invitee-user" {
+		t.Fatalf("unexpected created invitation: %+v", created)
+	}
+	if created.WorkspaceName != "Acme" || created.InviterName != "Owner" || created.Role != "admin" {
+		t.Fatalf("unexpected created projection: %+v", created)
+	}
+	var oldStatus, expiresAt string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM invitations WHERE id = 'expired-pending'`).Scan(&oldStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT expires_at FROM invitations WHERE id = 'new-invitation'`).Scan(&expiresAt); err != nil {
+		t.Fatal(err)
+	}
+	if oldStatus != "expired" || expiresAt != fixedNow.Add(7*24*time.Hour).Format(time.RFC3339Nano) {
+		t.Fatalf("old status=%q expires_at=%q", oldStatus, expiresAt)
+	}
+
+	_, err = service.CreateInvitation(actorCtx, contract.Member_CreateInvitationRequest{
+		WorkspaceId: "workspace", Email: "invitee@example.test",
+	})
+	if !errors.Is(err, contract.ErrInvitationAlreadyPending) {
+		t.Fatalf("duplicate CreateInvitation() error = %v", err)
+	}
+	_, err = service.CreateInvitation(actorCtx, contract.Member_CreateInvitationRequest{
+		WorkspaceId: "workspace", Email: "member@example.test",
+	})
+	if !errors.Is(err, contract.ErrInviteeAlreadyMember) {
+		t.Fatalf("member CreateInvitation() error = %v", err)
+	}
+}
+
 func TestSqliteMemberRoleTransactionRollsBack(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member-rollback?mode=memory&cache=shared")
 	if err != nil {

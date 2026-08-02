@@ -67,6 +67,25 @@ func (s *memberTransportService) ListWorkspaceInvitations(ctx context.Context, r
 	return result, nil
 }
 
+func (s *memberTransportService) CreateInvitation(ctx context.Context, request contract.Member_CreateInvitationRequest) (contract.Member_Invitation, error) {
+	result, err := s.next.CreateInvitation(ctx, request)
+	if err != nil {
+		return contract.Member_Invitation{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
+func (s *memberTransportService) AuthorizeCreateInvitation(
+	ctx context.Context,
+	request contract.Member_CreateInvitationRequest,
+) error {
+	authorizer, ok := s.next.(contract.InvitationCreationAuthorizer)
+	if !ok {
+		return contract.ErrMemberNotImplemented
+	}
+	return authorizer.AuthorizeCreateInvitation(ctx, request)
+}
+
 func memberTransportError(err error) error {
 	switch {
 	case errors.Is(err, contract.ErrMemberActorRequired):
@@ -79,6 +98,14 @@ func memberTransportError(err error) error {
 		return kratoserrors.New(http.StatusNotFound, "MEMBER_NOT_FOUND", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvitationNotFound):
 		return kratoserrors.New(http.StatusNotFound, "INVITATION_NOT_FOUND", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvalidInvitationEmail):
+		return kratoserrors.New(http.StatusBadRequest, "INVALID_INVITATION_EMAIL", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvalidInvitationRole):
+		return kratoserrors.New(http.StatusBadRequest, "INVALID_INVITATION_ROLE", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInviteeAlreadyMember):
+		return kratoserrors.New(http.StatusConflict, "INVITEE_ALREADY_MEMBER", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationAlreadyPending):
+		return kratoserrors.New(http.StatusConflict, "INVITATION_ALREADY_PENDING", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInsufficientWorkspaceRole):
 		return kratoserrors.New(http.StatusForbidden, "INSUFFICIENT_WORKSPACE_ROLE", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):
@@ -95,3 +122,4 @@ func memberTransportError(err error) error {
 }
 
 var _ contract.MemberService = (*memberTransportService)(nil)
+var _ contract.InvitationCreationAuthorizer = (*memberTransportService)(nil)

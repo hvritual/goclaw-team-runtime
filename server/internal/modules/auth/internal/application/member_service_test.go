@@ -15,10 +15,13 @@ import (
 type fakeInvitationRepository struct {
 	workspaceID  string
 	invitationID string
+	email        string
 	updatedAt    time.Time
 	revoked      bool
 	expired      bool
 	listed       bool
+	pending      bool
+	created      *invitation.Invitation
 	values       []invitation.Invitation
 	err          error
 }
@@ -44,6 +47,28 @@ func (r *fakeInvitationRepository) RevokePending(_ context.Context, workspaceID,
 		return r.err
 	}
 	r.revoked = true
+	return nil
+}
+
+func (r *fakeInvitationRepository) ExpirePendingByWorkspaceAndEmail(_ context.Context, workspaceID, email string, expiredAt time.Time) error {
+	r.workspaceID = workspaceID
+	r.email = email
+	r.updatedAt = expiredAt
+	r.expired = true
+	return r.err
+}
+
+func (r *fakeInvitationRepository) PendingExistsByWorkspaceAndEmail(_ context.Context, workspaceID, email string) (bool, error) {
+	r.workspaceID = workspaceID
+	r.email = email
+	return r.pending, r.err
+}
+
+func (r *fakeInvitationRepository) Create(_ context.Context, value invitation.Invitation) error {
+	if r.err != nil {
+		return r.err
+	}
+	r.created = &value
 	return nil
 }
 
@@ -83,13 +108,16 @@ func (u *fakeMemberUnitOfWork) WithinTransaction(ctx context.Context, operation 
 }
 
 type fakeMemberRepository struct {
-	requester  member.Member
-	target     member.Member
-	members    []member.Member
-	ownerCount int
-	updated    bool
-	deleted    bool
-	listed     bool
+	requester       member.Member
+	target          member.Member
+	members         []member.Member
+	ownerCount      int
+	memberByEmail   bool
+	inviteeUserID   *string
+	updated         bool
+	deleted         bool
+	listed          bool
+	resolvedInvitee bool
 }
 
 func (r *fakeMemberRepository) FindByUserAndWorkspace(context.Context, string, string) (member.Member, error) {
@@ -129,6 +157,15 @@ func (r *fakeMemberRepository) DeleteByUserAndWorkspace(context.Context, string,
 func (r *fakeMemberRepository) ListByWorkspace(context.Context, string) ([]member.Member, error) {
 	r.listed = true
 	return r.members, nil
+}
+
+func (r *fakeMemberRepository) ExistsByEmail(context.Context, string, string) (bool, error) {
+	return r.memberByEmail, nil
+}
+
+func (r *fakeMemberRepository) FindUserIDByEmail(context.Context, string) (*string, error) {
+	r.resolvedInvitee = true
+	return r.inviteeUserID, nil
 }
 
 func TestListMembersReturnsWorkspaceMemberships(t *testing.T) {
@@ -503,5 +540,131 @@ func TestListWorkspaceInvitationsHidesMissingWorkspaceIdentity(t *testing.T) {
 	)
 	if !errors.Is(err, contract.ErrWorkspaceMembershipHidden) {
 		t.Fatalf("ListWorkspaceInvitations() error = %v", err)
+	}
+}
+
+func TestCreateInvitationPersistsNormalizedPendingInvitation(t *testing.T) {
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "owner-member", WorkspaceID: "workspace", UserID: "owner-user",
+		Role: member.RoleOwner, Name: "Owner", Email: "owner@example.test",
+	}}
+	invitations := &fakeInvitationRepository{}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace", Name: "Acme"}}),
+		WithInvitationClock(func() time.Time { return fixedNow }),
+		WithInvitationIDGenerator(func() string { return "invitation" }),
+		WithInvitationLifetime(7*24*time.Hour),
+	)
+
+	result, err := service.CreateInvitation(
+		contract.WithMemberActor(context.Background(), "owner-user"),
+		contract.Member_CreateInvitationRequest{
+			WorkspaceId: "workspace", Email: "  Invitee@Example.TEST ",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if invitations.created == nil {
+		t.Fatal("pending invitation was not persisted")
+	}
+	created := *invitations.created
+	if created.ID != "invitation" || created.InviteeEmail != "invitee@example.test" || created.Role != member.RoleMember {
+		t.Fatalf("unexpected persisted invitation: %+v", created)
+	}
+	if !invitations.expired || invitations.email != "invitee@example.test" || !members.resolvedInvitee {
+		t.Fatalf("duplicate preparation was not performed: invitation=%+v members=%+v", invitations, members)
+	}
+	if result.Id != "invitation" || result.WorkspaceName != "Acme" || result.InviterName != "Owner" || result.Status != "pending" {
+		t.Fatalf("unexpected invitation response: %+v", result)
+	}
+}
+
+func TestCreateInvitationAuthorizesBeforeValidatingInput(t *testing.T) {
+	invitations := &fakeInvitationRepository{}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{
+			members:     &fakeMemberRepository{requester: member.Member{ID: "member", Role: member.RoleMember}},
+			invitations: invitations,
+		}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{}),
+		WithInvitationIDGenerator(func() string { return "invitation" }),
+	)
+
+	_, err := service.CreateInvitation(
+		contract.WithMemberActor(context.Background(), "member-user"),
+		contract.Member_CreateInvitationRequest{WorkspaceId: "workspace", Email: "invalid", Role: "owner"},
+	)
+	if !errors.Is(err, contract.ErrInsufficientWorkspaceRole) {
+		t.Fatalf("CreateInvitation() error = %v", err)
+	}
+	if invitations.expired || invitations.created != nil {
+		t.Fatal("unauthorized invitation request reached invitation persistence")
+	}
+}
+
+func TestAuthorizeCreateInvitationRequiresWorkspaceManager(t *testing.T) {
+	tests := []struct {
+		name      string
+		requester member.Member
+		want      error
+	}{
+		{name: "owner", requester: member.Member{ID: "owner", Role: member.RoleOwner}},
+		{name: "admin", requester: member.Member{ID: "admin", Role: member.RoleAdmin}},
+		{name: "member", requester: member.Member{ID: "member", Role: member.RoleMember}, want: contract.ErrInsufficientWorkspaceRole},
+		{name: "outsider", want: contract.ErrWorkspaceMembershipHidden},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := NewMemberService(WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{
+				members: &fakeMemberRepository{requester: test.requester}, invitations: &fakeInvitationRepository{},
+			}))
+			err := service.AuthorizeCreateInvitation(
+				contract.WithMemberActor(context.Background(), "actor-user"),
+				contract.Member_CreateInvitationRequest{WorkspaceId: "workspace"},
+			)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("AuthorizeCreateInvitation() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestCreateInvitationRejectsMemberAndPendingInvitationConflicts(t *testing.T) {
+	tests := []struct {
+		name         string
+		memberExists bool
+		pending      bool
+		want         error
+	}{
+		{name: "existing member", memberExists: true, want: contract.ErrInviteeAlreadyMember},
+		{name: "pending invitation", pending: true, want: contract.ErrInvitationAlreadyPending},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			members := &fakeMemberRepository{
+				requester:     member.Member{ID: "owner", UserID: "owner-user", Role: member.RoleOwner},
+				memberByEmail: test.memberExists,
+			}
+			invitations := &fakeInvitationRepository{pending: test.pending}
+			service := NewMemberService(
+				WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+				WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{}),
+				WithInvitationIDGenerator(func() string { return "invitation" }),
+			)
+
+			_, err := service.CreateInvitation(
+				contract.WithMemberActor(context.Background(), "owner-user"),
+				contract.Member_CreateInvitationRequest{WorkspaceId: "workspace", Email: "invitee@example.test"},
+			)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("CreateInvitation() error = %v", err)
+			}
+			if invitations.created != nil {
+				t.Fatal("conflicting invitation was persisted")
+			}
+		})
 	}
 }

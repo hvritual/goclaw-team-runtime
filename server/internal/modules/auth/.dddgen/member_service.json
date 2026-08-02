@@ -24,9 +24,33 @@
     {
       "name": "ListWorkspaceInvitations",
       "simple_string": false
+    },
+    {
+      "name": "CreateInvitation",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
+    {
+      "name": "Member_CreateInvitationRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "json_tag": "email"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        }
+      ]
+    },
     {
       "name": "Member_DeleteMemberRequest",
       "fields": [

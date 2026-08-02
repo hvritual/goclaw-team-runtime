@@ -96,6 +96,24 @@ service MemberService {
       action: "list"
     };
   }
+
+  // CreateInvitation invites one human participant into a workspace. Existing
+  // clients continue to use the historical POST /members route.
+  rpc CreateInvitation(CreateInvitationRequest) returns (Invitation) {
+    option (google.api.http) = {
+      post: "/api/workspaces/{workspace_id}/members"
+      body: "*"
+    };
+    option (annotations.v1.http_success_status) = 201;
+    option (annotations.v1.authorize_before_body) = true;
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.create"
+      permission_name: "Create invitation"
+      resource: "auth.invitation"
+      action: "create"
+      audit: true
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -177,4 +195,10 @@ message ListWorkspaceInvitationsRequest {
 
 message ListWorkspaceInvitationsResponse {
   repeated Invitation invitations = 1;
+}
+
+message CreateInvitationRequest {
+  string workspace_id = 1;
+  string email = 2;
+  string role = 3;
 }

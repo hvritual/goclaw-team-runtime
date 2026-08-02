@@ -13,12 +13,13 @@ import (
 )
 
 type successfulMemberService struct {
-	listRequest            contract.Member_ListMembersRequest
-	updateRequest          contract.Member_UpdateMemberRoleRequest
-	deleteRequest          contract.Member_DeleteMemberRequest
-	leaveRequest           contract.Member_LeaveWorkspaceRequest
-	revokeRequest          contract.Member_RevokeInvitationRequest
-	listInvitationsRequest contract.Member_ListWorkspaceInvitationsRequest
+	listRequest             contract.Member_ListMembersRequest
+	updateRequest           contract.Member_UpdateMemberRoleRequest
+	deleteRequest           contract.Member_DeleteMemberRequest
+	leaveRequest            contract.Member_LeaveWorkspaceRequest
+	revokeRequest           contract.Member_RevokeInvitationRequest
+	listInvitationsRequest  contract.Member_ListWorkspaceInvitationsRequest
+	createInvitationRequest contract.Member_CreateInvitationRequest
 }
 
 func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
@@ -72,6 +73,20 @@ func (s *successfulMemberService) ListWorkspaceInvitations(_ context.Context, re
 		CreatedAt: "2026-08-02T00:00:00Z", UpdatedAt: "2026-08-02T00:00:00Z", ExpiresAt: "2026-08-09T00:00:00Z",
 		WorkspaceName: "Acme", InviterName: "Owner", InviterEmail: "owner@example.test",
 	}}}, nil
+}
+
+func (s *successfulMemberService) CreateInvitation(_ context.Context, request contract.Member_CreateInvitationRequest) (contract.Member_Invitation, error) {
+	s.createInvitationRequest = request
+	return contract.Member_Invitation{
+		Id: "invitation-created", WorkspaceId: request.WorkspaceId, InviterId: "user-1",
+		InviteeEmail: request.Email, Role: request.Role, Status: "pending",
+		CreatedAt: "2026-08-02T00:00:00Z", UpdatedAt: "2026-08-02T00:00:00Z", ExpiresAt: "2026-08-09T00:00:00Z",
+		WorkspaceName: "Acme", InviterName: "Owner", InviterEmail: "owner@example.test",
+	}, nil
+}
+
+func (*successfulMemberService) AuthorizeCreateInvitation(context.Context, contract.Member_CreateInvitationRequest) error {
+	return nil
 }
 
 func TestAuthMemberGRPCRoundTrips(t *testing.T) {
@@ -148,5 +163,19 @@ func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 	}
 	if service.listInvitationsRequest.WorkspaceId != "workspace-1" || len(invitationList.Invitations) != 1 || invitationList.Invitations[0].WorkspaceName != "Acme" {
 		t.Fatalf("unexpected invitation list round trip request=%+v result=%+v", service.listInvitationsRequest, invitationList)
+	}
+	assertCreateInvitationGRPCRoundTrip(t, client, service)
+}
+
+func assertCreateInvitationGRPCRoundTrip(t *testing.T, client contract.MemberService, service *successfulMemberService) {
+	t.Helper()
+	created, err := client.CreateInvitation(t.Context(), contract.Member_CreateInvitationRequest{
+		WorkspaceId: "workspace-1", Email: "invitee@example.test", Role: "admin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.createInvitationRequest.Email != "invitee@example.test" || created.Id != "invitation-created" || created.Role != "admin" {
+		t.Fatalf("unexpected invitation create round trip request=%+v result=%+v", service.createInvitationRequest, created)
 	}
 }

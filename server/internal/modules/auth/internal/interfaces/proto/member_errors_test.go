@@ -42,6 +42,10 @@ func (s *fakeMemberService) ListWorkspaceInvitations(context.Context, contract.M
 	return contract.Member_ListWorkspaceInvitationsResponse{}, s.err
 }
 
+func (s *fakeMemberService) CreateInvitation(context.Context, contract.Member_CreateInvitationRequest) (contract.Member_Invitation, error) {
+	return contract.Member_Invitation{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -53,6 +57,10 @@ func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 		{name: "hidden workspace", err: contract.ErrWorkspaceMembershipHidden, code: http.StatusNotFound},
 		{name: "member missing", err: contract.ErrMemberNotFound, code: http.StatusNotFound},
 		{name: "invitation missing", err: contract.ErrInvitationNotFound, code: http.StatusNotFound},
+		{name: "invalid invitation email", err: contract.ErrInvalidInvitationEmail, code: http.StatusBadRequest},
+		{name: "invalid invitation role", err: contract.ErrInvalidInvitationRole, code: http.StatusBadRequest},
+		{name: "invitee already member", err: contract.ErrInviteeAlreadyMember, code: http.StatusConflict},
+		{name: "invitation already pending", err: contract.ErrInvitationAlreadyPending, code: http.StatusConflict},
 		{name: "insufficient role", err: contract.ErrInsufficientWorkspaceRole, code: http.StatusForbidden},
 		{name: "owner role", err: contract.ErrOwnerRoleRequiresOwner, code: http.StatusForbidden},
 		{name: "owner removal", err: contract.ErrOwnerRemovalRequiresOwner, code: http.StatusForbidden},

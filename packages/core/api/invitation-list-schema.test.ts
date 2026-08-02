@@ -76,3 +76,44 @@ describe("workspace invitation list API boundary", () => {
     ).resolves.toEqual([]);
   });
 });
+
+describe("workspace invitation create API boundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("validates and returns the created invitation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(VALID_INVITATION), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(
+      client.createMember("workspace-1", {
+        email: "invitee@example.test",
+        role: "member",
+      }),
+    ).resolves.toEqual(VALID_INVITATION);
+  });
+
+  it("rejects a malformed created invitation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...VALID_INVITATION, id: 42 }), {
+          status: 201,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(
+      client.createMember("workspace-1", { email: "invitee@example.test" }),
+    ).rejects.toThrow("Invalid invitation response");
+  });
+});

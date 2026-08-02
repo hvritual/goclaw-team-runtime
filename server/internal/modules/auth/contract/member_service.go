@@ -15,6 +15,13 @@ type MemberService interface {
 	LeaveWorkspace(context.Context, Member_LeaveWorkspaceRequest) (Member_LeaveWorkspaceResponse, error)
 	RevokeInvitation(context.Context, Member_RevokeInvitationRequest) (Member_RevokeInvitationResponse, error)
 	ListWorkspaceInvitations(context.Context, Member_ListWorkspaceInvitationsRequest) (Member_ListWorkspaceInvitationsResponse, error)
+	CreateInvitation(context.Context, Member_CreateInvitationRequest) (Member_Invitation, error)
+}
+
+type Member_CreateInvitationRequest struct {
+	WorkspaceId string `json:"workspaceId,omitempty"`
+	Email       string `json:"email,omitempty"`
+	Role        string `json:"role,omitempty"`
 }
 
 type Member_DeleteMemberRequest struct {

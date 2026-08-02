@@ -72,6 +72,57 @@ func (r *invitationRepository) ExpirePendingByWorkspace(ctx context.Context, wor
 	return nil
 }
 
+func (r *invitationRepository) ExpirePendingByWorkspaceAndEmail(
+	ctx context.Context,
+	workspaceID string,
+	email string,
+	expiredAt time.Time,
+) error {
+	timestamp := expiredAt.UTC().Format(time.RFC3339Nano)
+	if _, err := r.tx.ExecContext(ctx, `UPDATE invitations
+		SET status = 'expired', updated_at = ?
+		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending' AND expires_at <= ?`,
+		timestamp, workspaceID, email, timestamp,
+	); err != nil {
+		return fmt.Errorf("expire invitee invitations: %w", err)
+	}
+	return nil
+}
+
+func (r *invitationRepository) PendingExistsByWorkspaceAndEmail(
+	ctx context.Context,
+	workspaceID string,
+	email string,
+) (bool, error) {
+	var count int
+	if err := r.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM invitations
+		WHERE workspace_id = ? AND invitee_email = ? AND status = 'pending'`,
+		workspaceID, email,
+	).Scan(&count); err != nil {
+		return false, fmt.Errorf("check pending invitation: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (r *invitationRepository) Create(ctx context.Context, value invitation.Invitation) error {
+	_, err := r.tx.ExecContext(ctx, `INSERT INTO invitations(
+		id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
+		created_at, updated_at, expires_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		value.ID, value.WorkspaceID, value.InviterID, value.InviteeEmail, value.InviteeUserID,
+		string(value.Role), string(value.Status),
+		value.CreatedAt.UTC().Format(time.RFC3339Nano),
+		value.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		value.ExpiresAt.UTC().Format(time.RFC3339Nano),
+	)
+	if err != nil {
+		// The current public route reports every insert conflict as an existing
+		// pending invitation; the application performs explicit checks first.
+		return application.ErrPendingInvitationExists
+	}
+	return nil
+}
+
 func (r *invitationRepository) ListPendingByWorkspace(ctx context.Context, workspaceID string) ([]invitation.Invitation, error) {
 	rows, err := r.tx.QueryContext(ctx, invitationProjection+`
 		WHERE i.workspace_id = ? AND i.status = 'pending'
@@ -149,6 +200,27 @@ func (r *memberRepository) ListByWorkspace(ctx context.Context, workspaceID stri
 		return nil, fmt.Errorf("iterate workspace members: %w", err)
 	}
 	return values, nil
+}
+
+func (r *memberRepository) ExistsByEmail(ctx context.Context, workspaceID, email string) (bool, error) {
+	var count int
+	if err := r.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM members m
+		JOIN users u ON u.id = m.user_id
+		WHERE m.workspace_id = ? AND lower(u.email) = ?`, workspaceID, email).Scan(&count); err != nil {
+		return false, fmt.Errorf("check workspace membership by email: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (r *memberRepository) FindUserIDByEmail(ctx context.Context, email string) (*string, error) {
+	var userID string
+	if err := r.tx.QueryRowContext(ctx, `SELECT id FROM users WHERE lower(email) = ?`, email).Scan(&userID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("resolve invitee user: %w", err)
+	}
+	return &userID, nil
 }
 
 func (r *memberRepository) CountOwners(ctx context.Context, workspaceID string) (int, error) {
