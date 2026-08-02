@@ -76,12 +76,11 @@ func (r *fakeInvitationRepository) Create(_ context.Context, value invitation.In
 
 func (r *fakeInvitationRepository) ExpirePendingByInvitee(
 	_ context.Context,
-	userID string,
-	email string,
+	invitee member.UserIdentity,
 	expiredAt time.Time,
 ) error {
-	r.inviteeUserID = userID
-	r.email = email
+	r.inviteeUserID = invitee.ID
+	r.email = invitee.Email
 	r.updatedAt = expiredAt
 	r.expired = true
 	return r.err
@@ -89,11 +88,10 @@ func (r *fakeInvitationRepository) ExpirePendingByInvitee(
 
 func (r *fakeInvitationRepository) ListPendingByInvitee(
 	_ context.Context,
-	userID string,
-	email string,
+	invitee member.UserIdentity,
 ) ([]invitation.Invitation, error) {
-	r.inviteeUserID = userID
-	r.email = email
+	r.inviteeUserID = invitee.ID
+	r.email = invitee.Email
 	r.listed = true
 	return r.values, r.err
 }
@@ -525,7 +523,7 @@ func TestListWorkspaceInvitationsExpiresAndReturnsPendingInvitations(t *testing.
 		ID: "invitation", WorkspaceID: "workspace", InviterID: "owner-user",
 		InviteeEmail: "invitee@example.test", InviteeUserID: &inviteeUserID,
 		Role: member.RoleMember, Status: invitation.StatusPending,
-		CreatedAt: fixedNow.Add(-time.Hour), UpdatedAt: fixedNow.Add(-time.Hour), ExpiresAt: fixedNow.Add(7 * 24 * time.Hour),
+		CreatedAt: invitation.NewTimestamp(fixedNow.Add(-time.Hour)), UpdatedAt: invitation.NewTimestamp(fixedNow.Add(-time.Hour)), ExpiresAt: invitation.NewTimestamp(fixedNow.Add(7 * 24 * time.Hour)),
 		InviterName: "Owner", InviterEmail: "owner@example.test",
 	}}}
 	identities := &fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace", Name: "Acme"}}
@@ -735,14 +733,14 @@ func TestListMyInvitationsExpiresAndReturnsOwnedPendingInvitations(t *testing.T)
 		{
 			ID: "invitation-a", WorkspaceID: "workspace-a", InviterID: "owner-a",
 			InviteeEmail: "invitee@example.test", Role: member.RoleMember, Status: invitation.StatusPending,
-			CreatedAt: now.Add(-time.Hour), UpdatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour),
+			CreatedAt: invitation.NewTimestamp(now.Add(-time.Hour)), UpdatedAt: invitation.NewTimestamp(now.Add(-time.Hour)), ExpiresAt: invitation.NewTimestamp(now.Add(time.Hour)),
 			InviterName: "Owner A", InviterEmail: "owner-a@example.test",
 		},
 		{
 			ID: "invitation-b", WorkspaceID: "workspace-b", InviterID: "owner-b",
 			InviteeEmail: "old@example.test", InviteeUserID: stringPointer("invitee-user"),
 			Role: member.RoleAdmin, Status: invitation.StatusPending,
-			CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(2 * time.Hour),
+			CreatedAt: invitation.NewTimestamp(now), UpdatedAt: invitation.NewTimestamp(now), ExpiresAt: invitation.NewTimestamp(now.Add(2 * time.Hour)),
 			InviterName: "Owner B", InviterEmail: "owner-b@example.test",
 		},
 	}}
@@ -798,7 +796,7 @@ func TestGetMyInvitationReturnsOwnedInvitationInAnyState(t *testing.T) {
 	invitations := &fakeInvitationRepository{found: invitation.Invitation{
 		ID: "invitation", WorkspaceID: "workspace", InviterID: "owner-user",
 		InviteeEmail: "invitee@example.test", Role: member.RoleMember, Status: invitation.StatusDeclined,
-		CreatedAt: now.Add(-time.Hour), UpdatedAt: now, ExpiresAt: now.Add(time.Hour),
+		CreatedAt: invitation.NewTimestamp(now.Add(-time.Hour)), UpdatedAt: invitation.NewTimestamp(now), ExpiresAt: invitation.NewTimestamp(now.Add(time.Hour)),
 		InviterName: "Owner", InviterEmail: "owner@example.test",
 	}}
 	service := NewMemberService(

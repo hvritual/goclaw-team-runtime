@@ -111,9 +111,9 @@ func (r *invitationRepository) Create(ctx context.Context, value invitation.Invi
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		value.ID, value.WorkspaceID, value.InviterID, value.InviteeEmail, value.InviteeUserID,
 		string(value.Role), string(value.Status),
-		value.CreatedAt.UTC().Format(time.RFC3339Nano),
-		value.UpdatedAt.UTC().Format(time.RFC3339Nano),
-		value.ExpiresAt.UTC().Format(time.RFC3339Nano),
+		value.CreatedAt.String(),
+		value.UpdatedAt.String(),
+		value.ExpiresAt.String(),
 	)
 	if err != nil {
 		// The current public route reports every insert conflict as an existing
@@ -130,20 +130,7 @@ func (r *invitationRepository) ListPendingByWorkspace(ctx context.Context, works
 	if err != nil {
 		return nil, fmt.Errorf("list workspace invitations: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
-
-	values := make([]invitation.Invitation, 0)
-	for rows.Next() {
-		value, scanErr := scanInvitation(rows)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		values = append(values, value)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate workspace invitations: %w", err)
-	}
-	return values, nil
+	return scanInvitationRows(rows, "workspace invitations")
 }
 
 func (r *invitationRepository) RevokePending(
@@ -172,8 +159,7 @@ func (r *invitationRepository) RevokePending(
 
 func (r *invitationRepository) ExpirePendingByInvitee(
 	ctx context.Context,
-	userID string,
-	email string,
+	invitee member.UserIdentity,
 	expiredAt time.Time,
 ) error {
 	timestamp := expiredAt.UTC().Format(time.RFC3339Nano)
@@ -181,7 +167,7 @@ func (r *invitationRepository) ExpirePendingByInvitee(
 		SET status = 'expired', updated_at = ?
 		WHERE status = 'pending' AND expires_at <= ?
 			AND (invitee_user_id = ? OR invitee_email = ?)`,
-		timestamp, timestamp, userID, email,
+		timestamp, timestamp, invitee.ID, invitee.Email,
 	); err != nil {
 		return fmt.Errorf("expire personal invitations: %w", err)
 	}
@@ -190,27 +176,29 @@ func (r *invitationRepository) ExpirePendingByInvitee(
 
 func (r *invitationRepository) ListPendingByInvitee(
 	ctx context.Context,
-	userID string,
-	email string,
+	invitee member.UserIdentity,
 ) ([]invitation.Invitation, error) {
 	rows, err := r.tx.QueryContext(ctx, invitationProjection+`
 		WHERE i.status = 'pending' AND (i.invitee_user_id = ? OR i.invitee_email = ?)
-		ORDER BY i.created_at`, userID, email)
+		ORDER BY i.created_at`, invitee.ID, invitee.Email)
 	if err != nil {
 		return nil, fmt.Errorf("list personal invitations: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
+	return scanInvitationRows(rows, "personal invitations")
+}
 
+func scanInvitationRows(rows *sql.Rows, label string) ([]invitation.Invitation, error) {
+	defer func() { _ = rows.Close() }()
 	values := make([]invitation.Invitation, 0)
 	for rows.Next() {
-		value, scanErr := scanInvitation(rows)
-		if scanErr != nil {
-			return nil, scanErr
+		value, err := scanInvitation(rows)
+		if err != nil {
+			return nil, err
 		}
 		values = append(values, value)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate personal invitations: %w", err)
+		return nil, fmt.Errorf("iterate %s: %w", label, err)
 	}
 	return values, nil
 }
@@ -416,37 +404,15 @@ func scanInvitation(row memberScanner) (invitation.Invitation, error) {
 	); err != nil {
 		return invitation.Invitation{}, fmt.Errorf("scan invitation: %w", err)
 	}
-	parsedRole, err := member.ParseRole(role)
-	if err != nil {
-		return invitation.Invitation{}, fmt.Errorf("scan invitation role: %w", err)
-	}
-	parsedStatus, err := invitation.ParseStatus(status)
-	if err != nil {
-		return invitation.Invitation{}, fmt.Errorf("scan invitation status: %w", err)
-	}
-	value.Role = parsedRole
-	value.Status = parsedStatus
+	value.Role = member.Role(role)
+	value.Status = invitation.Status(status)
 	if inviteeUserID.Valid {
 		value.InviteeUserID = &inviteeUserID.String
 	}
-	if value.CreatedAt, err = parseInvitationTime("created_at", createdAt); err != nil {
-		return invitation.Invitation{}, err
-	}
-	if value.UpdatedAt, err = parseInvitationTime("updated_at", updatedAt); err != nil {
-		return invitation.Invitation{}, err
-	}
-	if value.ExpiresAt, err = parseInvitationTime("expires_at", expiresAt); err != nil {
-		return invitation.Invitation{}, err
-	}
+	value.CreatedAt = invitation.Timestamp(createdAt)
+	value.UpdatedAt = invitation.Timestamp(updatedAt)
+	value.ExpiresAt = invitation.Timestamp(expiresAt)
 	return value, nil
-}
-
-func parseInvitationTime(field, value string) (time.Time, error) {
-	parsed, err := time.Parse(time.RFC3339Nano, value)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("scan invitation %s: %w", field, err)
-	}
-	return parsed, nil
 }
 
 var _ application.MemberUnitOfWork = (*MemberStore)(nil)

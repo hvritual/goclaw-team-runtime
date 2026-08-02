@@ -4,6 +4,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
@@ -45,8 +46,8 @@ type InvitationRepository interface {
 	ListPendingByWorkspace(context.Context, string) ([]invitation.Invitation, error)
 	Create(context.Context, invitation.Invitation) error
 	RevokePending(context.Context, string, string, time.Time) error
-	ExpirePendingByInvitee(context.Context, string, string, time.Time) error
-	ListPendingByInvitee(context.Context, string, string) ([]invitation.Invitation, error)
+	ExpirePendingByInvitee(context.Context, member.UserIdentity, time.Time) error
+	ListPendingByInvitee(context.Context, member.UserIdentity) ([]invitation.Invitation, error)
 	FindByID(context.Context, string) (invitation.Invitation, error)
 }
 
@@ -366,9 +367,9 @@ func invitationContract(value invitation.Invitation, workspaceName string) contr
 		Id: value.ID, WorkspaceId: value.WorkspaceID, InviterId: value.InviterID,
 		InviteeEmail: value.InviteeEmail, InviteeUserId: value.InviteeUserID,
 		Role: string(value.Role), Status: string(value.Status),
-		CreatedAt:     value.CreatedAt.UTC().Format(time.RFC3339Nano),
-		UpdatedAt:     value.UpdatedAt.UTC().Format(time.RFC3339Nano),
-		ExpiresAt:     value.ExpiresAt.UTC().Format(time.RFC3339Nano),
+		CreatedAt:     value.CreatedAt.String(),
+		UpdatedAt:     value.UpdatedAt.String(),
+		ExpiresAt:     value.ExpiresAt.String(),
 		WorkspaceName: workspaceName, InviterName: value.InviterName, InviterEmail: value.InviterEmail,
 	}
 }
@@ -470,8 +471,12 @@ func persistPendingInvitation(
 	if memberExists {
 		return contract.ErrInviteeAlreadyMember
 	}
+	createdAt, err := pending.CreatedAt.Time()
+	if err != nil {
+		return fmt.Errorf("parse new invitation creation time: %w", err)
+	}
 	if err := invitations.ExpirePendingByWorkspaceAndEmail(
-		ctx, pending.WorkspaceID, pending.InviteeEmail, pending.CreatedAt,
+		ctx, pending.WorkspaceID, pending.InviteeEmail, createdAt,
 	); err != nil {
 		return err
 	}
@@ -518,18 +523,15 @@ func (s *MemberService) ListMyInvitations(ctx context.Context, _ contract.Member
 	err := s.invitationUnitOfWork.WithinInvitationTransaction(
 		ctx,
 		func(members MemberRepository, invitations InvitationRepository) error {
-			current, findErr := members.FindUserByID(ctx, actorUserID)
-			if errors.Is(findErr, ErrAuthUserNotFound) {
-				return contract.ErrAuthUserNotFound
-			}
+			current, findErr := findAuthUserIdentity(ctx, members, actorUserID)
 			if findErr != nil {
 				return findErr
 			}
-			if expireErr := invitations.ExpirePendingByInvitee(ctx, current.ID, current.Email, s.now().UTC()); expireErr != nil {
+			if expireErr := invitations.ExpirePendingByInvitee(ctx, current, s.now().UTC()); expireErr != nil {
 				return expireErr
 			}
 			var listErr error
-			values, listErr = invitations.ListPendingByInvitee(ctx, current.ID, current.Email)
+			values, listErr = invitations.ListPendingByInvitee(ctx, current)
 			return listErr
 		},
 	)
@@ -557,10 +559,7 @@ func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Me
 	err := s.invitationUnitOfWork.WithinInvitationTransaction(
 		ctx,
 		func(members MemberRepository, invitations InvitationRepository) error {
-			current, findErr := members.FindUserByID(ctx, actorUserID)
-			if errors.Is(findErr, ErrAuthUserNotFound) {
-				return contract.ErrAuthUserNotFound
-			}
+			current, findErr := findAuthUserIdentity(ctx, members, actorUserID)
 			if findErr != nil {
 				return findErr
 			}
@@ -571,7 +570,7 @@ func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Me
 			if findErr != nil {
 				return findErr
 			}
-			if !invitationBelongsTo(value, current) {
+			if !value.BelongsTo(current.ID, current.Email) {
 				return contract.ErrInvitationForbidden
 			}
 			return nil
@@ -592,11 +591,16 @@ func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Me
 	return contract.Member_GetMyInvitationResponse{Invitation: &result}, nil
 }
 
-func invitationBelongsTo(value invitation.Invitation, current member.UserIdentity) bool {
-	if value.InviteeUserID != nil && *value.InviteeUserID == current.ID {
-		return true
+func findAuthUserIdentity(
+	ctx context.Context,
+	members MemberRepository,
+	userID string,
+) (member.UserIdentity, error) {
+	current, err := members.FindUserByID(ctx, userID)
+	if errors.Is(err, ErrAuthUserNotFound) {
+		return member.UserIdentity{}, contract.ErrAuthUserNotFound
 	}
-	return value.InviteeEmail == current.Email
+	return current, err
 }
 
 func (s *MemberService) personalInvitationContracts(

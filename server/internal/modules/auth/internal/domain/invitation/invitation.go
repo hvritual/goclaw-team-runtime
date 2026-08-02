@@ -16,6 +16,21 @@ var (
 
 type Status string
 
+// Timestamp preserves the stored public timestamp representation. New domain
+// values are canonical RFC3339Nano, while reads remain compatible with legacy
+// rows that predate timestamp validation.
+type Timestamp string
+
+func NewTimestamp(value time.Time) Timestamp {
+	return Timestamp(value.UTC().Format(time.RFC3339Nano))
+}
+
+func (t Timestamp) String() string { return string(t) }
+
+func (t Timestamp) Time() (time.Time, error) {
+	return time.Parse(time.RFC3339Nano, string(t))
+}
+
 const (
 	StatusPending  Status = "pending"
 	StatusAccepted Status = "accepted"
@@ -43,11 +58,20 @@ type Invitation struct {
 	InviteeUserID *string
 	Role          member.Role
 	Status        Status
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	ExpiresAt     time.Time
+	CreatedAt     Timestamp
+	UpdatedAt     Timestamp
+	ExpiresAt     Timestamp
 	InviterName   string
 	InviterEmail  string
+}
+
+// BelongsTo accepts either a resolved invitee identity or the invited email,
+// preserving invitations created before the user account existed.
+func (i Invitation) BelongsTo(userID, email string) bool {
+	if i.InviteeUserID != nil && *i.InviteeUserID == userID {
+		return true
+	}
+	return i.InviteeEmail == email
 }
 
 // NewPending creates the initial Invitation state. Workspace authorization,
@@ -78,8 +102,8 @@ func NewPending(
 		InviteeUserID: inviteeUserID,
 		Role:          role,
 		Status:        StatusPending,
-		CreatedAt:     timestamp,
-		UpdatedAt:     timestamp,
-		ExpiresAt:     timestamp.Add(lifetime),
+		CreatedAt:     NewTimestamp(timestamp),
+		UpdatedAt:     NewTimestamp(timestamp),
+		ExpiresAt:     NewTimestamp(timestamp.Add(lifetime)),
 	}, nil
 }

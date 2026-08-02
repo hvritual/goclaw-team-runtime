@@ -184,6 +184,72 @@ func TestSqlitePersonalInvitationReadsExpireScopeAndAuthorize(t *testing.T) {
 	}
 }
 
+func TestSqlitePersonalInvitationReadsPreserveStoredStrings(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-personal-invitation-compatibility?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at) VALUES
+			('owner-user', 'Owner', 'owner@example.test', 'created-user', 'updated-user'),
+			('invitee-user', 'Invitee', 'invitee@example.test', 'created-user', 'updated-user');
+		INSERT INTO invitations(
+			id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
+			created_at, updated_at, expires_at
+		) VALUES
+			('future-list', 'workspace-list', 'owner-user', 'invitee@example.test', NULL, 'viewer', 'pending',
+			 'legacy-created', 'legacy-updated', 'zzzz-future-expiry'),
+			('future-detail', 'workspace-detail', 'owner-user', 'invitee@example.test', NULL, 'auditor', 'scheduled',
+			 'detail-created', 'detail-updated', 'detail-expiry');
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{
+		DB: db,
+		WorkspaceIdentities: mappedWorkspaceIdentityReader{
+			"workspace-list":   {ID: "workspace-list", Name: "List Workspace"},
+			"workspace-detail": {ID: "workspace-detail", Name: "Detail Workspace"},
+		},
+		Now: func() time.Time { return time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := module.MemberLocal()
+	inviteeCtx := contract.WithMemberActor(ctx, "invitee-user")
+
+	listed, err := service.ListMyInvitations(inviteeCtx, contract.Member_ListMyInvitationsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.Invitations) != 1 {
+		t.Fatalf("personal invitations = %+v", listed.Invitations)
+	}
+	listedValue := listed.Invitations[0]
+	if listedValue.Role != "viewer" || listedValue.CreatedAt != "legacy-created" || listedValue.UpdatedAt != "legacy-updated" || listedValue.ExpiresAt != "zzzz-future-expiry" {
+		t.Fatalf("stored list strings were changed: %+v", listedValue)
+	}
+
+	detail, err := service.GetMyInvitation(inviteeCtx, contract.Member_GetMyInvitationRequest{InvitationId: "future-detail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Invitation == nil {
+		t.Fatal("invitation detail is nil")
+	}
+	if detail.Invitation.Role != "auditor" || detail.Invitation.Status != "scheduled" ||
+		detail.Invitation.CreatedAt != "detail-created" || detail.Invitation.UpdatedAt != "detail-updated" || detail.Invitation.ExpiresAt != "detail-expiry" {
+		t.Fatalf("stored detail strings were changed: %+v", detail.Invitation)
+	}
+}
+
 func TestSqliteListMembersIsWorkspaceScopedAndOrdered(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member-list?mode=memory&cache=shared")
 	if err != nil {

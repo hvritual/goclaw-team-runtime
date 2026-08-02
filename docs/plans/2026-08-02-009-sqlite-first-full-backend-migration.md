@@ -24,7 +24,9 @@ of full migration.
 
 ## Execution Order
 
-1. Characterize one frontend-used route and its current SQLite behavior.
+1. Characterize one frontend-used use case and its current SQLite behavior.
+   Default to one route; group routes only when they share one business rule,
+   persistence seam, verification path and safe rollback boundary.
 2. Add its Proto RPC, HTTP/access metadata, domain rule, application use case,
    and native SQLite provider.
 3. Switch the SQLite route to the module contract and remove the old business
@@ -38,7 +40,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change, A2 delete/leave, A3 member list, and A4 invitation revoke/workspace-list switched | PostgreSQL parity, create/my-list/get/accept/decline invitations |
+| Auth / Member | A1 role change, A2 delete/leave, A3 member list, A4 invitation revoke/workspace-list/create, and A5 personal invitation reads switched | PostgreSQL parity, accept/decline invitations |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -134,6 +136,37 @@ still pending.
 
 This checkpoint completes invitation creation. Personal listing, lookup,
 acceptance, decline and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Auth A5 Personal Invitation Reads
+
+- Added Proto-owned `ListMyInvitations` and `GetMyInvitation` operations for the
+  existing `GET /api/invitations` and `GET /api/invitations/{id}` routes. They
+  form one read-only frontend invitation-inbox use case and share one Auth
+  ownership/projection path and rollback boundary.
+- Moved authenticated-user lookup, ID-or-email ownership, pending expiry,
+  ordering and inviter projection into the Auth application transaction and
+  native SQLite provider. Workspace display names remain behind the Workspace
+  public contract and are resolved only after the Auth transaction closes.
+- Replaced both SQLite-local read branches while preserving top-level list and
+  detail JSON, nullable invitee identity, missing-user/not-found/forbidden
+  statuses, and non-pending detail visibility.
+- Kept historical reads forward-compatible: persisted role, status and
+  timestamp strings are projected verbatim, while newly created invitations
+  continue to validate roles/status transitions and emit canonical RFC3339Nano
+  timestamps.
+- Generalized generated `response_body` normalization for singular message
+  fields and made repeated optional-field processing idempotent; raw/generated
+  HTTP, gRPC, OpenAPI and access-manifest paths are covered.
+- Passed `make generate`, `make generated-clean`, `make lint-ddd
+  DDD_BASE_REV=HEAD`, `make vet-ddd`, `make test-race-ddd`, `(cd server && go
+  test ./...)`, Core typecheck, all 522 Core tests and `pnpm turbo test
+  --concurrency=1` (five workspace test tasks). The root `pnpm test` wrapper
+  cannot resolve its literal `--filter=!@multica/mobile` while the unrelated
+  mobile-package removal is in progress, so the equivalent repository package
+  tests were run through Turbo directly.
+
+This checkpoint completes personal invitation listing and lookup. Acceptance,
+decline, PostgreSQL parity and the remaining migration matrix are still pending.
 
 ## Required Gates
 
