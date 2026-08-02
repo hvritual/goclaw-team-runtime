@@ -955,6 +955,36 @@ func TestAcceptInvitationPreservesOnboardingFailureContract(t *testing.T) {
 	}
 }
 
+func TestInvitationDecisionsHideForeignInvitationWhenWorkspaceIsMissing(t *testing.T) {
+	members := &fakeMemberRepository{currentUser: member.UserIdentity{
+		ID: "actor-user", Email: "actor@example.test",
+	}}
+	invitations := &fakeInvitationRepository{found: invitation.Invitation{
+		ID: "invitation", WorkspaceID: "missing-workspace",
+		InviteeEmail: "invitee@example.test", InviteeUserID: stringPointer("invitee-user"),
+		Role: member.RoleMember, Status: invitation.StatusPending,
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{err: workspacecontract.ErrWorkspaceNotFound}),
+		WithMemberIDGenerator(func() string { return "member" }),
+	)
+	ctx := contract.WithMemberActor(context.Background(), "actor-user")
+
+	if _, err := service.AcceptInvitation(
+		ctx,
+		contract.Member_AcceptInvitationRequest{InvitationId: "invitation"},
+	); !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("AcceptInvitation() error = %v", err)
+	}
+	if _, err := service.DeclineInvitation(
+		ctx,
+		contract.Member_DeclineInvitationRequest{InvitationId: "invitation"},
+	); !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("DeclineInvitation() error = %v", err)
+	}
+}
+
 func stringPointer(value string) *string {
 	return &value
 }

@@ -194,9 +194,9 @@ decline, PostgreSQL parity and the remaining migration matrix are still pending.
 - Passed focused Auth/contract/SQLite-local tests, full `go test ./...`, `make
   lint-ddd DDD_BASE_REV=HEAD`, `make vet-ddd`, `make test-race-ddd`, the full
   Core suite (524 tests), Core typecheck, and the serial frontend workspace
-  suite (five workspace test tasks). `make generated-clean` is run after the
-  generated slice is committed so it can distinguish stale output from the
-  intentional generated changes.
+  suite (five workspace test tasks). Post-commit `make generated-clean` also
+  passed, proving the committed reconciliation and Proto artifacts have no
+  generator drift.
 
 This checkpoint completes SQLite invitation acceptance and decline. PostgreSQL
 parity and the remaining migration matrix are still pending.

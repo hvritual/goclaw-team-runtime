@@ -663,11 +663,7 @@ func (s *MemberService) AcceptInvitation(ctx context.Context, request contract.M
 	if err != nil {
 		return contract.Member_AcceptInvitationResponse{}, err
 	}
-	_, value, err := s.findOwnedInvitation(ctx, actorUserID, request.InvitationId)
-	if err != nil {
-		return contract.Member_AcceptInvitationResponse{}, err
-	}
-	if err := s.ensureInvitationWorkspace(ctx, value.WorkspaceID); err != nil {
+	if err := s.preflightInvitationDecision(ctx, actorUserID, request.InvitationId); err != nil {
 		return contract.Member_AcceptInvitationResponse{}, err
 	}
 
@@ -747,11 +743,7 @@ func (s *MemberService) DeclineInvitation(ctx context.Context, request contract.
 	if err != nil {
 		return contract.Member_DeclineInvitationResponse{}, err
 	}
-	_, value, err := s.findOwnedInvitation(ctx, actorUserID, request.InvitationId)
-	if err != nil {
-		return contract.Member_DeclineInvitationResponse{}, err
-	}
-	if err := s.ensureInvitationWorkspace(ctx, value.WorkspaceID); err != nil {
+	if err := s.preflightInvitationDecision(ctx, actorUserID, request.InvitationId); err != nil {
 		return contract.Member_DeclineInvitationResponse{}, err
 	}
 
@@ -794,27 +786,53 @@ func (s *MemberService) requireInvitationDecision(ctx context.Context, needsMemb
 	return actorUserID, nil
 }
 
-func (s *MemberService) findOwnedInvitation(
+func (s *MemberService) preflightInvitationDecision(
 	ctx context.Context,
 	actorUserID string,
 	invitationID string,
-) (member.UserIdentity, invitation.Invitation, error) {
+) error {
 	var current member.UserIdentity
 	var value invitation.Invitation
 	err := s.invitationUnitOfWork.WithinInvitationTransaction(
 		ctx,
 		func(_ MemberRepository, invitations InvitationRepository, decisions InvitationDecisionRepository) error {
 			var findErr error
-			current, value, findErr = findOwnedInvitationInRepositories(
+			current, value, findErr = findInvitationInRepositories(
 				ctx, decisions, invitations, actorUserID, invitationID,
 			)
 			return findErr
 		},
 	)
-	return current, value, err
+	if err != nil {
+		return err
+	}
+	if err := s.ensureInvitationWorkspace(ctx, value.WorkspaceID); err != nil {
+		return err
+	}
+	if !value.BelongsTo(current.ID, current.Email) {
+		return contract.ErrInvitationForbidden
+	}
+	return nil
 }
 
 func findOwnedInvitationInRepositories(
+	ctx context.Context,
+	users AuthUserRepository,
+	invitations InvitationRepository,
+	actorUserID string,
+	invitationID string,
+) (member.UserIdentity, invitation.Invitation, error) {
+	current, value, err := findInvitationInRepositories(ctx, users, invitations, actorUserID, invitationID)
+	if err != nil {
+		return member.UserIdentity{}, invitation.Invitation{}, err
+	}
+	if !value.BelongsTo(current.ID, current.Email) {
+		return member.UserIdentity{}, invitation.Invitation{}, contract.ErrInvitationForbidden
+	}
+	return current, value, nil
+}
+
+func findInvitationInRepositories(
 	ctx context.Context,
 	users AuthUserRepository,
 	invitations InvitationRepository,
@@ -831,9 +849,6 @@ func findOwnedInvitationInRepositories(
 	}
 	if err != nil {
 		return member.UserIdentity{}, invitation.Invitation{}, err
-	}
-	if !value.BelongsTo(current.ID, current.Email) {
-		return member.UserIdentity{}, invitation.Invitation{}, contract.ErrInvitationForbidden
 	}
 	return current, value, nil
 }
