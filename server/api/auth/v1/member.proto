@@ -114,6 +114,36 @@ service MemberService {
       audit: true
     };
   }
+
+  // ListMyInvitations returns the authenticated participant's pending
+  // invitations, matching either the resolved user identity or email.
+  rpc ListMyInvitations(ListMyInvitationsRequest) returns (ListMyInvitationsResponse) {
+    option (google.api.http) = {
+      get: "/api/invitations"
+      response_body: "invitations"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.list_mine"
+      permission_name: "List my invitations"
+      resource: "auth.invitation"
+      action: "list_mine"
+    };
+  }
+
+  // GetMyInvitation returns one invitation only when it belongs to the
+  // authenticated participant by resolved user identity or email.
+  rpc GetMyInvitation(GetMyInvitationRequest) returns (GetMyInvitationResponse) {
+    option (google.api.http) = {
+      get: "/api/invitations/{invitation_id}"
+      response_body: "invitation"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.get_mine"
+      permission_name: "Get my invitation"
+      resource: "auth.invitation"
+      action: "get_mine"
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -201,4 +231,18 @@ message CreateInvitationRequest {
   string workspace_id = 1;
   string email = 2;
   string role = 3;
+}
+
+message ListMyInvitationsRequest {}
+
+message ListMyInvitationsResponse {
+  repeated Invitation invitations = 1;
+}
+
+message GetMyInvitationRequest {
+  string invitation_id = 1;
+}
+
+message GetMyInvitationResponse {
+  Invitation invitation = 1;
 }

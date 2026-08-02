@@ -20,8 +20,10 @@ const _ = http.SupportPackageIsVersion3
 
 const OperationMemberServiceCreateInvitation = "/auth.v1.MemberService/CreateInvitation"
 const OperationMemberServiceDeleteMember = "/auth.v1.MemberService/DeleteMember"
+const OperationMemberServiceGetMyInvitation = "/auth.v1.MemberService/GetMyInvitation"
 const OperationMemberServiceLeaveWorkspace = "/auth.v1.MemberService/LeaveWorkspace"
 const OperationMemberServiceListMembers = "/auth.v1.MemberService/ListMembers"
+const OperationMemberServiceListMyInvitations = "/auth.v1.MemberService/ListMyInvitations"
 const OperationMemberServiceListWorkspaceInvitations = "/auth.v1.MemberService/ListWorkspaceInvitations"
 const OperationMemberServiceRevokeInvitation = "/auth.v1.MemberService/RevokeInvitation"
 const OperationMemberServiceUpdateMemberRole = "/auth.v1.MemberService/UpdateMemberRole"
@@ -33,10 +35,16 @@ type MemberServiceHTTPServer interface {
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
+	// GetMyInvitation GetMyInvitation returns one invitation only when it belongs to the
+	// authenticated participant by resolved user identity or email.
+	GetMyInvitation(context.Context, *GetMyInvitationRequest) (*GetMyInvitationResponse, error)
 	// LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
 	LeaveWorkspace(context.Context, *LeaveWorkspaceRequest) (*LeaveWorkspaceResponse, error)
 	// ListMembers ListMembers returns the human memberships visible inside one workspace.
 	ListMembers(context.Context, *ListMembersRequest) (*ListMembersResponse, error)
+	// ListMyInvitations ListMyInvitations returns the authenticated participant's pending
+	// invitations, matching either the resolved user identity or email.
+	ListMyInvitations(context.Context, *ListMyInvitationsRequest) (*ListMyInvitationsResponse, error)
 	// ListWorkspaceInvitations ListWorkspaceInvitations returns pending invitations manageable by an
 	// Owner or Admin in one workspace.
 	ListWorkspaceInvitations(context.Context, *ListWorkspaceInvitationsRequest) (*ListWorkspaceInvitationsResponse, error)
@@ -57,6 +65,8 @@ func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer
 	r.Handle("DELETE", "/api/workspaces/{workspace_id}/invitations/{invitation_id}", _MemberService_RevokeInvitation0_HTTP_Handler(srv))
 	r.Handle("GET", "/api/workspaces/{workspace_id}/invitations", _MemberService_ListWorkspaceInvitations0_HTTP_Handler(srv))
 	r.Handle("POST", "/api/workspaces/{workspace_id}/members", _MemberService_CreateInvitation0_HTTP_Handler(srv))
+	r.Handle("GET", "/api/invitations", _MemberService_ListMyInvitations0_HTTP_Handler(srv))
+	r.Handle("GET", "/api/invitations/{invitation_id}", _MemberService_GetMyInvitation0_HTTP_Handler(srv))
 }
 
 func _MemberService_ListMembers0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
@@ -228,6 +238,50 @@ func _MemberService_CreateInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) 
 	}
 }
 
+func _MemberService_ListMyInvitations0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in ListMyInvitationsRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceListMyInvitations)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.ListMyInvitations(ctx, req.(*ListMyInvitationsRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*ListMyInvitationsResponse)
+		if reply.Invitations == nil {
+			reply.Invitations = []*Invitation{}
+		}
+		return ctx.Result(200, reply.Invitations)
+	}
+}
+
+func _MemberService_GetMyInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetMyInvitationRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceGetMyInvitation)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetMyInvitation(ctx, req.(*GetMyInvitationRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetMyInvitationResponse)
+		return ctx.Result(200, reply.Invitation)
+	}
+}
+
 type MemberServiceHTTPClient interface {
 	// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
 	// clients continue to use the historical POST /members route.
@@ -235,10 +289,16 @@ type MemberServiceHTTPClient interface {
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(ctx context.Context, req *DeleteMemberRequest, opts ...http.CallOption) (rsp *DeleteMemberResponse, err error)
+	// GetMyInvitation GetMyInvitation returns one invitation only when it belongs to the
+	// authenticated participant by resolved user identity or email.
+	GetMyInvitation(ctx context.Context, req *GetMyInvitationRequest, opts ...http.CallOption) (rsp *GetMyInvitationResponse, err error)
 	// LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
 	LeaveWorkspace(ctx context.Context, req *LeaveWorkspaceRequest, opts ...http.CallOption) (rsp *LeaveWorkspaceResponse, err error)
 	// ListMembers ListMembers returns the human memberships visible inside one workspace.
 	ListMembers(ctx context.Context, req *ListMembersRequest, opts ...http.CallOption) (rsp *ListMembersResponse, err error)
+	// ListMyInvitations ListMyInvitations returns the authenticated participant's pending
+	// invitations, matching either the resolved user identity or email.
+	ListMyInvitations(ctx context.Context, req *ListMyInvitationsRequest, opts ...http.CallOption) (rsp *ListMyInvitationsResponse, err error)
 	// ListWorkspaceInvitations ListWorkspaceInvitations returns pending invitations manageable by an
 	// Owner or Admin in one workspace.
 	ListWorkspaceInvitations(ctx context.Context, req *ListWorkspaceInvitationsRequest, opts ...http.CallOption) (rsp *ListWorkspaceInvitationsResponse, err error)
@@ -294,6 +354,24 @@ func (c *MemberServiceHTTPClientImpl) DeleteMember(ctx context.Context, in *Dele
 	return &out, nil
 }
 
+// GetMyInvitation GetMyInvitation returns one invitation only when it belongs to the
+// authenticated participant by resolved user identity or email.
+func (c *MemberServiceHTTPClientImpl) GetMyInvitation(ctx context.Context, in *GetMyInvitationRequest, opts ...http.CallOption) (*GetMyInvitationResponse, error) {
+	var out GetMyInvitationResponse
+	pattern := "/api/invitations/{invitationId}"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/json"),
+		http.Operation(OperationMemberServiceGetMyInvitation),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out.Invitation, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // LeaveWorkspace LeaveWorkspace removes the authenticated participant's own membership.
 func (c *MemberServiceHTTPClientImpl) LeaveWorkspace(ctx context.Context, in *LeaveWorkspaceRequest, opts ...http.CallOption) (*LeaveWorkspaceResponse, error) {
 	var out LeaveWorkspaceResponse
@@ -322,6 +400,24 @@ func (c *MemberServiceHTTPClientImpl) ListMembers(ctx context.Context, in *ListM
 		http.PathTemplate(pattern),
 	}, opts...)
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out.Members, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ListMyInvitations ListMyInvitations returns the authenticated participant's pending
+// invitations, matching either the resolved user identity or email.
+func (c *MemberServiceHTTPClientImpl) ListMyInvitations(ctx context.Context, in *ListMyInvitationsRequest, opts ...http.CallOption) (*ListMyInvitationsResponse, error) {
+	var out ListMyInvitationsResponse
+	pattern := "/api/invitations"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/json"),
+		http.Operation(OperationMemberServiceListMyInvitations),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out.Invitations, opts...)
 	if err != nil {
 		return nil, err
 	}

@@ -111,6 +111,47 @@ func TestAuthMemberHTTPInvitationListPreservesEmptyArray(t *testing.T) {
 	}
 }
 
+func TestAuthMemberHTTPPersonalInvitationReadsPreserveTopLevelJSON(t *testing.T) {
+	service := &successfulMemberService{}
+	extension := auth.NewMemberExtensionWithService(service)
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+
+	listRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/invitations", nil)
+	listResponse := httptest.NewRecorder()
+	server.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("list status = %d; body=%s", listResponse.Code, listResponse.Body.String())
+	}
+	var invitations []map[string]any
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &invitations); err != nil {
+		t.Fatalf("personal list is not an invitation array: %v; body=%s", err, listResponse.Body.String())
+	}
+	if len(invitations) != 1 || invitations[0]["id"] != "invitation-personal" {
+		t.Fatalf("unexpected personal invitation array: %+v", invitations)
+	}
+	if inviteeUserID, exists := invitations[0]["invitee_user_id"]; !exists || inviteeUserID != nil {
+		t.Fatalf("nil invitee_user_id must be JSON null: %+v", invitations[0])
+	}
+
+	detailRequest := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/invitations/invitation-detail", nil)
+	detailResponse := httptest.NewRecorder()
+	server.ServeHTTP(detailResponse, detailRequest)
+	if detailResponse.Code != http.StatusOK {
+		t.Fatalf("detail status = %d; body=%s", detailResponse.Code, detailResponse.Body.String())
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(detailResponse.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("personal detail is not an invitation object: %v; body=%s", err, detailResponse.Body.String())
+	}
+	if service.getMyInvitationRequest.InvitationId != "invitation-detail" || detail["id"] != "invitation-detail" {
+		t.Fatalf("unexpected invitation detail request=%+v response=%+v", service.getMyInvitationRequest, detail)
+	}
+	if _, wrapped := detail["invitation"]; wrapped {
+		t.Fatalf("personal invitation detail leaked response wrapper: %+v", detail)
+	}
+}
+
 func TestAuthMemberHTTPCreateInvitationReturnsCreatedBody(t *testing.T) {
 	service := &successfulMemberService{}
 	extension := auth.NewMemberExtensionWithService(service)
@@ -289,5 +330,29 @@ func TestAuthMemberGeneratedHTTPClientHandlesNoContent(t *testing.T) {
 	}
 	if service.createInvitationRequest.Email != "invitee@example.test" || created.GetId() != "invitation-created" || created.GetRole() != "admin" {
 		t.Fatalf("unexpected generated-client invitation create request=%+v result=%+v", service.createInvitationRequest, created)
+	}
+
+	assertPersonalInvitationHTTPClientRoundTrip(t, client, &service.successfulMemberService)
+}
+
+func assertPersonalInvitationHTTPClientRoundTrip(
+	t *testing.T,
+	client authv1.MemberServiceHTTPClient,
+	service *successfulMemberService,
+) {
+	t.Helper()
+	personalList, err := client.ListMyInvitations(t.Context(), &authv1.ListMyInvitationsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(personalList.GetInvitations()) != 1 || personalList.GetInvitations()[0].GetId() != "invitation-personal" {
+		t.Fatalf("unexpected generated-client personal invitation list: %+v", personalList.GetInvitations())
+	}
+	personalDetail, err := client.GetMyInvitation(t.Context(), &authv1.GetMyInvitationRequest{InvitationId: "invitation-detail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.getMyInvitationRequest.InvitationId != "invitation-detail" || personalDetail.GetInvitation().GetId() != "invitation-detail" {
+		t.Fatalf("unexpected generated-client personal invitation detail request=%+v result=%+v", service.getMyInvitationRequest, personalDetail)
 	}
 }

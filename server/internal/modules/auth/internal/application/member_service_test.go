@@ -13,17 +13,19 @@ import (
 )
 
 type fakeInvitationRepository struct {
-	workspaceID  string
-	invitationID string
-	email        string
-	updatedAt    time.Time
-	revoked      bool
-	expired      bool
-	listed       bool
-	pending      bool
-	created      *invitation.Invitation
-	values       []invitation.Invitation
-	err          error
+	workspaceID   string
+	invitationID  string
+	inviteeUserID string
+	email         string
+	updatedAt     time.Time
+	revoked       bool
+	expired       bool
+	listed        bool
+	pending       bool
+	created       *invitation.Invitation
+	values        []invitation.Invitation
+	found         invitation.Invitation
+	err           error
 }
 
 func (r *fakeInvitationRepository) ExpirePendingByWorkspace(_ context.Context, workspaceID string, expiredAt time.Time) error {
@@ -72,14 +74,57 @@ func (r *fakeInvitationRepository) Create(_ context.Context, value invitation.In
 	return nil
 }
 
-type fakeWorkspaceIdentityReader struct {
-	identity workspacecontract.WorkspaceIdentity
-	called   bool
-	err      error
+func (r *fakeInvitationRepository) ExpirePendingByInvitee(
+	_ context.Context,
+	userID string,
+	email string,
+	expiredAt time.Time,
+) error {
+	r.inviteeUserID = userID
+	r.email = email
+	r.updatedAt = expiredAt
+	r.expired = true
+	return r.err
 }
 
-func (r *fakeWorkspaceIdentityReader) FindIdentity(context.Context, string) (workspacecontract.WorkspaceIdentity, error) {
+func (r *fakeInvitationRepository) ListPendingByInvitee(
+	_ context.Context,
+	userID string,
+	email string,
+) ([]invitation.Invitation, error) {
+	r.inviteeUserID = userID
+	r.email = email
+	r.listed = true
+	return r.values, r.err
+}
+
+func (r *fakeInvitationRepository) FindByID(_ context.Context, invitationID string) (invitation.Invitation, error) {
+	r.invitationID = invitationID
+	if r.err != nil {
+		return invitation.Invitation{}, r.err
+	}
+	if r.found.ID == "" {
+		return invitation.Invitation{}, ErrInvitationNotFound
+	}
+	return r.found, nil
+}
+
+type fakeWorkspaceIdentityReader struct {
+	identity   workspacecontract.WorkspaceIdentity
+	identities map[string]workspacecontract.WorkspaceIdentity
+	called     bool
+	err        error
+}
+
+func (r *fakeWorkspaceIdentityReader) FindIdentity(_ context.Context, workspaceID string) (workspacecontract.WorkspaceIdentity, error) {
 	r.called = true
+	if r.identities != nil {
+		identity, ok := r.identities[workspaceID]
+		if !ok {
+			return workspacecontract.WorkspaceIdentity{}, workspacecontract.ErrWorkspaceNotFound
+		}
+		return identity, nil
+	}
 	return r.identity, r.err
 }
 
@@ -118,6 +163,8 @@ type fakeMemberRepository struct {
 	deleted         bool
 	listed          bool
 	resolvedInvitee bool
+	currentUser     member.UserIdentity
+	findUserErr     error
 }
 
 func (r *fakeMemberRepository) FindByUserAndWorkspace(context.Context, string, string) (member.Member, error) {
@@ -166,6 +213,16 @@ func (r *fakeMemberRepository) ExistsByEmail(context.Context, string, string) (b
 func (r *fakeMemberRepository) FindUserIDByEmail(context.Context, string) (*string, error) {
 	r.resolvedInvitee = true
 	return r.inviteeUserID, nil
+}
+
+func (r *fakeMemberRepository) FindUserByID(context.Context, string) (member.UserIdentity, error) {
+	if r.findUserErr != nil {
+		return member.UserIdentity{}, r.findUserErr
+	}
+	if r.currentUser.ID == "" {
+		return member.UserIdentity{}, ErrAuthUserNotFound
+	}
+	return r.currentUser, nil
 }
 
 func TestListMembersReturnsWorkspaceMemberships(t *testing.T) {
@@ -667,4 +724,150 @@ func TestCreateInvitationRejectsMemberAndPendingInvitationConflicts(t *testing.T
 			}
 		})
 	}
+}
+
+func TestListMyInvitationsExpiresAndReturnsOwnedPendingInvitations(t *testing.T) {
+	now := time.Date(2026, time.August, 2, 13, 0, 0, 0, time.UTC)
+	members := &fakeMemberRepository{currentUser: member.UserIdentity{
+		ID: "invitee-user", Email: "invitee@example.test",
+	}}
+	invitations := &fakeInvitationRepository{values: []invitation.Invitation{
+		{
+			ID: "invitation-a", WorkspaceID: "workspace-a", InviterID: "owner-a",
+			InviteeEmail: "invitee@example.test", Role: member.RoleMember, Status: invitation.StatusPending,
+			CreatedAt: now.Add(-time.Hour), UpdatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(time.Hour),
+			InviterName: "Owner A", InviterEmail: "owner-a@example.test",
+		},
+		{
+			ID: "invitation-b", WorkspaceID: "workspace-b", InviterID: "owner-b",
+			InviteeEmail: "old@example.test", InviteeUserID: stringPointer("invitee-user"),
+			Role: member.RoleAdmin, Status: invitation.StatusPending,
+			CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(2 * time.Hour),
+			InviterName: "Owner B", InviterEmail: "owner-b@example.test",
+		},
+	}}
+	identities := &fakeWorkspaceIdentityReader{identities: map[string]workspacecontract.WorkspaceIdentity{
+		"workspace-a": {ID: "workspace-a", Name: "Workspace A"},
+		"workspace-b": {ID: "workspace-b", Name: "Workspace B"},
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(identities),
+		WithInvitationClock(func() time.Time { return now }),
+	)
+
+	result, err := service.ListMyInvitations(
+		contract.WithMemberActor(context.Background(), "invitee-user"),
+		contract.Member_ListMyInvitationsRequest{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !invitations.expired || !invitations.listed || invitations.inviteeUserID != "invitee-user" || invitations.email != "invitee@example.test" {
+		t.Fatalf("personal invitation repository calls were incomplete: %+v", invitations)
+	}
+	if !invitations.updatedAt.Equal(now) {
+		t.Fatalf("expiration clock = %s, want %s", invitations.updatedAt, now)
+	}
+	if len(result.Invitations) != 2 || result.Invitations[0].WorkspaceName != "Workspace A" || result.Invitations[1].WorkspaceName != "Workspace B" {
+		t.Fatalf("unexpected personal invitations: %+v", result.Invitations)
+	}
+}
+
+func TestListMyInvitationsReportsMissingAuthenticatedUser(t *testing.T) {
+	members := &fakeMemberRepository{}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: &fakeInvitationRepository{}}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{}),
+	)
+
+	_, err := service.ListMyInvitations(
+		contract.WithMemberActor(context.Background(), "missing-user"),
+		contract.Member_ListMyInvitationsRequest{},
+	)
+	if !errors.Is(err, contract.ErrAuthUserNotFound) {
+		t.Fatalf("ListMyInvitations() error = %v", err)
+	}
+}
+
+func TestGetMyInvitationReturnsOwnedInvitationInAnyState(t *testing.T) {
+	now := time.Date(2026, time.August, 2, 13, 0, 0, 0, time.UTC)
+	members := &fakeMemberRepository{currentUser: member.UserIdentity{
+		ID: "invitee-user", Email: "invitee@example.test",
+	}}
+	invitations := &fakeInvitationRepository{found: invitation.Invitation{
+		ID: "invitation", WorkspaceID: "workspace", InviterID: "owner-user",
+		InviteeEmail: "invitee@example.test", Role: member.RoleMember, Status: invitation.StatusDeclined,
+		CreatedAt: now.Add(-time.Hour), UpdatedAt: now, ExpiresAt: now.Add(time.Hour),
+		InviterName: "Owner", InviterEmail: "owner@example.test",
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{
+			ID: "workspace", Name: "Workspace",
+		}}),
+	)
+
+	result, err := service.GetMyInvitation(
+		contract.WithMemberActor(context.Background(), "invitee-user"),
+		contract.Member_GetMyInvitationRequest{InvitationId: "invitation"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Invitation == nil || result.Invitation.Status != "declined" || result.Invitation.WorkspaceName != "Workspace" {
+		t.Fatalf("unexpected invitation: %+v", result.Invitation)
+	}
+}
+
+func TestGetMyInvitationAllowsResolvedUserOwnership(t *testing.T) {
+	members := &fakeMemberRepository{currentUser: member.UserIdentity{
+		ID: "invitee-user", Email: "new@example.test",
+	}}
+	invitations := &fakeInvitationRepository{found: invitation.Invitation{
+		ID: "invitation", WorkspaceID: "workspace", InviteeEmail: "old@example.test",
+		InviteeUserID: stringPointer("invitee-user"), Role: member.RoleMember, Status: invitation.StatusPending,
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace"}}),
+	)
+
+	_, err := service.GetMyInvitation(
+		contract.WithMemberActor(context.Background(), "invitee-user"),
+		contract.Member_GetMyInvitationRequest{InvitationId: "invitation"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetMyInvitationRejectsForeignInvitation(t *testing.T) {
+	members := &fakeMemberRepository{currentUser: member.UserIdentity{
+		ID: "actor-user", Email: "actor@example.test",
+	}}
+	invitations := &fakeInvitationRepository{found: invitation.Invitation{
+		ID: "invitation", WorkspaceID: "workspace", InviteeEmail: "invitee@example.test",
+		InviteeUserID: stringPointer("invitee-user"), Role: member.RoleMember, Status: invitation.StatusPending,
+	}}
+	identities := &fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace"}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(identities),
+	)
+
+	_, err := service.GetMyInvitation(
+		contract.WithMemberActor(context.Background(), "actor-user"),
+		contract.Member_GetMyInvitationRequest{InvitationId: "invitation"},
+	)
+	if !errors.Is(err, contract.ErrInvitationForbidden) {
+		t.Fatalf("GetMyInvitation() error = %v", err)
+	}
+	if identities.called {
+		t.Fatal("foreign invitation resolved workspace identity")
+	}
+}
+
+func stringPointer(value string) *string {
+	return &value
 }

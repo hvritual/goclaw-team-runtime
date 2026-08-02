@@ -13,13 +13,15 @@ import (
 )
 
 type successfulMemberService struct {
-	listRequest             contract.Member_ListMembersRequest
-	updateRequest           contract.Member_UpdateMemberRoleRequest
-	deleteRequest           contract.Member_DeleteMemberRequest
-	leaveRequest            contract.Member_LeaveWorkspaceRequest
-	revokeRequest           contract.Member_RevokeInvitationRequest
-	listInvitationsRequest  contract.Member_ListWorkspaceInvitationsRequest
-	createInvitationRequest contract.Member_CreateInvitationRequest
+	listRequest              contract.Member_ListMembersRequest
+	updateRequest            contract.Member_UpdateMemberRoleRequest
+	deleteRequest            contract.Member_DeleteMemberRequest
+	leaveRequest             contract.Member_LeaveWorkspaceRequest
+	revokeRequest            contract.Member_RevokeInvitationRequest
+	listInvitationsRequest   contract.Member_ListWorkspaceInvitationsRequest
+	createInvitationRequest  contract.Member_CreateInvitationRequest
+	listMyInvitationsRequest contract.Member_ListMyInvitationsRequest
+	getMyInvitationRequest   contract.Member_GetMyInvitationRequest
 }
 
 func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
@@ -83,6 +85,27 @@ func (s *successfulMemberService) CreateInvitation(_ context.Context, request co
 		CreatedAt: "2026-08-02T00:00:00Z", UpdatedAt: "2026-08-02T00:00:00Z", ExpiresAt: "2026-08-09T00:00:00Z",
 		WorkspaceName: "Acme", InviterName: "Owner", InviterEmail: "owner@example.test",
 	}, nil
+}
+
+func (s *successfulMemberService) ListMyInvitations(_ context.Context, request contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	s.listMyInvitationsRequest = request
+	return contract.Member_ListMyInvitationsResponse{Invitations: []contract.Member_Invitation{personalInvitationContract()}}, nil
+}
+
+func (s *successfulMemberService) GetMyInvitation(_ context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	s.getMyInvitationRequest = request
+	value := personalInvitationContract()
+	value.Id = request.InvitationId
+	return contract.Member_GetMyInvitationResponse{Invitation: &value}, nil
+}
+
+func personalInvitationContract() contract.Member_Invitation {
+	return contract.Member_Invitation{
+		Id: "invitation-personal", WorkspaceId: "workspace-1", InviterId: "user-1",
+		InviteeEmail: "invitee@example.test", Role: "member", Status: "pending",
+		CreatedAt: "2026-08-02T00:00:00Z", UpdatedAt: "2026-08-02T00:00:00Z", ExpiresAt: "2026-08-09T00:00:00Z",
+		WorkspaceName: "Acme", InviterName: "Owner", InviterEmail: "owner@example.test",
+	}
 }
 
 func (*successfulMemberService) AuthorizeCreateInvitation(context.Context, contract.Member_CreateInvitationRequest) error {
@@ -165,6 +188,25 @@ func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 		t.Fatalf("unexpected invitation list round trip request=%+v result=%+v", service.listInvitationsRequest, invitationList)
 	}
 	assertCreateInvitationGRPCRoundTrip(t, client, service)
+	assertPersonalInvitationGRPCRoundTrip(t, client, service)
+}
+
+func assertPersonalInvitationGRPCRoundTrip(t *testing.T, client contract.MemberService, service *successfulMemberService) {
+	t.Helper()
+	personalList, err := client.ListMyInvitations(t.Context(), contract.Member_ListMyInvitationsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(personalList.Invitations) != 1 || personalList.Invitations[0].Id != "invitation-personal" {
+		t.Fatalf("unexpected personal invitation list round trip: %+v", personalList)
+	}
+	personalDetail, err := client.GetMyInvitation(t.Context(), contract.Member_GetMyInvitationRequest{InvitationId: "invitation-detail"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.getMyInvitationRequest.InvitationId != "invitation-detail" || personalDetail.Invitation == nil || personalDetail.Invitation.Id != "invitation-detail" {
+		t.Fatalf("unexpected personal invitation detail round trip request=%+v result=%+v", service.getMyInvitationRequest, personalDetail)
+	}
 }
 
 func assertCreateInvitationGRPCRoundTrip(t *testing.T, client contract.MemberService, service *successfulMemberService) {

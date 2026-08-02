@@ -32,11 +32,25 @@
       "action": "create"
     },
     {
+      "code": "auth.invitation.get_mine",
+      "name": "Get my invitation",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "get_mine"
+    },
+    {
       "code": "auth.invitation.list",
       "name": "List workspace invitations",
       "module": "auth",
       "resource": "auth.invitation",
       "action": "list"
+    },
+    {
+      "code": "auth.invitation.list_mine",
+      "name": "List my invitations",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "list_mine"
     },
     {
       "code": "auth.invitation.revoke",
@@ -119,6 +133,17 @@
     },
     {
       "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/GetMyInvitation",
+      "module": "auth",
+      "http_method": "GET",
+      "http_path": "/api/invitations/{invitation_id}",
+      "permission_code": "auth.invitation.get_mine",
+      "public": false,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
       "method": "/auth.v1.MemberService/LeaveWorkspace",
       "module": "auth",
       "http_method": "POST",
@@ -135,6 +160,17 @@
       "http_method": "GET",
       "http_path": "/api/workspaces/{workspace_id}/members",
       "permission_code": "auth.member.list",
+      "public": false,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/ListMyInvitations",
+      "module": "auth",
+      "http_method": "GET",
+      "http_path": "/api/invitations",
+      "permission_code": "auth.invitation.list_mine",
       "public": false,
       "audit": false,
       "idempotent": false

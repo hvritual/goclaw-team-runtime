@@ -23,6 +23,16 @@ func (r staticWorkspaceIdentityReader) FindIdentity(context.Context, string) (wo
 	return r.identity, nil
 }
 
+type mappedWorkspaceIdentityReader map[string]workspacecontract.WorkspaceIdentity
+
+func (r mappedWorkspaceIdentityReader) FindIdentity(_ context.Context, workspaceID string) (workspacecontract.WorkspaceIdentity, error) {
+	identity, ok := r[workspaceID]
+	if !ok {
+		return workspacecontract.WorkspaceIdentity{}, workspacecontract.ErrWorkspaceNotFound
+	}
+	return identity, nil
+}
+
 func TestSqliteMemberRolePersistence(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member?mode=memory&cache=shared")
 	if err != nil {
@@ -74,6 +84,103 @@ func TestSqliteMemberRolePersistence(t *testing.T) {
 func TestNewWithSqlitePersistenceRejectsMissingDatabase(t *testing.T) {
 	if _, err := NewWithSqlitePersistence(SqlitePersistenceConfig{}); err == nil {
 		t.Fatal("NewWithSqlitePersistence() error = nil")
+	}
+}
+
+func TestSqlitePersonalInvitationReadsExpireScopeAndAuthorize(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-personal-invitations?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at) VALUES
+			('owner-user', 'Owner', 'owner@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('invitee-user', 'Invitee', 'invitee@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('outsider-user', 'Outsider', 'outsider@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z');
+		INSERT INTO invitations(
+			id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
+			created_at, updated_at, expires_at
+		) VALUES
+			('expired-email', 'workspace-c', 'owner-user', 'invitee@example.test', NULL, 'member', 'pending',
+			 '2026-08-01T08:00:00Z', '2026-08-01T08:00:00Z', '2026-08-02T11:59:59Z'),
+			('pending-email', 'workspace-a', 'owner-user', 'invitee@example.test', NULL, 'member', 'pending',
+			 '2026-08-02T09:00:00Z', '2026-08-02T09:00:00Z', '2026-08-09T12:00:00Z'),
+			('pending-id', 'workspace-b', 'owner-user', 'old@example.test', 'invitee-user', 'admin', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('foreign', 'workspace-a', 'owner-user', 'outsider@example.test', 'outsider-user', 'member', 'pending',
+			 '2026-08-02T11:00:00Z', '2026-08-02T11:00:00Z', '2026-08-09T12:00:00Z'),
+			('declined', 'workspace-a', 'owner-user', 'invitee@example.test', 'invitee-user', 'member', 'declined',
+			 '2026-08-01T10:00:00Z', '2026-08-01T11:00:00Z', '2026-08-09T12:00:00Z');
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{
+		DB: db,
+		WorkspaceIdentities: mappedWorkspaceIdentityReader{
+			"workspace-a": {ID: "workspace-a", Name: "Workspace A"},
+			"workspace-b": {ID: "workspace-b", Name: "Workspace B"},
+		},
+		Now: func() time.Time { return fixedNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := module.MemberLocal()
+	inviteeCtx := contract.WithMemberActor(ctx, "invitee-user")
+
+	listed, err := service.ListMyInvitations(inviteeCtx, contract.Member_ListMyInvitationsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.Invitations) != 2 || listed.Invitations[0].Id != "pending-email" || listed.Invitations[1].Id != "pending-id" {
+		t.Fatalf("unexpected personal invitation list: %+v", listed.Invitations)
+	}
+	if listed.Invitations[0].WorkspaceName != "Workspace A" || listed.Invitations[1].WorkspaceName != "Workspace B" {
+		t.Fatalf("unexpected workspace projections: %+v", listed.Invitations)
+	}
+	var expiredStatus, foreignStatus string
+	if err := db.QueryRowContext(ctx, `SELECT status FROM invitations WHERE id = 'expired-email'`).Scan(&expiredStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT status FROM invitations WHERE id = 'foreign'`).Scan(&foreignStatus); err != nil {
+		t.Fatal(err)
+	}
+	if expiredStatus != "expired" || foreignStatus != "pending" {
+		t.Fatalf("expiration scope: expired=%q foreign=%q", expiredStatus, foreignStatus)
+	}
+
+	detail, err := service.GetMyInvitation(inviteeCtx, contract.Member_GetMyInvitationRequest{InvitationId: "declined"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Invitation == nil || detail.Invitation.Status != "declined" || detail.Invitation.InviterName != "Owner" {
+		t.Fatalf("unexpected invitation detail: %+v", detail.Invitation)
+	}
+	_, err = service.GetMyInvitation(
+		contract.WithMemberActor(ctx, "outsider-user"),
+		contract.Member_GetMyInvitationRequest{InvitationId: "pending-email"},
+	)
+	if !errors.Is(err, contract.ErrInvitationForbidden) {
+		t.Fatalf("foreign GetMyInvitation() error = %v", err)
+	}
+	_, err = service.GetMyInvitation(inviteeCtx, contract.Member_GetMyInvitationRequest{InvitationId: "missing"})
+	if !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("missing GetMyInvitation() error = %v", err)
+	}
+	_, err = service.ListMyInvitations(
+		contract.WithMemberActor(ctx, "missing-user"),
+		contract.Member_ListMyInvitationsRequest{},
+	)
+	if !errors.Is(err, contract.ErrAuthUserNotFound) {
+		t.Fatalf("missing-user ListMyInvitations() error = %v", err)
 	}
 }
 

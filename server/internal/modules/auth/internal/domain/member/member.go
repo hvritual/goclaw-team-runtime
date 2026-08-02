@@ -44,6 +44,15 @@ type Member struct {
 	AvatarURL   *string
 }
 
+// UserIdentity is the Auth-owned user projection needed to resolve invitation
+// ownership without leaking SQLite rows into the application layer.
+type UserIdentity struct {
+	ID        string
+	Name      string
+	Email     string
+	AvatarURL *string
+}
+
 // ValidateRoleChange enforces role-management and last-owner invariants.
 func ValidateRoleChange(requester, target, next Role, ownerCount int) error {
 	if err := ValidateManager(requester); err != nil {

@@ -6,6 +6,56 @@ info:
     title: ""
     version: 0.0.1
 paths:
+    /api/invitations:
+        get:
+            tags:
+                - MemberService
+            description: |-
+                ListMyInvitations returns the authenticated participant's pending
+                 invitations, matching either the resolved user identity or email.
+            operationId: MemberService_ListMyInvitations
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Invitation'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/invitations/{invitationId}:
+        get:
+            tags:
+                - MemberService
+            description: |-
+                GetMyInvitation returns one invitation only when it belongs to the
+                 authenticated participant by resolved user identity or email.
+            operationId: MemberService_GetMyInvitation
+            parameters:
+                - name: invitationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Invitation'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/issues/{id}:
         put:
             tags:
@@ -329,6 +379,11 @@ components:
         DeleteMemberResponse:
             type: object
             properties: {}
+        GetMyInvitationResponse:
+            type: object
+            properties:
+                invitation:
+                    $ref: '#/components/schemas/Invitation'
         GoogleProtobufAny:
             type: object
             properties:
@@ -428,6 +483,13 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/Member'
+        ListMyInvitationsResponse:
+            type: object
+            properties:
+                invitations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Invitation'
         ListWorkspaceInvitationsResponse:
             type: object
             properties:

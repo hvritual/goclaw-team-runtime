@@ -46,6 +46,14 @@ func (s *fakeMemberService) CreateInvitation(context.Context, contract.Member_Cr
 	return contract.Member_Invitation{}, s.err
 }
 
+func (s *fakeMemberService) ListMyInvitations(context.Context, contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	return contract.Member_ListMyInvitationsResponse{}, s.err
+}
+
+func (s *fakeMemberService) GetMyInvitation(context.Context, contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	return contract.Member_GetMyInvitationResponse{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -57,6 +65,8 @@ func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 		{name: "hidden workspace", err: contract.ErrWorkspaceMembershipHidden, code: http.StatusNotFound},
 		{name: "member missing", err: contract.ErrMemberNotFound, code: http.StatusNotFound},
 		{name: "invitation missing", err: contract.ErrInvitationNotFound, code: http.StatusNotFound},
+		{name: "auth user missing", err: contract.ErrAuthUserNotFound, code: http.StatusNotFound},
+		{name: "foreign invitation", err: contract.ErrInvitationForbidden, code: http.StatusForbidden},
 		{name: "invalid invitation email", err: contract.ErrInvalidInvitationEmail, code: http.StatusBadRequest},
 		{name: "invalid invitation role", err: contract.ErrInvalidInvitationRole, code: http.StatusBadRequest},
 		{name: "invitee already member", err: contract.ErrInviteeAlreadyMember, code: http.StatusConflict},

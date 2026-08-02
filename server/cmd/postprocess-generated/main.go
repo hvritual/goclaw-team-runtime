@@ -43,6 +43,7 @@ type responseBodyOverride struct {
 	serviceName           string
 	methodName            string
 	schemaName            string
+	isList                bool
 	protoPath             string
 	responseName          string
 	responseJSONField     string
@@ -222,7 +223,7 @@ func responseBodyOverrideForMethod(
 		return nil, nil
 	}
 	field := method.Output().Fields().ByName(protoreflect.Name(rule.GetResponseBody()))
-	if field == nil || !field.IsList() || field.Kind() != protoreflect.MessageKind {
+	if field == nil || field.Kind() != protoreflect.MessageKind {
 		return nil, fmt.Errorf("unsupported HTTP response_body %s on %s.%s", rule.GetResponseBody(), service.Name(), method.Name())
 	}
 	message := field.Message()
@@ -239,6 +240,7 @@ func responseBodyOverrideForMethod(
 		serviceName:           string(service.Name()),
 		methodName:            string(method.Name()),
 		schemaName:            string(message.Name()),
+		isList:                field.IsList(),
 		protoPath:             file.Path(),
 		responseName:          string(method.Output().Name()),
 		responseJSONField:     field.JSONName(),
@@ -280,6 +282,10 @@ func applyGoResponseBodyOptionalFields(input []byte, override responseBodyOverri
 		for index := structStart + 1; index < structEnd; index++ {
 			if strings.Contains(lines[index], from) {
 				lines[index] = strings.Replace(lines[index], from, to, 1)
+				found = true
+				break
+			}
+			if strings.Contains(lines[index], to) {
 				found = true
 				break
 			}
@@ -349,6 +355,9 @@ func snakeToUpperCamel(input string) string {
 
 func rewriteGeneratedHTTPResponseBodyEmptyArrays(root string, overrides []responseBodyOverride) error {
 	for _, override := range overrides {
+		if !override.isList {
+			continue
+		}
 		path := filepath.Join(root, strings.TrimSuffix(override.protoPath, ".proto")+"_http.pb.go")
 		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
 			return applyGoHTTPResponseBodyEmptyArray(input, override)
@@ -736,11 +745,15 @@ func applyOpenAPIResponseBody(lines []string, override responseBodyOverride) ([]
 		schemaEnd++
 	}
 	prefix := strings.Repeat(" ", schemaIndent+4)
-	replacement := []string{
-		lines[schemaLine],
-		prefix + "type: array",
-		prefix + "items:",
-		prefix + "    $ref: '#/components/schemas/" + override.schemaName + "'",
+	replacement := []string{lines[schemaLine]}
+	if override.isList {
+		replacement = append(replacement,
+			prefix+"type: array",
+			prefix+"items:",
+			prefix+"    $ref: '#/components/schemas/"+override.schemaName+"'",
+		)
+	} else {
+		replacement = append(replacement, prefix+"$ref: '#/components/schemas/"+override.schemaName+"'")
 	}
 	return append(lines[:schemaLine], append(replacement, lines[schemaEnd:]...)...), nil
 }

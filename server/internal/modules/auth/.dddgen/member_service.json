@@ -28,6 +28,14 @@
     {
       "name": "CreateInvitation",
       "simple_string": false
+    },
+    {
+      "name": "ListMyInvitations",
+      "simple_string": false
+    },
+    {
+      "name": "GetMyInvitation",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
@@ -69,6 +77,26 @@
     {
       "name": "Member_DeleteMemberResponse",
       "fields": null
+    },
+    {
+      "name": "Member_GetMyInvitationRequest",
+      "fields": [
+        {
+          "name": "InvitationId",
+          "type": "string",
+          "json_tag": "invitationId"
+        }
+      ]
+    },
+    {
+      "name": "Member_GetMyInvitationResponse",
+      "fields": [
+        {
+          "name": "Invitation",
+          "type": "*Member_Invitation",
+          "json_tag": "invitation"
+        }
+      ]
     },
     {
       "name": "Member_Invitation",
@@ -171,6 +199,20 @@
           "name": "Members",
           "type": "[]Member_Member",
           "json_tag": "members"
+        }
+      ]
+    },
+    {
+      "name": "Member_ListMyInvitationsRequest",
+      "fields": null
+    },
+    {
+      "name": "Member_ListMyInvitationsResponse",
+      "fields": [
+        {
+          "name": "Invitations",
+          "type": "[]Member_Invitation",
+          "json_tag": "invitations"
         }
       ]
     },

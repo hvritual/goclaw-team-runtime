@@ -1201,63 +1201,29 @@ func (s *Server) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listMyInvitations(w http.ResponseWriter, r *http.Request) {
-	current, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	result, err := s.authMembers.ListMyInvitations(ctx, authcontract.Member_ListMyInvitationsRequest{})
 	if err != nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		writeMemberError(w, err, "failed to list invitations")
 		return
 	}
-	timestamp := now()
-	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
-		WHERE status = 'pending' AND expires_at <= ?
-			AND (invitee_user_id = ? OR invitee_email = ?)`,
-		timestamp, timestamp, current.ID, current.Email); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
-		return
-	}
-	rows, err := s.db.QueryContext(r.Context(), `SELECT `+invitationSelect()+`
-		FROM invitations i
-		JOIN workspaces w ON w.id = i.workspace_id
-		JOIN users u ON u.id = i.inviter_id
-		WHERE i.status = 'pending' AND (i.invitee_user_id = ? OR i.invitee_email = ?)
-		ORDER BY i.created_at`, current.ID, current.Email)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list invitations")
-		return
-	}
-	defer rows.Close()
-
-	result := make([]map[string]any, 0)
-	for rows.Next() {
-		value, err := scanInvitation(rows)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to list invitations")
-			return
-		}
-		result = append(result, invitationResponse(value))
-	}
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, invitationContractResponses(result.Invitations))
 }
 
 func (s *Server) getMyInvitation(w http.ResponseWriter, r *http.Request) {
-	current, err := scanUser(s.db.QueryRowContext(r.Context(), `SELECT `+userColumns()+` FROM users WHERE id = ?`, currentUserID(r)))
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	result, err := s.authMembers.GetMyInvitation(ctx, authcontract.Member_GetMyInvitationRequest{
+		InvitationId: chi.URLParam(r, "id"),
+	})
 	if err != nil {
-		writeError(w, http.StatusNotFound, "user not found")
+		writeMemberError(w, err, "failed to load invitation")
 		return
 	}
-	value, err := scanInvitation(s.db.QueryRowContext(r.Context(), `SELECT `+invitationSelect()+`
-		FROM invitations i
-		JOIN workspaces w ON w.id = i.workspace_id
-		JOIN users u ON u.id = i.inviter_id
-		WHERE i.id = ?`, chi.URLParam(r, "id")))
-	if err != nil {
-		writeError(w, http.StatusNotFound, "invitation not found")
+	if result.Invitation == nil {
+		writeError(w, http.StatusInternalServerError, "failed to load invitation")
 		return
 	}
-	if value.InviteeEmail != current.Email && (!value.InviteeUserID.Valid || value.InviteeUserID.String != current.ID) {
-		writeError(w, http.StatusForbidden, "invitation does not belong to you")
-		return
-	}
-	writeJSON(w, http.StatusOK, invitationResponse(value))
+	writeJSON(w, http.StatusOK, invitationContractResponse(*result.Invitation))
 }
 
 func (s *Server) acceptInvitation(w http.ResponseWriter, r *http.Request) {

@@ -187,6 +187,7 @@ func TestApplyGoHTTPResponseBodyEmptyArray(t *testing.T) {
 		methodName:      "ListWorkspaceInvitations",
 		schemaName:      "Invitation",
 		responseGoField: "Invitations",
+		isList:          true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -217,6 +218,12 @@ func TestApplyGoResponseBodyOptionalFields(t *testing.T) {
 	}
 	if !strings.Contains(text, `json:"id,omitempty"`) {
 		t.Fatalf("unrelated field tag changed:\n%s", text)
+	}
+	if _, err := applyGoResponseBodyOptionalFields(output, responseBodyOverride{
+		schemaName:         "Member",
+		optionalJSONFields: []string{"avatar_url"},
+	}); err != nil {
+		t.Fatalf("response-body optional-field transform is not idempotent: %v", err)
 	}
 }
 
@@ -265,6 +272,7 @@ components:
 		serviceName:           "MemberService",
 		methodName:            "ListMembers",
 		schemaName:            "Member",
+		isList:                true,
 		optionalOpenAPIFields: []string{"avatarUrl"},
 	}})
 	if err != nil {
@@ -279,6 +287,42 @@ components:
 	}
 	if !strings.Contains(text, "avatarUrl:\n                    type: string\n                    nullable: true") {
 		t.Fatalf("optional response-body field is not nullable:\n%s", text)
+	}
+}
+
+func TestApplyOpenAPIResponseBodySupportsSingularMessages(t *testing.T) {
+	input := []byte(`paths:
+    /invitations/{invitationId}:
+        get:
+            operationId: MemberService_GetMyInvitation
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetMyInvitationResponse'
+                default:
+                    description: Default error response
+components:
+    schemas:
+        Invitation:
+            type: object
+`)
+	output, err := applyOpenAPIResponseBodies(input, []responseBodyOverride{{
+		serviceName: "MemberService",
+		methodName:  "GetMyInvitation",
+		schemaName:  "Invitation",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, "$ref: '#/components/schemas/Invitation'") || strings.Contains(text, "type: array") {
+		t.Fatalf("unexpected singular OpenAPI response body:\n%s", text)
+	}
+	if strings.Contains(text, "#/components/schemas/GetMyInvitationResponse'") || !strings.Contains(text, "default:") {
+		t.Fatalf("wrapper schema or default response mismatch:\n%s", text)
 	}
 }
 

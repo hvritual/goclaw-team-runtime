@@ -16,6 +16,8 @@ type MemberService interface {
 	RevokeInvitation(context.Context, Member_RevokeInvitationRequest) (Member_RevokeInvitationResponse, error)
 	ListWorkspaceInvitations(context.Context, Member_ListWorkspaceInvitationsRequest) (Member_ListWorkspaceInvitationsResponse, error)
 	CreateInvitation(context.Context, Member_CreateInvitationRequest) (Member_Invitation, error)
+	ListMyInvitations(context.Context, Member_ListMyInvitationsRequest) (Member_ListMyInvitationsResponse, error)
+	GetMyInvitation(context.Context, Member_GetMyInvitationRequest) (Member_GetMyInvitationResponse, error)
 }
 
 type Member_CreateInvitationRequest struct {
@@ -30,6 +32,14 @@ type Member_DeleteMemberRequest struct {
 }
 
 type Member_DeleteMemberResponse struct {
+}
+
+type Member_GetMyInvitationRequest struct {
+	InvitationId string `json:"invitationId,omitempty"`
+}
+
+type Member_GetMyInvitationResponse struct {
+	Invitation *Member_Invitation `json:"invitation"`
 }
 
 type Member_Invitation struct {
@@ -61,6 +71,13 @@ type Member_ListMembersRequest struct {
 
 type Member_ListMembersResponse struct {
 	Members []Member_Member `json:"members"`
+}
+
+type Member_ListMyInvitationsRequest struct {
+}
+
+type Member_ListMyInvitationsResponse struct {
+	Invitations []Member_Invitation `json:"invitations"`
 }
 
 type Member_ListWorkspaceInvitationsRequest struct {

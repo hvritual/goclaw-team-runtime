@@ -117,3 +117,74 @@ describe("workspace invitation create API boundary", () => {
     ).rejects.toThrow("Invalid invitation response");
   });
 });
+
+describe("personal invitation API boundary", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("validates the top-level personal invitation array", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([VALID_INVITATION]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.listMyInvitations()).resolves.toEqual([
+      VALID_INVITATION,
+    ]);
+  });
+
+  it("falls back to an empty personal list for malformed data", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([{ ...VALID_INVITATION, status: 42 }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.listMyInvitations()).resolves.toEqual([]);
+  });
+
+  it("validates and returns personal invitation detail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...VALID_INVITATION, status: "declined" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.getInvitation("invitation-1")).resolves.toEqual({
+      ...VALID_INVITATION,
+      status: "declined",
+    });
+  });
+
+  it("rejects malformed personal invitation detail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...VALID_INVITATION, id: 42 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.getInvitation("invitation-1")).rejects.toThrow(
+      "Invalid invitation response",
+    );
+  });
+});

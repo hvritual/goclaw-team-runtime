@@ -1054,11 +1054,22 @@ export class ApiClient {
   }
 
   async listMyInvitations(): Promise<Invitation[]> {
-    return this.fetch("/api/invitations");
+    const raw = await this.fetch<unknown>("/api/invitations");
+    return parseWithFallback<Invitation[]>(raw, InvitationListSchema, [], {
+      endpoint: "GET /api/invitations",
+    });
   }
 
   async getInvitation(invitationId: string): Promise<Invitation> {
-    return this.fetch(`/api/invitations/${invitationId}`);
+    const raw = await this.fetch<unknown>(`/api/invitations/${invitationId}`);
+    const invitation = parseWithFallback<Invitation | null>(
+      raw,
+      InvitationSchema.nullable(),
+      null,
+      { endpoint: "GET /api/invitations/:id" },
+    );
+    if (!invitation) throw new Error("Invalid invitation response");
+    return invitation;
   }
 
   async acceptInvitation(invitationId: string): Promise<MemberWithUser> {

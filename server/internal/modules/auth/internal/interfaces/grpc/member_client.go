@@ -127,6 +127,38 @@ func (c *MemberClient) CreateInvitation(ctx context.Context, request contract.Me
 	return result, nil
 }
 
+func (c *MemberClient) ListMyInvitations(ctx context.Context, request contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	protoRequest := &authv1.ListMyInvitationsRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
+	}
+	response, err := c.client.ListMyInvitations(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
+	}
+	var result contract.Member_ListMyInvitationsResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
+	}
+	return result, nil
+}
+
+func (c *MemberClient) GetMyInvitation(ctx context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	protoRequest := &authv1.GetMyInvitationRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
+	}
+	response, err := c.client.GetMyInvitation(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
+	}
+	var result contract.Member_GetMyInvitationResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
+	}
+	return result, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

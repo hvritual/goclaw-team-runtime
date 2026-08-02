@@ -75,6 +75,22 @@ func (s *memberTransportService) CreateInvitation(ctx context.Context, request c
 	return result, nil
 }
 
+func (s *memberTransportService) ListMyInvitations(ctx context.Context, request contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	result, err := s.next.ListMyInvitations(ctx, request)
+	if err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
+func (s *memberTransportService) GetMyInvitation(ctx context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	result, err := s.next.GetMyInvitation(ctx, request)
+	if err != nil {
+		return contract.Member_GetMyInvitationResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func (s *memberTransportService) AuthorizeCreateInvitation(
 	ctx context.Context,
 	request contract.Member_CreateInvitationRequest,
@@ -98,6 +114,10 @@ func memberTransportError(err error) error {
 		return kratoserrors.New(http.StatusNotFound, "MEMBER_NOT_FOUND", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvitationNotFound):
 		return kratoserrors.New(http.StatusNotFound, "INVITATION_NOT_FOUND", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrAuthUserNotFound):
+		return kratoserrors.New(http.StatusNotFound, "AUTH_USER_NOT_FOUND", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationForbidden):
+		return kratoserrors.New(http.StatusForbidden, "INVITATION_FORBIDDEN", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvalidInvitationEmail):
 		return kratoserrors.New(http.StatusBadRequest, "INVALID_INVITATION_EMAIL", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvalidInvitationRole):

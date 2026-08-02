@@ -170,6 +170,60 @@ func (r *invitationRepository) RevokePending(
 	return nil
 }
 
+func (r *invitationRepository) ExpirePendingByInvitee(
+	ctx context.Context,
+	userID string,
+	email string,
+	expiredAt time.Time,
+) error {
+	timestamp := expiredAt.UTC().Format(time.RFC3339Nano)
+	if _, err := r.tx.ExecContext(ctx, `UPDATE invitations
+		SET status = 'expired', updated_at = ?
+		WHERE status = 'pending' AND expires_at <= ?
+			AND (invitee_user_id = ? OR invitee_email = ?)`,
+		timestamp, timestamp, userID, email,
+	); err != nil {
+		return fmt.Errorf("expire personal invitations: %w", err)
+	}
+	return nil
+}
+
+func (r *invitationRepository) ListPendingByInvitee(
+	ctx context.Context,
+	userID string,
+	email string,
+) ([]invitation.Invitation, error) {
+	rows, err := r.tx.QueryContext(ctx, invitationProjection+`
+		WHERE i.status = 'pending' AND (i.invitee_user_id = ? OR i.invitee_email = ?)
+		ORDER BY i.created_at`, userID, email)
+	if err != nil {
+		return nil, fmt.Errorf("list personal invitations: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	values := make([]invitation.Invitation, 0)
+	for rows.Next() {
+		value, scanErr := scanInvitation(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate personal invitations: %w", err)
+	}
+	return values, nil
+}
+
+func (r *invitationRepository) FindByID(ctx context.Context, invitationID string) (invitation.Invitation, error) {
+	value, err := scanInvitation(r.tx.QueryRowContext(ctx, invitationProjection+`
+		WHERE i.id = ?`, invitationID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return invitation.Invitation{}, application.ErrInvitationNotFound
+	}
+	return value, err
+}
+
 func (r *memberRepository) FindByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (member.Member, error) {
 	return scanMember(r.tx.QueryRowContext(ctx, memberProjection+`
 		WHERE m.user_id = ? AND m.workspace_id = ?`, userID, workspaceID))
@@ -221,6 +275,25 @@ func (r *memberRepository) FindUserIDByEmail(ctx context.Context, email string) 
 		return nil, fmt.Errorf("resolve invitee user: %w", err)
 	}
 	return &userID, nil
+}
+
+func (r *memberRepository) FindUserByID(ctx context.Context, userID string) (member.UserIdentity, error) {
+	var (
+		value     member.UserIdentity
+		avatarURL sql.NullString
+	)
+	if err := r.tx.QueryRowContext(ctx,
+		`SELECT id, name, email, avatar_url FROM users WHERE id = ?`, userID,
+	).Scan(&value.ID, &value.Name, &value.Email, &avatarURL); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return member.UserIdentity{}, application.ErrAuthUserNotFound
+		}
+		return member.UserIdentity{}, fmt.Errorf("find auth user: %w", err)
+	}
+	if avatarURL.Valid {
+		value.AvatarURL = &avatarURL.String
+	}
+	return value, nil
 }
 
 func (r *memberRepository) CountOwners(ctx context.Context, workspaceID string) (int, error) {

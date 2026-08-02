@@ -39,4 +39,12 @@ func (c *MemberClient) CreateInvitation(ctx context.Context, request contract.Me
 	return c.service.CreateInvitation(ctx, request)
 }
 
+func (c *MemberClient) ListMyInvitations(ctx context.Context, request contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	return c.service.ListMyInvitations(ctx, request)
+}
+
+func (c *MemberClient) GetMyInvitation(ctx context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	return c.service.GetMyInvitation(ctx, request)
+}
+
 var _ contract.MemberService = (*MemberClient)(nil)

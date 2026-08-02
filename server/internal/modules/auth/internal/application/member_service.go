@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrMembershipNotFound      = errors.New("membership not found")
+	ErrAuthUserNotFound        = errors.New("auth user not found")
 	ErrInvitationNotFound      = errors.New("invitation not found")
 	ErrPendingInvitationExists = errors.New("pending invitation exists")
 )
@@ -26,6 +27,7 @@ type MemberRepository interface {
 	ListByWorkspace(context.Context, string) ([]member.Member, error)
 	ExistsByEmail(context.Context, string, string) (bool, error)
 	FindUserIDByEmail(context.Context, string) (*string, error)
+	FindUserByID(context.Context, string) (member.UserIdentity, error)
 	CountOwners(context.Context, string) (int, error)
 	UpdateRole(context.Context, string, string, member.Role) (member.Member, error)
 	DeleteByIDAndWorkspace(context.Context, string, string) error
@@ -43,6 +45,9 @@ type InvitationRepository interface {
 	ListPendingByWorkspace(context.Context, string) ([]invitation.Invitation, error)
 	Create(context.Context, invitation.Invitation) error
 	RevokePending(context.Context, string, string, time.Time) error
+	ExpirePendingByInvitee(context.Context, string, string, time.Time) error
+	ListPendingByInvitee(context.Context, string, string) ([]invitation.Invitation, error)
+	FindByID(context.Context, string) (invitation.Invitation, error)
 }
 
 type InvitationUnitOfWork interface {
@@ -351,17 +356,21 @@ func (s *MemberService) ListWorkspaceInvitations(ctx context.Context, request co
 func invitationContracts(values []invitation.Invitation, workspaceName string) []contract.Member_Invitation {
 	result := make([]contract.Member_Invitation, 0, len(values))
 	for _, value := range values {
-		result = append(result, contract.Member_Invitation{
-			Id: value.ID, WorkspaceId: value.WorkspaceID, InviterId: value.InviterID,
-			InviteeEmail: value.InviteeEmail, InviteeUserId: value.InviteeUserID,
-			Role: string(value.Role), Status: string(value.Status),
-			CreatedAt:     value.CreatedAt.UTC().Format(time.RFC3339Nano),
-			UpdatedAt:     value.UpdatedAt.UTC().Format(time.RFC3339Nano),
-			ExpiresAt:     value.ExpiresAt.UTC().Format(time.RFC3339Nano),
-			WorkspaceName: workspaceName, InviterName: value.InviterName, InviterEmail: value.InviterEmail,
-		})
+		result = append(result, invitationContract(value, workspaceName))
 	}
 	return result
+}
+
+func invitationContract(value invitation.Invitation, workspaceName string) contract.Member_Invitation {
+	return contract.Member_Invitation{
+		Id: value.ID, WorkspaceId: value.WorkspaceID, InviterId: value.InviterID,
+		InviteeEmail: value.InviteeEmail, InviteeUserId: value.InviteeUserID,
+		Role: string(value.Role), Status: string(value.Status),
+		CreatedAt:     value.CreatedAt.UTC().Format(time.RFC3339Nano),
+		UpdatedAt:     value.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		ExpiresAt:     value.ExpiresAt.UTC().Format(time.RFC3339Nano),
+		WorkspaceName: workspaceName, InviterName: value.InviterName, InviterEmail: value.InviterEmail,
+	}
 }
 func (s *MemberService) CreateInvitation(ctx context.Context, request contract.Member_CreateInvitationRequest) (contract.Member_Invitation, error) {
 	actorUserID, ok := contract.MemberActor(ctx)
@@ -495,4 +504,126 @@ func invitationRole(value string) (member.Role, error) {
 		return "", contract.ErrInvalidInvitationRole
 	}
 	return role, nil
+}
+func (s *MemberService) ListMyInvitations(ctx context.Context, _ contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_ListMyInvitationsResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
+		return contract.Member_ListMyInvitationsResponse{}, contract.ErrMemberNotImplemented
+	}
+
+	var values []invitation.Invitation
+	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, invitations InvitationRepository) error {
+			current, findErr := members.FindUserByID(ctx, actorUserID)
+			if errors.Is(findErr, ErrAuthUserNotFound) {
+				return contract.ErrAuthUserNotFound
+			}
+			if findErr != nil {
+				return findErr
+			}
+			if expireErr := invitations.ExpirePendingByInvitee(ctx, current.ID, current.Email, s.now().UTC()); expireErr != nil {
+				return expireErr
+			}
+			var listErr error
+			values, listErr = invitations.ListPendingByInvitee(ctx, current.ID, current.Email)
+			return listErr
+		},
+	)
+	if err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
+	}
+
+	result, err := s.personalInvitationContracts(ctx, values)
+	if err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
+	}
+	return contract.Member_ListMyInvitationsResponse{Invitations: result}, nil
+}
+
+func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_GetMyInvitationResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
+		return contract.Member_GetMyInvitationResponse{}, contract.ErrMemberNotImplemented
+	}
+
+	var value invitation.Invitation
+	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, invitations InvitationRepository) error {
+			current, findErr := members.FindUserByID(ctx, actorUserID)
+			if errors.Is(findErr, ErrAuthUserNotFound) {
+				return contract.ErrAuthUserNotFound
+			}
+			if findErr != nil {
+				return findErr
+			}
+			value, findErr = invitations.FindByID(ctx, request.InvitationId)
+			if errors.Is(findErr, ErrInvitationNotFound) {
+				return contract.ErrInvitationNotFound
+			}
+			if findErr != nil {
+				return findErr
+			}
+			if !invitationBelongsTo(value, current) {
+				return contract.ErrInvitationForbidden
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
+	}
+
+	identity, err := s.workspaceIdentities.FindIdentity(ctx, value.WorkspaceID)
+	if errors.Is(err, workspacecontract.ErrWorkspaceNotFound) {
+		return contract.Member_GetMyInvitationResponse{}, contract.ErrInvitationNotFound
+	}
+	if err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
+	}
+	result := invitationContract(value, identity.Name)
+	return contract.Member_GetMyInvitationResponse{Invitation: &result}, nil
+}
+
+func invitationBelongsTo(value invitation.Invitation, current member.UserIdentity) bool {
+	if value.InviteeUserID != nil && *value.InviteeUserID == current.ID {
+		return true
+	}
+	return value.InviteeEmail == current.Email
+}
+
+func (s *MemberService) personalInvitationContracts(
+	ctx context.Context,
+	values []invitation.Invitation,
+) ([]contract.Member_Invitation, error) {
+	result := make([]contract.Member_Invitation, 0, len(values))
+	workspaceNames := make(map[string]string)
+	missingWorkspaces := make(map[string]struct{})
+	for _, value := range values {
+		if _, missing := missingWorkspaces[value.WorkspaceID]; missing {
+			continue
+		}
+		workspaceName, found := workspaceNames[value.WorkspaceID]
+		if !found {
+			identity, err := s.workspaceIdentities.FindIdentity(ctx, value.WorkspaceID)
+			if errors.Is(err, workspacecontract.ErrWorkspaceNotFound) {
+				missingWorkspaces[value.WorkspaceID] = struct{}{}
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			workspaceName = identity.Name
+			workspaceNames[value.WorkspaceID] = workspaceName
+		}
+		result = append(result, invitationContract(value, workspaceName))
+	}
+	return result, nil
 }
