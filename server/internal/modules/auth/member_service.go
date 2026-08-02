@@ -23,8 +23,10 @@ func NewMemberExtension() *MemberExtension {
 	return &MemberExtension{local: client, server: protoadapter.NewMemberServer(client)}
 }
 
-func init()                                                { RegisterExtension(func() platformmodule.Extension { return NewMemberExtension() }) }
-func (e *MemberExtension) RegisterHTTP(*kratoshttp.Server) {}
+func init() { RegisterExtension(func() platformmodule.Extension { return NewMemberExtension() }) }
+func (e *MemberExtension) RegisterHTTP(server *kratoshttp.Server) {
+	authv1.RegisterMemberServiceHTTPServer(server, e.server)
+}
 func (e *MemberExtension) RegisterGRPC(registrar stdgrpc.ServiceRegistrar) {
 	authv1.RegisterMemberServiceServer(registrar, e.server)
 }

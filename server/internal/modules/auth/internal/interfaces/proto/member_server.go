@@ -2,8 +2,13 @@
 package proto
 
 import (
+	"context"
+	"encoding/json"
+
 	authv1 "github.com/multica-ai/multica/server/gen/go/auth/v1"
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type MemberServer struct {
@@ -13,4 +18,36 @@ type MemberServer struct {
 
 func NewMemberServer(service contract.MemberService) *MemberServer {
 	return &MemberServer{service: service}
+}
+
+func (s *MemberServer) UpdateMemberRole(ctx context.Context, request *authv1.UpdateMemberRoleRequest) (*authv1.Member, error) {
+	var input contract.Member_UpdateMemberRoleRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.UpdateMemberRole(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.Member{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func decodeMemberProto(input proto.Message, output any) error {
+	data, err := protojson.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, output)
+}
+
+func encodeMemberContract(input any, output proto.Message) error {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return protojson.Unmarshal(data, output)
 }

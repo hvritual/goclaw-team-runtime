@@ -1,4 +1,81 @@
 {
   "generated_by": "dddgen",
-  "methods": []
+  "methods": [
+    {
+      "name": "UpdateMemberRole",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "Member_Member",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "UserId",
+          "type": "string",
+          "json_tag": "userId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "json_tag": "email"
+        },
+        {
+          "name": "AvatarUrl",
+          "type": "*string",
+          "json_tag": "avatarUrl"
+        }
+      ]
+    },
+    {
+      "name": "Member_StringValue",
+      "alias": "string",
+      "fields": null
+    },
+    {
+      "name": "Member_UpdateMemberRoleRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "MemberId",
+          "type": "string",
+          "json_tag": "memberId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        }
+      ]
+    }
+  ]
 }

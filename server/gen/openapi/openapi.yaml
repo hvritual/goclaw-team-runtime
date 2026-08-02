@@ -43,6 +43,44 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/workspaces/{workspaceId}/members/{memberId}:
+        patch:
+            tags:
+                - MemberService
+            description: |-
+                UpdateMemberRole changes one workspace membership role while preserving
+                 the invariant that every workspace has at least one Owner.
+            operationId: MemberService_UpdateMemberRole
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+                - name: memberId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateMemberRoleRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Member'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /v1/auth/ping:
         get:
             tags:
@@ -176,6 +214,29 @@ components:
                 properties:
                     type: object
             description: Issue mirrors the response currently returned after an Issue update.
+        Member:
+            type: object
+            properties:
+                id:
+                    type: string
+                workspaceId:
+                    type: string
+                userId:
+                    type: string
+                role:
+                    type: string
+                    description: |-
+                        String preserves the existing owner/admin/member JSON contract while the
+                         application maps it to the WorkspaceRole domain vocabulary.
+                createdAt:
+                    type: string
+                name:
+                    type: string
+                email:
+                    type: string
+                avatarUrl:
+                    type: string
+            description: Member identifies a human participant inside one Workspace.
         PingResponse:
             type: object
             properties:
@@ -209,10 +270,23 @@ components:
                         status must be one of: backlog, todo, in_progress, in_review, done,
                          blocked, or cancelled. This remains a string to preserve the existing
                          HTTP JSON representation.
+        UpdateMemberRoleRequest:
+            type: object
+            properties:
+                workspaceId:
+                    type: string
+                memberId:
+                    type: string
+                role:
+                    type: string
 tags:
     - name: AuthService
     - name: IssueService
       description: IssueService defines the application contract for workspace Issues.
+    - name: MemberService
+      description: |-
+        MemberService owns Workspace Membership, invitations, Workspace Roles, and
+         the invariant that every Workspace retains at least one Owner.
     - name: SpaceService
     - name: SystemService
     - name: WorkspaceService

@@ -27,9 +27,11 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
+	"github.com/multica-ai/multica/server/internal/bootstrap"
 	"github.com/multica-ai/multica/server/internal/knowledge"
 	knowledgeSqlite "github.com/multica-ai/multica/server/internal/knowledge/adapter/sqlite"
 	"github.com/multica-ai/multica/server/internal/knowledge/outbox"
+	authcontract "github.com/multica-ai/multica/server/internal/modules/auth/contract"
 	"github.com/multica-ai/multica/server/internal/projectrequirements"
 	projectRequirementsSQLite "github.com/multica-ai/multica/server/internal/projectrequirements/adapter/sqlite"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
@@ -80,6 +82,7 @@ type Server struct {
 	mcpPublicURL              string
 	mcpAuthorizationServers   []string
 	mcpExternalVerifier       mcpauth.TokenVerifier
+	authMembers               authcontract.MemberService
 	requirements              *projectrequirements.Service
 	requirementTracking       *projectrequirements.TrackingService
 	requirementTrackingSQLite *projectRequirementsSQLite.TrackingRepository
@@ -106,6 +109,11 @@ func Open(path string, options Options) (*Server, error) {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
+	nativeApplication, err := bootstrap.NewSQLiteApplication(context.Background(), db)
+	if err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("assemble sqlite modules: %w", err)
+	}
 	if err := migrateLegacyTaskSchema(db); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("migrate sqlite task schema: %w", err)
@@ -120,7 +128,7 @@ func Open(path string, options Options) (*Server, error) {
 		code = defaultVerificationCode
 	}
 	trackingRepository := projectRequirementsSQLite.NewTracking(db)
-	server := &Server{db: db, verificationCode: code, requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
+	server := &Server{db: db, verificationCode: code, authMembers: nativeApplication.AuthMembers(), requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
 	server.requirements = projectrequirements.NewService(projectRequirementsSQLite.NewWithApprovalHook(db, server.enqueueApprovedRequirementEvidence))
 	if !options.DisableKnowledge {
 		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
@@ -1490,75 +1498,17 @@ func (s *Server) updateMember(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	requestedRole := workspacepermissions.RoleKey(req.Role)
-	if requestedRole != workspacepermissions.RoleOwner &&
-		requestedRole != workspacepermissions.RoleAdmin &&
-		requestedRole != workspacepermissions.RoleMember {
-		writeError(w, http.StatusBadRequest, "role must be owner, admin, or member")
-		return
-	}
-
-	memberID := chi.URLParam(r, "memberID")
-	tx, err := s.db.BeginTx(r.Context(), nil)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	updated, err := s.authMembers.UpdateMemberRole(ctx, authcontract.Member_UpdateMemberRoleRequest{
+		WorkspaceId: workspaceValue.ID,
+		MemberId:    chi.URLParam(r, "memberID"),
+		Role:        req.Role,
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update member")
+		writeMemberRoleError(w, err)
 		return
 	}
-	defer tx.Rollback()
-
-	requesterRole, err := workspaceRole(r.Context(), tx, workspaceValue.ID, currentUserID(r))
-	if err != nil ||
-		(requesterRole != workspacepermissions.RoleOwner &&
-			requesterRole != workspacepermissions.RoleAdmin) {
-		writeError(w, http.StatusForbidden, "insufficient workspace role")
-		return
-	}
-	targetRole, err := workspaceMemberRole(r.Context(), tx, workspaceValue.ID, memberID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if (targetRole == workspacepermissions.RoleOwner ||
-		requestedRole == workspacepermissions.RoleOwner) &&
-		requesterRole != workspacepermissions.RoleOwner {
-		writeError(w, http.StatusForbidden, "only owners can manage the owner role")
-		return
-	}
-	if targetRole == workspacepermissions.RoleOwner &&
-		requestedRole != workspacepermissions.RoleOwner &&
-		!requireAnotherWorkspaceOwner(w, r, tx, workspaceValue.ID) {
-		return
-	}
-
-	result, err := tx.ExecContext(r.Context(), `UPDATE members SET role = ? WHERE id = ? AND workspace_id = ?`, req.Role, memberID, workspaceValue.ID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update member")
-		return
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update member")
-		return
-	}
-	if affected == 0 {
-		writeError(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to update member")
-		return
-	}
-
-	var value member
-	err = s.db.QueryRowContext(r.Context(), `SELECT m.id, m.workspace_id, m.user_id, m.role, m.created_at,
-		u.name, u.email, u.avatar_url FROM members m JOIN users u ON u.id = m.user_id
-		WHERE m.id = ? AND m.workspace_id = ?`, memberID, workspaceValue.ID).Scan(
-		&value.ID, &value.WorkspaceID, &value.UserID, &value.Role, &value.CreatedAt, &value.Name, &value.Email, &value.AvatarURL)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "member not found")
-		return
-	}
-	writeJSON(w, http.StatusOK, memberResponse(value))
+	writeJSON(w, http.StatusOK, memberContractResponse(updated))
 }
 
 func (s *Server) deleteMember(w http.ResponseWriter, r *http.Request) {

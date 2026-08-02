@@ -4,7 +4,7 @@ type: refactor
 date: 2026-08-02
 topic: four-module-backend
 artifact_contract: multica-ddd-plan/v1
-artifact_readiness: decision-required
+artifact_readiness: executing
 product_contract_source: confirmed-conversation
 execution: incremental
 ---
@@ -14,9 +14,9 @@ execution: incremental
 ## Goal Capsule
 
 - **Objective:** 将后端长期能力划分为 `workspace`、`auth`、`space`、`system` 四个模块，并为每个模块建立清晰的 Proto 服务、数据所有权、依赖方向和渐进迁移顺序。
-- **Current authorized action:** Proto 基础阶段已经完成；后续授权仅扩展到 Space 的 S1a 文件上传入口迁移，包括 Go 分层实现、现有 Chi/sqlc/storage 适配和测试。S1 的可重试清理/finalization 以及其他模块和 Space S2–S4 仍保持计划状态。
+- **Current authorized action:** 全量迁移后端功能到 dddgen/Kratos v3 四模块框架；SQLite 是第一实现与切换数据库，按一个前端可验证用例一个 tracer slice 推进，直到旧 Chi/sqlc/SQLite-local 业务路径全部被替换并删除。
 - **Business invariant:** 工作区始终是租户和授权边界；任何工作区级数据访问都必须以 `workspace_id` 和成员资格为边界。
-- **Compatibility invariant:** 保留现有 Chi 路由、JSON 形状、错误状态、WebSocket 事件、PostgreSQL/sqlc 行为和 SQLite-local 行为，除非后续执行文档获得单独授权。
+- **Compatibility invariant:** 每个切片保留前端使用的路由、JSON 形状、错误状态和事件语义；先证明 SQLite 行为与前端测试，再迁移下一条路径。PostgreSQL 旧运行时在对应切片完成前保持可用，但不作为新模块的首个 provider。
 - **Migration strategy:** 一个可验证用例一个 tracer slice；不做四模块大爆炸迁移，不保留永久转发包、双写或平行业务模型。
 
 ## Confirmed Decisions
@@ -131,13 +131,13 @@ Execution may interleave independent tracer slices, but no slice may bypass its 
 - Standard `protoc` syntax validation and diff review.
 - Space S1a 文件上传的 `domain → application ← dependency` 分层、Chi 接口适配和 composition-root 接线。
 - dddgen 原生四模块脚手架、Buf/生成配置、访问清单、bootstrap、架构测试与 contract tests。
+- Workspace、Auth、Space、System 全部业务用例的 SQLite-first 迁移、原生模块接线、前端契约验证和旧路径删除。
+- 最终将 HTTP/gRPC 运行时切换到 Kratos v3，并删除被完全替代的 Chi 业务路由。
 
 ### Explicitly deferred
 
-- Workspace、Auth、System 以及 Space S2–S4 的 Go 模块迁移。
-- 将生成的 Kratos HTTP/gRPC 服务接入现有 Chi 生产运行时。
-- Database schema or data migration.
-- Route, response, event, authorization or SQLite-local behavior changes.
+- 每个业务切片完成 SQLite 与前端验证前，不实现对应的 PostgreSQL 原生 provider，也不删除其旧生产路径。
+- 不在缺少路由、响应、错误、权限和事件兼容证据时进行一次性 Kratos 运行时切换。
 - Real Agent execution, release, deployment or upgrade operations.
 
 ## Acceptance Evidence

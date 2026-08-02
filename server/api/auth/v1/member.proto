@@ -3,6 +3,8 @@ syntax = "proto3";
 package auth.v1;
 
 import "annotations/v1/access.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
 
@@ -10,6 +12,22 @@ option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1"
 // the invariant that every Workspace retains at least one Owner.
 service MemberService {
   option (annotations.v1.module) = {code: "auth" name: "Auth" version: "v1"};
+
+  // UpdateMemberRole changes one workspace membership role while preserving
+  // the invariant that every workspace has at least one Owner.
+  rpc UpdateMemberRole(UpdateMemberRoleRequest) returns (Member) {
+    option (google.api.http) = {
+      patch: "/api/workspaces/{workspace_id}/members/{member_id}"
+      body: "*"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.change_role"
+      permission_name: "Change member role"
+      resource: "auth.member"
+      action: "change_role"
+      audit: true
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -24,5 +42,17 @@ message Member {
   string id = 1;
   string workspace_id = 2;
   string user_id = 3;
-  WorkspaceRole role = 4;
+  // String preserves the existing owner/admin/member JSON contract while the
+  // application maps it to the WorkspaceRole domain vocabulary.
+  string role = 4;
+  string created_at = 5;
+  string name = 6;
+  string email = 7;
+  google.protobuf.StringValue avatar_url = 8;
+}
+
+message UpdateMemberRoleRequest {
+  string workspace_id = 1;
+  string member_id = 2;
+  string role = 3;
 }

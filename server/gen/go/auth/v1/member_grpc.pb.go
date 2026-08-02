@@ -7,13 +7,20 @@
 package authv1
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
 // Requires gRPC-Go v1.64.0 or later.
 const _ = grpc.SupportPackageIsVersion9
+
+const (
+	MemberService_UpdateMemberRole_FullMethodName = "/auth.v1.MemberService/UpdateMemberRole"
+)
 
 // MemberServiceClient is the client API for MemberService service.
 //
@@ -22,6 +29,9 @@ const _ = grpc.SupportPackageIsVersion9
 // MemberService owns Workspace Membership, invitations, Workspace Roles, and
 // the invariant that every Workspace retains at least one Owner.
 type MemberServiceClient interface {
+	// UpdateMemberRole changes one workspace membership role while preserving
+	// the invariant that every workspace has at least one Owner.
+	UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...grpc.CallOption) (*Member, error)
 }
 
 type memberServiceClient struct {
@@ -32,6 +42,16 @@ func NewMemberServiceClient(cc grpc.ClientConnInterface) MemberServiceClient {
 	return &memberServiceClient{cc}
 }
 
+func (c *memberServiceClient) UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...grpc.CallOption) (*Member, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Member)
+	err := c.cc.Invoke(ctx, MemberService_UpdateMemberRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemberServiceServer is the server API for MemberService service.
 // All implementations must embed UnimplementedMemberServiceServer
 // for forward compatibility.
@@ -39,6 +59,9 @@ func NewMemberServiceClient(cc grpc.ClientConnInterface) MemberServiceClient {
 // MemberService owns Workspace Membership, invitations, Workspace Roles, and
 // the invariant that every Workspace retains at least one Owner.
 type MemberServiceServer interface {
+	// UpdateMemberRole changes one workspace membership role while preserving
+	// the invariant that every workspace has at least one Owner.
+	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
 	mustEmbedUnimplementedMemberServiceServer()
 }
 
@@ -49,6 +72,9 @@ type MemberServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMemberServiceServer struct{}
 
+func (UnimplementedMemberServiceServer) UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateMemberRole not implemented")
+}
 func (UnimplementedMemberServiceServer) mustEmbedUnimplementedMemberServiceServer() {}
 func (UnimplementedMemberServiceServer) testEmbeddedByValue()                       {}
 
@@ -70,13 +96,36 @@ func RegisterMemberServiceServer(s grpc.ServiceRegistrar, srv MemberServiceServe
 	s.RegisterService(&MemberService_ServiceDesc, srv)
 }
 
+func _MemberService_UpdateMemberRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMemberRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).UpdateMemberRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_UpdateMemberRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).UpdateMemberRole(ctx, req.(*UpdateMemberRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemberService_ServiceDesc is the grpc.ServiceDesc for MemberService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MemberService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "auth.v1.MemberService",
 	HandlerType: (*MemberServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "auth/v1/member.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "UpdateMemberRole",
+			Handler:    _MemberService_UpdateMemberRole_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "auth/v1/member.proto",
 }

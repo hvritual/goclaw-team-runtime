@@ -2,11 +2,17 @@
 package local
 
 import (
+	"context"
+
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 )
 
 type MemberClient struct{ service contract.MemberService }
 
 func NewMember(service contract.MemberService) *MemberClient { return &MemberClient{service: service} }
+
+func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
+	return c.service.UpdateMemberRole(ctx, request)
+}
 
 var _ contract.MemberService = (*MemberClient)(nil)

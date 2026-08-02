@@ -1,0 +1,9 @@
+DROP INDEX IF EXISTS invitations_workspace_idx;
+DROP INDEX IF EXISTS invitations_invitee_idx;
+DROP INDEX IF EXISTS invitations_pending_workspace_email_idx;
+DROP TABLE IF EXISTS invitations;
+DROP INDEX IF EXISTS members_user_idx;
+DROP INDEX IF EXISTS members_workspace_user_idx;
+DROP TABLE IF EXISTS members;
+DROP TABLE IF EXISTS auth_tokens;
+DROP TABLE IF EXISTS users;

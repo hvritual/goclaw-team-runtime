@@ -181,6 +181,7 @@ import {
   EMPTY_LIST_GITHUB_REPOSITORIES_RESPONSE,
   WorkspacePermissionCatalogSchema,
   EMPTY_WORKSPACE_PERMISSION_CATALOG,
+  MemberWithUserSchema,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -983,11 +984,26 @@ export class ApiClient {
     });
   }
 
-  async updateMember(workspaceId: string, memberId: string, data: UpdateMemberRequest): Promise<MemberWithUser> {
-    return this.fetch(`/api/workspaces/${workspaceId}/members/${memberId}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
+  async updateMember(
+    workspaceId: string,
+    memberId: string,
+    data: UpdateMemberRequest,
+  ): Promise<MemberWithUser> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/members/${memberId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      },
+    );
+    const member = parseWithFallback<MemberWithUser | null>(
+      raw,
+      MemberWithUserSchema.nullable(),
+      null,
+      { endpoint: "PATCH /api/workspaces/:id/members/:memberId" },
+    );
+    if (!member) throw new Error("Invalid member update response");
+    return member;
   }
 
   async deleteMember(workspaceId: string, memberId: string): Promise<void> {

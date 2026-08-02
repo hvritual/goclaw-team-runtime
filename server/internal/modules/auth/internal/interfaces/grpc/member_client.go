@@ -2,12 +2,49 @@
 package grpc
 
 import (
+	"context"
+	"encoding/json"
+
 	authv1 "github.com/multica-ai/multica/server/gen/go/auth/v1"
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type MemberClient struct{ client authv1.MemberServiceClient }
 
 func NewMember(client authv1.MemberServiceClient) *MemberClient { return &MemberClient{client: client} }
+
+func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
+	protoRequest := &authv1.UpdateMemberRoleRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_Member{}, err
+	}
+	response, err := c.client.UpdateMemberRole(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_Member{}, err
+	}
+	var result contract.Member_Member
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_Member{}, err
+	}
+	return result, nil
+}
+
+func decodeMemberProto(input proto.Message, output any) error {
+	data, err := protojson.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, output)
+}
+
+func encodeMemberContract(input any, output proto.Message) error {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return protojson.Unmarshal(data, output)
+}
 
 var _ contract.MemberService = (*MemberClient)(nil)

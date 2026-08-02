@@ -1,0 +1,81 @@
+---
+title: SQLite-First Full Backend Migration
+type: refactor
+date: 2026-08-02
+topic: sqlite-first-full-backend-migration
+artifact_contract: multica-ddd-execution/v1
+execution_status: in-progress
+depends_on:
+  - dddgen-native-scaffold
+---
+
+# SQLite-First Full Backend Migration
+
+## Completion Contract
+
+The backend is complete only when every frontend-used API, authorization rule,
+side effect, and durable workflow is owned by the native Workspace, Auth, Space,
+or System module; SQLite is the selected runtime database; Kratos v3 serves the
+public transport; superseded Chi/sqlc/SQLite-local business paths are removed;
+and the frontend typecheck, unit tests, and end-to-end suite pass against it.
+
+Generated directories, compiling stubs, or one green module test are not proof
+of full migration.
+
+## Execution Order
+
+1. Characterize one frontend-used route and its current SQLite behavior.
+2. Add its Proto RPC, HTTP/access metadata, domain rule, application use case,
+   and native SQLite provider.
+3. Switch the SQLite route to the module contract and remove the old business
+   branch so the use case has one owner.
+4. Run module, contract, full SQLite, frontend focused, frontend full, and
+   generated-clean gates.
+5. Repeat until a service is complete, then move its transport to Kratos and
+   delete the superseded Chi registration.
+
+## Migration Matrix
+
+| Module / service | SQLite native status | Remaining legacy work |
+| --- | --- | --- |
+| Auth / Member | A1 role change switched; other use cases pending | PostgreSQL A1, list/create/delete/leave/invitations |
+| Auth / Agent | scaffold only | identity, authorization, persistence, routes |
+| Workspace / Project | scaffold only | lifecycle, resources, events |
+| Workspace / Todo | scaffold only | full task API and persistence |
+| Workspace / Issue | generated update stub only | all Issue behavior, evidence, events, metadata |
+| Workspace / Knowledge | scaffold only | durable store, outbox, MCP, fail-open behavior |
+| Workspace / Requirement | native scaffold only | move current requirement application/provider into native module |
+| Workspace / Setting | scaffold only | workspace lifecycle, settings, permissions |
+| Workspace / Relationship | contract model only | Project–Member/Agent source of truth |
+| Space / Asset | legacy DDD upload slice exists | native SQLite asset lifecycle, download, relations, cleanup |
+| System / Skill | scaffold only | catalog/version publication and workspace activation split |
+| System / AgentRelease | scaffold only | version, artifact, policy, rollout state |
+| Runtime transport | scaffold bootstrap only | Kratos server lifecycle, middleware, realtime and route cutover |
+
+## Checkpoint 2026-08-02 — Auth A1 SQLite
+
+- Added the native `MemberService.UpdateMemberRole` Proto/HTTP/access contract.
+- Moved role parsing, authorization policy, and the last-Owner invariant into Auth domain/application layers.
+- Added an Auth-owned SQLite schema migration and transactional provider, assembled only through bootstrap.
+- Replaced the SQLite-local role-change business branch with the native service while preserving the public JSON and error contract.
+- Added Kratos transport error mapping and frontend response-schema validation.
+- Passed DDD lint/vet/race gates, full Go test/vet/build, frontend typecheck, and the serial frontend test suite.
+
+This checkpoint completes only the SQLite A1 tracer slice. The matrix and full migration goal remain in progress.
+
+## Required Gates
+
+```sh
+make generate
+make generated-clean
+make lint-ddd
+make vet-ddd
+make test-race-ddd
+(cd server && go test ./...)
+pnpm typecheck
+pnpm test
+pnpm exec playwright test
+```
+
+Each checkpoint records commands actually run and keeps this goal active until
+every matrix row and runtime cutover is complete.

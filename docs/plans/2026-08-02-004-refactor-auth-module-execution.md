@@ -4,7 +4,7 @@ type: refactor
 date: 2026-08-02
 topic: auth-module-migration
 artifact_contract: multica-ddd-execution/v1
-execution_status: planned
+execution_status: in-progress
 depends_on:
   - four-module-proto-foundation
 ---
@@ -14,6 +14,20 @@ depends_on:
 ## Outcome
 
 Establish Auth as the owner of User identity, Workspace Membership, Workspace Role and future Agent identity. Auth exposes stable contracts for other modules without taking ownership of Project relationships or Agent release data.
+
+## Native Target
+
+```text
+server/internal/modules/auth/
+  contract/
+  internal/domain/
+  internal/application/
+  internal/infrastructure/sqlite/
+  internal/interfaces/
+  module.go
+```
+
+Proto under `server/api/auth/v1` is the transport and access-metadata source of truth. New persistence work starts with SQLite; PostgreSQL adapters follow only after the same public behavior is proven.
 
 ## Owned and Referenced Data
 
@@ -29,6 +43,8 @@ Establish Auth as the owner of User identity, Workspace Membership, Workspace Ro
 - Move the last-owner rule into Auth domain behavior.
 - Define repository and transaction ports owned by the application use case.
 - Preserve owner/admin/member authorization and workspace-scoped lookups.
+
+**SQLite tracer completed 2026-08-02:** `MemberService.UpdateMemberRole` now owns role validation, Owner-only Owner-role changes, and the last-Owner invariant. The native SQLite provider executes requester lookup, target lookup, owner count, update, and response projection in one transaction. SQLite-local `PATCH /api/workspaces/{id}/members/{memberID}` delegates to this service and retains its response/error contract. The PostgreSQL handler remains legacy and must be migrated before A1 is fully complete.
 
 ### A2. Remove or leave membership
 
@@ -61,6 +77,16 @@ Establish Auth as the owner of User identity, Workspace Membership, Workspace Ro
 - PostgreSQL and SQLite-local parity where the current behavior exists.
 - Membership cache and realtime tests.
 - Architecture lint proving Auth domain/application do not import Workspace/System/Space implementations.
+
+## A1 SQLite Evidence
+
+- Domain and application tests cover valid roles, admin restrictions, and last-Owner protection.
+- Native provider tests use the embedded Auth migration with a real in-memory SQLite database and verify commit, rollback, workspace scoping, and response projection.
+- SQLite-local HTTP tests cover successful promotion, rejection of sole-Owner demotion, and the existing hidden-workspace-before-body-decoding behavior.
+- The Kratos transport boundary maps Auth failures to stable 400/401/403/404/500 status codes without leaking transport concerns into domain/application code.
+- dddgen regeneration preserves the user-owned application method and regenerates the Kratos HTTP/OpenAPI/access boundaries.
+- Frontend `updateMember` validates the runtime response schema before returning it to React Query consumers.
+- Full frontend typecheck and the serial test gate pass across Core, Views, Desktop, Web, and Docs.
 
 ## Stop Conditions
 

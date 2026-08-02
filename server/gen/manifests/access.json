@@ -25,6 +25,13 @@
   ],
   "permissions": [
     {
+      "code": "auth.member.change_role",
+      "name": "Change member role",
+      "module": "auth",
+      "resource": "auth.member",
+      "action": "change_role"
+    },
+    {
       "code": "workspace.issue.update",
       "name": "Update issue",
       "module": "workspace",
@@ -44,6 +51,17 @@
       "http_path": "/v1/auth/ping",
       "public": true,
       "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/UpdateMemberRole",
+      "module": "auth",
+      "http_method": "PATCH",
+      "http_path": "/api/workspaces/{workspace_id}/members/{member_id}",
+      "permission_code": "auth.member.change_role",
+      "public": false,
+      "audit": true,
       "idempotent": false
     },
     {

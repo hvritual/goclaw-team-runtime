@@ -8,8 +8,10 @@ package authv1
 
 import (
 	_ "github.com/multica-ai/multica/server/gen/go/annotations/v1"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -76,11 +78,17 @@ func (WorkspaceRole) EnumDescriptor() ([]byte, []int) {
 
 // Member identifies a human participant inside one Workspace.
 type Member struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Role          WorkspaceRole          `protobuf:"varint,4,opt,name=role,proto3,enum=auth.v1.WorkspaceRole" json:"role,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId      string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// String preserves the existing owner/admin/member JSON contract while the
+	// application maps it to the WorkspaceRole domain vocabulary.
+	Role          string                  `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	CreatedAt     string                  `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Name          string                  `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Email         string                  `protobuf:"bytes,7,opt,name=email,proto3" json:"email,omitempty"`
+	AvatarUrl     *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -136,29 +144,129 @@ func (x *Member) GetUserId() string {
 	return ""
 }
 
-func (x *Member) GetRole() WorkspaceRole {
+func (x *Member) GetRole() string {
 	if x != nil {
 		return x.Role
 	}
-	return WorkspaceRole_WORKSPACE_ROLE_UNSPECIFIED
+	return ""
+}
+
+func (x *Member) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Member) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Member) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *Member) GetAvatarUrl() *wrapperspb.StringValue {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return nil
+}
+
+type UpdateMemberRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	MemberId      string                 `protobuf:"bytes,2,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateMemberRoleRequest) Reset() {
+	*x = UpdateMemberRoleRequest{}
+	mi := &file_auth_v1_member_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateMemberRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateMemberRoleRequest) ProtoMessage() {}
+
+func (x *UpdateMemberRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateMemberRoleRequest.ProtoReflect.Descriptor instead.
+func (*UpdateMemberRoleRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *UpdateMemberRoleRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *UpdateMemberRoleRequest) GetMemberId() string {
+	if x != nil {
+		return x.MemberId
+	}
+	return ""
+}
+
+func (x *UpdateMemberRoleRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
 }
 
 var File_auth_v1_member_proto protoreflect.FileDescriptor
 
 const file_auth_v1_member_proto_rawDesc = "" +
 	"\n" +
-	"\x14auth/v1/member.proto\x12\aauth.v1\x1a\x1bannotations/v1/access.proto\"\x80\x01\n" +
+	"\x14auth/v1/member.proto\x12\aauth.v1\x1a\x1bannotations/v1/access.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xee\x01\n" +
 	"\x06Member\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\tR\x06userId\x12*\n" +
-	"\x04role\x18\x04 \x01(\x0e2\x16.auth.v1.WorkspaceRoleR\x04role*~\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x14\n" +
+	"\x05email\x18\a \x01(\tR\x05email\x12;\n" +
+	"\n" +
+	"avatar_url\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\tavatarUrl\"m\n" +
+	"\x17UpdateMemberRoleRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
+	"\tmember_id\x18\x02 \x01(\tR\bmemberId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role*~\n" +
 	"\rWorkspaceRole\x12\x1e\n" +
 	"\x1aWORKSPACE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_OWNER\x10\x01\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_ADMIN\x10\x02\x12\x19\n" +
-	"\x15WORKSPACE_ROLE_MEMBER\x10\x032%\n" +
-	"\rMemberService\x1a\x14\xca\xf3\x18\x10\n" +
+	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\xfa\x01\n" +
+	"\rMemberService\x12\xd2\x01\n" +
+	"\x10UpdateMemberRole\x12 .auth.v1.UpdateMemberRoleRequest\x1a\x0f.auth.v1.Member\"\x8a\x01\xd2\xf3\x18I\n" +
+	"\x17auth.member.change_role\x12\x12Change member role\x1a\vauth.member\"\vchange_role@\x01\x82\xd3\xe4\x93\x027:\x01*22/api/workspaces/{workspace_id}/members/{member_id}\x1a\x14\xca\xf3\x18\x10\n" +
 	"\x04auth\x12\x04Auth\x1a\x02v1B<Z:github.com/multica-ai/multica/server/gen/go/auth/v1;authv1b\x06proto3"
 
 var (
@@ -174,15 +282,19 @@ func file_auth_v1_member_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_member_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_auth_v1_member_proto_goTypes = []any{
-	(WorkspaceRole)(0), // 0: auth.v1.WorkspaceRole
-	(*Member)(nil),     // 1: auth.v1.Member
+	(WorkspaceRole)(0),              // 0: auth.v1.WorkspaceRole
+	(*Member)(nil),                  // 1: auth.v1.Member
+	(*UpdateMemberRoleRequest)(nil), // 2: auth.v1.UpdateMemberRoleRequest
+	(*wrapperspb.StringValue)(nil),  // 3: google.protobuf.StringValue
 }
 var file_auth_v1_member_proto_depIdxs = []int32{
-	0, // 0: auth.v1.Member.role:type_name -> auth.v1.WorkspaceRole
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
+	3, // 0: auth.v1.Member.avatar_url:type_name -> google.protobuf.StringValue
+	2, // 1: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
+	1, // 2: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -199,7 +311,7 @@ func file_auth_v1_member_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_member_proto_rawDesc), len(file_auth_v1_member_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
