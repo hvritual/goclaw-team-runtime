@@ -15,6 +15,12 @@ import (
 
 type memberListJSONService struct{ successfulMemberService }
 
+type emptyWorkspaceInvitationService struct{ successfulMemberService }
+
+func (*emptyWorkspaceInvitationService) ListWorkspaceInvitations(context.Context, contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	return contract.Member_ListWorkspaceInvitationsResponse{Invitations: make([]contract.Member_Invitation, 0)}, nil
+}
+
 func (*memberListJSONService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
 	avatarURL := "https://cdn.example.test/avatar.png"
 	return contract.Member_ListMembersResponse{Members: []contract.Member_Member{
@@ -47,6 +53,44 @@ func TestAuthMemberHTTPListUsesTopLevelArray(t *testing.T) {
 	}
 	if members[1]["avatar_url"] != "https://cdn.example.test/avatar.png" {
 		t.Fatalf("avatar must be a JSON string: %+v", members[1])
+	}
+}
+
+func TestAuthMemberHTTPInvitationListUsesTopLevelArray(t *testing.T) {
+	extension := auth.NewMemberExtensionWithService(&successfulMemberService{})
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/workspaces/workspace-1/invitations", nil)
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", response.Code, response.Body.String())
+	}
+	var invitations []map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &invitations); err != nil {
+		t.Fatalf("response is not an invitation array: %v; body=%s", err, response.Body.String())
+	}
+	if len(invitations) != 1 || invitations[0]["workspace_name"] != "Acme" {
+		t.Fatalf("unexpected invitation array: %+v", invitations)
+	}
+	if inviteeUserID, exists := invitations[0]["invitee_user_id"]; !exists || inviteeUserID != nil {
+		t.Fatalf("nil invitee_user_id must be present as JSON null: %+v", invitations[0])
+	}
+}
+
+func TestAuthMemberHTTPInvitationListPreservesEmptyArray(t *testing.T) {
+	extension := auth.NewMemberExtensionWithService(&emptyWorkspaceInvitationService{})
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/workspaces/workspace-1/invitations", nil)
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || response.Body.String() != "[]" {
+		t.Fatalf("status = %d; body=%q, want []", response.Code, response.Body.String())
 	}
 }
 
@@ -133,5 +177,15 @@ func TestAuthMemberGeneratedHTTPClientHandlesNoContent(t *testing.T) {
 	}
 	if service.revokeRequest.WorkspaceId != "workspace-1" || service.revokeRequest.InvitationId != "invitation-1" {
 		t.Fatalf("unexpected revoke request: %+v", service.revokeRequest)
+	}
+
+	invitationList, err := client.ListWorkspaceInvitations(t.Context(), &authv1.ListWorkspaceInvitationsRequest{
+		WorkspaceId: "workspace-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.listInvitationsRequest.WorkspaceId != "workspace-1" || len(invitationList.GetInvitations()) != 1 || invitationList.GetInvitations()[0].GetWorkspaceName() != "Acme" {
+		t.Fatalf("unexpected generated-client invitation list request=%+v result=%+v", service.listInvitationsRequest, invitationList)
 	}
 }

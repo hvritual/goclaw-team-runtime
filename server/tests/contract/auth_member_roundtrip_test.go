@@ -13,11 +13,12 @@ import (
 )
 
 type successfulMemberService struct {
-	listRequest   contract.Member_ListMembersRequest
-	updateRequest contract.Member_UpdateMemberRoleRequest
-	deleteRequest contract.Member_DeleteMemberRequest
-	leaveRequest  contract.Member_LeaveWorkspaceRequest
-	revokeRequest contract.Member_RevokeInvitationRequest
+	listRequest            contract.Member_ListMembersRequest
+	updateRequest          contract.Member_UpdateMemberRoleRequest
+	deleteRequest          contract.Member_DeleteMemberRequest
+	leaveRequest           contract.Member_LeaveWorkspaceRequest
+	revokeRequest          contract.Member_RevokeInvitationRequest
+	listInvitationsRequest contract.Member_ListWorkspaceInvitationsRequest
 }
 
 func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
@@ -61,6 +62,16 @@ func (s *successfulMemberService) LeaveWorkspace(_ context.Context, request cont
 func (s *successfulMemberService) RevokeInvitation(_ context.Context, request contract.Member_RevokeInvitationRequest) (contract.Member_RevokeInvitationResponse, error) {
 	s.revokeRequest = request
 	return contract.Member_RevokeInvitationResponse{}, nil
+}
+
+func (s *successfulMemberService) ListWorkspaceInvitations(_ context.Context, request contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	s.listInvitationsRequest = request
+	return contract.Member_ListWorkspaceInvitationsResponse{Invitations: []contract.Member_Invitation{{
+		Id: "invitation-1", WorkspaceId: request.WorkspaceId, InviterId: "user-1",
+		InviteeEmail: "invitee@example.test", Role: "member", Status: "pending",
+		CreatedAt: "2026-08-02T00:00:00Z", UpdatedAt: "2026-08-02T00:00:00Z", ExpiresAt: "2026-08-09T00:00:00Z",
+		WorkspaceName: "Acme", InviterName: "Owner", InviterEmail: "owner@example.test",
+	}}}, nil
 }
 
 func TestAuthMemberGRPCRoundTrips(t *testing.T) {
@@ -128,5 +139,14 @@ func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 	}
 	if service.revokeRequest.WorkspaceId != "workspace-1" || service.revokeRequest.InvitationId != "invitation-1" {
 		t.Fatalf("unexpected revoke request: %+v", service.revokeRequest)
+	}
+	invitationList, err := client.ListWorkspaceInvitations(t.Context(), contract.Member_ListWorkspaceInvitationsRequest{
+		WorkspaceId: "workspace-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.listInvitationsRequest.WorkspaceId != "workspace-1" || len(invitationList.Invitations) != 1 || invitationList.Invitations[0].WorkspaceName != "Acme" {
+		t.Fatalf("unexpected invitation list round trip request=%+v result=%+v", service.listInvitationsRequest, invitationList)
 	}
 }

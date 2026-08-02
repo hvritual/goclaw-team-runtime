@@ -54,3 +54,26 @@ func memberContractResponses(values []contract.Member_Member) []map[string]any {
 	}
 	return result
 }
+
+func invitationContractResponse(value contract.Member_Invitation) map[string]any {
+	var inviteeUserID any
+	if value.InviteeUserId != nil {
+		inviteeUserID = *value.InviteeUserId
+	}
+	return map[string]any{
+		"id": value.Id, "workspace_id": value.WorkspaceId, "inviter_id": value.InviterId,
+		"invitee_email": value.InviteeEmail, "invitee_user_id": inviteeUserID,
+		"role": value.Role, "status": value.Status, "created_at": value.CreatedAt,
+		"updated_at": value.UpdatedAt, "expires_at": value.ExpiresAt,
+		"workspace_name": value.WorkspaceName, "inviter_name": value.InviterName,
+		"inviter_email": value.InviterEmail,
+	}
+}
+
+func invitationContractResponses(values []contract.Member_Invitation) []map[string]any {
+	result := make([]map[string]any, 0, len(values))
+	for _, value := range values {
+		result = append(result, invitationContractResponse(value))
+	}
+	return result
+}

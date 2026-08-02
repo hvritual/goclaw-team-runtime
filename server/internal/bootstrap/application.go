@@ -29,24 +29,33 @@ type Application struct {
 
 // NewApplication registers every accepted top-level bounded context.
 func NewApplication() *Application {
-	return assemble(auth.New())
+	return assemble(workspace.New(), auth.New())
 }
 
 // NewSQLiteApplication assembles native modules after installing provider-owned schemas.
 func NewSQLiteApplication(ctx context.Context, db *sql.DB) (*Application, error) {
+	if err := workspace.MigrateSqlite(ctx, db); err != nil {
+		return nil, fmt.Errorf("migrate Workspace module: %w", err)
+	}
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
 		return nil, fmt.Errorf("migrate Auth module: %w", err)
 	}
-	authModule, err := auth.NewWithSqlitePersistence(auth.SqlitePersistenceConfig{DB: db})
+	workspaceModule, err := workspace.NewWithSqlitePersistence(workspace.SqlitePersistenceConfig{DB: db})
+	if err != nil {
+		return nil, fmt.Errorf("assemble Workspace module: %w", err)
+	}
+	authModule, err := auth.NewWithSqlitePersistence(auth.SqlitePersistenceConfig{
+		DB: db, WorkspaceIdentities: workspaceModule.IdentityLocal(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("assemble Auth module: %w", err)
 	}
-	return assemble(authModule), nil
+	return assemble(workspaceModule, authModule), nil
 }
 
-func assemble(authModule *auth.Module) *Application {
+func assemble(workspaceModule *workspace.Module, authModule *auth.Module) *Application {
 	return &Application{modules: []Module{
-		workspace.New(),
+		workspaceModule,
 		authModule,
 		space.New(),
 		system.New(),

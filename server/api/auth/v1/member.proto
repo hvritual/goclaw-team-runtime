@@ -81,6 +81,21 @@ service MemberService {
       audit: true
     };
   }
+
+  // ListWorkspaceInvitations returns pending invitations manageable by an
+  // Owner or Admin in one workspace.
+  rpc ListWorkspaceInvitations(ListWorkspaceInvitationsRequest) returns (ListWorkspaceInvitationsResponse) {
+    option (google.api.http) = {
+      get: "/api/workspaces/{workspace_id}/invitations"
+      response_body: "invitations"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.list"
+      permission_name: "List workspace invitations"
+      resource: "auth.invitation"
+      action: "list"
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -139,3 +154,27 @@ message RevokeInvitationRequest {
 }
 
 message RevokeInvitationResponse {}
+
+message Invitation {
+  string id = 1;
+  string workspace_id = 2;
+  string inviter_id = 3;
+  string invitee_email = 4;
+  optional string invitee_user_id = 5;
+  string role = 6;
+  string status = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string expires_at = 10;
+  string workspace_name = 11;
+  string inviter_name = 12;
+  string inviter_email = 13;
+}
+
+message ListWorkspaceInvitationsRequest {
+  string workspace_id = 1;
+}
+
+message ListWorkspaceInvitationsResponse {
+  repeated Invitation invitations = 1;
+}

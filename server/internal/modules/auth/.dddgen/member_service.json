@@ -20,6 +20,10 @@
     {
       "name": "RevokeInvitation",
       "simple_string": false
+    },
+    {
+      "name": "ListWorkspaceInvitations",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
@@ -41,6 +45,76 @@
     {
       "name": "Member_DeleteMemberResponse",
       "fields": null
+    },
+    {
+      "name": "Member_Invitation",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "InviterId",
+          "type": "string",
+          "json_tag": "inviterId"
+        },
+        {
+          "name": "InviteeEmail",
+          "type": "string",
+          "json_tag": "inviteeEmail"
+        },
+        {
+          "name": "InviteeUserId",
+          "type": "*string",
+          "json_tag": "inviteeUserId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        },
+        {
+          "name": "ExpiresAt",
+          "type": "string",
+          "json_tag": "expiresAt"
+        },
+        {
+          "name": "WorkspaceName",
+          "type": "string",
+          "json_tag": "workspaceName"
+        },
+        {
+          "name": "InviterName",
+          "type": "string",
+          "json_tag": "inviterName"
+        },
+        {
+          "name": "InviterEmail",
+          "type": "string",
+          "json_tag": "inviterEmail"
+        }
+      ]
     },
     {
       "name": "Member_LeaveWorkspaceRequest",
@@ -73,6 +147,26 @@
           "name": "Members",
           "type": "[]Member_Member",
           "json_tag": "members"
+        }
+      ]
+    },
+    {
+      "name": "Member_ListWorkspaceInvitationsRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        }
+      ]
+    },
+    {
+      "name": "Member_ListWorkspaceInvitationsResponse",
+      "fields": [
+        {
+          "name": "Invitations",
+          "type": "[]Member_Invitation",
+          "json_tag": "invitations"
         }
       ]
     },

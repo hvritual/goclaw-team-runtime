@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/application"
+	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/invitation"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
 )
 
@@ -57,6 +58,41 @@ type memberRepository struct {
 
 type invitationRepository struct {
 	tx *sql.Tx
+}
+
+func (r *invitationRepository) ExpirePendingByWorkspace(ctx context.Context, workspaceID string, expiredAt time.Time) error {
+	timestamp := expiredAt.UTC().Format(time.RFC3339Nano)
+	if _, err := r.tx.ExecContext(ctx, `UPDATE invitations
+		SET status = 'expired', updated_at = ?
+		WHERE workspace_id = ? AND status = 'pending' AND expires_at <= ?`,
+		timestamp, workspaceID, timestamp,
+	); err != nil {
+		return fmt.Errorf("expire workspace invitations: %w", err)
+	}
+	return nil
+}
+
+func (r *invitationRepository) ListPendingByWorkspace(ctx context.Context, workspaceID string) ([]invitation.Invitation, error) {
+	rows, err := r.tx.QueryContext(ctx, invitationProjection+`
+		WHERE i.workspace_id = ? AND i.status = 'pending'
+		ORDER BY i.created_at`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace invitations: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	values := make([]invitation.Invitation, 0)
+	for rows.Next() {
+		value, scanErr := scanInvitation(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate workspace invitations: %w", err)
+	}
+	return values, nil
 }
 
 func (r *invitationRepository) RevokePending(
@@ -212,6 +248,60 @@ func scanMember(row memberScanner) (member.Member, error) {
 		value.AvatarURL = &avatarURL.String
 	}
 	return value, nil
+}
+
+const invitationProjection = `SELECT
+	i.id, i.workspace_id, i.inviter_id, i.invitee_email, i.invitee_user_id,
+	i.role, i.status, i.created_at, i.updated_at, i.expires_at,
+	u.name, u.email
+	FROM invitations i
+	JOIN users u ON u.id = i.inviter_id`
+
+func scanInvitation(row memberScanner) (invitation.Invitation, error) {
+	var (
+		value                           invitation.Invitation
+		inviteeUserID                   sql.NullString
+		role, status                    string
+		createdAt, updatedAt, expiresAt string
+	)
+	if err := row.Scan(
+		&value.ID, &value.WorkspaceID, &value.InviterID, &value.InviteeEmail, &inviteeUserID,
+		&role, &status, &createdAt, &updatedAt, &expiresAt,
+		&value.InviterName, &value.InviterEmail,
+	); err != nil {
+		return invitation.Invitation{}, fmt.Errorf("scan invitation: %w", err)
+	}
+	parsedRole, err := member.ParseRole(role)
+	if err != nil {
+		return invitation.Invitation{}, fmt.Errorf("scan invitation role: %w", err)
+	}
+	parsedStatus, err := invitation.ParseStatus(status)
+	if err != nil {
+		return invitation.Invitation{}, fmt.Errorf("scan invitation status: %w", err)
+	}
+	value.Role = parsedRole
+	value.Status = parsedStatus
+	if inviteeUserID.Valid {
+		value.InviteeUserID = &inviteeUserID.String
+	}
+	if value.CreatedAt, err = parseInvitationTime("created_at", createdAt); err != nil {
+		return invitation.Invitation{}, err
+	}
+	if value.UpdatedAt, err = parseInvitationTime("updated_at", updatedAt); err != nil {
+		return invitation.Invitation{}, err
+	}
+	if value.ExpiresAt, err = parseInvitationTime("expires_at", expiresAt); err != nil {
+		return invitation.Invitation{}, err
+	}
+	return value, nil
+}
+
+func parseInvitationTime(field, value string) (time.Time, error) {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("scan invitation %s: %w", field, err)
+	}
+	return parsed, nil
 }
 
 var _ application.MemberUnitOfWork = (*MemberStore)(nil)

@@ -584,6 +584,234 @@ func (*RevokeInvitationResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_member_proto_rawDescGZIP(), []int{9}
 }
 
+type Invitation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	InviterId     string                 `protobuf:"bytes,3,opt,name=inviter_id,json=inviterId,proto3" json:"inviter_id,omitempty"`
+	InviteeEmail  string                 `protobuf:"bytes,4,opt,name=invitee_email,json=inviteeEmail,proto3" json:"invitee_email,omitempty"`
+	InviteeUserId *string                `protobuf:"bytes,5,opt,name=invitee_user_id,json=inviteeUserId,proto3,oneof" json:"invitee_user_id"`
+	Role          string                 `protobuf:"bytes,6,opt,name=role,proto3" json:"role,omitempty"`
+	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExpiresAt     string                 `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	WorkspaceName string                 `protobuf:"bytes,11,opt,name=workspace_name,json=workspaceName,proto3" json:"workspace_name,omitempty"`
+	InviterName   string                 `protobuf:"bytes,12,opt,name=inviter_name,json=inviterName,proto3" json:"inviter_name,omitempty"`
+	InviterEmail  string                 `protobuf:"bytes,13,opt,name=inviter_email,json=inviterEmail,proto3" json:"inviter_email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Invitation) Reset() {
+	*x = Invitation{}
+	mi := &file_auth_v1_member_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Invitation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Invitation) ProtoMessage() {}
+
+func (x *Invitation) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Invitation.ProtoReflect.Descriptor instead.
+func (*Invitation) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Invitation) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Invitation) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *Invitation) GetInviterId() string {
+	if x != nil {
+		return x.InviterId
+	}
+	return ""
+}
+
+func (x *Invitation) GetInviteeEmail() string {
+	if x != nil {
+		return x.InviteeEmail
+	}
+	return ""
+}
+
+func (x *Invitation) GetInviteeUserId() string {
+	if x != nil && x.InviteeUserId != nil {
+		return *x.InviteeUserId
+	}
+	return ""
+}
+
+func (x *Invitation) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *Invitation) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Invitation) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Invitation) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *Invitation) GetExpiresAt() string {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *Invitation) GetWorkspaceName() string {
+	if x != nil {
+		return x.WorkspaceName
+	}
+	return ""
+}
+
+func (x *Invitation) GetInviterName() string {
+	if x != nil {
+		return x.InviterName
+	}
+	return ""
+}
+
+func (x *Invitation) GetInviterEmail() string {
+	if x != nil {
+		return x.InviterEmail
+	}
+	return ""
+}
+
+type ListWorkspaceInvitationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkspaceInvitationsRequest) Reset() {
+	*x = ListWorkspaceInvitationsRequest{}
+	mi := &file_auth_v1_member_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkspaceInvitationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkspaceInvitationsRequest) ProtoMessage() {}
+
+func (x *ListWorkspaceInvitationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkspaceInvitationsRequest.ProtoReflect.Descriptor instead.
+func (*ListWorkspaceInvitationsRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListWorkspaceInvitationsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type ListWorkspaceInvitationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Invitations   []*Invitation          `protobuf:"bytes,1,rep,name=invitations,proto3" json:"invitations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListWorkspaceInvitationsResponse) Reset() {
+	*x = ListWorkspaceInvitationsResponse{}
+	mi := &file_auth_v1_member_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListWorkspaceInvitationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListWorkspaceInvitationsResponse) ProtoMessage() {}
+
+func (x *ListWorkspaceInvitationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListWorkspaceInvitationsResponse.ProtoReflect.Descriptor instead.
+func (*ListWorkspaceInvitationsResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListWorkspaceInvitationsResponse) GetInvitations() []*Invitation {
+	if x != nil {
+		return x.Invitations
+	}
+	return nil
+}
+
 var File_auth_v1_member_proto protoreflect.FileDescriptor
 
 const file_auth_v1_member_proto_rawDesc = "" +
@@ -619,12 +847,38 @@ const file_auth_v1_member_proto_rawDesc = "" +
 	"\x17RevokeInvitationRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12#\n" +
 	"\rinvitation_id\x18\x02 \x01(\tR\finvitationId\"\x1a\n" +
-	"\x18RevokeInvitationResponse*~\n" +
+	"\x18RevokeInvitationResponse\"\xbc\x03\n" +
+	"\n" +
+	"Invitation\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x1d\n" +
+	"\n" +
+	"inviter_id\x18\x03 \x01(\tR\tinviterId\x12#\n" +
+	"\rinvitee_email\x18\x04 \x01(\tR\finviteeEmail\x12+\n" +
+	"\x0finvitee_user_id\x18\x05 \x01(\tH\x00R\rinviteeUserId\x88\x01\x01\x12\x12\n" +
+	"\x04role\x18\x06 \x01(\tR\x04role\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\tR\tupdatedAt\x12\x1d\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\tR\texpiresAt\x12%\n" +
+	"\x0eworkspace_name\x18\v \x01(\tR\rworkspaceName\x12!\n" +
+	"\finviter_name\x18\f \x01(\tR\vinviterName\x12#\n" +
+	"\rinviter_email\x18\r \x01(\tR\finviterEmailB\x12\n" +
+	"\x10_invitee_user_id\"D\n" +
+	"\x1fListWorkspaceInvitationsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"Y\n" +
+	" ListWorkspaceInvitationsResponse\x125\n" +
+	"\vinvitations\x18\x01 \x03(\v2\x13.auth.v1.InvitationR\vinvitations*~\n" +
 	"\rWorkspaceRole\x12\x1e\n" +
 	"\x1aWORKSPACE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_OWNER\x10\x01\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_ADMIN\x10\x02\x12\x19\n" +
-	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\xb5\b\n" +
+	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\xb6\n" +
+	"\n" +
 	"\rMemberService\x12\xb8\x01\n" +
 	"\vListMembers\x12\x1b.auth.v1.ListMembersRequest\x1a\x1c.auth.v1.ListMembersResponse\"n\xd2\xf3\x183\n" +
 	"\x10auth.member.list\x12\fList members\x1a\vauth.member\"\x04list\x82\xd3\xe4\x93\x021b\amembers\x12&/api/workspaces/{workspace_id}/members\x12\xd2\x01\n" +
@@ -635,7 +889,9 @@ const file_auth_v1_member_proto_rawDesc = "" +
 	"\x0eLeaveWorkspace\x12\x1e.auth.v1.LeaveWorkspaceRequest\x1a\x1f.auth.v1.LeaveWorkspaceResponse\"o\xd2\xf3\x18:\n" +
 	"\x11auth.member.leave\x12\x0fLeave workspace\x1a\vauth.member\"\x05leave@\x01\xd8\xf3\x18\xcc\x01\x82\xd3\xe4\x93\x02&\"$/api/workspaces/{workspace_id}/leave\x12\xeb\x01\n" +
 	"\x10RevokeInvitation\x12 .auth.v1.RevokeInvitationRequest\x1a!.auth.v1.RevokeInvitationResponse\"\x91\x01\xd2\xf3\x18F\n" +
-	"\x16auth.invitation.revoke\x12\x11Revoke invitation\x1a\x0fauth.invitation\"\x06revoke@\x01\xd8\xf3\x18\xcc\x01\x82\xd3\xe4\x93\x02<*:/api/workspaces/{workspace_id}/invitations/{invitation_id}\x1a\x14\xca\xf3\x18\x10\n" +
+	"\x16auth.invitation.revoke\x12\x11Revoke invitation\x1a\x0fauth.invitation\"\x06revoke@\x01\xd8\xf3\x18\xcc\x01\x82\xd3\xe4\x93\x02<*:/api/workspaces/{workspace_id}/invitations/{invitation_id}\x12\xfe\x01\n" +
+	"\x18ListWorkspaceInvitations\x12(.auth.v1.ListWorkspaceInvitationsRequest\x1a).auth.v1.ListWorkspaceInvitationsResponse\"\x8c\x01\xd2\xf3\x18I\n" +
+	"\x14auth.invitation.list\x12\x1aList workspace invitations\x1a\x0fauth.invitation\"\x04list\x82\xd3\xe4\x93\x029b\vinvitations\x12*/api/workspaces/{workspace_id}/invitations\x1a\x14\xca\xf3\x18\x10\n" +
 	"\x04auth\x12\x04Auth\x1a\x02v1B<Z:github.com/multica-ai/multica/server/gen/go/auth/v1;authv1b\x06proto3"
 
 var (
@@ -651,37 +907,43 @@ func file_auth_v1_member_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_member_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_auth_v1_member_proto_goTypes = []any{
-	(WorkspaceRole)(0),               // 0: auth.v1.WorkspaceRole
-	(*Member)(nil),                   // 1: auth.v1.Member
-	(*ListMembersRequest)(nil),       // 2: auth.v1.ListMembersRequest
-	(*ListMembersResponse)(nil),      // 3: auth.v1.ListMembersResponse
-	(*UpdateMemberRoleRequest)(nil),  // 4: auth.v1.UpdateMemberRoleRequest
-	(*DeleteMemberRequest)(nil),      // 5: auth.v1.DeleteMemberRequest
-	(*DeleteMemberResponse)(nil),     // 6: auth.v1.DeleteMemberResponse
-	(*LeaveWorkspaceRequest)(nil),    // 7: auth.v1.LeaveWorkspaceRequest
-	(*LeaveWorkspaceResponse)(nil),   // 8: auth.v1.LeaveWorkspaceResponse
-	(*RevokeInvitationRequest)(nil),  // 9: auth.v1.RevokeInvitationRequest
-	(*RevokeInvitationResponse)(nil), // 10: auth.v1.RevokeInvitationResponse
+	(WorkspaceRole)(0),                       // 0: auth.v1.WorkspaceRole
+	(*Member)(nil),                           // 1: auth.v1.Member
+	(*ListMembersRequest)(nil),               // 2: auth.v1.ListMembersRequest
+	(*ListMembersResponse)(nil),              // 3: auth.v1.ListMembersResponse
+	(*UpdateMemberRoleRequest)(nil),          // 4: auth.v1.UpdateMemberRoleRequest
+	(*DeleteMemberRequest)(nil),              // 5: auth.v1.DeleteMemberRequest
+	(*DeleteMemberResponse)(nil),             // 6: auth.v1.DeleteMemberResponse
+	(*LeaveWorkspaceRequest)(nil),            // 7: auth.v1.LeaveWorkspaceRequest
+	(*LeaveWorkspaceResponse)(nil),           // 8: auth.v1.LeaveWorkspaceResponse
+	(*RevokeInvitationRequest)(nil),          // 9: auth.v1.RevokeInvitationRequest
+	(*RevokeInvitationResponse)(nil),         // 10: auth.v1.RevokeInvitationResponse
+	(*Invitation)(nil),                       // 11: auth.v1.Invitation
+	(*ListWorkspaceInvitationsRequest)(nil),  // 12: auth.v1.ListWorkspaceInvitationsRequest
+	(*ListWorkspaceInvitationsResponse)(nil), // 13: auth.v1.ListWorkspaceInvitationsResponse
 }
 var file_auth_v1_member_proto_depIdxs = []int32{
 	1,  // 0: auth.v1.ListMembersResponse.members:type_name -> auth.v1.Member
-	2,  // 1: auth.v1.MemberService.ListMembers:input_type -> auth.v1.ListMembersRequest
-	4,  // 2: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
-	5,  // 3: auth.v1.MemberService.DeleteMember:input_type -> auth.v1.DeleteMemberRequest
-	7,  // 4: auth.v1.MemberService.LeaveWorkspace:input_type -> auth.v1.LeaveWorkspaceRequest
-	9,  // 5: auth.v1.MemberService.RevokeInvitation:input_type -> auth.v1.RevokeInvitationRequest
-	3,  // 6: auth.v1.MemberService.ListMembers:output_type -> auth.v1.ListMembersResponse
-	1,  // 7: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
-	6,  // 8: auth.v1.MemberService.DeleteMember:output_type -> auth.v1.DeleteMemberResponse
-	8,  // 9: auth.v1.MemberService.LeaveWorkspace:output_type -> auth.v1.LeaveWorkspaceResponse
-	10, // 10: auth.v1.MemberService.RevokeInvitation:output_type -> auth.v1.RevokeInvitationResponse
-	6,  // [6:11] is the sub-list for method output_type
-	1,  // [1:6] is the sub-list for method input_type
-	1,  // [1:1] is the sub-list for extension type_name
-	1,  // [1:1] is the sub-list for extension extendee
-	0,  // [0:1] is the sub-list for field type_name
+	11, // 1: auth.v1.ListWorkspaceInvitationsResponse.invitations:type_name -> auth.v1.Invitation
+	2,  // 2: auth.v1.MemberService.ListMembers:input_type -> auth.v1.ListMembersRequest
+	4,  // 3: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
+	5,  // 4: auth.v1.MemberService.DeleteMember:input_type -> auth.v1.DeleteMemberRequest
+	7,  // 5: auth.v1.MemberService.LeaveWorkspace:input_type -> auth.v1.LeaveWorkspaceRequest
+	9,  // 6: auth.v1.MemberService.RevokeInvitation:input_type -> auth.v1.RevokeInvitationRequest
+	12, // 7: auth.v1.MemberService.ListWorkspaceInvitations:input_type -> auth.v1.ListWorkspaceInvitationsRequest
+	3,  // 8: auth.v1.MemberService.ListMembers:output_type -> auth.v1.ListMembersResponse
+	1,  // 9: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
+	6,  // 10: auth.v1.MemberService.DeleteMember:output_type -> auth.v1.DeleteMemberResponse
+	8,  // 11: auth.v1.MemberService.LeaveWorkspace:output_type -> auth.v1.LeaveWorkspaceResponse
+	10, // 12: auth.v1.MemberService.RevokeInvitation:output_type -> auth.v1.RevokeInvitationResponse
+	13, // 13: auth.v1.MemberService.ListWorkspaceInvitations:output_type -> auth.v1.ListWorkspaceInvitationsResponse
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_member_proto_init() }
@@ -690,13 +952,14 @@ func file_auth_v1_member_proto_init() {
 		return
 	}
 	file_auth_v1_member_proto_msgTypes[0].OneofWrappers = []any{}
+	file_auth_v1_member_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_member_proto_rawDesc), len(file_auth_v1_member_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

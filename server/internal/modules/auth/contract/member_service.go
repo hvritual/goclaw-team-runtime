@@ -14,6 +14,7 @@ type MemberService interface {
 	DeleteMember(context.Context, Member_DeleteMemberRequest) (Member_DeleteMemberResponse, error)
 	LeaveWorkspace(context.Context, Member_LeaveWorkspaceRequest) (Member_LeaveWorkspaceResponse, error)
 	RevokeInvitation(context.Context, Member_RevokeInvitationRequest) (Member_RevokeInvitationResponse, error)
+	ListWorkspaceInvitations(context.Context, Member_ListWorkspaceInvitationsRequest) (Member_ListWorkspaceInvitationsResponse, error)
 }
 
 type Member_DeleteMemberRequest struct {
@@ -22,6 +23,22 @@ type Member_DeleteMemberRequest struct {
 }
 
 type Member_DeleteMemberResponse struct {
+}
+
+type Member_Invitation struct {
+	Id            string  `json:"id,omitempty"`
+	WorkspaceId   string  `json:"workspaceId,omitempty"`
+	InviterId     string  `json:"inviterId,omitempty"`
+	InviteeEmail  string  `json:"inviteeEmail,omitempty"`
+	InviteeUserId *string `json:"inviteeUserId,omitempty"`
+	Role          string  `json:"role,omitempty"`
+	Status        string  `json:"status,omitempty"`
+	CreatedAt     string  `json:"createdAt,omitempty"`
+	UpdatedAt     string  `json:"updatedAt,omitempty"`
+	ExpiresAt     string  `json:"expiresAt,omitempty"`
+	WorkspaceName string  `json:"workspaceName,omitempty"`
+	InviterName   string  `json:"inviterName,omitempty"`
+	InviterEmail  string  `json:"inviterEmail,omitempty"`
 }
 
 type Member_LeaveWorkspaceRequest struct {
@@ -36,7 +53,15 @@ type Member_ListMembersRequest struct {
 }
 
 type Member_ListMembersResponse struct {
-	Members []Member_Member `json:"members,omitempty"`
+	Members []Member_Member `json:"members"`
+}
+
+type Member_ListWorkspaceInvitationsRequest struct {
+	WorkspaceId string `json:"workspaceId,omitempty"`
+}
+
+type Member_ListWorkspaceInvitationsResponse struct {
+	Invitations []Member_Invitation `json:"invitations"`
 }
 
 type Member_Member struct {

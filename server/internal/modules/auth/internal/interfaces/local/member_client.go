@@ -31,4 +31,8 @@ func (c *MemberClient) RevokeInvitation(ctx context.Context, request contract.Me
 	return c.service.RevokeInvitation(ctx, request)
 }
 
+func (c *MemberClient) ListWorkspaceInvitations(ctx context.Context, request contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	return c.service.ListWorkspaceInvitations(ctx, request)
+}
+
 var _ contract.MemberService = (*MemberClient)(nil)

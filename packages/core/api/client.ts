@@ -183,6 +183,7 @@ import {
   EMPTY_WORKSPACE_PERMISSION_CATALOG,
   MemberWithUserSchema,
   MemberListSchema,
+  InvitationListSchema,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -1029,7 +1030,12 @@ export class ApiClient {
 
   // Invitations
   async listWorkspaceInvitations(workspaceId: string): Promise<Invitation[]> {
-    return this.fetch(`/api/workspaces/${workspaceId}/invitations`);
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/invitations`,
+    );
+    return parseWithFallback<Invitation[]>(raw, InvitationListSchema, [], {
+      endpoint: "GET /api/workspaces/:id/invitations",
+    });
   }
 
   async revokeInvitation(workspaceId: string, invitationId: string): Promise<void> {

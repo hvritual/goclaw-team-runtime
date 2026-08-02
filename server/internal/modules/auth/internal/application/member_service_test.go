@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
+	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/invitation"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
+	workspacecontract "github.com/multica-ai/multica/server/internal/modules/workspace/contract"
 )
 
 type fakeInvitationRepository struct {
@@ -15,7 +17,23 @@ type fakeInvitationRepository struct {
 	invitationID string
 	updatedAt    time.Time
 	revoked      bool
+	expired      bool
+	listed       bool
+	values       []invitation.Invitation
 	err          error
+}
+
+func (r *fakeInvitationRepository) ExpirePendingByWorkspace(_ context.Context, workspaceID string, expiredAt time.Time) error {
+	r.workspaceID = workspaceID
+	r.updatedAt = expiredAt
+	r.expired = true
+	return r.err
+}
+
+func (r *fakeInvitationRepository) ListPendingByWorkspace(_ context.Context, workspaceID string) ([]invitation.Invitation, error) {
+	r.workspaceID = workspaceID
+	r.listed = true
+	return r.values, r.err
 }
 
 func (r *fakeInvitationRepository) RevokePending(_ context.Context, workspaceID, invitationID string, updatedAt time.Time) error {
@@ -27,6 +45,17 @@ func (r *fakeInvitationRepository) RevokePending(_ context.Context, workspaceID,
 	}
 	r.revoked = true
 	return nil
+}
+
+type fakeWorkspaceIdentityReader struct {
+	identity workspacecontract.WorkspaceIdentity
+	called   bool
+	err      error
+}
+
+func (r *fakeWorkspaceIdentityReader) FindIdentity(context.Context, string) (workspacecontract.WorkspaceIdentity, error) {
+	r.called = true
+	return r.identity, r.err
 }
 
 type fakeInvitationUnitOfWork struct {
@@ -389,5 +418,90 @@ func TestRevokeInvitationReportsMissingPendingInvitation(t *testing.T) {
 	})
 	if !errors.Is(err, contract.ErrInvitationNotFound) {
 		t.Fatalf("RevokeInvitation() error = %v", err)
+	}
+}
+
+func TestListWorkspaceInvitationsExpiresAndReturnsPendingInvitations(t *testing.T) {
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	inviteeUserID := "invitee-user"
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "admin-user", Role: member.RoleAdmin,
+	}}
+	invitations := &fakeInvitationRepository{values: []invitation.Invitation{{
+		ID: "invitation", WorkspaceID: "workspace", InviterID: "owner-user",
+		InviteeEmail: "invitee@example.test", InviteeUserID: &inviteeUserID,
+		Role: member.RoleMember, Status: invitation.StatusPending,
+		CreatedAt: fixedNow.Add(-time.Hour), UpdatedAt: fixedNow.Add(-time.Hour), ExpiresAt: fixedNow.Add(7 * 24 * time.Hour),
+		InviterName: "Owner", InviterEmail: "owner@example.test",
+	}}}
+	identities := &fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace", Name: "Acme"}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(identities),
+		WithInvitationClock(func() time.Time { return fixedNow }),
+	)
+
+	result, err := service.ListWorkspaceInvitations(
+		contract.WithMemberActor(context.Background(), "admin-user"),
+		contract.Member_ListWorkspaceInvitationsRequest{WorkspaceId: "workspace"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !invitations.expired || !invitations.listed || !invitations.updatedAt.Equal(fixedNow) {
+		t.Fatalf("pending invitation lifecycle not applied: %+v", invitations)
+	}
+	if !identities.called || len(result.Invitations) != 1 {
+		t.Fatalf("unexpected invitation list: %+v", result.Invitations)
+	}
+	got := result.Invitations[0]
+	if got.Id != "invitation" || got.WorkspaceName != "Acme" || got.InviterName != "Owner" || got.InviteeUserId == nil || *got.InviteeUserId != inviteeUserID {
+		t.Fatalf("unexpected invitation projection: %+v", got)
+	}
+	if got.CreatedAt != "2026-08-02T11:00:00Z" || got.ExpiresAt != "2026-08-09T12:00:00Z" {
+		t.Fatalf("unexpected invitation timestamps: %+v", got)
+	}
+}
+
+func TestListWorkspaceInvitationsRejectsMemberBeforeInvitationLookup(t *testing.T) {
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember,
+	}}
+	invitations := &fakeInvitationRepository{}
+	identities := &fakeWorkspaceIdentityReader{}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(identities),
+	)
+
+	_, err := service.ListWorkspaceInvitations(
+		contract.WithMemberActor(context.Background(), "member-user"),
+		contract.Member_ListWorkspaceInvitationsRequest{WorkspaceId: "workspace"},
+	)
+	if !errors.Is(err, contract.ErrInsufficientWorkspaceRole) {
+		t.Fatalf("ListWorkspaceInvitations() error = %v", err)
+	}
+	if invitations.expired || invitations.listed || identities.called {
+		t.Fatal("unauthorized member observed invitation or workspace identity data")
+	}
+}
+
+func TestListWorkspaceInvitationsHidesMissingWorkspaceIdentity(t *testing.T) {
+	members := &fakeMemberRepository{requester: member.Member{
+		ID: "requester", WorkspaceID: "workspace", UserID: "owner-user", Role: member.RoleOwner,
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{
+			members: members, invitations: &fakeInvitationRepository{},
+		}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{err: workspacecontract.ErrWorkspaceNotFound}),
+	)
+
+	_, err := service.ListWorkspaceInvitations(
+		contract.WithMemberActor(context.Background(), "owner-user"),
+		contract.Member_ListWorkspaceInvitationsRequest{WorkspaceId: "workspace"},
+	)
+	if !errors.Is(err, contract.ErrWorkspaceMembershipHidden) {
+		t.Fatalf("ListWorkspaceInvitations() error = %v", err)
 	}
 }

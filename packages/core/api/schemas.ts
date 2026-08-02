@@ -101,6 +101,26 @@ export const MemberWithUserSchema = z
 
 export const MemberListSchema = z.array(MemberWithUserSchema);
 
+export const InvitationSchema = z
+  .object({
+    id: z.string(),
+    workspace_id: z.string(),
+    inviter_id: z.string(),
+    invitee_email: z.string(),
+    invitee_user_id: z.string().nullable(),
+    role: z.string(),
+    status: z.string(),
+    created_at: z.string(),
+    updated_at: z.string(),
+    expires_at: z.string(),
+    workspace_name: z.string().optional(),
+    inviter_name: z.string().optional(),
+    inviter_email: z.string().optional(),
+  })
+  .loose();
+
+export const InvitationListSchema = z.array(InvitationSchema);
+
 export const GitHubInstallationSchema = z.object({
   id: z.string(),
   workspace_id: z.string(),

@@ -14,6 +14,10 @@ import (
 
 const moduleImportRoot = "github.com/multica-ai/multica/server/internal/modules/"
 
+var allowedCrossModuleContracts = map[string]map[string]bool{
+	"auth": {"workspace": true},
+}
+
 func TestGeneratedModuleImportsRespectBoundaries(t *testing.T) {
 	root := repositoryRoot(t)
 	modulesRoot := filepath.Join(root, "internal", "modules")
@@ -83,6 +87,9 @@ func crossModuleViolation(owner, imported string) string {
 		if len(parts) > 0 && parts[0] != owner {
 			if len(parts) < 2 || parts[1] != "contract" {
 				return "cross-module imports must target the provider contract"
+			}
+			if !allowedCrossModuleContracts[owner][parts[0]] {
+				return "cross-module contract import is not an intentional registered edge"
 			}
 		}
 	}

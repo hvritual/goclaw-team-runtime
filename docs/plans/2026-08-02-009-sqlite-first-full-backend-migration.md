@@ -38,7 +38,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change, A2 delete/leave, A3 list, and A4 revoke switched | PostgreSQL parity, create/list/get/accept/decline invitations |
+| Auth / Member | A1 role change, A2 delete/leave, A3 member list, and A4 invitation revoke/workspace-list switched | PostgreSQL parity, create/my-list/get/accept/decline invitations |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -92,6 +92,24 @@ This checkpoint completes only the SQLite A3 tracer slice. Auth invitations/crea
 - Added application ordering/policy tests, real SQLite isolation tests, transport mapping, raw/generated HTTP, gRPC, and existing invitation-lifecycle regression coverage.
 
 This checkpoint completes only invitation revocation. Invitation creation, listing, lookup, acceptance, decline, expiry and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Auth A4 Workspace Invitation List
+
+- Generated the Auth Invitation aggregate and Workspace aggregate/SQLite provider
+  skeletons through native `dddgen`, then completed their provider-owned behavior.
+- Added the Workspace public identity reader and registered the intentional
+  Auth-to-Workspace contract edge; Auth never queries the Workspace table.
+- Added the Proto-owned `ListWorkspaceInvitations` REST/gRPC/access contract with
+  the existing top-level array and nullable invitee identity representation.
+- Moved Owner/Admin authorization, pending expiry, workspace scoping, ordering,
+  inviter projection and response mapping into Auth application/SQLite layers.
+- Replaced the SQLite-local invitation-list SQL branch with the Auth contract.
+- Added Workspace provider, Auth application/SQLite, bootstrap composition,
+  raw/generated HTTP, gRPC, SQLite-local and frontend schema coverage.
+
+This checkpoint completes only the workspace-scoped invitation list. Invitation
+creation, personal listing, lookup, acceptance, decline and the remaining
+migration matrix are still pending.
 
 ## Required Gates
 

@@ -25,6 +25,13 @@
   ],
   "permissions": [
     {
+      "code": "auth.invitation.list",
+      "name": "List workspace invitations",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "list"
+    },
+    {
       "code": "auth.invitation.revoke",
       "name": "Revoke invitation",
       "module": "auth",
@@ -110,6 +117,17 @@
       "http_method": "GET",
       "http_path": "/api/workspaces/{workspace_id}/members",
       "permission_code": "auth.member.list",
+      "public": false,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/ListWorkspaceInvitations",
+      "module": "auth",
+      "http_method": "GET",
+      "http_path": "/api/workspaces/{workspace_id}/invitations",
+      "permission_code": "auth.invitation.list",
       "public": false,
       "audit": false,
       "idempotent": false

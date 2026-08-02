@@ -43,6 +43,35 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/workspaces/{workspaceId}/invitations:
+        get:
+            tags:
+                - MemberService
+            description: |-
+                ListWorkspaceInvitations returns pending invitations manageable by an
+                 Owner or Admin in one workspace.
+            operationId: MemberService_ListWorkspaceInvitations
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Invitation'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/workspaces/{workspaceId}/invitations/{invitationId}:
         delete:
             tags:
@@ -267,6 +296,36 @@ components:
                     description: The type of the serialized message.
             additionalProperties: true
             description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message.
+        Invitation:
+            type: object
+            properties:
+                id:
+                    type: string
+                workspaceId:
+                    type: string
+                inviterId:
+                    type: string
+                inviteeEmail:
+                    type: string
+                inviteeUserId:
+                    type: string
+                    nullable: true
+                role:
+                    type: string
+                status:
+                    type: string
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+                expiresAt:
+                    type: string
+                workspaceName:
+                    type: string
+                inviterName:
+                    type: string
+                inviterEmail:
+                    type: string
         Issue:
             type: object
             properties:
@@ -328,6 +387,13 @@ components:
                     type: array
                     items:
                         $ref: '#/components/schemas/Member'
+        ListWorkspaceInvitationsResponse:
+            type: object
+            properties:
+                invitations:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Invitation'
         Member:
             type: object
             properties:
@@ -353,6 +419,7 @@ components:
                     description: |-
                         Presence preserves the existing JSON null|string contract. The generated
                          response_body path uses standard JSON for the top-level member array.
+                    nullable: true
             description: Member identifies a human participant inside one Workspace.
         PingResponse:
             type: object

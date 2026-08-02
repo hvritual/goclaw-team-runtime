@@ -38,6 +38,10 @@ func (s *fakeMemberService) RevokeInvitation(context.Context, contract.Member_Re
 	return contract.Member_RevokeInvitationResponse{}, s.err
 }
 
+func (s *fakeMemberService) ListWorkspaceInvitations(context.Context, contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	return contract.Member_ListWorkspaceInvitationsResponse{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string

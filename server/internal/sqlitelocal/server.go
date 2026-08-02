@@ -1236,44 +1236,15 @@ func (s *Server) listWorkspaceInvitations(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	if !s.requireWorkspaceRole(
-		w,
-		r,
-		workspaceValue.ID,
-		workspacepermissions.RoleOwner,
-		workspacepermissions.RoleAdmin,
-	) {
-		return
-	}
-	timestamp := now()
-	if _, err := s.db.ExecContext(r.Context(), `UPDATE invitations SET status = 'expired', updated_at = ?
-		WHERE workspace_id = ? AND status = 'pending' AND expires_at <= ?`,
-		timestamp, workspaceValue.ID, timestamp); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to expire old invitations")
-		return
-	}
-	rows, err := s.db.QueryContext(r.Context(), `SELECT `+invitationSelect()+`
-		FROM invitations i
-		JOIN workspaces w ON w.id = i.workspace_id
-		JOIN users u ON u.id = i.inviter_id
-		WHERE i.workspace_id = ? AND i.status = 'pending'
-		ORDER BY i.created_at`, workspaceValue.ID)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	result, err := s.authMembers.ListWorkspaceInvitations(ctx, authcontract.Member_ListWorkspaceInvitationsRequest{
+		WorkspaceId: workspaceValue.ID,
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list invitations")
+		writeMemberError(w, err, "failed to list invitations")
 		return
 	}
-	defer rows.Close()
-
-	result := make([]map[string]any, 0)
-	for rows.Next() {
-		value, err := scanInvitation(rows)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to list invitations")
-			return
-		}
-		result = append(result, invitationResponse(value))
-	}
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, invitationContractResponses(result.Invitations))
 }
 
 func (s *Server) revokeInvitation(w http.ResponseWriter, r *http.Request) {

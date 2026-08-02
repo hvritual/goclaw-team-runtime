@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
+	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/invitation"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/domain/member"
+	workspacecontract "github.com/multica-ai/multica/server/internal/modules/workspace/contract"
 )
 
 var (
@@ -30,6 +32,8 @@ type MemberUnitOfWork interface {
 }
 
 type InvitationRepository interface {
+	ExpirePendingByWorkspace(context.Context, string, time.Time) error
+	ListPendingByWorkspace(context.Context, string) ([]invitation.Invitation, error)
 	RevokePending(context.Context, string, string, time.Time) error
 }
 
@@ -42,6 +46,7 @@ type MemberServiceOption func(*MemberService)
 type MemberService struct {
 	unitOfWork           MemberUnitOfWork
 	invitationUnitOfWork InvitationUnitOfWork
+	workspaceIdentities  workspacecontract.WorkspaceIdentityReader
 	now                  func() time.Time
 }
 
@@ -55,6 +60,10 @@ func WithInvitationUnitOfWork(unitOfWork InvitationUnitOfWork) MemberServiceOpti
 
 func WithInvitationClock(now func() time.Time) MemberServiceOption {
 	return func(service *MemberService) { service.now = now }
+}
+
+func WithWorkspaceIdentityReader(reader workspacecontract.WorkspaceIdentityReader) MemberServiceOption {
+	return func(service *MemberService) { service.workspaceIdentities = reader }
 }
 
 func NewMemberService(options ...MemberServiceOption) *MemberService {
@@ -282,4 +291,57 @@ func (s *MemberService) RevokeInvitation(ctx context.Context, request contract.M
 		return contract.Member_RevokeInvitationResponse{}, err
 	}
 	return contract.Member_RevokeInvitationResponse{}, nil
+}
+func (s *MemberService) ListWorkspaceInvitations(ctx context.Context, request contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, contract.ErrMemberNotImplemented
+	}
+	var values []invitation.Invitation
+	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+		ctx,
+		func(members MemberRepository, invitations InvitationRepository) error {
+			if _, findErr := findMemberManager(ctx, members, actorUserID, request.WorkspaceId); findErr != nil {
+				return findErr
+			}
+			if expireErr := invitations.ExpirePendingByWorkspace(ctx, request.WorkspaceId, s.now().UTC()); expireErr != nil {
+				return expireErr
+			}
+			var listErr error
+			values, listErr = invitations.ListPendingByWorkspace(ctx, request.WorkspaceId)
+			return listErr
+		},
+	)
+	if err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, err
+	}
+	identity, err := s.workspaceIdentities.FindIdentity(ctx, request.WorkspaceId)
+	if errors.Is(err, workspacecontract.ErrWorkspaceNotFound) {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, contract.ErrWorkspaceMembershipHidden
+	}
+	if err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, err
+	}
+	return contract.Member_ListWorkspaceInvitationsResponse{
+		Invitations: invitationContracts(values, identity.Name),
+	}, nil
+}
+
+func invitationContracts(values []invitation.Invitation, workspaceName string) []contract.Member_Invitation {
+	result := make([]contract.Member_Invitation, 0, len(values))
+	for _, value := range values {
+		result = append(result, contract.Member_Invitation{
+			Id: value.ID, WorkspaceId: value.WorkspaceID, InviterId: value.InviterID,
+			InviteeEmail: value.InviteeEmail, InviteeUserId: value.InviteeUserID,
+			Role: string(value.Role), Status: string(value.Status),
+			CreatedAt:     value.CreatedAt.UTC().Format(time.RFC3339Nano),
+			UpdatedAt:     value.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			ExpiresAt:     value.ExpiresAt.UTC().Format(time.RFC3339Nano),
+			WorkspaceName: workspaceName, InviterName: value.InviterName, InviterEmail: value.InviterEmail,
+		})
+	}
+	return result
 }

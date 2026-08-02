@@ -73,6 +73,8 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 ## Cross-Module Contracts
 
 - Workspace calls Auth to validate Member/Agent existence and Workspace membership.
+- Auth reads Workspace display identity only through the Workspace public
+  `WorkspaceIdentityReader` contract; bootstrap binds the local SQLite adapter.
 - Relationship stores only Auth identity IDs and actor type.
 - System targets Agent IDs but owns release/version state.
 - Auth must not call Workspace or System adapters directly; collaboration binds at the composition root.
@@ -117,6 +119,14 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 - The SQLite-local DELETE route delegates to the Auth contract and retains 204 success plus existing 403/404/500 behavior.
 - Application tests prove authorization occurs before invitation lookup; real SQLite tests prove workspace isolation and that an already non-pending invitation cannot be revoked again.
 - Raw/generated Kratos HTTP tests preserve the Proto-declared 204 response, while gRPC/local adapters carry the same workspace and invitation IDs.
+- `ListWorkspaceInvitations` now owns Owner/Admin authorization, pending expiry,
+  workspace scoping and Auth-owned inviter projection. Workspace display names
+  are resolved after the Auth transaction through the Workspace public contract,
+  avoiding both cross-module SQL and single-connection SQLite deadlocks.
+- The SQLite-local GET route delegates to Auth and preserves the top-level array,
+  nullable `invitee_user_id`, stable ordering, and existing 403/500 behavior.
+- Workspace identity, application, real SQLite, bootstrap composition,
+  raw/generated HTTP, gRPC and frontend malformed-response tests cover the slice.
 
 ## Stop Conditions
 

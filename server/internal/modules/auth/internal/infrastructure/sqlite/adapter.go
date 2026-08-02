@@ -5,15 +5,19 @@ package sqlite
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 	"github.com/multica-ai/multica/server/internal/modules/auth/internal/application"
+	workspacecontract "github.com/multica-ai/multica/server/internal/modules/workspace/contract"
 )
 
 // Config is the provider-owned composition input. Add the native connection
 // and provider settings here; never pass them into domain or application APIs.
 type Config struct {
-	DB *sql.DB
+	DB                  *sql.DB
+	WorkspaceIdentities workspacecontract.WorkspaceIdentityReader
+	Now                 func() time.Time
 }
 
 func New(Config) contract.Service {
@@ -25,8 +29,13 @@ func NewMember(config Config) (contract.MemberService, error) {
 		return nil, errors.New("auth sqlite database is required")
 	}
 	store := NewMemberStore(config.DB)
-	return application.NewMemberService(
+	options := []application.MemberServiceOption{
 		application.WithMemberUnitOfWork(store),
 		application.WithInvitationUnitOfWork(store),
-	), nil
+		application.WithWorkspaceIdentityReader(config.WorkspaceIdentities),
+	}
+	if config.Now != nil {
+		options = append(options, application.WithInvitationClock(config.Now))
+	}
+	return application.NewMemberService(options...), nil
 }

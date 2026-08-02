@@ -32,11 +32,15 @@ type statusOverride struct {
 }
 
 type responseBodyOverride struct {
-	serviceName        string
-	methodName         string
-	schemaName         string
-	protoPath          string
-	optionalJSONFields []string
+	serviceName           string
+	methodName            string
+	schemaName            string
+	protoPath             string
+	responseName          string
+	responseJSONField     string
+	responseGoField       string
+	optionalJSONFields    []string
+	optionalOpenAPIFields []string
 }
 
 func main() {
@@ -60,6 +64,12 @@ func main() {
 		fatal(err)
 	}
 	if err := rewriteGeneratedResponseBodyJSONTags(filepath.Join("gen", "go"), responseBodies); err != nil {
+		fatal(err)
+	}
+	if err := rewriteGeneratedHTTPResponseBodyEmptyArrays(filepath.Join("gen", "go"), responseBodies); err != nil {
+		fatal(err)
+	}
+	if err := rewriteGeneratedContractResponseBodyJSONTags(filepath.Join("internal", "modules"), responseBodies); err != nil {
 		fatal(err)
 	}
 	openAPIPath := filepath.Join("gen", "openapi", "openapi.yaml")
@@ -117,18 +127,24 @@ func responseBodyOverrideForMethod(
 	}
 	message := field.Message()
 	optionalJSONFields := make([]string, 0)
+	optionalOpenAPIFields := make([]string, 0)
 	for fieldIndex := 0; fieldIndex < message.Fields().Len(); fieldIndex++ {
 		messageField := message.Fields().Get(fieldIndex)
 		if messageField.HasOptionalKeyword() {
 			optionalJSONFields = append(optionalJSONFields, string(messageField.Name()))
+			optionalOpenAPIFields = append(optionalOpenAPIFields, messageField.JSONName())
 		}
 	}
 	return &responseBodyOverride{
-		serviceName:        string(service.Name()),
-		methodName:         string(method.Name()),
-		schemaName:         string(message.Name()),
-		protoPath:          file.Path(),
-		optionalJSONFields: optionalJSONFields,
+		serviceName:           string(service.Name()),
+		methodName:            string(method.Name()),
+		schemaName:            string(message.Name()),
+		protoPath:             file.Path(),
+		responseName:          string(method.Output().Name()),
+		responseJSONField:     field.JSONName(),
+		responseGoField:       snakeToUpperCamel(string(field.Name())),
+		optionalJSONFields:    optionalJSONFields,
+		optionalOpenAPIFields: optionalOpenAPIFields,
 	}, nil
 }
 
@@ -173,6 +189,97 @@ func applyGoResponseBodyOptionalFields(input []byte, override responseBodyOverri
 		}
 	}
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func rewriteGeneratedContractResponseBodyJSONTags(root string, overrides []responseBodyOverride) error {
+	for _, override := range overrides {
+		moduleName := strings.SplitN(override.protoPath, "/", 2)[0]
+		serviceBase := strings.TrimSuffix(override.serviceName, "Service")
+		path := filepath.Join(root, moduleName, "contract", camelToSnake(serviceBase)+"_service.go")
+		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
+			return applyGoContractResponseBodyField(input, override)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyGoContractResponseBodyField(input []byte, override responseBodyOverride) ([]byte, error) {
+	serviceBase := strings.TrimSuffix(override.serviceName, "Service")
+	typeName := serviceBase + "_" + override.responseName
+	lines := strings.Split(string(input), "\n")
+	structStart := findTrimmedLine(lines, "type "+typeName+" struct {", 0)
+	if structStart < 0 {
+		return nil, fmt.Errorf("generated response_body contract %s not found", typeName)
+	}
+	structEnd := findTrimmedLine(lines, "}", structStart+1)
+	if structEnd < 0 {
+		return nil, fmt.Errorf("generated response_body contract %s is incomplete", typeName)
+	}
+	from := `json:"` + override.responseJSONField + `,omitempty"`
+	to := `json:"` + override.responseJSONField + `"`
+	for index := structStart + 1; index < structEnd; index++ {
+		if strings.Contains(lines[index], from) {
+			lines[index] = strings.Replace(lines[index], from, to, 1)
+			return []byte(strings.Join(lines, "\n")), nil
+		}
+	}
+	return nil, fmt.Errorf("response_body contract field %s.%s not found", typeName, override.responseJSONField)
+}
+
+func camelToSnake(input string) string {
+	var output strings.Builder
+	for index, character := range input {
+		if index > 0 && character >= 'A' && character <= 'Z' {
+			_ = output.WriteByte('_')
+		}
+		_, _ = output.WriteRune(character)
+	}
+	return strings.ToLower(output.String())
+}
+
+func snakeToUpperCamel(input string) string {
+	value := snakeToLowerCamel(input)
+	if value == "" {
+		return value
+	}
+	return strings.ToUpper(value[:1]) + value[1:]
+}
+
+func rewriteGeneratedHTTPResponseBodyEmptyArrays(root string, overrides []responseBodyOverride) error {
+	for _, override := range overrides {
+		path := filepath.Join(root, strings.TrimSuffix(override.protoPath, ".proto")+"_http.pb.go")
+		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
+			return applyGoHTTPResponseBodyEmptyArray(input, override)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyGoHTTPResponseBodyEmptyArray(input []byte, override responseBodyOverride) ([]byte, error) {
+	functionPrefix := "func _" + override.serviceName + "_" + override.methodName
+	start := strings.Index(string(input), functionPrefix)
+	if start < 0 {
+		return nil, fmt.Errorf("response_body handler not found for %s.%s", override.serviceName, override.methodName)
+	}
+	relativeEnd := strings.Index(string(input[start:]), "\n}\n")
+	if relativeEnd < 0 {
+		return nil, fmt.Errorf("unterminated response_body handler for %s.%s", override.serviceName, override.methodName)
+	}
+	end := start + relativeEnd + len("\n}\n")
+	segment := string(input[start:end])
+	resultLine := "\t\treturn ctx.Result(200, reply." + override.responseGoField + ")"
+	if !strings.Contains(segment, resultLine) {
+		return nil, fmt.Errorf("response_body result not found for %s.%s", override.serviceName, override.methodName)
+	}
+	normalized := "\t\tif reply." + override.responseGoField + " == nil {\n" +
+		"\t\t\treply." + override.responseGoField + " = []*" + override.schemaName + "{}\n" +
+		"\t\t}\n" + resultLine
+	segment = strings.Replace(segment, resultLine, normalized, 1)
+	return append(append([]byte(nil), input[:start]...), append([]byte(segment), input[end:]...)...), nil
 }
 
 func declaredStatusOverrides() ([]statusOverride, error) {
@@ -430,8 +537,48 @@ func applyOpenAPIResponseBodies(input []byte, overrides []responseBodyOverride) 
 		if err != nil {
 			return nil, err
 		}
+		lines, err = applyOpenAPIOptionalFields(lines, override)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func applyOpenAPIOptionalFields(lines []string, override responseBodyOverride) ([]string, error) {
+	if len(override.optionalOpenAPIFields) == 0 {
+		return lines, nil
+	}
+	schemaLine := findTrimmedLine(lines, override.schemaName+":", 0)
+	if schemaLine < 0 {
+		return nil, fmt.Errorf("OpenAPI component schema %s not found", override.schemaName)
+	}
+	schemaIndent := indentation(lines[schemaLine])
+	schemaEnd := schemaLine + 1
+	for schemaEnd < len(lines) && (strings.TrimSpace(lines[schemaEnd]) == "" || indentation(lines[schemaEnd]) > schemaIndent) {
+		schemaEnd++
+	}
+	for _, fieldName := range override.optionalOpenAPIFields {
+		fieldLine := findTrimmedLineBefore(lines, fieldName+":", schemaLine+1, schemaEnd)
+		if fieldLine < 0 {
+			return nil, fmt.Errorf("OpenAPI optional field %s.%s not found", override.schemaName, fieldName)
+		}
+		fieldIndent := indentation(lines[fieldLine])
+		fieldEnd := fieldLine + 1
+		for fieldEnd < schemaEnd && strings.TrimSpace(lines[fieldEnd]) != "" && indentation(lines[fieldEnd]) > fieldIndent {
+			if strings.TrimSpace(lines[fieldEnd]) == "nullable: true" {
+				fieldEnd = -1
+				break
+			}
+			fieldEnd++
+		}
+		if fieldEnd == -1 {
+			continue
+		}
+		lines = append(lines[:fieldEnd], append([]string{strings.Repeat(" ", fieldIndent+4) + "nullable: true"}, lines[fieldEnd:]...)...)
+		schemaEnd++
+	}
+	return lines, nil
 }
 
 func applyOpenAPIResponseBody(lines []string, override responseBodyOverride) ([]string, error) {

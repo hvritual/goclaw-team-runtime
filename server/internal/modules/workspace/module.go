@@ -21,6 +21,7 @@ func RegisterExtension(factory platformmodule.Factory) {
 
 type Module struct {
 	local      contract.Service
+	identity   contract.WorkspaceIdentityReader
 	server     *protoadapter.Server
 	extensions []platformmodule.Extension
 }
@@ -30,7 +31,8 @@ func New() *Module {
 	extensions := extensionRegistry.Build()
 	return &Module{local: client, server: protoadapter.New(client), extensions: extensions}
 }
-func (m *Module) Local() contract.Service { return m.local }
+func (m *Module) Local() contract.Service                         { return m.local }
+func (m *Module) IdentityLocal() contract.WorkspaceIdentityReader { return m.identity }
 func (m *Module) RegisterHTTP(server *kratoshttp.Server) {
 	workspacev1.RegisterWorkspaceServiceHTTPServer(server, m.server)
 	platformmodule.RegisterHTTP(m.extensions, server)

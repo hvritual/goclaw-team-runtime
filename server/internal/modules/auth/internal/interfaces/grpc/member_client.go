@@ -95,6 +95,22 @@ func (c *MemberClient) RevokeInvitation(ctx context.Context, request contract.Me
 	return result, nil
 }
 
+func (c *MemberClient) ListWorkspaceInvitations(ctx context.Context, request contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	protoRequest := &authv1.ListWorkspaceInvitationsRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, err
+	}
+	response, err := c.client.ListWorkspaceInvitations(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, err
+	}
+	var result contract.Member_ListWorkspaceInvitationsResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, err
+	}
+	return result, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

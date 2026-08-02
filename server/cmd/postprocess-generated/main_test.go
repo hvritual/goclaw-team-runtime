@@ -109,11 +109,35 @@ func TestApplyGoHTTPClientResponseBodies(t *testing.T) {
 	}
 }
 
+func TestApplyGoHTTPResponseBodyEmptyArray(t *testing.T) {
+	input := []byte(`func _MemberService_ListWorkspaceInvitations0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		reply := out.(*ListWorkspaceInvitationsResponse)
+		return ctx.Result(200, reply.Invitations)
+	}
+}
+`)
+	output, err := applyGoHTTPResponseBodyEmptyArray(input, responseBodyOverride{
+		serviceName:     "MemberService",
+		methodName:      "ListWorkspaceInvitations",
+		schemaName:      "Invitation",
+		responseGoField: "Invitations",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, "reply.Invitations = []*Invitation{}") {
+		t.Fatalf("empty response_body array is not normalized:\n%s", text)
+	}
+}
+
 func TestApplyGoResponseBodyOptionalFields(t *testing.T) {
 	input := []byte(`type Member struct {
 	Id        string  ` + "`" + `json:"id,omitempty"` + "`" + `
 	AvatarUrl *string ` + "`" + `json:"avatar_url,omitempty"` + "`" + `
 }
+
 `)
 	output, err := applyGoResponseBodyOptionalFields(input, responseBodyOverride{
 		schemaName:         "Member",
@@ -131,6 +155,25 @@ func TestApplyGoResponseBodyOptionalFields(t *testing.T) {
 	}
 }
 
+func TestApplyGoContractResponseBodyField(t *testing.T) {
+	input := []byte(`type Member_ListWorkspaceInvitationsResponse struct {
+	Invitations []Member_Invitation ` + "`" + `json:"invitations,omitempty"` + "`" + `
+}
+`)
+	output, err := applyGoContractResponseBodyField(input, responseBodyOverride{
+		serviceName:       "MemberService",
+		responseName:      "ListWorkspaceInvitationsResponse",
+		responseJSONField: "invitations",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, `json:"invitations"`) || strings.Contains(text, `json:"invitations,omitempty"`) {
+		t.Fatalf("response_body contract still omits an empty array:\n%s", text)
+	}
+}
+
 func TestApplyOpenAPIResponseBodies(t *testing.T) {
 	input := []byte(`paths:
     /members:
@@ -145,11 +188,19 @@ func TestApplyOpenAPIResponseBodies(t *testing.T) {
                                 $ref: '#/components/schemas/ListMembersResponse'
                 default:
                     description: Default error response
+components:
+    schemas:
+        Member:
+            type: object
+            properties:
+                avatarUrl:
+                    type: string
 `)
 	output, err := applyOpenAPIResponseBodies(input, []responseBodyOverride{{
-		serviceName: "MemberService",
-		methodName:  "ListMembers",
-		schemaName:  "Member",
+		serviceName:           "MemberService",
+		methodName:            "ListMembers",
+		schemaName:            "Member",
+		optionalOpenAPIFields: []string{"avatarUrl"},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -160,5 +211,8 @@ func TestApplyOpenAPIResponseBodies(t *testing.T) {
 	}
 	if strings.Contains(text, "#/components/schemas/ListMembersResponse'") || !strings.Contains(text, "default:") {
 		t.Fatalf("wrapper schema or default response mismatch:\n%s", text)
+	}
+	if !strings.Contains(text, "avatarUrl:\n                    type: string\n                    nullable: true") {
+		t.Fatalf("optional response-body field is not nullable:\n%s", text)
 	}
 }

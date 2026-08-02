@@ -59,6 +59,14 @@ func (s *memberTransportService) RevokeInvitation(ctx context.Context, request c
 	return result, nil
 }
 
+func (s *memberTransportService) ListWorkspaceInvitations(ctx context.Context, request contract.Member_ListWorkspaceInvitationsRequest) (contract.Member_ListWorkspaceInvitationsResponse, error) {
+	result, err := s.next.ListWorkspaceInvitations(ctx, request)
+	if err != nil {
+		return contract.Member_ListWorkspaceInvitationsResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func memberTransportError(err error) error {
 	switch {
 	case errors.Is(err, contract.ErrMemberActorRequired):
