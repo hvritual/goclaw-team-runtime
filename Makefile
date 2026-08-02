@@ -1,4 +1,4 @@
-.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop bootstrap generate generated-clean vet-ddd test-race-ddd lint-ddd
+.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop bootstrap verify-ddd-tools generate generated-clean vet-ddd test-race-ddd lint-ddd
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -388,8 +388,8 @@ test: ## Run Go tests after ensuring the target DB exists and migrations are app
 
 DDD_BASE_REV ?= HEAD^
 DDD_TOOLS_BIN ?= $(CURDIR)/server/bin/ddd-tools
-DDD_SCAFFOLD_MODULE ?= github.com/fworld/go-ddd-scaffold
-DDD_SCAFFOLD_VERSION ?= v0.0.0-20260802042746-1c5b2054726a
+override DDD_SCAFFOLD_MODULE := github.com/fworld/go-ddd-scaffold
+override DDD_SCAFFOLD_VERSION := v0.0.0-20260802042746-1c5b2054726a
 DDDGEN ?= dddgen
 PROTOC_GEN_ACCESS ?= protoc-gen-access
 
