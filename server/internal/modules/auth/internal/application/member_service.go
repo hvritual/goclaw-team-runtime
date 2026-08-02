@@ -511,16 +511,13 @@ func invitationRole(value string) (member.Role, error) {
 	return role, nil
 }
 func (s *MemberService) ListMyInvitations(ctx context.Context, _ contract.Member_ListMyInvitationsRequest) (contract.Member_ListMyInvitationsResponse, error) {
-	actorUserID, ok := contract.MemberActor(ctx)
-	if !ok {
-		return contract.Member_ListMyInvitationsResponse{}, contract.ErrMemberActorRequired
-	}
-	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
-		return contract.Member_ListMyInvitationsResponse{}, contract.ErrMemberNotImplemented
+	actorUserID, err := s.requirePersonalInvitationReader(ctx)
+	if err != nil {
+		return contract.Member_ListMyInvitationsResponse{}, err
 	}
 
 	var values []invitation.Invitation
-	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+	err = s.invitationUnitOfWork.WithinInvitationTransaction(
 		ctx,
 		func(members MemberRepository, invitations InvitationRepository) error {
 			current, findErr := findAuthUserIdentity(ctx, members, actorUserID)
@@ -547,16 +544,13 @@ func (s *MemberService) ListMyInvitations(ctx context.Context, _ contract.Member
 }
 
 func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Member_GetMyInvitationRequest) (contract.Member_GetMyInvitationResponse, error) {
-	actorUserID, ok := contract.MemberActor(ctx)
-	if !ok {
-		return contract.Member_GetMyInvitationResponse{}, contract.ErrMemberActorRequired
-	}
-	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
-		return contract.Member_GetMyInvitationResponse{}, contract.ErrMemberNotImplemented
+	actorUserID, err := s.requirePersonalInvitationReader(ctx)
+	if err != nil {
+		return contract.Member_GetMyInvitationResponse{}, err
 	}
 
 	var value invitation.Invitation
-	err := s.invitationUnitOfWork.WithinInvitationTransaction(
+	err = s.invitationUnitOfWork.WithinInvitationTransaction(
 		ctx,
 		func(members MemberRepository, invitations InvitationRepository) error {
 			current, findErr := findAuthUserIdentity(ctx, members, actorUserID)
@@ -589,6 +583,17 @@ func (s *MemberService) GetMyInvitation(ctx context.Context, request contract.Me
 	}
 	result := invitationContract(value, identity.Name)
 	return contract.Member_GetMyInvitationResponse{Invitation: &result}, nil
+}
+
+func (s *MemberService) requirePersonalInvitationReader(ctx context.Context) (string, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return "", contract.ErrMemberActorRequired
+	}
+	if s.invitationUnitOfWork == nil || s.workspaceIdentities == nil {
+		return "", contract.ErrMemberNotImplemented
+	}
+	return actorUserID, nil
 }
 
 func findAuthUserIdentity(
