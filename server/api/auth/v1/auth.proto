@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "annotations/v1/access.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
+
+service AuthService {
+  option (annotations.v1.module) = {code: "auth" name: "Auth" version: "v1"};
+
+  rpc Ping(PingRequest) returns (PingResponse) {
+    option (google.api.http) = {get: "/v1/auth/ping"};
+    option (annotations.v1.access) = {public: true};
+  }
+}
+
+message PingRequest {}
+message PingResponse { string message = 1; }

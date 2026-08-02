@@ -1,0 +1,218 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: ""
+    version: 0.0.1
+paths:
+    /api/issues/{id}:
+        put:
+            tags:
+                - IssueService
+            description: |-
+                UpdateIssueStatus changes one Issue's workflow status.
+
+                 Existing HTTP contract: PUT /api/issues/{id}
+                 Access boundary: authenticated workspace member with issue.update access.
+                 Side effect: publish issue:updated with status_changed and prev_status.
+            operationId: IssueService_UpdateIssueStatus
+            parameters:
+                - name: id
+                  in: path
+                  description: id accepts either the Issue UUID or its workspace-scoped identifier.
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateIssueStatusRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Issue'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/auth/ping:
+        get:
+            tags:
+                - AuthService
+            operationId: AuthService_Ping
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PingResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/space/ping:
+        get:
+            tags:
+                - SpaceService
+            operationId: SpaceService_Ping
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PingResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/system/ping:
+        get:
+            tags:
+                - SystemService
+            operationId: SystemService_Ping
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PingResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /v1/workspace/ping:
+        get:
+            tags:
+                - WorkspaceService
+            operationId: WorkspaceService_Ping
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PingResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+components:
+    schemas:
+        GoogleProtobufAny:
+            type: object
+            properties:
+                '@type':
+                    type: string
+                    description: The type of the serialized message.
+            additionalProperties: true
+            description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message.
+        Issue:
+            type: object
+            properties:
+                id:
+                    type: string
+                workspaceId:
+                    type: string
+                number:
+                    type: integer
+                    format: int32
+                identifier:
+                    type: string
+                title:
+                    type: string
+                description:
+                    type: string
+                status:
+                    type: string
+                priority:
+                    type: string
+                assigneeType:
+                    type: string
+                assigneeId:
+                    type: string
+                creatorType:
+                    type: string
+                creatorId:
+                    type: string
+                parentIssueId:
+                    type: string
+                projectId:
+                    type: string
+                position:
+                    type: number
+                    format: double
+                stage:
+                    type: integer
+                    format: int32
+                startDate:
+                    type: string
+                dueDate:
+                    type: string
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+                metadata:
+                    type: object
+                properties:
+                    type: object
+            description: Issue mirrors the response currently returned after an Issue update.
+        PingResponse:
+            type: object
+            properties:
+                message:
+                    type: string
+        Status:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+                    format: int32
+                message:
+                    type: string
+                    description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+                details:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/GoogleProtobufAny'
+                    description: A list of messages that carry the error details.  There is a common set of message types for APIs to use.
+            description: 'The `Status` type defines a logical error model that is suitable for different programming environments, including REST APIs and RPC APIs. It is used by [gRPC](https://github.com/grpc). Each `Status` message contains three pieces of data: error code, error message, and error details. You can find out more about this error model and how to work with it in the [API Design Guide](https://cloud.google.com/apis/design/errors).'
+        UpdateIssueStatusRequest:
+            type: object
+            properties:
+                id:
+                    type: string
+                    description: id accepts either the Issue UUID or its workspace-scoped identifier.
+                status:
+                    type: string
+                    description: |-
+                        status must be one of: backlog, todo, in_progress, in_review, done,
+                         blocked, or cancelled. This remains a string to preserve the existing
+                         HTTP JSON representation.
+tags:
+    - name: AuthService
+    - name: IssueService
+      description: IssueService defines the application contract for workspace Issues.
+    - name: SpaceService
+    - name: SystemService
+    - name: WorkspaceService

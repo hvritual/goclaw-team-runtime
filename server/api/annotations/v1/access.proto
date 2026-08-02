@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package annotations.v1;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "github.com/multica-ai/multica/server/gen/go/annotations/v1;annotationsv1";
+
+// Module identifies one bounded context in the generated access catalog.
+message Module {
+  string code = 1;
+  string name = 2;
+  string version = 3;
+}
+
+// Menu declares one navigation resource owned by a module.
+message Menu {
+  string code = 1;
+  string name = 2;
+  string parent_code = 3;
+  string path = 4;
+  string icon = 5;
+  int32 sort = 6;
+}
+
+// Button declares one permission-backed action rendered under a menu.
+message Button {
+  string code = 1;
+  string name = 2;
+  string menu_code = 3;
+}
+
+// Access is the RPC-level authorization and catalog declaration.
+message Access {
+  string permission_code = 1;
+  string permission_name = 2;
+  string resource = 3;
+  string action = 4;
+  repeated Menu menus = 5;
+  Button button = 6;
+  bool public = 7;
+  bool audit = 8;
+  bool idempotent = 9;
+}
+
+extend google.protobuf.ServiceOptions {
+  Module module = 51001;
+}
+
+extend google.protobuf.MethodOptions {
+  Access access = 51002;
+}

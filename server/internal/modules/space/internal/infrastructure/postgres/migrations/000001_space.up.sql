@@ -1,0 +1,1 @@
+-- Module-owned schema. Prefix every table with space_ and never query it from another module.

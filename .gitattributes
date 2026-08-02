@@ -4,3 +4,7 @@ docker/entrypoint.sh text eol=lf
 
 # Default behavior
 * text=auto
+
+# protoc-gen-access emits a trailing blank line in its generated manifests.
+server/gen/manifests/access.checksum -whitespace
+server/gen/manifests/access.json -whitespace

@@ -57,6 +57,10 @@ Complete composition, architecture enforcement, compatibility verification and r
 - Mark generated ownership and keep application method bodies user-owned.
 - Inspect all generated diffs and require generated-clean verification.
 
+**Foundation completed 2026-08-02:** the separate native-scaffold change is
+recorded in `2026-08-02-008-dddgen-native-scaffold-execution.md`. Runtime
+cutover remains governed by C1–C4 and is not implied by generated registration.
+
 ## Verification Gates
 
 ```sh

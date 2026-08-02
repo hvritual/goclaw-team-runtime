@@ -2,12 +2,16 @@ syntax = "proto3";
 
 package auth.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
 
 // AgentService owns Agent identity, team membership, and authorization. Agent
 // releases, versions, upgrade policy, and execution lifecycle are not owned by
 // Auth.
-service AgentService {}
+service AgentService {
+  option (annotations.v1.module) = {code: "auth" name: "Auth" version: "v1"};
+}
 
 // Agent identifies an intelligent team participant inside one Workspace.
 message Agent {

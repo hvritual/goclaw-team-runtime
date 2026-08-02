@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package workspace.v1;
 
+import "annotations/v1/access.proto";
+import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/wrappers.proto";
 
@@ -9,12 +11,26 @@ option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;wo
 
 // IssueService defines the application contract for workspace Issues.
 service IssueService {
+  option (annotations.v1.module) = {code: "workspace" name: "Workspace" version: "v1"};
+
   // UpdateIssueStatus changes one Issue's workflow status.
   //
   // Existing HTTP contract: PUT /api/issues/{id}
   // Access boundary: authenticated workspace member with issue.update access.
   // Side effect: publish issue:updated with status_changed and prev_status.
-  rpc UpdateIssueStatus(UpdateIssueStatusRequest) returns (Issue);
+  rpc UpdateIssueStatus(UpdateIssueStatusRequest) returns (Issue) {
+    option (google.api.http) = {
+      put: "/api/issues/{id}"
+      body: "*"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.update"
+      permission_name: "Update issue"
+      resource: "workspace.issue"
+      action: "update"
+      audit: true
+    };
+  }
 }
 
 message UpdateIssueStatusRequest {

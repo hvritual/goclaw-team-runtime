@@ -1,0 +1,1 @@
+-- Add explicit DROP statements for objects created by the matching up migration.

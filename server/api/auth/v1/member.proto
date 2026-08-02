@@ -2,11 +2,15 @@ syntax = "proto3";
 
 package auth.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
 
 // MemberService owns Workspace Membership, invitations, Workspace Roles, and
 // the invariant that every Workspace retains at least one Owner.
-service MemberService {}
+service MemberService {
+  option (annotations.v1.module) = {code: "auth" name: "Auth" version: "v1"};
+}
 
 enum WorkspaceRole {
   WORKSPACE_ROLE_UNSPECIFIED = 0;

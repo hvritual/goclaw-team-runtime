@@ -2,12 +2,16 @@ syntax = "proto3";
 
 package system.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/system/v1;systemv1";
 
 // SkillService owns global Skill definitions, immutable versions, and
 // publication. Workspace enablement, configuration, and Agent binding
 // references remain in the Workspace module.
-service SkillService {}
+service SkillService {
+  option (annotations.v1.module) = {code: "system" name: "System" version: "v1"};
+}
 
 // SkillDefinition is the stable system identity of a Skill.
 message SkillDefinition {

@@ -1,0 +1,92 @@
+{
+  "version": "v1",
+  "generated_by": "protoc-gen-access devel",
+  "modules": [
+    {
+      "code": "auth",
+      "name": "Auth",
+      "version": "v1"
+    },
+    {
+      "code": "space",
+      "name": "Space",
+      "version": "v1"
+    },
+    {
+      "code": "system",
+      "name": "System",
+      "version": "v1"
+    },
+    {
+      "code": "workspace",
+      "name": "Workspace",
+      "version": "v1"
+    }
+  ],
+  "permissions": [
+    {
+      "code": "workspace.issue.update",
+      "name": "Update issue",
+      "module": "workspace",
+      "resource": "workspace.issue",
+      "action": "update"
+    }
+  ],
+  "menus": [],
+  "buttons": null,
+  "menu_tree": [],
+  "endpoints": [
+    {
+      "service": "auth.v1.AuthService",
+      "method": "/auth.v1.AuthService/Ping",
+      "module": "auth",
+      "http_method": "GET",
+      "http_path": "/v1/auth/ping",
+      "public": true,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "space.v1.SpaceService",
+      "method": "/space.v1.SpaceService/Ping",
+      "module": "space",
+      "http_method": "GET",
+      "http_path": "/v1/space/ping",
+      "public": true,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "system.v1.SystemService",
+      "method": "/system.v1.SystemService/Ping",
+      "module": "system",
+      "http_method": "GET",
+      "http_path": "/v1/system/ping",
+      "public": true,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "workspace.v1.IssueService",
+      "method": "/workspace.v1.IssueService/UpdateIssueStatus",
+      "module": "workspace",
+      "http_method": "PUT",
+      "http_path": "/api/issues/{id}",
+      "permission_code": "workspace.issue.update",
+      "public": false,
+      "audit": true,
+      "idempotent": false
+    },
+    {
+      "service": "workspace.v1.WorkspaceService",
+      "method": "/workspace.v1.WorkspaceService/Ping",
+      "module": "workspace",
+      "http_method": "GET",
+      "http_path": "/v1/workspace/ping",
+      "public": true,
+      "audit": false,
+      "idempotent": false
+    }
+  ]
+}
+

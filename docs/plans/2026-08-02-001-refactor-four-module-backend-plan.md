@@ -130,12 +130,12 @@ Execution may interleave independent tracer slices, but no slice may bypass its 
 - `.proto` service skeletons and the existing Issue status contract relocation.
 - Standard `protoc` syntax validation and diff review.
 - Space S1a 文件上传的 `domain → application ← dependency` 分层、Chi 接口适配和 composition-root 接线。
+- dddgen 原生四模块脚手架、Buf/生成配置、访问清单、bootstrap、架构测试与 contract tests。
 
 ### Explicitly deferred
 
-- `dddgen`, Buf and generated-code bootstrap.
-- `*.pb.go`, `*_grpc.pb.go`, OpenAPI, validation and access manifests.
 - Workspace、Auth、System 以及 Space S2–S4 的 Go 模块迁移。
+- 将生成的 Kratos HTTP/gRPC 服务接入现有 Chi 生产运行时。
 - Database schema or data migration.
 - Route, response, event, authorization or SQLite-local behavior changes.
 - Real Agent execution, release, deployment or upgrade operations.
@@ -145,7 +145,7 @@ Execution may interleave independent tracer slices, but no slice may bypass its 
 - Context Map and glossaries use one canonical meaning for Workspace, Todo, Agent, Asset, Skill Version and Project Actor Relation.
 - Every planned service has exactly one owning module and one Proto source path.
 - All Proto files compile together with `protoc --descriptor_set_out=/dev/null`.
-- No generated Proto output or unrelated backend file is introduced.
+- Generated Proto/OpenAPI/access output is reproducible through `make generate`.
 - Future execution documents name the tracer slices, dependencies, verification, stop conditions and safe rollback boundary.
 
 ## Stop Conditions

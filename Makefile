@@ -1,4 +1,4 @@
-.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop
+.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop bootstrap generate generated-clean vet-ddd test-race-ddd lint-ddd
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -387,9 +387,39 @@ test: ## Run Go tests after ensuring the target DB exists and migrations are app
 	bash scripts/test-go.sh --race
 
 DDD_BASE_REV ?= HEAD^
+DDD_TOOLS_BIN ?= $(CURDIR)/server/bin/ddd-tools
+DDDGEN ?= dddgen
+PROTOC_GEN_ACCESS ?= protoc-gen-access
+
+bootstrap: ## Install public Proto tools and stage the distributed dddgen tools
+	mkdir -p "$(DDD_TOOLS_BIN)"
+	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/bufbuild/buf/cmd/buf@v1.61.0
+	GOBIN="$(DDD_TOOLS_BIN)" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+	GOBIN="$(DDD_TOOLS_BIN)" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v3@v3.0.0-20260626125723-668db92c2c00
+	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/google/gnostic/cmd/protoc-gen-openapi@v0.7.1
+	@dddgen_path=$$(command -v "$(DDDGEN)") || { echo "dddgen is required; install the distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$dddgen_path" "$(DDD_TOOLS_BIN)/dddgen"
+	@access_path=$$(command -v "$(PROTOC_GEN_ACCESS)") || { echo "protoc-gen-access is required; install the distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$access_path" "$(DDD_TOOLS_BIN)/protoc-gen-access"
+
+generate: ## Reconcile dddgen services and regenerate Proto, OpenAPI, and access artifacts
+	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" dddgen -root . proto-services
+	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf dep update
+	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf lint
+	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf generate
+
+generated-clean: generate ## Fail when committed dddgen or Proto artifacts are stale
+	@changes=$$(git status --porcelain --untracked-files=all -- server/gen server/internal/modules server/tests/contract); \
+	if [ -n "$$changes" ]; then echo "Generated artifacts are stale:"; echo "$$changes"; exit 1; fi
+
+vet-ddd: ## Vet the native dddgen modules and architecture/bootstrap packages
+	cd server && go vet ./internal/modules/... ./internal/platform/... ./internal/bootstrap ./internal/architecturetest ./tests/contract/...
+
+test-race-ddd: ## Race-test native dddgen modules and their local/gRPC contracts
+	cd server && go test -race ./internal/modules/... ./internal/platform/... ./internal/bootstrap ./internal/architecturetest ./tests/contract/...
 
 lint-ddd: ## Run pinned DDD architecture lint plus changed-code coverage
 	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run ./modules/space/...
+	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --disable=revive ./internal/modules/... ./internal/platform/... ./internal/bootstrap ./internal/architecturetest ./tests/contract/...
 	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --disable=unused ./cmd/server/space.go
 	cd server && go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2 run --new-from-rev=$(DDD_BASE_REV) ./...
 

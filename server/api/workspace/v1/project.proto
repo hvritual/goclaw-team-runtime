@@ -2,9 +2,13 @@ syntax = "proto3";
 
 package workspace.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
 
 // ProjectService owns workspace-scoped project lifecycle and delivery state.
 // Project-to-Member and Project-to-Agent assignments belong to
 // RelationshipService, while asset content belongs to space.v1.AssetService.
-service ProjectService {}
+service ProjectService {
+  option (annotations.v1.module) = {code: "workspace" name: "Workspace" version: "v1"};
+}

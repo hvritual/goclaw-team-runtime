@@ -132,11 +132,24 @@ linters:
           deny:
             - pkg: "github.com/multica-ai/multica/server/modules/space"
               desc: "platform code must remain business-agnostic"
+  exclusions:
+    rules:
+      - path: ^internal/modules/
+        linters:
+          - revive
+        # dddgen owns the exported scaffold surface and its user-owned method
+        # markers. Other correctness, security, and architecture checks remain on.
 
 formatters:
   enable:
     - gofmt
     - goimports
+  exclusions:
+    # Primary module scaffolds are emitted by the distributed dddgen templates.
+    # Their formatting is verified by generation/compilation rather than
+    # rewritten locally, which would break generator ownership.
+    paths:
+      - ^internal/modules/
 
 issues:
   max-issues-per-linter: 0

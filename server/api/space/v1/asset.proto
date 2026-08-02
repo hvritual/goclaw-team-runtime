@@ -2,12 +2,16 @@ syntax = "proto3";
 
 package space.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/space/v1;spacev1";
 
 // AssetService owns workspace-isolated asset upload, storage, validation,
 // versioning, metadata, and access lifecycle. Consumer contexts retain the
 // business meaning of their Asset references.
-service AssetService {}
+service AssetService {
+  option (annotations.v1.module) = {code: "space" name: "Space" version: "v1"};
+}
 
 // Asset is the stable identity referenced by other modules.
 message Asset {

@@ -2,8 +2,12 @@ syntax = "proto3";
 
 package workspace.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
 
 // SettingService owns configuration whose meaning and lifecycle belong to one
 // Workspace. User preferences and System upgrade policy are outside its scope.
-service SettingService {}
+service SettingService {
+  option (annotations.v1.module) = {code: "workspace" name: "Workspace" version: "v1"};
+}

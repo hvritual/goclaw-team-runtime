@@ -2,12 +2,16 @@ syntax = "proto3";
 
 package workspace.v1;
 
+import "annotations/v1/access.proto";
+
 option go_package = "github.com/multica-ai/multica/server/gen/go/workspace/v1;workspacev1";
 
 // RelationshipService is the source of truth for Project-to-Member and
 // Project-to-Agent relations. Member and Agent identities remain owned by
 // auth.v1; other aggregate relationships remain with their owning services.
-service RelationshipService {}
+service RelationshipService {
+  option (annotations.v1.module) = {code: "workspace" name: "Workspace" version: "v1"};
+}
 
 enum ProjectActorType {
   PROJECT_ACTOR_TYPE_UNSPECIFIED = 0;

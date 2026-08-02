@@ -1,0 +1,23 @@
+version: v2
+
+clean: true
+
+plugins:
+  - local: protoc-gen-go
+    out: gen/go
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: gen/go
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-http
+    out: gen/go
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-openapi
+    out: gen/openapi
+    strategy: all
+  - local: protoc-gen-access
+    out: gen/manifests
+    strategy: all
