@@ -20,6 +20,7 @@ The backend now carries the native modular-monolith foundation for the accepted
 
 ```sh
 make bootstrap
+make verify-ddd-tools
 make generate
 make generated-clean
 make vet-ddd
@@ -27,10 +28,30 @@ make lint-ddd
 make test-race-ddd
 ```
 
-`make bootstrap` installs public generators into `server/bin/ddd-tools` and
-stages the separately distributed `dddgen` and `protoc-gen-access` binaries.
-The Kratos HTTP generator is pinned to v3; a v2 plugin produces incompatible
-transport imports and must not be used.
+`make bootstrap` installs every public generator into `server/bin/ddd-tools` at
+an explicit version. `dddgen` and `protoc-gen-access` remain private,
+externally distributed binaries from `github.com/fworld/go-ddd-scaffold`;
+bootstrap locates them through `DDDGEN` and `PROTOC_GEN_ACCESS`, stages them,
+and then validates their shared module version pinned in the Makefile instead
+of vendoring generator source. `make verify-ddd-tools` reads the Go build
+metadata from both staged binaries and fails if either package or module
+version differs from that pin. This check also runs before generation, so a
+stale binary cannot silently rewrite owned artifacts. The Kratos HTTP generator
+is pinned to v3; a v2 plugin produces incompatible transport imports and must
+not be used.
+
+If the distributed binaries are not on `PATH`, pass their explicit locations:
+
+```sh
+make bootstrap DDDGEN=/path/to/dddgen \
+  PROTOC_GEN_ACCESS=/path/to/protoc-gen-access
+```
+
+When upgrading the scaffold, change `DDD_SCAFFOLD_VERSION`, run `make
+bootstrap` with externally distributed binaries built from that version,
+inspect the complete reconciled/generated diff, run `make generated-clean`,
+and commit the version bump with all resulting artifacts. An ambient binary
+with missing or mismatched Go build metadata is rejected.
 
 `make generate` ends with the repository-owned `cmd/postprocess-generated`
 step. It reads Proto descriptors rather than duplicating route policy and

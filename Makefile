@@ -388,20 +388,26 @@ test: ## Run Go tests after ensuring the target DB exists and migrations are app
 
 DDD_BASE_REV ?= HEAD^
 DDD_TOOLS_BIN ?= $(CURDIR)/server/bin/ddd-tools
+DDD_SCAFFOLD_MODULE ?= github.com/fworld/go-ddd-scaffold
+DDD_SCAFFOLD_VERSION ?= v0.0.0-20260802042746-1c5b2054726a
 DDDGEN ?= dddgen
 PROTOC_GEN_ACCESS ?= protoc-gen-access
 
-bootstrap: ## Install public Proto tools and stage the distributed dddgen tools
+bootstrap: ## Install the pinned Proto and externally distributed dddgen tools
 	mkdir -p "$(DDD_TOOLS_BIN)"
 	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/bufbuild/buf/cmd/buf@v1.61.0
 	GOBIN="$(DDD_TOOLS_BIN)" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
 	GOBIN="$(DDD_TOOLS_BIN)" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/go-kratos/kratos/cmd/protoc-gen-go-http/v3@v3.0.0-20260626125723-668db92c2c00
 	GOBIN="$(DDD_TOOLS_BIN)" go install github.com/google/gnostic/cmd/protoc-gen-openapi@v0.7.1
-	@dddgen_path=$$(command -v "$(DDDGEN)") || { echo "dddgen is required; install the distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$dddgen_path" "$(DDD_TOOLS_BIN)/dddgen"
-	@access_path=$$(command -v "$(PROTOC_GEN_ACCESS)") || { echo "protoc-gen-access is required; install the distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$access_path" "$(DDD_TOOLS_BIN)/protoc-gen-access"
+	@dddgen_path=$$(command -v "$(DDDGEN)") || { echo "dddgen is required; install the externally distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$dddgen_path" "$(DDD_TOOLS_BIN)/dddgen"
+	@access_path=$$(command -v "$(PROTOC_GEN_ACCESS)") || { echo "protoc-gen-access is required; install the externally distributed go-ddd-scaffold tool first"; exit 1; }; cp "$$access_path" "$(DDD_TOOLS_BIN)/protoc-gen-access"
+	@$(MAKE) verify-ddd-tools
 
-generate: ## Reconcile dddgen services and regenerate Proto, OpenAPI, and access artifacts
+verify-ddd-tools: ## Verify staged dddgen binaries match the pinned module version
+	bash scripts/verify-ddd-tools.sh "$(DDD_TOOLS_BIN)" "$(DDD_SCAFFOLD_MODULE)" "$(DDD_SCAFFOLD_VERSION)"
+
+generate: verify-ddd-tools ## Reconcile dddgen services and regenerate Proto, OpenAPI, and access artifacts
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" dddgen -root . proto-services
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf dep update
 	cd server && PATH="$(DDD_TOOLS_BIN):$$PATH" buf lint

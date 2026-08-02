@@ -28,6 +28,9 @@ Auth, Space, and System without changing the current Chi production runtime.
 - Pinned Make targets and CI Proto/contract verification.
 - Removal of the repository-local `refactor-goclaw-ddd` skill after its durable
   constraints moved into `CLAUDE.md` and architecture documentation.
+- Version-safe staging of externally distributed `dddgen` and
+  `protoc-gen-access` from one pinned module version, plus build-metadata
+  verification before every generation run.
 
 ## Explicitly Deferred
 
@@ -49,6 +52,7 @@ Auth, Space, and System without changing the current Chi production runtime.
 ```sh
 make generate
 make generated-clean
+make verify-ddd-tools
 make vet-ddd
 make lint-ddd
 make test-race-ddd
@@ -56,3 +60,8 @@ make test-race-ddd
 
 The Kratos HTTP plugin must be v3. The existing v2 binary is incompatible with
 the dddgen module templates and is replaced by the pinned bootstrap tool.
+
+The removed `refactor-goclaw-ddd` skill is not restored. Its repository-specific
+rules remain in `CLAUDE.md`, while operational generator guidance lives in
+`server/docs/architecture/dddgen.md` and the reusable `use-go-ddd-scaffold`
+skill.
