@@ -96,7 +96,7 @@ function MemberRow({
 }) {
   const { t } = useT("settings");
   const roleConfig = useRoleLabels();
-  const rc = roleConfig[member.role];
+  const rc = roleConfig[member.role] ?? roleConfig.member;
   const RoleIcon = rc.icon;
   const canEditRole = canManage && !isSelf && (member.role !== "owner" || canManageOwners);
   const isLastOwner = member.role === "owner" && ownerCount <= 1;

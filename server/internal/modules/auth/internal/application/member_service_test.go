@@ -22,9 +22,11 @@ func (u *fakeMemberUnitOfWork) WithinTransaction(ctx context.Context, operation 
 type fakeMemberRepository struct {
 	requester  member.Member
 	target     member.Member
+	members    []member.Member
 	ownerCount int
 	updated    bool
 	deleted    bool
+	listed     bool
 }
 
 func (r *fakeMemberRepository) FindByUserAndWorkspace(context.Context, string, string) (member.Member, error) {
@@ -59,6 +61,50 @@ func (r *fakeMemberRepository) DeleteByIDAndWorkspace(context.Context, string, s
 func (r *fakeMemberRepository) DeleteByUserAndWorkspace(context.Context, string, string) error {
 	r.deleted = true
 	return nil
+}
+
+func (r *fakeMemberRepository) ListByWorkspace(context.Context, string) ([]member.Member, error) {
+	r.listed = true
+	return r.members, nil
+}
+
+func TestListMembersReturnsWorkspaceMemberships(t *testing.T) {
+	repository := &fakeMemberRepository{
+		requester: member.Member{ID: "requester", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember},
+		members: []member.Member{
+			{ID: "owner-member", WorkspaceID: "workspace", UserID: "owner-user", Role: member.RoleOwner, Name: "Owner"},
+			{ID: "member", WorkspaceID: "workspace", UserID: "member-user", Role: member.RoleMember, Name: "Member"},
+		},
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "member-user")
+
+	result, err := service.ListMembers(ctx, contract.Member_ListMembersRequest{WorkspaceId: "workspace"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !repository.listed || len(result.Members) != 2 {
+		t.Fatalf("unexpected member list: %+v", result.Members)
+	}
+	if result.Members[0].Id != "owner-member" || result.Members[1].Name != "Member" {
+		t.Fatalf("unexpected member projection: %+v", result.Members)
+	}
+}
+
+func TestListMembersHidesWorkspaceFromOutsider(t *testing.T) {
+	repository := &fakeMemberRepository{
+		members: []member.Member{{ID: "private-member", WorkspaceID: "workspace"}},
+	}
+	service := NewMemberService(WithMemberUnitOfWork(&fakeMemberUnitOfWork{repository: repository}))
+	ctx := contract.WithMemberActor(context.Background(), "outsider-user")
+
+	_, err := service.ListMembers(ctx, contract.Member_ListMembersRequest{WorkspaceId: "workspace"})
+	if !errors.Is(err, contract.ErrWorkspaceMembershipHidden) {
+		t.Fatalf("ListMembers() error = %v", err)
+	}
+	if repository.listed {
+		t.Fatal("workspace members were listed for an outsider")
+	}
 }
 
 func TestUpdateMemberRole(t *testing.T) {

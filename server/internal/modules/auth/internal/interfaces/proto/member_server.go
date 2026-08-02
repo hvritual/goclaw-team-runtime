@@ -20,6 +20,22 @@ func NewMemberServer(service contract.MemberService) *MemberServer {
 	return &MemberServer{service: service}
 }
 
+func (s *MemberServer) ListMembers(ctx context.Context, request *authv1.ListMembersRequest) (*authv1.ListMembersResponse, error) {
+	var input contract.Member_ListMembersRequest
+	if err := decodeMemberProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.ListMembers(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &authv1.ListMembersResponse{}
+	if err := encodeMemberContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func (s *MemberServer) UpdateMemberRole(ctx context.Context, request *authv1.UpdateMemberRoleRequest) (*authv1.Member, error) {
 	var input contract.Member_UpdateMemberRoleRequest
 	if err := decodeMemberProto(request, &input); err != nil {

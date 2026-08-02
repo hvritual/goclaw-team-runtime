@@ -11,6 +11,10 @@ type MemberClient struct{ service contract.MemberService }
 
 func NewMember(service contract.MemberService) *MemberClient { return &MemberClient{service: service} }
 
+func (c *MemberClient) ListMembers(ctx context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	return c.service.ListMembers(ctx, request)
+}
+
 func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
 	return c.service.UpdateMemberRole(ctx, request)
 }

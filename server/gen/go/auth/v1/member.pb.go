@@ -11,7 +11,6 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -84,11 +83,13 @@ type Member struct {
 	UserId      string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// String preserves the existing owner/admin/member JSON contract while the
 	// application maps it to the WorkspaceRole domain vocabulary.
-	Role          string                  `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
-	CreatedAt     string                  `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Name          string                  `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
-	Email         string                  `protobuf:"bytes,7,opt,name=email,proto3" json:"email,omitempty"`
-	AvatarUrl     *wrapperspb.StringValue `protobuf:"bytes,8,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	Role      string `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	CreatedAt string `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Name      string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Email     string `protobuf:"bytes,7,opt,name=email,proto3" json:"email,omitempty"`
+	// Presence preserves the existing JSON null|string contract. The generated
+	// response_body path uses standard JSON for the top-level member array.
+	AvatarUrl     *string `protobuf:"bytes,8,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -172,9 +173,97 @@ func (x *Member) GetEmail() string {
 	return ""
 }
 
-func (x *Member) GetAvatarUrl() *wrapperspb.StringValue {
+func (x *Member) GetAvatarUrl() string {
+	if x != nil && x.AvatarUrl != nil {
+		return *x.AvatarUrl
+	}
+	return ""
+}
+
+type ListMembersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMembersRequest) Reset() {
+	*x = ListMembersRequest{}
+	mi := &file_auth_v1_member_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMembersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMembersRequest) ProtoMessage() {}
+
+func (x *ListMembersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[1]
 	if x != nil {
-		return x.AvatarUrl
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMembersRequest.ProtoReflect.Descriptor instead.
+func (*ListMembersRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListMembersRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type ListMembersResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Members       []*Member              `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListMembersResponse) Reset() {
+	*x = ListMembersResponse{}
+	mi := &file_auth_v1_member_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListMembersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListMembersResponse) ProtoMessage() {}
+
+func (x *ListMembersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_member_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListMembersResponse.ProtoReflect.Descriptor instead.
+func (*ListMembersResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListMembersResponse) GetMembers() []*Member {
+	if x != nil {
+		return x.Members
 	}
 	return nil
 }
@@ -190,7 +279,7 @@ type UpdateMemberRoleRequest struct {
 
 func (x *UpdateMemberRoleRequest) Reset() {
 	*x = UpdateMemberRoleRequest{}
-	mi := &file_auth_v1_member_proto_msgTypes[1]
+	mi := &file_auth_v1_member_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -202,7 +291,7 @@ func (x *UpdateMemberRoleRequest) String() string {
 func (*UpdateMemberRoleRequest) ProtoMessage() {}
 
 func (x *UpdateMemberRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_member_proto_msgTypes[1]
+	mi := &file_auth_v1_member_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -215,7 +304,7 @@ func (x *UpdateMemberRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMemberRoleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMemberRoleRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_member_proto_rawDescGZIP(), []int{1}
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateMemberRoleRequest) GetWorkspaceId() string {
@@ -249,7 +338,7 @@ type DeleteMemberRequest struct {
 
 func (x *DeleteMemberRequest) Reset() {
 	*x = DeleteMemberRequest{}
-	mi := &file_auth_v1_member_proto_msgTypes[2]
+	mi := &file_auth_v1_member_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -261,7 +350,7 @@ func (x *DeleteMemberRequest) String() string {
 func (*DeleteMemberRequest) ProtoMessage() {}
 
 func (x *DeleteMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_member_proto_msgTypes[2]
+	mi := &file_auth_v1_member_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -274,7 +363,7 @@ func (x *DeleteMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemberRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMemberRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_member_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeleteMemberRequest) GetWorkspaceId() string {
@@ -299,7 +388,7 @@ type DeleteMemberResponse struct {
 
 func (x *DeleteMemberResponse) Reset() {
 	*x = DeleteMemberResponse{}
-	mi := &file_auth_v1_member_proto_msgTypes[3]
+	mi := &file_auth_v1_member_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -311,7 +400,7 @@ func (x *DeleteMemberResponse) String() string {
 func (*DeleteMemberResponse) ProtoMessage() {}
 
 func (x *DeleteMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_member_proto_msgTypes[3]
+	mi := &file_auth_v1_member_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -324,7 +413,7 @@ func (x *DeleteMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemberResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMemberResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_member_proto_rawDescGZIP(), []int{3}
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{5}
 }
 
 type LeaveWorkspaceRequest struct {
@@ -336,7 +425,7 @@ type LeaveWorkspaceRequest struct {
 
 func (x *LeaveWorkspaceRequest) Reset() {
 	*x = LeaveWorkspaceRequest{}
-	mi := &file_auth_v1_member_proto_msgTypes[4]
+	mi := &file_auth_v1_member_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -348,7 +437,7 @@ func (x *LeaveWorkspaceRequest) String() string {
 func (*LeaveWorkspaceRequest) ProtoMessage() {}
 
 func (x *LeaveWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_member_proto_msgTypes[4]
+	mi := &file_auth_v1_member_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -361,7 +450,7 @@ func (x *LeaveWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*LeaveWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_member_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *LeaveWorkspaceRequest) GetWorkspaceId() string {
@@ -379,7 +468,7 @@ type LeaveWorkspaceResponse struct {
 
 func (x *LeaveWorkspaceResponse) Reset() {
 	*x = LeaveWorkspaceResponse{}
-	mi := &file_auth_v1_member_proto_msgTypes[5]
+	mi := &file_auth_v1_member_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +480,7 @@ func (x *LeaveWorkspaceResponse) String() string {
 func (*LeaveWorkspaceResponse) ProtoMessage() {}
 
 func (x *LeaveWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_member_proto_msgTypes[5]
+	mi := &file_auth_v1_member_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,14 +493,14 @@ func (x *LeaveWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*LeaveWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_member_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_member_proto_rawDescGZIP(), []int{7}
 }
 
 var File_auth_v1_member_proto protoreflect.FileDescriptor
 
 const file_auth_v1_member_proto_rawDesc = "" +
 	"\n" +
-	"\x14auth/v1/member.proto\x12\aauth.v1\x1a\x1bannotations/v1/access.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1egoogle/protobuf/wrappers.proto\"\xee\x01\n" +
+	"\x14auth/v1/member.proto\x12\aauth.v1\x1a\x1bannotations/v1/access.proto\x1a\x1cgoogle/api/annotations.proto\"\xe4\x01\n" +
 	"\x06Member\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x17\n" +
@@ -420,9 +509,14 @@ const file_auth_v1_member_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12\x14\n" +
-	"\x05email\x18\a \x01(\tR\x05email\x12;\n" +
+	"\x05email\x18\a \x01(\tR\x05email\x12\"\n" +
 	"\n" +
-	"avatar_url\x18\b \x01(\v2\x1c.google.protobuf.StringValueR\tavatarUrl\"m\n" +
+	"avatar_url\x18\b \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
+	"\v_avatar_url\"7\n" +
+	"\x12ListMembersRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"@\n" +
+	"\x13ListMembersResponse\x12)\n" +
+	"\amembers\x18\x01 \x03(\v2\x0f.auth.v1.MemberR\amembers\"m\n" +
 	"\x17UpdateMemberRoleRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
 	"\tmember_id\x18\x02 \x01(\tR\bmemberId\x12\x12\n" +
@@ -438,8 +532,10 @@ const file_auth_v1_member_proto_rawDesc = "" +
 	"\x1aWORKSPACE_ROLE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_OWNER\x10\x01\x12\x18\n" +
 	"\x14WORKSPACE_ROLE_ADMIN\x10\x02\x12\x19\n" +
-	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\x8c\x05\n" +
-	"\rMemberService\x12\xd2\x01\n" +
+	"\x15WORKSPACE_ROLE_MEMBER\x10\x032\xc7\x06\n" +
+	"\rMemberService\x12\xb8\x01\n" +
+	"\vListMembers\x12\x1b.auth.v1.ListMembersRequest\x1a\x1c.auth.v1.ListMembersResponse\"n\xd2\xf3\x183\n" +
+	"\x10auth.member.list\x12\fList members\x1a\vauth.member\"\x04list\x82\xd3\xe4\x93\x021b\amembers\x12&/api/workspaces/{workspace_id}/members\x12\xd2\x01\n" +
 	"\x10UpdateMemberRole\x12 .auth.v1.UpdateMemberRoleRequest\x1a\x0f.auth.v1.Member\"\x8a\x01\xd2\xf3\x18I\n" +
 	"\x17auth.member.change_role\x12\x12Change member role\x1a\vauth.member\"\vchange_role@\x01\x82\xd3\xe4\x93\x027:\x01*22/api/workspaces/{workspace_id}/members/{member_id}\x12\xca\x01\n" +
 	"\fDeleteMember\x12\x1c.auth.v1.DeleteMemberRequest\x1a\x1d.auth.v1.DeleteMemberResponse\"}\xd2\xf3\x18:\n" +
@@ -461,27 +557,30 @@ func file_auth_v1_member_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_member_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_auth_v1_member_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_auth_v1_member_proto_goTypes = []any{
 	(WorkspaceRole)(0),              // 0: auth.v1.WorkspaceRole
 	(*Member)(nil),                  // 1: auth.v1.Member
-	(*UpdateMemberRoleRequest)(nil), // 2: auth.v1.UpdateMemberRoleRequest
-	(*DeleteMemberRequest)(nil),     // 3: auth.v1.DeleteMemberRequest
-	(*DeleteMemberResponse)(nil),    // 4: auth.v1.DeleteMemberResponse
-	(*LeaveWorkspaceRequest)(nil),   // 5: auth.v1.LeaveWorkspaceRequest
-	(*LeaveWorkspaceResponse)(nil),  // 6: auth.v1.LeaveWorkspaceResponse
-	(*wrapperspb.StringValue)(nil),  // 7: google.protobuf.StringValue
+	(*ListMembersRequest)(nil),      // 2: auth.v1.ListMembersRequest
+	(*ListMembersResponse)(nil),     // 3: auth.v1.ListMembersResponse
+	(*UpdateMemberRoleRequest)(nil), // 4: auth.v1.UpdateMemberRoleRequest
+	(*DeleteMemberRequest)(nil),     // 5: auth.v1.DeleteMemberRequest
+	(*DeleteMemberResponse)(nil),    // 6: auth.v1.DeleteMemberResponse
+	(*LeaveWorkspaceRequest)(nil),   // 7: auth.v1.LeaveWorkspaceRequest
+	(*LeaveWorkspaceResponse)(nil),  // 8: auth.v1.LeaveWorkspaceResponse
 }
 var file_auth_v1_member_proto_depIdxs = []int32{
-	7, // 0: auth.v1.Member.avatar_url:type_name -> google.protobuf.StringValue
-	2, // 1: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
-	3, // 2: auth.v1.MemberService.DeleteMember:input_type -> auth.v1.DeleteMemberRequest
-	5, // 3: auth.v1.MemberService.LeaveWorkspace:input_type -> auth.v1.LeaveWorkspaceRequest
-	1, // 4: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
-	4, // 5: auth.v1.MemberService.DeleteMember:output_type -> auth.v1.DeleteMemberResponse
-	6, // 6: auth.v1.MemberService.LeaveWorkspace:output_type -> auth.v1.LeaveWorkspaceResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	1, // 0: auth.v1.ListMembersResponse.members:type_name -> auth.v1.Member
+	2, // 1: auth.v1.MemberService.ListMembers:input_type -> auth.v1.ListMembersRequest
+	4, // 2: auth.v1.MemberService.UpdateMemberRole:input_type -> auth.v1.UpdateMemberRoleRequest
+	5, // 3: auth.v1.MemberService.DeleteMember:input_type -> auth.v1.DeleteMemberRequest
+	7, // 4: auth.v1.MemberService.LeaveWorkspace:input_type -> auth.v1.LeaveWorkspaceRequest
+	3, // 5: auth.v1.MemberService.ListMembers:output_type -> auth.v1.ListMembersResponse
+	1, // 6: auth.v1.MemberService.UpdateMemberRole:output_type -> auth.v1.Member
+	6, // 7: auth.v1.MemberService.DeleteMember:output_type -> auth.v1.DeleteMemberResponse
+	8, // 8: auth.v1.MemberService.LeaveWorkspace:output_type -> auth.v1.LeaveWorkspaceResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -492,13 +591,14 @@ func file_auth_v1_member_proto_init() {
 	if File_auth_v1_member_proto != nil {
 		return
 	}
+	file_auth_v1_member_proto_msgTypes[0].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_member_proto_rawDesc), len(file_auth_v1_member_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

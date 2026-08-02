@@ -44,3 +44,11 @@ func memberContractResponse(value contract.Member_Member) map[string]any {
 		"avatar_url":   avatarURL,
 	}
 }
+
+func memberContractResponses(values []contract.Member_Member) []map[string]any {
+	result := make([]map[string]any, 0, len(values))
+	for _, value := range values {
+		result = append(result, memberContractResponse(value))
+	}
+	return result
+}

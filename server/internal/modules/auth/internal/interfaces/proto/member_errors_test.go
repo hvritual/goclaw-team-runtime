@@ -17,6 +17,10 @@ type fakeMemberService struct {
 	err     error
 }
 
+func (s *fakeMemberService) ListMembers(context.Context, contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	return contract.Member_ListMembersResponse{}, s.err
+}
+
 func (s *fakeMemberService) UpdateMemberRole(_ context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
 	s.request = request
 	return s.result, s.err

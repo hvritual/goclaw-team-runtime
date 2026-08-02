@@ -13,9 +13,25 @@ import (
 )
 
 type successfulMemberService struct {
+	listRequest   contract.Member_ListMembersRequest
 	updateRequest contract.Member_UpdateMemberRoleRequest
 	deleteRequest contract.Member_DeleteMemberRequest
 	leaveRequest  contract.Member_LeaveWorkspaceRequest
+}
+
+func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	s.listRequest = request
+	return contract.Member_ListMembersResponse{Members: []contract.Member_Member{
+		{
+			Id:          "member-1",
+			WorkspaceId: request.WorkspaceId,
+			UserId:      "user-1",
+			Role:        "owner",
+			CreatedAt:   "2026-08-02T00:00:00Z",
+			Name:        "Owner",
+			Email:       "owner@example.test",
+		},
+	}}, nil
 }
 
 func (s *successfulMemberService) UpdateMemberRole(_ context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
@@ -75,6 +91,13 @@ func TestAuthMemberGRPCRoundTrips(t *testing.T) {
 		t.Fatalf("unexpected member result: %+v", result)
 	}
 	client := auth.NewMemberGRPCClient(connection)
+	listed, err := client.ListMembers(t.Context(), contract.Member_ListMembersRequest{WorkspaceId: "workspace-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.listRequest.WorkspaceId != "workspace-1" || len(listed.Members) != 1 || listed.Members[0].Role != "owner" {
+		t.Fatalf("unexpected list round trip request=%+v result=%+v", service.listRequest, listed)
+	}
 	if _, err := client.DeleteMember(t.Context(), contract.Member_DeleteMemberRequest{
 		WorkspaceId: "workspace-1",
 		MemberId:    "member-2",

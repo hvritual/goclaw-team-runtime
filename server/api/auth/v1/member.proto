@@ -4,7 +4,6 @@ package auth.v1;
 
 import "annotations/v1/access.proto";
 import "google/api/annotations.proto";
-import "google/protobuf/wrappers.proto";
 
 option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1";
 
@@ -12,6 +11,20 @@ option go_package = "github.com/multica-ai/multica/server/gen/go/auth/v1;authv1"
 // the invariant that every Workspace retains at least one Owner.
 service MemberService {
   option (annotations.v1.module) = {code: "auth" name: "Auth" version: "v1"};
+
+  // ListMembers returns the human memberships visible inside one workspace.
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse) {
+    option (google.api.http) = {
+      get: "/api/workspaces/{workspace_id}/members"
+      response_body: "members"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.list"
+      permission_name: "List members"
+      resource: "auth.member"
+      action: "list"
+    };
+  }
 
   // UpdateMemberRole changes one workspace membership role while preserving
   // the invariant that every workspace has at least one Owner.
@@ -75,7 +88,17 @@ message Member {
   string created_at = 5;
   string name = 6;
   string email = 7;
-  google.protobuf.StringValue avatar_url = 8;
+  // Presence preserves the existing JSON null|string contract. The generated
+  // response_body path uses standard JSON for the top-level member array.
+  optional string avatar_url = 8;
+}
+
+message ListMembersRequest {
+  string workspace_id = 1;
+}
+
+message ListMembersResponse {
+  repeated Member members = 1;
 }
 
 message UpdateMemberRoleRequest {

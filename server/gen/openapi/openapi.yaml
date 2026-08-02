@@ -64,6 +64,33 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/workspaces/{workspaceId}/members:
+        get:
+            tags:
+                - MemberService
+            description: ListMembers returns the human memberships visible inside one workspace.
+            operationId: MemberService_ListMembers
+            parameters:
+                - name: workspaceId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: array
+                                items:
+                                    $ref: '#/components/schemas/Member'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/workspaces/{workspaceId}/members/{memberId}:
         delete:
             tags:
@@ -268,6 +295,13 @@ components:
         LeaveWorkspaceResponse:
             type: object
             properties: {}
+        ListMembersResponse:
+            type: object
+            properties:
+                members:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Member'
         Member:
             type: object
             properties:
@@ -290,6 +324,9 @@ components:
                     type: string
                 avatarUrl:
                     type: string
+                    description: |-
+                        Presence preserves the existing JSON null|string contract. The generated
+                         response_body path uses standard JSON for the top-level member array.
             description: Member identifies a human participant inside one Workspace.
         PingResponse:
             type: object

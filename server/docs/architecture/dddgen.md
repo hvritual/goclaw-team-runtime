@@ -41,6 +41,12 @@ normalizes two gaps in the pinned upstream generators:
   A 204 client consumes the empty body without asking ProtoJSON to decode it.
 - Generated client path placeholders use Proto JSON field names so Kratos
   `BuildPath` can bind snake_case Proto fields such as `workspace_id`.
+- RPCs using `google.api.http.response_body` keep their public unwrapped JSON
+  shape in the Kratos server/client and OpenAPI schema; response-body clients
+  negotiate standard JSON because a repeated field is not itself a Proto
+  message. Explicitly optional scalar fields in repeated message elements keep
+  their JSON key when absent, so nullable fields remain `null` rather than
+  disappearing from the established public response.
 
 Treat this postprocessor as part of the native generation pipeline. Change its
 tests and contract coverage together with any new transport normalization; do

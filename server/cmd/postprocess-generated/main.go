@@ -17,6 +17,7 @@ import (
 	_ "github.com/multica-ai/multica/server/gen/go/space/v1"
 	_ "github.com/multica-ai/multica/server/gen/go/system/v1"
 	_ "github.com/multica-ai/multica/server/gen/go/workspace/v1"
+	annotations "google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -28,6 +29,14 @@ type statusOverride struct {
 	serviceName string
 	methodName  string
 	status      int
+}
+
+type responseBodyOverride struct {
+	serviceName        string
+	methodName         string
+	schemaName         string
+	protoPath          string
+	optionalJSONFields []string
 }
 
 func main() {
@@ -43,15 +52,127 @@ func main() {
 			fatal(err)
 		}
 	}
-	if err := rewriteGeneratedHTTPClientPaths(filepath.Join("gen", "go")); err != nil {
+	if err := rewriteGeneratedHTTPClients(filepath.Join("gen", "go")); err != nil {
+		fatal(err)
+	}
+	responseBodies, err := declaredResponseBodyOverrides()
+	if err != nil {
+		fatal(err)
+	}
+	if err := rewriteGeneratedResponseBodyJSONTags(filepath.Join("gen", "go"), responseBodies); err != nil {
 		fatal(err)
 	}
 	openAPIPath := filepath.Join("gen", "openapi", "openapi.yaml")
 	if err := rewriteFile(openAPIPath, func(input []byte) ([]byte, error) {
-		return applyOpenAPIStatuses(input, overrides)
+		output, transformErr := applyOpenAPIStatuses(input, overrides)
+		if transformErr != nil {
+			return nil, transformErr
+		}
+		return applyOpenAPIResponseBodies(output, responseBodies)
 	}); err != nil {
 		fatal(err)
 	}
+}
+
+func declaredResponseBodyOverrides() ([]responseBodyOverride, error) {
+	var overrides []responseBodyOverride
+	var declarationErr error
+	protoregistry.GlobalFiles.RangeFiles(func(file protoreflect.FileDescriptor) bool {
+		services := file.Services()
+		for serviceIndex := 0; serviceIndex < services.Len(); serviceIndex++ {
+			service := services.Get(serviceIndex)
+			methods := service.Methods()
+			for methodIndex := 0; methodIndex < methods.Len(); methodIndex++ {
+				override, err := responseBodyOverrideForMethod(file, service, methods.Get(methodIndex))
+				if err != nil {
+					declarationErr = err
+					return false
+				}
+				if override != nil {
+					overrides = append(overrides, *override)
+				}
+			}
+		}
+		return declarationErr == nil
+	})
+	return overrides, declarationErr
+}
+
+func responseBodyOverrideForMethod(
+	file protoreflect.FileDescriptor,
+	service protoreflect.ServiceDescriptor,
+	method protoreflect.MethodDescriptor,
+) (*responseBodyOverride, error) {
+	options, ok := method.Options().(*descriptorpb.MethodOptions)
+	if !ok || !proto.HasExtension(options, annotations.E_Http) {
+		return nil, nil
+	}
+	rule, ok := proto.GetExtension(options, annotations.E_Http).(*annotations.HttpRule)
+	if !ok || rule.GetResponseBody() == "" || rule.GetResponseBody() == "*" {
+		return nil, nil
+	}
+	field := method.Output().Fields().ByName(protoreflect.Name(rule.GetResponseBody()))
+	if field == nil || !field.IsList() || field.Kind() != protoreflect.MessageKind {
+		return nil, fmt.Errorf("unsupported HTTP response_body %s on %s.%s", rule.GetResponseBody(), service.Name(), method.Name())
+	}
+	message := field.Message()
+	optionalJSONFields := make([]string, 0)
+	for fieldIndex := 0; fieldIndex < message.Fields().Len(); fieldIndex++ {
+		messageField := message.Fields().Get(fieldIndex)
+		if messageField.HasOptionalKeyword() {
+			optionalJSONFields = append(optionalJSONFields, string(messageField.Name()))
+		}
+	}
+	return &responseBodyOverride{
+		serviceName:        string(service.Name()),
+		methodName:         string(method.Name()),
+		schemaName:         string(message.Name()),
+		protoPath:          file.Path(),
+		optionalJSONFields: optionalJSONFields,
+	}, nil
+}
+
+func rewriteGeneratedResponseBodyJSONTags(root string, overrides []responseBodyOverride) error {
+	for _, override := range overrides {
+		if len(override.optionalJSONFields) == 0 {
+			continue
+		}
+		path := filepath.Join(root, strings.TrimSuffix(override.protoPath, ".proto")+".pb.go")
+		if err := rewriteFile(path, func(input []byte) ([]byte, error) {
+			return applyGoResponseBodyOptionalFields(input, override)
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func applyGoResponseBodyOptionalFields(input []byte, override responseBodyOverride) ([]byte, error) {
+	lines := strings.Split(string(input), "\n")
+	structStart := findTrimmedLine(lines, "type "+override.schemaName+" struct {", 0)
+	if structStart < 0 {
+		return nil, fmt.Errorf("generated response_body message %s not found", override.schemaName)
+	}
+	structEnd := findTrimmedLine(lines, "}", structStart+1)
+	if structEnd < 0 {
+		return nil, fmt.Errorf("generated response_body message %s is incomplete", override.schemaName)
+	}
+	for _, fieldName := range override.optionalJSONFields {
+		from := `json:"` + fieldName + `,omitempty"`
+		to := `json:"` + fieldName + `"`
+		found := false
+		for index := structStart + 1; index < structEnd; index++ {
+			if strings.Contains(lines[index], from) {
+				lines[index] = strings.Replace(lines[index], from, to, 1)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("optional JSON field %s.%s not found", override.schemaName, fieldName)
+		}
+	}
+	return []byte(strings.Join(lines, "\n")), nil
 }
 
 func declaredStatusOverrides() ([]statusOverride, error) {
@@ -184,7 +305,7 @@ func ensureGoImport(input, importLine string) string {
 	return strings.Replace(input, importEnd, "\t"+importLine+"\n"+importEnd, 1)
 }
 
-func rewriteGeneratedHTTPClientPaths(root string) error {
+func rewriteGeneratedHTTPClients(root string) error {
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -193,7 +314,8 @@ func rewriteGeneratedHTTPClientPaths(root string) error {
 			return nil
 		}
 		return rewriteFile(path, func(input []byte) ([]byte, error) {
-			return applyGoHTTPClientPathVariables(input), nil
+			output := applyGoHTTPClientPathVariables(input)
+			return applyGoHTTPClientResponseBodies(output), nil
 		})
 	})
 }
@@ -206,6 +328,35 @@ func applyGoHTTPClientPathVariables(input []byte) []byte {
 		}
 	}
 	return []byte(strings.Join(lines, "\n"))
+}
+
+func applyGoHTTPClientResponseBodies(input []byte) []byte {
+	output := string(input)
+	searchFrom := 0
+	for {
+		relativeInvoke := strings.Index(output[searchFrom:], "c.cc.Invoke(")
+		if relativeInvoke < 0 {
+			return []byte(output)
+		}
+		invoke := searchFrom + relativeInvoke
+		lineEnd := strings.IndexByte(output[invoke:], '\n')
+		if lineEnd < 0 {
+			lineEnd = len(output) - invoke
+		}
+		if strings.Contains(output[invoke:invoke+lineEnd], ", &out.") {
+			methodStart := strings.LastIndex(output[:invoke], "func (c *")
+			if methodStart >= 0 {
+				segment := output[methodStart:invoke]
+				const protoJSONAccept = `http.Accept("application/protojson")`
+				accept := strings.LastIndex(segment, protoJSONAccept)
+				if accept >= 0 {
+					accept += methodStart
+					output = output[:accept] + `http.Accept("application/json")` + output[accept+len(protoJSONAccept):]
+				}
+			}
+		}
+		searchFrom = invoke + lineEnd
+	}
 }
 
 func normalizePathVariables(input string) string {
@@ -269,6 +420,62 @@ func applyOpenAPIStatuses(input []byte, overrides []statusOverride) ([]byte, err
 		}
 	}
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func applyOpenAPIResponseBodies(input []byte, overrides []responseBodyOverride) ([]byte, error) {
+	lines := strings.Split(string(input), "\n")
+	for _, override := range overrides {
+		var err error
+		lines, err = applyOpenAPIResponseBody(lines, override)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return []byte(strings.Join(lines, "\n")), nil
+}
+
+func applyOpenAPIResponseBody(lines []string, override responseBodyOverride) ([]string, error) {
+	operationID := override.serviceName + "_" + override.methodName
+	operationLine := findTrimmedLine(lines, "operationId: "+operationID, 0)
+	if operationLine < 0 {
+		return nil, fmt.Errorf("OpenAPI operation %s not found", operationID)
+	}
+	responsesLine := findTrimmedLine(lines, "responses:", operationLine+1)
+	if responsesLine < 0 {
+		return nil, fmt.Errorf("OpenAPI responses for %s not found", operationID)
+	}
+	responseIndent := indentation(lines[responsesLine]) + 4
+	statusLine := findResponseStatusLine(lines, responsesLine+1, responseIndent, `"200":`)
+	if statusLine < 0 {
+		return nil, fmt.Errorf("OpenAPI 200 response for %s not found", operationID)
+	}
+	nextResponse := findNextResponseLine(lines, statusLine+1, responseIndent)
+	schemaLine := findTrimmedLineBefore(lines, "schema:", statusLine+1, nextResponse)
+	if schemaLine < 0 {
+		return nil, fmt.Errorf("OpenAPI response schema for %s not found", operationID)
+	}
+	schemaIndent := indentation(lines[schemaLine])
+	schemaEnd := schemaLine + 1
+	for schemaEnd < nextResponse && (strings.TrimSpace(lines[schemaEnd]) == "" || indentation(lines[schemaEnd]) > schemaIndent) {
+		schemaEnd++
+	}
+	prefix := strings.Repeat(" ", schemaIndent+4)
+	replacement := []string{
+		lines[schemaLine],
+		prefix + "type: array",
+		prefix + "items:",
+		prefix + "    $ref: '#/components/schemas/" + override.schemaName + "'",
+	}
+	return append(lines[:schemaLine], append(replacement, lines[schemaEnd:]...)...), nil
+}
+
+func findTrimmedLineBefore(lines []string, target string, start, end int) int {
+	for index := start; index < end && index < len(lines); index++ {
+		if strings.TrimSpace(lines[index]) == target {
+			return index
+		}
+	}
+	return -1
 }
 
 func applyOpenAPIOperationStatus(lines []string, override statusOverride) ([]string, error) {

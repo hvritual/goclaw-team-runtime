@@ -12,6 +12,7 @@ import (
 
 func TestSQLiteLocalAuthMemberFallbackErrorsRemainOperationSpecific(t *testing.T) {
 	tests := []string{
+		"failed to list members",
 		"failed to update member",
 		"failed to delete member",
 		"failed to leave workspace",

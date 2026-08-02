@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	MemberService_ListMembers_FullMethodName      = "/auth.v1.MemberService/ListMembers"
 	MemberService_UpdateMemberRole_FullMethodName = "/auth.v1.MemberService/UpdateMemberRole"
 	MemberService_DeleteMember_FullMethodName     = "/auth.v1.MemberService/DeleteMember"
 	MemberService_LeaveWorkspace_FullMethodName   = "/auth.v1.MemberService/LeaveWorkspace"
@@ -31,6 +32,8 @@ const (
 // MemberService owns Workspace Membership, invitations, Workspace Roles, and
 // the invariant that every Workspace retains at least one Owner.
 type MemberServiceClient interface {
+	// ListMembers returns the human memberships visible inside one workspace.
+	ListMembers(ctx context.Context, in *ListMembersRequest, opts ...grpc.CallOption) (*ListMembersResponse, error)
 	// UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...grpc.CallOption) (*Member, error)
@@ -47,6 +50,16 @@ type memberServiceClient struct {
 
 func NewMemberServiceClient(cc grpc.ClientConnInterface) MemberServiceClient {
 	return &memberServiceClient{cc}
+}
+
+func (c *memberServiceClient) ListMembers(ctx context.Context, in *ListMembersRequest, opts ...grpc.CallOption) (*ListMembersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListMembersResponse)
+	err := c.cc.Invoke(ctx, MemberService_ListMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *memberServiceClient) UpdateMemberRole(ctx context.Context, in *UpdateMemberRoleRequest, opts ...grpc.CallOption) (*Member, error) {
@@ -86,6 +99,8 @@ func (c *memberServiceClient) LeaveWorkspace(ctx context.Context, in *LeaveWorks
 // MemberService owns Workspace Membership, invitations, Workspace Roles, and
 // the invariant that every Workspace retains at least one Owner.
 type MemberServiceServer interface {
+	// ListMembers returns the human memberships visible inside one workspace.
+	ListMembers(context.Context, *ListMembersRequest) (*ListMembersResponse, error)
 	// UpdateMemberRole changes one workspace membership role while preserving
 	// the invariant that every workspace has at least one Owner.
 	UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error)
@@ -104,6 +119,9 @@ type MemberServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMemberServiceServer struct{}
 
+func (UnimplementedMemberServiceServer) ListMembers(context.Context, *ListMembersRequest) (*ListMembersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListMembers not implemented")
+}
 func (UnimplementedMemberServiceServer) UpdateMemberRole(context.Context, *UpdateMemberRoleRequest) (*Member, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateMemberRole not implemented")
 }
@@ -132,6 +150,24 @@ func RegisterMemberServiceServer(s grpc.ServiceRegistrar, srv MemberServiceServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&MemberService_ServiceDesc, srv)
+}
+
+func _MemberService_ListMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListMembersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).ListMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_ListMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).ListMembers(ctx, req.(*ListMembersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _MemberService_UpdateMemberRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -195,6 +231,10 @@ var MemberService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "auth.v1.MemberService",
 	HandlerType: (*MemberServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListMembers",
+			Handler:    _MemberService_ListMembers_Handler,
+		},
 		{
 			MethodName: "UpdateMemberRole",
 			Handler:    _MemberService_UpdateMemberRole_Handler,

@@ -1121,25 +1121,15 @@ func (s *Server) listMembers(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	rows, err := s.db.QueryContext(r.Context(), `SELECT m.id, m.workspace_id, m.user_id, m.role, m.created_at,
-		u.name, u.email, u.avatar_url FROM members m JOIN users u ON u.id = m.user_id
-		WHERE m.workspace_id = ? ORDER BY m.created_at`, workspaceValue.ID)
+	ctx := authcontract.WithMemberActor(r.Context(), currentUserID(r))
+	result, err := s.authMembers.ListMembers(ctx, authcontract.Member_ListMembersRequest{
+		WorkspaceId: workspaceValue.ID,
+	})
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list members")
+		writeMemberError(w, err, "failed to list members")
 		return
 	}
-	defer rows.Close()
-	result := make([]map[string]any, 0)
-	for rows.Next() {
-		var value member
-		if err := rows.Scan(&value.ID, &value.WorkspaceID, &value.UserID, &value.Role, &value.CreatedAt,
-			&value.Name, &value.Email, &value.AvatarURL); err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to list members")
-			return
-		}
-		result = append(result, memberResponse(value))
-	}
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, memberContractResponses(result.Members))
 }
 
 func (s *Server) createMember(w http.ResponseWriter, r *http.Request) {

@@ -99,6 +99,13 @@ Proto under `server/api/auth/v1` is the transport and access-metadata source of 
 - Bufconn contract tests prove Delete/Leave request fields cross the generated gRPC client/server boundary.
 - Proto-declared `http_success_status = 204` is applied deterministically to generated Kratos handlers, HTTP clients, and OpenAPI; raw HTTP and generated-client round trips both prove the no-body contract.
 
+## A3 SQLite Evidence
+
+- `ListMembers` is now owned by the Auth application contract and SQLite provider; the SQLite-local route no longer performs its own membership query.
+- Application and real SQLite tests prove actor membership authorization, workspace isolation, stable creation-time ordering, and full user projection.
+- Proto `response_body: "members"` preserves the existing top-level JSON array, while the generation postprocessor keeps the generated HTTP client and OpenAPI schema aligned with that public shape.
+- Raw Kratos HTTP, generated HTTP client, generated gRPC, SQLite-local lifecycle, and frontend runtime-schema tests cover the same member-list contract.
+
 ## Stop Conditions
 
 - Agent identity semantics are still coupled to runtime/release configuration.

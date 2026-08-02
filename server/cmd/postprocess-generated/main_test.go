@@ -93,3 +93,72 @@ func TestApplyGoHTTPClientPathVariables(t *testing.T) {
 		t.Fatalf("unexpected client path variables:\n%s", output)
 	}
 }
+
+func TestApplyGoHTTPClientResponseBodies(t *testing.T) {
+	input := []byte(`func (c *MemberServiceHTTPClientImpl) ListMembers(ctx context.Context, in *ListMembersRequest, opts ...http.CallOption) (*ListMembersResponse, error) {
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out.Members, opts...)
+	return &out, err
+}
+`)
+	output := string(applyGoHTTPClientResponseBodies(input))
+	if !strings.Contains(output, `http.Accept("application/json")`) || strings.Contains(output, `http.Accept("application/protojson")`) {
+		t.Fatalf("unexpected response-body client:\n%s", output)
+	}
+}
+
+func TestApplyGoResponseBodyOptionalFields(t *testing.T) {
+	input := []byte(`type Member struct {
+	Id        string  ` + "`" + `json:"id,omitempty"` + "`" + `
+	AvatarUrl *string ` + "`" + `json:"avatar_url,omitempty"` + "`" + `
+}
+`)
+	output, err := applyGoResponseBodyOptionalFields(input, responseBodyOverride{
+		schemaName:         "Member",
+		optionalJSONFields: []string{"avatar_url"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, `json:"avatar_url"`) || strings.Contains(text, `json:"avatar_url,omitempty"`) {
+		t.Fatalf("optional response-body field still omits null:\n%s", text)
+	}
+	if !strings.Contains(text, `json:"id,omitempty"`) {
+		t.Fatalf("unrelated field tag changed:\n%s", text)
+	}
+}
+
+func TestApplyOpenAPIResponseBodies(t *testing.T) {
+	input := []byte(`paths:
+    /members:
+        get:
+            operationId: MemberService_ListMembers
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListMembersResponse'
+                default:
+                    description: Default error response
+`)
+	output, err := applyOpenAPIResponseBodies(input, []responseBodyOverride{{
+		serviceName: "MemberService",
+		methodName:  "ListMembers",
+		schemaName:  "Member",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(output)
+	if !strings.Contains(text, "type: array") || !strings.Contains(text, "#/components/schemas/Member'") {
+		t.Fatalf("unexpected OpenAPI response body:\n%s", text)
+	}
+	if strings.Contains(text, "#/components/schemas/ListMembersResponse'") || !strings.Contains(text, "default:") {
+		t.Fatalf("wrapper schema or default response mismatch:\n%s", text)
+	}
+}

@@ -19,6 +19,14 @@ func NewMemberTransportService(next contract.MemberService) contract.MemberServi
 	return &memberTransportService{next: next}
 }
 
+func (s *memberTransportService) ListMembers(ctx context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	result, err := s.next.ListMembers(ctx, request)
+	if err != nil {
+		return contract.Member_ListMembersResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func (s *memberTransportService) UpdateMemberRole(ctx context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
 	result, err := s.next.UpdateMemberRole(ctx, request)
 	if err != nil {

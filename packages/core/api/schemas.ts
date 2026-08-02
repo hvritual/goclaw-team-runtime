@@ -16,7 +16,6 @@ import type {
   ListGitHubInstallationsResponse,
   ListGitHubRepositoriesResponse,
   ListLabelsResponse,
-  MemberWithUser,
   NotificationPreferenceResponse,
   ResourceLabelsResponse,
   SearchIssuesResponse,
@@ -87,18 +86,20 @@ export const EMPTY_WORKSPACE_PERMISSION_CATALOG: WorkspacePermissionCatalog = {
   capabilities: [],
 };
 
-export const MemberWithUserSchema: z.ZodType<MemberWithUser> = z
+export const MemberWithUserSchema = z
   .object({
     id: z.string(),
     workspace_id: z.string(),
     user_id: z.string(),
-    role: z.enum(["owner", "admin", "member"]),
+    role: z.string(),
     created_at: z.string(),
     name: z.string(),
     email: z.string(),
     avatar_url: z.string().nullable(),
   })
   .loose();
+
+export const MemberListSchema = z.array(MemberWithUserSchema);
 
 export const GitHubInstallationSchema = z.object({
   id: z.string(),

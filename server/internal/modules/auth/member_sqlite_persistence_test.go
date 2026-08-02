@@ -66,6 +66,50 @@ func TestNewWithSqlitePersistenceRejectsMissingDatabase(t *testing.T) {
 	}
 }
 
+func TestSqliteListMembersIsWorkspaceScopedAndOrdered(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-member-list?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at) VALUES
+			('owner-user', 'Owner', 'owner@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('member-user', 'Member', 'member@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('other-user', 'Other', 'other@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z');
+		INSERT INTO members(id, workspace_id, user_id, role, created_at) VALUES
+			('owner-member', 'workspace', 'owner-user', 'owner', '2026-08-02T00:00:00Z'),
+			('member-member', 'workspace', 'member-user', 'member', '2026-08-02T00:00:01Z'),
+			('other-member', 'other-workspace', 'other-user', 'owner', '2026-08-02T00:00:00Z');
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := module.MemberLocal().ListMembers(
+		contract.WithMemberActor(ctx, "owner-user"),
+		contract.Member_ListMembersRequest{WorkspaceId: "workspace"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Members) != 2 || result.Members[0].Id != "owner-member" || result.Members[1].Id != "member-member" {
+		t.Fatalf("unexpected ordered workspace members: %+v", result.Members)
+	}
+	if result.Members[1].Email != "member@example.test" {
+		t.Fatalf("unexpected member projection: %+v", result.Members[1])
+	}
+}
+
 func TestSqliteMemberRemovalAndLeavePersistence(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member-removal?mode=memory&cache=shared")
 	if err != nil {

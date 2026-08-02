@@ -14,6 +14,7 @@ var ErrMembershipNotFound = errors.New("membership not found")
 type MemberRepository interface {
 	FindByUserAndWorkspace(context.Context, string, string) (member.Member, error)
 	FindByIDAndWorkspace(context.Context, string, string) (member.Member, error)
+	ListByWorkspace(context.Context, string) ([]member.Member, error)
 	CountOwners(context.Context, string) (int, error)
 	UpdateRole(context.Context, string, string, member.Role) (member.Member, error)
 	DeleteByIDAndWorkspace(context.Context, string, string) error
@@ -115,6 +116,14 @@ func memberContract(value member.Member) contract.Member_Member {
 		AvatarUrl:   value.AvatarURL,
 	}
 }
+
+func membersContract(values []member.Member) []contract.Member_Member {
+	result := make([]contract.Member_Member, 0, len(values))
+	for _, value := range values {
+		result = append(result, memberContract(value))
+	}
+	return result
+}
 func (s *MemberService) DeleteMember(ctx context.Context, request contract.Member_DeleteMemberRequest) (contract.Member_DeleteMemberResponse, error) {
 	actorUserID, ok := contract.MemberActor(ctx)
 	if !ok {
@@ -198,4 +207,29 @@ func (s *MemberService) LeaveWorkspace(ctx context.Context, request contract.Mem
 		return contract.Member_LeaveWorkspaceResponse{}, err
 	}
 	return contract.Member_LeaveWorkspaceResponse{}, nil
+}
+func (s *MemberService) ListMembers(ctx context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	actorUserID, ok := contract.MemberActor(ctx)
+	if !ok {
+		return contract.Member_ListMembersResponse{}, contract.ErrMemberActorRequired
+	}
+	if s.unitOfWork == nil {
+		return contract.Member_ListMembersResponse{}, contract.ErrMemberNotImplemented
+	}
+	var memberships []member.Member
+	err := s.unitOfWork.WithinTransaction(ctx, func(repository MemberRepository) error {
+		_, findErr := repository.FindByUserAndWorkspace(ctx, actorUserID, request.WorkspaceId)
+		if errors.Is(findErr, ErrMembershipNotFound) {
+			return contract.ErrWorkspaceMembershipHidden
+		}
+		if findErr != nil {
+			return findErr
+		}
+		memberships, findErr = repository.ListByWorkspace(ctx, request.WorkspaceId)
+		return findErr
+	})
+	if err != nil {
+		return contract.Member_ListMembersResponse{}, err
+	}
+	return contract.Member_ListMembersResponse{Members: membersContract(memberships)}, nil
 }

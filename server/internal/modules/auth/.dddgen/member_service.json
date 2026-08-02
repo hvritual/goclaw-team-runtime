@@ -2,6 +2,10 @@
   "generated_by": "dddgen",
   "methods": [
     {
+      "name": "ListMembers",
+      "simple_string": false
+    },
+    {
       "name": "UpdateMemberRole",
       "simple_string": false
     },
@@ -47,6 +51,26 @@
     {
       "name": "Member_LeaveWorkspaceResponse",
       "fields": null
+    },
+    {
+      "name": "Member_ListMembersRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        }
+      ]
+    },
+    {
+      "name": "Member_ListMembersResponse",
+      "fields": [
+        {
+          "name": "Members",
+          "type": "[]Member_Member",
+          "json_tag": "members"
+        }
+      ]
     },
     {
       "name": "Member_Member",

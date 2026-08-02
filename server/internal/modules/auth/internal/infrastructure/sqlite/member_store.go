@@ -50,6 +50,28 @@ func (r *memberRepository) FindByIDAndWorkspace(ctx context.Context, memberID, w
 		WHERE m.id = ? AND m.workspace_id = ?`, memberID, workspaceID))
 }
 
+func (r *memberRepository) ListByWorkspace(ctx context.Context, workspaceID string) ([]member.Member, error) {
+	rows, err := r.tx.QueryContext(ctx, memberProjection+`
+		WHERE m.workspace_id = ? ORDER BY m.created_at`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list workspace members: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	values := make([]member.Member, 0)
+	for rows.Next() {
+		value, scanErr := scanMember(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate workspace members: %w", err)
+	}
+	return values, nil
+}
+
 func (r *memberRepository) CountOwners(ctx context.Context, workspaceID string) (int, error) {
 	var count int
 	if err := r.tx.QueryRowContext(ctx,
@@ -113,7 +135,11 @@ const memberProjection = `SELECT m.id, m.workspace_id, m.user_id, m.role, m.crea
 	FROM members m
 	JOIN users u ON u.id = m.user_id`
 
-func scanMember(row *sql.Row) (member.Member, error) {
+type memberScanner interface {
+	Scan(...any) error
+}
+
+func scanMember(row memberScanner) (member.Member, error) {
 	var (
 		value     member.Member
 		role      string

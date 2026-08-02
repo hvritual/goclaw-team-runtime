@@ -15,6 +15,22 @@ type MemberClient struct{ client authv1.MemberServiceClient }
 
 func NewMember(client authv1.MemberServiceClient) *MemberClient { return &MemberClient{client: client} }
 
+func (c *MemberClient) ListMembers(ctx context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
+	protoRequest := &authv1.ListMembersRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_ListMembersResponse{}, err
+	}
+	response, err := c.client.ListMembers(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_ListMembersResponse{}, err
+	}
+	var result contract.Member_ListMembersResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_ListMembersResponse{}, err
+	}
+	return result, nil
+}
+
 func (c *MemberClient) UpdateMemberRole(ctx context.Context, request contract.Member_UpdateMemberRoleRequest) (contract.Member_Member, error) {
 	protoRequest := &authv1.UpdateMemberRoleRequest{}
 	if err := encodeMemberContract(request, protoRequest); err != nil {

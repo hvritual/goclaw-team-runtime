@@ -16,8 +16,8 @@ import (
 
 func TestAuthMemberAdaptersShareContract(t *testing.T) {
 	extension := auth.NewMemberExtension()
-	request := contract.Member_UpdateMemberRoleRequest{}
-	localResult, localErr := extension.Local().UpdateMemberRole(context.Background(), request)
+	request := contract.Member_ListMembersRequest{}
+	localResult, localErr := extension.Local().ListMembers(context.Background(), request)
 
 	listener := bufconn.Listen(1024 * 1024)
 	grpcServer := grpc.NewServer()
@@ -32,7 +32,7 @@ func TestAuthMemberAdaptersShareContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = connection.Close() }()
-	grpcResult, grpcErr := auth.NewMemberGRPCClient(connection).UpdateMemberRole(context.Background(), request)
+	grpcResult, grpcErr := auth.NewMemberGRPCClient(connection).ListMembers(context.Background(), request)
 	if !reflect.DeepEqual(grpcResult, localResult) || (grpcErr == nil) != (localErr == nil) {
 		t.Fatalf("gRPC result=%+v err=%v; local result=%+v err=%v", grpcResult, grpcErr, localResult, localErr)
 	}

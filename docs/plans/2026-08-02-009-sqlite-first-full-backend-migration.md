@@ -38,7 +38,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change and A2 delete/leave switched | PostgreSQL parity, list/create/invitations |
+| Auth / Member | A1 role change, A2 delete/leave, and A3 list switched | PostgreSQL parity, create/invitations |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -72,6 +72,16 @@ This checkpoint completes only the SQLite A1 tracer slice. The matrix and full m
 - Added domain, application, real SQLite rollback, HTTP lifecycle, transport error, generated HTTP client, and gRPC round-trip coverage.
 
 This checkpoint completes only the SQLite A2 tracer slice. Auth invitations/create/list and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Auth A3 SQLite
+
+- Added the native `MemberService.ListMembers` Proto/HTTP/access contract with an explicit top-level-array response body.
+- Moved member-list authorization, projection, workspace scoping, and ordering into Auth application and SQLite provider layers.
+- Replaced the SQLite-local member-list SQL branch with the Auth contract while preserving the existing public JSON response.
+- Extended generation normalization so `response_body` RPCs use standard JSON in generated clients and emit the unwrapped OpenAPI schema.
+- Added application, real SQLite, raw/generated HTTP, gRPC, SQLite-local, and frontend response-schema coverage.
+
+This checkpoint completes only the SQLite A3 tracer slice. Auth invitations/create and the remaining migration matrix are still pending.
 
 ## Required Gates
 
