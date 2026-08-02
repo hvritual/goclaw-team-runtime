@@ -1186,9 +1186,11 @@ export class ApiClient {
 
     this.logger.info(`← ${res.status} /api/upload-file`, { rid, duration: `${Date.now() - start}ms` });
     const raw = (await res.json()) as unknown;
-    return parseWithFallback(raw, AttachmentResponseSchema, EMPTY_ATTACHMENT, {
+    const attachment = parseWithFallback<Attachment | null>(raw, AttachmentResponseSchema.nullable(), null, {
       endpoint: "POST /api/upload-file",
     });
+    if (!attachment) throw new Error("Invalid attachment response");
+    return attachment;
   }
 
 

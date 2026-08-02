@@ -2,12 +2,65 @@
 package grpc
 
 import (
+	"context"
+	"encoding/json"
+
 	spacev1 "github.com/multica-ai/multica/server/gen/go/space/v1"
 	"github.com/multica-ai/multica/server/internal/modules/space/contract"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type AssetClient struct{ client spacev1.AssetServiceClient }
 
 func NewAsset(client spacev1.AssetServiceClient) *AssetClient { return &AssetClient{client: client} }
+
+func (c *AssetClient) UploadAsset(ctx context.Context, request contract.Asset_UploadAssetRequest) (contract.Asset_UploadAssetResponse, error) {
+	protoRequest := &spacev1.UploadAssetRequest{}
+	if err := encodeAssetContract(request, protoRequest); err != nil {
+		return contract.Asset_UploadAssetResponse{}, err
+	}
+	response, err := c.client.UploadAsset(ctx, protoRequest)
+	if err != nil {
+		return contract.Asset_UploadAssetResponse{}, err
+	}
+	var result contract.Asset_UploadAssetResponse
+	if err := decodeAssetProto(response, &result); err != nil {
+		return contract.Asset_UploadAssetResponse{}, err
+	}
+	return result, nil
+}
+
+func (c *AssetClient) GetAsset(ctx context.Context, request contract.Asset_GetAssetRequest) (contract.Asset_GetAssetResponse, error) {
+	protoRequest := &spacev1.GetAssetRequest{}
+	if err := encodeAssetContract(request, protoRequest); err != nil {
+		return contract.Asset_GetAssetResponse{}, err
+	}
+	response, err := c.client.GetAsset(ctx, protoRequest)
+	if err != nil {
+		return contract.Asset_GetAssetResponse{}, err
+	}
+	var result contract.Asset_GetAssetResponse
+	if err := decodeAssetProto(response, &result); err != nil {
+		return contract.Asset_GetAssetResponse{}, err
+	}
+	return result, nil
+}
+
+func decodeAssetProto(input proto.Message, output any) error {
+	data, err := protojson.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, output)
+}
+
+func encodeAssetContract(input any, output proto.Message) error {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return protojson.Unmarshal(data, output)
+}
 
 var _ contract.AssetService = (*AssetClient)(nil)

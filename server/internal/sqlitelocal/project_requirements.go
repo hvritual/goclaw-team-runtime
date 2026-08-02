@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/multica-ai/multica/server/internal/knowledge"
-	"github.com/multica-ai/multica/server/internal/projectrequirements"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
+	projectrequirements "github.com/multica-ai/multica/server/modules/projectrequirements/application"
 )
 
 type projectRequirementDraftRequest struct {

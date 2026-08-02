@@ -29,17 +29,37 @@ Create a workspace-isolated Asset lifecycle without moving Project, Issue or Kno
 - Introduce an application use case with storage, identity, checksum and repository ports.
 - Return an Asset ID only after durable metadata and storage state meet the existing safety rule.
 
-**S1a completed 2026-08-02; S1 remains in progress:** `/api/upload-file` now enters `server/modules/space/interfaces/http`, invokes the Space upload application service, computes a SHA-256 checksum, constructs the workspace-scoped Asset domain object, and persists through adapters for the existing sqlc attachment query and local/S3 storage providers. The Issue-side upload workflow owns its port/DTO, checks Auth-side workspace membership before Issue visibility, then stores Issue relation and Asset metadata in one `CreateAttachment` statement; the composition root maps the Issue contract to Space through an anti-corruption adapter. The installed-client fallback that returns a direct URL when metadata persistence fails remains explicit; S1 cannot be marked complete until a durable intent/cleanup retry path replaces that unrecoverable edge. Checksum persistence and Asset versions remain deferred because the current schema has no such fields.
+**S1 completed for the SQLite-native runtime on 2026-08-02:** the native
+`internal/modules/space` implementation now owns upload intent, Asset and Asset
+Version state. It persists the intent before object I/O, stores SHA-256 and
+immutable version facts, finalizes metadata transactionally, and retains a
+retryable cleanup state when object deletion fails. Startup and each subsequent
+workspace upload reconcile incomplete intents. PostgreSQL still uses the
+earlier compatibility module and remains a separate migration item.
 
 ### S2. Read and download authorization
 
 - Centralize stable metadata and storage URL/proxy decisions without moving consumer-specific visibility rules.
 - Require the consumer context to prove the caller may access the referenced business object.
 
+**Completed for SQLite workspace Assets on 2026-08-02:** metadata and download
+requests call the Space contract with an authenticated actor; Space asks the
+Auth-supplied `WorkspaceAccess` port and hides missing and foreign Assets behind
+the same not-found response. Raw workspace storage keys are never exposed by
+the public object route. Personal direct objects retain the installed avatar
+contract and are readable only under generated `users/{userUUID}/{objectUUID}`
+keys.
+
 ### S3. Issue/comment attachment adapter
 
 - Keep the attachment relation in Workspace/Issue.
 - Replace copied storage metadata with an Asset reference only after response parity and cleanup behavior are proven.
+
+**Issue upload/list slice completed for SQLite on 2026-08-02:** the consumer-owned
+`issue_asset_refs` table stores only Asset identity and Issue relation facts.
+Issue visibility and workspace membership are checked before relation creation,
+and list responses resolve metadata only through the Space public contract.
+Comment binding, deletion and unreferenced-Asset reclamation remain pending.
 
 ### S4. Project resource and Knowledge source adapters
 
@@ -89,6 +109,40 @@ Composition: cmd/server/router.go + cmd/server/space.go
 
 ## Remaining S1 Work
 
-- Persist an upload intent before object storage and add retryable orphan cleanup/finalization so a crash or metadata failure cannot leave an untracked object.
-- Add provider contract tests for the intent/finalization state machine.
-- Persist the computed checksum when the Asset-owned schema is introduced; add Asset Version only with the versioning slice.
+- Port the native intent/version/checksum lifecycle to the PostgreSQL runtime.
+- Add explicit consumer deletion and unreferenced-Asset reclamation workflows;
+  relation deletion must not rely on foreign keys or database cascades.
+- Migrate comment, Project resource and Knowledge file relations to stable Asset
+  IDs without moving their business meaning into Space.
+- Move the custom multipart/download transport from the SQLite Chi compatibility
+  router to the final Kratos runtime during transport cutover.
+
+## SQLite-Native Composition and Evidence
+
+```text
+POST /api/upload-file
+  -> internal/modules/space/interfaces/http.UploadHandler
+  -> sqlitelocal.sqliteSpaceUploader (Issue consumer relation adapter)
+  -> internal/modules/space/contract.AssetUploadService
+  -> internal/modules/space/internal/application.AssetService
+       -> Auth-backed WorkspaceAccess contract
+       -> SQLite AssetRepository
+       -> storage-backed ObjectStore
+
+GET /api/attachments/{id}[/download]
+  -> AssetHandler -> AssetService -> WorkspaceAccess + SQLite repository
+
+GET /uploads/users/{userUUID}/{objectUUID.ext}
+  -> PublicObjectHandler -> ObjectStore
+```
+
+- The module owns `space_assets`, `space_asset_versions` and
+  `space_upload_intents`; the Issue consumer owns `issue_asset_refs`.
+- No cross-context foreign key or cascade was introduced.
+- Real SQLite tests cover successful finalization, rollback after finalization
+  failure, deletion retry, crash-leftover reconciliation, workspace isolation,
+  Issue relation/list behavior, authenticated download and personal avatar
+  retrieval.
+- The frontend upload boundary validates both workspace Asset and personal
+  direct-object responses and rejects malformed 200 responses instead of
+  reporting a false success.

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,9 +33,12 @@ import (
 	knowledgeSqlite "github.com/multica-ai/multica/server/internal/knowledge/adapter/sqlite"
 	"github.com/multica-ai/multica/server/internal/knowledge/outbox"
 	authcontract "github.com/multica-ai/multica/server/internal/modules/auth/contract"
-	"github.com/multica-ai/multica/server/internal/projectrequirements"
-	projectRequirementsSQLite "github.com/multica-ai/multica/server/internal/projectrequirements/adapter/sqlite"
+	spacecontract "github.com/multica-ai/multica/server/internal/modules/space/contract"
+	spacehttp "github.com/multica-ai/multica/server/internal/modules/space/interfaces/http"
+	"github.com/multica-ai/multica/server/internal/storage"
 	"github.com/multica-ai/multica/server/internal/workspacepermissions"
+	projectrequirements "github.com/multica-ai/multica/server/modules/projectrequirements/application"
+	projectRequirementsSQLite "github.com/multica-ai/multica/server/modules/projectrequirements/dependency/sqlite"
 	_ "modernc.org/sqlite"
 )
 
@@ -56,6 +60,7 @@ type Options struct {
 	PublicURL               string
 	MCPAuthorizationServers []string
 	MCPTokenVerifier        mcpauth.TokenVerifier
+	Storage                 storage.Storage
 }
 
 type knowledgeOperationalStore interface {
@@ -82,6 +87,12 @@ type Server struct {
 	mcpAuthorizationServers   []string
 	mcpExternalVerifier       mcpauth.TokenVerifier
 	authMembers               authcontract.MemberService
+	spaceAssets               spacecontract.AssetUploadService
+	spaceObjects              *sqliteSpaceObjectStore
+	spaceUploadHandler        http.Handler
+	spaceAssetHandler         *spacehttp.AssetHandler
+	spacePublicObjectHandler  *spacehttp.PublicObjectHandler
+	spaceURLPolicy            spacehttp.URLPolicy
 	requirements              *projectrequirements.Service
 	requirementTracking       *projectrequirements.TrackingService
 	requirementTrackingSQLite *projectRequirementsSQLite.TrackingRepository
@@ -108,7 +119,11 @@ func Open(path string, options Options) (*Server, error) {
 		return nil, fmt.Errorf("open sqlite database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
-	nativeApplication, err := bootstrap.NewSQLiteApplication(context.Background(), db)
+	spaceObjects := &sqliteSpaceObjectStore{storage: options.Storage}
+	nativeApplication, err := bootstrap.NewSQLiteApplication(
+		context.Background(), db,
+		bootstrap.SQLiteOptions{SpaceObjects: spaceObjects},
+	)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("assemble sqlite modules: %w", err)
@@ -127,7 +142,29 @@ func Open(path string, options Options) (*Server, error) {
 		code = defaultVerificationCode
 	}
 	trackingRepository := projectRequirementsSQLite.NewTracking(db)
-	server := &Server{db: db, verificationCode: code, authMembers: nativeApplication.AuthMembers(), requirementTracking: projectrequirements.NewTrackingService(trackingRepository), requirementTrackingSQLite: trackingRepository}
+	server := &Server{
+		db: db, verificationCode: code,
+		authMembers: nativeApplication.AuthMembers(), spaceAssets: nativeApplication.SpaceAssets(),
+		spaceObjects:              spaceObjects,
+		requirementTracking:       projectrequirements.NewTrackingService(trackingRepository),
+		requirementTrackingSQLite: trackingRepository,
+	}
+	spaceUploader := &sqliteSpaceUploader{db: db, assets: server.spaceAssets, members: server.authMembers}
+	actorResolver := currentUserID
+	urlPolicy := spacehttp.URLPolicy{PublicURL: strings.TrimRight(strings.TrimSpace(options.PublicURL), "/")}
+	server.spaceUploadHandler = spacehttp.NewUploadHandler(
+		spaceUploader, actorResolver, server.resolveUploadWorkspace, urlPolicy,
+	)
+	server.spaceAssetHandler = spacehttp.NewAssetHandler(
+		server.spaceAssets, spaceObjects, actorResolver, urlPolicy,
+	)
+	server.spacePublicObjectHandler = spacehttp.NewPublicObjectHandler(spaceObjects)
+	server.spaceURLPolicy = urlPolicy
+	if server.spaceAssets != nil && server.spaceAssets.Available() {
+		if err := server.spaceAssets.ReconcilePendingUploads(context.Background()); err != nil {
+			slog.Warn("failed to reconcile pending Space uploads during startup", "error", err)
+		}
+	}
 	server.requirements = projectrequirements.NewService(projectRequirementsSQLite.NewWithApprovalHook(db, server.enqueueApprovedRequirementEvidence))
 	if !options.DisableKnowledge {
 		knowledgePath := strings.TrimSpace(options.KnowledgeDatabasePath)
@@ -324,6 +361,7 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 	r.Post("/auth/send-code", s.sendCode)
 	r.Post("/auth/verify-code", s.verifyCode)
 	r.Post("/auth/logout", s.logout)
+	r.Get("/uploads/*", s.spacePublicObjectHandler.ServeHTTP)
 
 	r.Group(func(api chi.Router) {
 		api.Use(s.authenticate)
@@ -331,6 +369,9 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 		api.Patch("/api/me", s.updateMe)
 		api.Patch("/api/me/onboarding", s.patchOnboarding)
 		api.Post("/api/me/onboarding/complete", s.completeOnboarding)
+		api.Post("/api/upload-file", s.spaceUploadHandler.ServeHTTP)
+		api.Get("/api/attachments/{id}", s.spaceAssetHandler.Get)
+		api.Get("/api/attachments/{id}/download", s.spaceAssetHandler.Download)
 
 		api.Route("/api/workspaces", func(workspaces chi.Router) {
 			workspaces.Get("/", s.listWorkspaces)
@@ -397,6 +438,7 @@ func (s *Server) routes(frontendOrigin string) http.Handler {
 			issues.Get("/{id}/children", s.listIssueChildren)
 			issues.Get("/{id}/timeline", s.listIssueTimeline)
 			issues.Get("/{id}/comments", s.listComments)
+			issues.Get("/{id}/attachments", s.listIssueAssets)
 			issues.Post("/{id}/comments", s.createComment)
 			issues.Post("/{id}/reactions", s.addIssueReaction)
 			issues.Delete("/{id}/reactions", s.removeIssueReaction)

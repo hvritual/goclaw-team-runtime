@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/multica-ai/multica/server/internal/sqlitelocal"
+	"github.com/multica-ai/multica/server/internal/storage"
 )
 
 func main() {
@@ -32,11 +33,12 @@ func main() {
 	}
 
 	app, err := sqlitelocal.Open(databasePath, sqlitelocal.Options{
-		VerificationCode:       os.Getenv("MULTICA_DEV_VERIFICATION_CODE"),
-		FrontendOrigin:         os.Getenv("FRONTEND_ORIGIN"),
-		KnowledgeDatabasePath:  strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_SQLITE_PATH")),
-		DisableKnowledge:       strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_ENABLED")), "false"),
-		PublicURL:              strings.TrimSpace(os.Getenv("MULTICA_PUBLIC_URL")),
+		VerificationCode:      os.Getenv("MULTICA_DEV_VERIFICATION_CODE"),
+		FrontendOrigin:        os.Getenv("FRONTEND_ORIGIN"),
+		KnowledgeDatabasePath: strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_SQLITE_PATH")),
+		DisableKnowledge:      strings.EqualFold(strings.TrimSpace(os.Getenv("MULTICA_KNOWLEDGE_ENABLED")), "false"),
+		PublicURL:             strings.TrimSpace(os.Getenv("MULTICA_PUBLIC_URL")),
+		Storage:               storage.NewLocalStorageFromEnv(),
 		MCPAuthorizationServers: splitCommaSeparated(
 			os.Getenv("MULTICA_MCP_AUTHORIZATION_SERVERS"),
 		),

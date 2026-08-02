@@ -102,6 +102,20 @@
       "action": "remove"
     },
     {
+      "code": "space.asset.get",
+      "name": "Get asset",
+      "module": "space",
+      "resource": "space.asset",
+      "action": "get"
+    },
+    {
+      "code": "space.asset.upload",
+      "name": "Upload asset",
+      "module": "space",
+      "resource": "space.asset",
+      "action": "upload"
+    },
+    {
       "code": "workspace.issue.update",
       "name": "Update issue",
       "module": "workspace",
@@ -240,6 +254,24 @@
       "http_method": "PATCH",
       "http_path": "/api/workspaces/{workspace_id}/members/{member_id}",
       "permission_code": "auth.member.change_role",
+      "public": false,
+      "audit": true,
+      "idempotent": false
+    },
+    {
+      "service": "space.v1.AssetService",
+      "method": "/space.v1.AssetService/GetAsset",
+      "module": "space",
+      "permission_code": "space.asset.get",
+      "public": false,
+      "audit": false,
+      "idempotent": false
+    },
+    {
+      "service": "space.v1.AssetService",
+      "method": "/space.v1.AssetService/UploadAsset",
+      "module": "space",
+      "permission_code": "space.asset.upload",
       "public": false,
       "audit": true,
       "idempotent": false

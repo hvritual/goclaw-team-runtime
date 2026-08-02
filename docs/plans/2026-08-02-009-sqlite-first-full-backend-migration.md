@@ -49,7 +49,7 @@ of full migration.
 | Workspace / Requirement | native scaffold only | move current requirement application/provider into native module |
 | Workspace / Setting | scaffold only | workspace lifecycle, settings, permissions |
 | Workspace / Relationship | contract model only | Project–Member/Agent source of truth |
-| Space / Asset | legacy DDD upload slice exists | native SQLite asset lifecycle, download, relations, cleanup |
+| Space / Asset | native SQLite upload intent, Asset/Version persistence, Issue relation/list, authorized metadata/download and personal avatar compatibility switched | PostgreSQL parity; comment/Project/Knowledge relations; deletion/reclamation; Kratos transport cutover |
 | System / Skill | scaffold only | catalog/version publication and workspace activation split |
 | System / AgentRelease | scaffold only | version, artifact, policy, rollout state |
 | Runtime transport | scaffold bootstrap only | Kratos server lifecycle, middleware, realtime and route cutover |
@@ -200,6 +200,29 @@ decline, PostgreSQL parity and the remaining migration matrix are still pending.
 
 This checkpoint completes SQLite invitation acceptance and decline. PostgreSQL
 parity and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Space Asset Upload and Read
+
+- Added Proto-owned `UploadAsset` and `GetAsset` contracts and reconciled the
+  native dddgen local, gRPC and Proto adapters. Multipart remains a custom
+  interface adapter because protobuf HTTP transcoding does not model the
+  installed multipart request.
+- Replaced the SQLite upload path with the native Space domain/application
+  implementation. The module persists upload intent before object I/O,
+  transactionally creates Asset and immutable Version state, stores SHA-256,
+  and reconciles incomplete object writes through durable cleanup states.
+- Kept Issue relation semantics outside Space. SQLite-local owns
+  `issue_asset_refs`, verifies membership before Issue visibility, and resolves
+  Asset metadata only through the Space contract.
+- Added authenticated metadata/download routes for workspace Assets and a
+  restricted public direct-object route for existing avatar URLs. The public
+  route accepts only generated personal keys and refuses workspace objects.
+- Added a strict frontend upload success boundary so malformed 200 responses
+  fail the mutation rather than producing an empty URL and false success UI.
+
+This checkpoint completes the SQLite workspace upload/read tracer slice only.
+PostgreSQL parity, delete/reclamation, comment/Project/Knowledge relations,
+Kratos transport cutover and the remaining migration matrix are still pending.
 
 ## Required Gates
 

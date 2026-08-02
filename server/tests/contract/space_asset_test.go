@@ -2,15 +2,38 @@
 package contract_test
 
 import (
+	"context"
+	"net"
+	"reflect"
 	"testing"
 
-	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/multica-ai/multica/server/internal/modules/space"
+	"github.com/multica-ai/multica/server/internal/modules/space/contract"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
 )
 
-func TestSpaceAssetRegistration(t *testing.T) {
+func TestSpaceAssetAdaptersShareContract(t *testing.T) {
 	extension := space.NewAssetExtension()
-	extension.RegisterHTTP(kratoshttp.NewServer())
-	extension.RegisterGRPC(grpc.NewServer())
+	request := contract.Asset_UploadAssetRequest{}
+	localResult, localErr := extension.Local().UploadAsset(context.Background(), request)
+
+	listener := bufconn.Listen(1024 * 1024)
+	grpcServer := grpc.NewServer()
+	extension.RegisterGRPC(grpcServer)
+	go func() { _ = grpcServer.Serve(listener) }()
+	defer grpcServer.Stop()
+	connection, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = connection.Close() }()
+	grpcResult, grpcErr := space.NewAssetGRPCClient(connection).UploadAsset(context.Background(), request)
+	if !reflect.DeepEqual(grpcResult, localResult) || (grpcErr == nil) != (localErr == nil) {
+		t.Fatalf("gRPC result=%+v err=%v; local result=%+v err=%v", grpcResult, grpcErr, localResult, localErr)
+	}
 }

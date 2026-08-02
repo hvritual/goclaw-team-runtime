@@ -2,8 +2,13 @@
 package proto
 
 import (
+	"context"
+	"encoding/json"
+
 	spacev1 "github.com/multica-ai/multica/server/gen/go/space/v1"
 	"github.com/multica-ai/multica/server/internal/modules/space/contract"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 type AssetServer struct {
@@ -13,4 +18,52 @@ type AssetServer struct {
 
 func NewAssetServer(service contract.AssetService) *AssetServer {
 	return &AssetServer{service: service}
+}
+
+func (s *AssetServer) UploadAsset(ctx context.Context, request *spacev1.UploadAssetRequest) (*spacev1.UploadAssetResponse, error) {
+	var input contract.Asset_UploadAssetRequest
+	if err := decodeAssetProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.UploadAsset(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &spacev1.UploadAssetResponse{}
+	if err := encodeAssetContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *AssetServer) GetAsset(ctx context.Context, request *spacev1.GetAssetRequest) (*spacev1.GetAssetResponse, error) {
+	var input contract.Asset_GetAssetRequest
+	if err := decodeAssetProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.GetAsset(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &spacev1.GetAssetResponse{}
+	if err := encodeAssetContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func decodeAssetProto(input proto.Message, output any) error {
+	data, err := protojson.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, output)
+}
+
+func encodeAssetContract(input any, output proto.Message) error {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return protojson.Unmarshal(data, output)
 }

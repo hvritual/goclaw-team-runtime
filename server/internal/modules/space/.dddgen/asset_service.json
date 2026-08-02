@@ -1,4 +1,150 @@
 {
   "generated_by": "dddgen",
-  "methods": []
+  "methods": [
+    {
+      "name": "UploadAsset",
+      "simple_string": false
+    },
+    {
+      "name": "GetAsset",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "Asset_Asset",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "CurrentVersionId",
+          "type": "string",
+          "json_tag": "currentVersionId"
+        },
+        {
+          "name": "Filename",
+          "type": "string",
+          "json_tag": "filename"
+        },
+        {
+          "name": "UploaderType",
+          "type": "string",
+          "json_tag": "uploaderType"
+        },
+        {
+          "name": "UploaderId",
+          "type": "string",
+          "json_tag": "uploaderId"
+        },
+        {
+          "name": "ObjectKey",
+          "type": "string",
+          "json_tag": "objectKey"
+        },
+        {
+          "name": "Url",
+          "type": "string",
+          "json_tag": "url"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "SizeBytes",
+          "type": "string",
+          "json_tag": "sizeBytes"
+        },
+        {
+          "name": "Checksum",
+          "type": "string",
+          "json_tag": "checksum"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        }
+      ]
+    },
+    {
+      "name": "Asset_GetAssetRequest",
+      "fields": [
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        }
+      ]
+    },
+    {
+      "name": "Asset_GetAssetResponse",
+      "fields": [
+        {
+          "name": "Asset",
+          "type": "*Asset_Asset",
+          "json_tag": "asset"
+        }
+      ]
+    },
+    {
+      "name": "Asset_UploadAssetRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Filename",
+          "type": "string",
+          "json_tag": "filename"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "Content",
+          "type": "[]byte",
+          "json_tag": "content"
+        }
+      ]
+    },
+    {
+      "name": "Asset_UploadAssetResponse",
+      "fields": [
+        {
+          "name": "Asset",
+          "type": "*Asset_Asset",
+          "json_tag": "asset"
+        },
+        {
+          "name": "DirectObjectId",
+          "type": "string",
+          "json_tag": "directObjectId"
+        },
+        {
+          "name": "DirectUrl",
+          "type": "string",
+          "json_tag": "directUrl"
+        },
+        {
+          "name": "Filename",
+          "type": "string",
+          "json_tag": "filename"
+        }
+      ]
+    }
+  ]
 }

@@ -2,11 +2,21 @@
 package local
 
 import (
+	"context"
+
 	"github.com/multica-ai/multica/server/internal/modules/space/contract"
 )
 
 type AssetClient struct{ service contract.AssetService }
 
 func NewAsset(service contract.AssetService) *AssetClient { return &AssetClient{service: service} }
+
+func (c *AssetClient) UploadAsset(ctx context.Context, request contract.Asset_UploadAssetRequest) (contract.Asset_UploadAssetResponse, error) {
+	return c.service.UploadAsset(ctx, request)
+}
+
+func (c *AssetClient) GetAsset(ctx context.Context, request contract.Asset_GetAssetRequest) (contract.Asset_GetAssetResponse, error) {
+	return c.service.GetAsset(ctx, request)
+}
 
 var _ contract.AssetService = (*AssetClient)(nil)

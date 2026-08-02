@@ -81,6 +81,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS issue_reactions_actor_emoji_idx
 CREATE INDEX IF NOT EXISTS issue_reactions_issue_idx
     ON issue_reactions(issue_id, created_at);
 
+CREATE TABLE IF NOT EXISTS issue_asset_refs (
+    asset_id TEXT PRIMARY KEY,
+    issue_id TEXT NOT NULL,
+    workspace_id TEXT NOT NULL,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS issue_asset_refs_issue_idx
+    ON issue_asset_refs(issue_id, created_at);
+
 CREATE TABLE IF NOT EXISTS pinned_items (
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
@@ -265,3 +275,6 @@ VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
 
 INSERT OR IGNORE INTO schema_migrations(version, applied_at)
 VALUES (6, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+INSERT OR IGNORE INTO schema_migrations(version, applied_at)
+VALUES (7, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));

@@ -7,13 +7,21 @@
 package spacev1
 
 import (
+	context "context"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
 )
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
 // Requires gRPC-Go v1.64.0 or later.
 const _ = grpc.SupportPackageIsVersion9
+
+const (
+	AssetService_UploadAsset_FullMethodName = "/space.v1.AssetService/UploadAsset"
+	AssetService_GetAsset_FullMethodName    = "/space.v1.AssetService/GetAsset"
+)
 
 // AssetServiceClient is the client API for AssetService service.
 //
@@ -23,6 +31,12 @@ const _ = grpc.SupportPackageIsVersion9
 // versioning, metadata, and access lifecycle. Consumer contexts retain the
 // business meaning of their Asset references.
 type AssetServiceClient interface {
+	// UploadAsset writes one object and, for workspace-scoped uploads, returns
+	// only after the Asset metadata and immutable first version are durable.
+	// The installed multipart REST adapter maps onto this RPC contract.
+	UploadAsset(ctx context.Context, in *UploadAssetRequest, opts ...grpc.CallOption) (*UploadAssetResponse, error)
+	// GetAsset returns one workspace-scoped Asset only to a current member.
+	GetAsset(ctx context.Context, in *GetAssetRequest, opts ...grpc.CallOption) (*GetAssetResponse, error)
 }
 
 type assetServiceClient struct {
@@ -33,6 +47,26 @@ func NewAssetServiceClient(cc grpc.ClientConnInterface) AssetServiceClient {
 	return &assetServiceClient{cc}
 }
 
+func (c *assetServiceClient) UploadAsset(ctx context.Context, in *UploadAssetRequest, opts ...grpc.CallOption) (*UploadAssetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UploadAssetResponse)
+	err := c.cc.Invoke(ctx, AssetService_UploadAsset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *assetServiceClient) GetAsset(ctx context.Context, in *GetAssetRequest, opts ...grpc.CallOption) (*GetAssetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAssetResponse)
+	err := c.cc.Invoke(ctx, AssetService_GetAsset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AssetServiceServer is the server API for AssetService service.
 // All implementations must embed UnimplementedAssetServiceServer
 // for forward compatibility.
@@ -41,6 +75,12 @@ func NewAssetServiceClient(cc grpc.ClientConnInterface) AssetServiceClient {
 // versioning, metadata, and access lifecycle. Consumer contexts retain the
 // business meaning of their Asset references.
 type AssetServiceServer interface {
+	// UploadAsset writes one object and, for workspace-scoped uploads, returns
+	// only after the Asset metadata and immutable first version are durable.
+	// The installed multipart REST adapter maps onto this RPC contract.
+	UploadAsset(context.Context, *UploadAssetRequest) (*UploadAssetResponse, error)
+	// GetAsset returns one workspace-scoped Asset only to a current member.
+	GetAsset(context.Context, *GetAssetRequest) (*GetAssetResponse, error)
 	mustEmbedUnimplementedAssetServiceServer()
 }
 
@@ -51,6 +91,12 @@ type AssetServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAssetServiceServer struct{}
 
+func (UnimplementedAssetServiceServer) UploadAsset(context.Context, *UploadAssetRequest) (*UploadAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UploadAsset not implemented")
+}
+func (UnimplementedAssetServiceServer) GetAsset(context.Context, *GetAssetRequest) (*GetAssetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAsset not implemented")
+}
 func (UnimplementedAssetServiceServer) mustEmbedUnimplementedAssetServiceServer() {}
 func (UnimplementedAssetServiceServer) testEmbeddedByValue()                      {}
 
@@ -72,13 +118,58 @@ func RegisterAssetServiceServer(s grpc.ServiceRegistrar, srv AssetServiceServer)
 	s.RegisterService(&AssetService_ServiceDesc, srv)
 }
 
+func _AssetService_UploadAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssetServiceServer).UploadAsset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssetService_UploadAsset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssetServiceServer).UploadAsset(ctx, req.(*UploadAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AssetService_GetAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAssetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AssetServiceServer).GetAsset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AssetService_GetAsset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AssetServiceServer).GetAsset(ctx, req.(*GetAssetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AssetService_ServiceDesc is the grpc.ServiceDesc for AssetService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AssetService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "space.v1.AssetService",
 	HandlerType: (*AssetServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams:     []grpc.StreamDesc{},
-	Metadata:    "space/v1/asset.proto",
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "UploadAsset",
+			Handler:    _AssetService_UploadAsset_Handler,
+		},
+		{
+			MethodName: "GetAsset",
+			Handler:    _AssetService_GetAsset_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "space/v1/asset.proto",
 }

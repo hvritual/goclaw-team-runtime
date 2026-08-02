@@ -11,6 +11,29 @@ option go_package = "github.com/multica-ai/multica/server/gen/go/space/v1;spacev
 // business meaning of their Asset references.
 service AssetService {
   option (annotations.v1.module) = {code: "space" name: "Space" version: "v1"};
+
+  // UploadAsset writes one object and, for workspace-scoped uploads, returns
+  // only after the Asset metadata and immutable first version are durable.
+  // The installed multipart REST adapter maps onto this RPC contract.
+  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "space.asset.upload"
+      permission_name: "Upload asset"
+      resource: "space.asset"
+      action: "upload"
+      audit: true
+    };
+  }
+
+  // GetAsset returns one workspace-scoped Asset only to a current member.
+  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "space.asset.get"
+      permission_name: "Get asset"
+      resource: "space.asset"
+      action: "get"
+    };
+  }
 }
 
 // Asset is the stable identity referenced by other modules.
@@ -19,6 +42,14 @@ message Asset {
   string workspace_id = 2;
   string current_version_id = 3;
   string filename = 4;
+  string uploader_type = 5;
+  string uploader_id = 6;
+  string object_key = 7;
+  string url = 8;
+  string media_type = 9;
+  int64 size_bytes = 10;
+  string checksum = 11;
+  string created_at = 12;
 }
 
 // AssetVersion is an immutable content revision of an Asset.
@@ -28,4 +59,29 @@ message AssetVersion {
   string media_type = 3;
   int64 size_bytes = 4;
   string checksum = 5;
+}
+
+message UploadAssetRequest {
+  // Empty workspace_id preserves the installed personal/avatar upload path;
+  // that compatibility path returns a direct object and does not create an
+  // Asset aggregate.
+  string workspace_id = 1;
+  string filename = 2;
+  string media_type = 3;
+  bytes content = 4;
+}
+
+message UploadAssetResponse {
+  Asset asset = 1;
+  string direct_object_id = 2;
+  string direct_url = 3;
+  string filename = 4;
+}
+
+message GetAssetRequest {
+  string asset_id = 1;
+}
+
+message GetAssetResponse {
+  Asset asset = 1;
 }
