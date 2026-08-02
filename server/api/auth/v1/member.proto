@@ -144,6 +144,37 @@ service MemberService {
       action: "get_mine"
     };
   }
+
+  // AcceptInvitation atomically joins the authenticated participant to the
+  // invited workspace, consumes the pending invitation and completes initial
+  // onboarding.
+  rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse) {
+    option (google.api.http) = {
+      post: "/api/invitations/{invitation_id}/accept"
+      response_body: "member"
+    };
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.accept_mine"
+      permission_name: "Accept my invitation"
+      resource: "auth.invitation"
+      action: "accept_mine"
+      audit: true
+    };
+  }
+
+  // DeclineInvitation consumes one pending invitation belonging to the
+  // authenticated participant without creating a membership.
+  rpc DeclineInvitation(DeclineInvitationRequest) returns (DeclineInvitationResponse) {
+    option (google.api.http) = {post: "/api/invitations/{invitation_id}/decline"};
+    option (annotations.v1.http_success_status) = 204;
+    option (annotations.v1.access) = {
+      permission_code: "auth.invitation.decline_mine"
+      permission_name: "Decline my invitation"
+      resource: "auth.invitation"
+      action: "decline_mine"
+      audit: true
+    };
+  }
 }
 
 enum WorkspaceRole {
@@ -246,3 +277,17 @@ message GetMyInvitationRequest {
 message GetMyInvitationResponse {
   Invitation invitation = 1;
 }
+
+message AcceptInvitationRequest {
+  string invitation_id = 1;
+}
+
+message AcceptInvitationResponse {
+  Member member = 1;
+}
+
+message DeclineInvitationRequest {
+  string invitation_id = 1;
+}
+
+message DeclineInvitationResponse {}

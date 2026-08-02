@@ -23,6 +23,8 @@ type fakeInvitationRepository struct {
 	listed        bool
 	pending       bool
 	created       *invitation.Invitation
+	accepted      bool
+	declined      bool
 	values        []invitation.Invitation
 	found         invitation.Invitation
 	err           error
@@ -107,6 +109,38 @@ func (r *fakeInvitationRepository) FindByID(_ context.Context, invitationID stri
 	return r.found, nil
 }
 
+func (r *fakeInvitationRepository) AcceptPending(_ context.Context, invitationID, inviteeUserID string, updatedAt time.Time) error {
+	r.invitationID = invitationID
+	r.inviteeUserID = inviteeUserID
+	r.updatedAt = updatedAt
+	if r.err != nil {
+		return r.err
+	}
+	r.accepted = true
+	return nil
+}
+
+func (r *fakeInvitationRepository) DeclinePending(_ context.Context, invitationID, inviteeUserID string, updatedAt time.Time) error {
+	r.invitationID = invitationID
+	r.inviteeUserID = inviteeUserID
+	r.updatedAt = updatedAt
+	if r.err != nil {
+		return r.err
+	}
+	r.declined = true
+	return nil
+}
+
+func (r *fakeInvitationRepository) ExpirePendingByID(_ context.Context, invitationID string, updatedAt time.Time) error {
+	r.invitationID = invitationID
+	r.updatedAt = updatedAt
+	if r.err != nil {
+		return r.err
+	}
+	r.expired = true
+	return nil
+}
+
 type fakeWorkspaceIdentityReader struct {
 	identity   workspacecontract.WorkspaceIdentity
 	identities map[string]workspacecontract.WorkspaceIdentity
@@ -134,10 +168,18 @@ type fakeInvitationUnitOfWork struct {
 
 func (u *fakeInvitationUnitOfWork) WithinInvitationTransaction(
 	ctx context.Context,
-	operation func(MemberRepository, InvitationRepository) error,
+	operation func(MemberRepository, InvitationRepository, InvitationDecisionRepository) error,
 ) error {
 	u.called = true
-	return operation(u.members, u.invitations)
+	return operation(u.members, u.invitations, &fakeInvitationDecisionRepository{
+		fakeMemberRepository:     u.members,
+		fakeInvitationRepository: u.invitations,
+	})
+}
+
+type fakeInvitationDecisionRepository struct {
+	*fakeMemberRepository
+	*fakeInvitationRepository
 }
 
 type fakeMemberUnitOfWork struct {
@@ -161,8 +203,12 @@ type fakeMemberRepository struct {
 	deleted         bool
 	listed          bool
 	resolvedInvitee bool
+	created         *member.Member
+	onboarded       bool
 	currentUser     member.UserIdentity
 	findUserErr     error
+	createErr       error
+	onboardingErr   error
 }
 
 func (r *fakeMemberRepository) FindByUserAndWorkspace(context.Context, string, string) (member.Member, error) {
@@ -221,6 +267,22 @@ func (r *fakeMemberRepository) FindUserByID(context.Context, string) (member.Use
 		return member.UserIdentity{}, ErrAuthUserNotFound
 	}
 	return r.currentUser, nil
+}
+
+func (r *fakeMemberRepository) CreateMember(_ context.Context, value member.Member) error {
+	if r.createErr != nil {
+		return r.createErr
+	}
+	r.created = &value
+	return nil
+}
+
+func (r *fakeMemberRepository) CompleteOnboarding(context.Context, string, time.Time) error {
+	if r.onboardingErr != nil {
+		return r.onboardingErr
+	}
+	r.onboarded = true
+	return nil
 }
 
 func TestListMembersReturnsWorkspaceMemberships(t *testing.T) {
@@ -863,6 +925,33 @@ func TestGetMyInvitationRejectsForeignInvitation(t *testing.T) {
 	}
 	if identities.called {
 		t.Fatal("foreign invitation resolved workspace identity")
+	}
+}
+
+func TestAcceptInvitationPreservesOnboardingFailureContract(t *testing.T) {
+	now := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	members := &fakeMemberRepository{
+		currentUser:   member.UserIdentity{ID: "invitee-user", Email: "invitee@example.test"},
+		onboardingErr: errors.New("database unavailable"),
+	}
+	invitations := &fakeInvitationRepository{found: invitation.Invitation{
+		ID: "invitation", WorkspaceID: "workspace", InviteeEmail: "invitee@example.test",
+		Role: member.RoleMember, Status: invitation.StatusPending,
+		ExpiresAt: invitation.NewTimestamp(now.Add(time.Hour)),
+	}}
+	service := NewMemberService(
+		WithInvitationUnitOfWork(&fakeInvitationUnitOfWork{members: members, invitations: invitations}),
+		WithWorkspaceIdentityReader(&fakeWorkspaceIdentityReader{identity: workspacecontract.WorkspaceIdentity{ID: "workspace"}}),
+		WithInvitationClock(func() time.Time { return now }),
+		WithMemberIDGenerator(func() string { return "member" }),
+	)
+
+	_, err := service.AcceptInvitation(
+		contract.WithMemberActor(context.Background(), "invitee-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "invitation"},
+	)
+	if !errors.Is(err, contract.ErrInvitationOnboarding) {
+		t.Fatalf("AcceptInvitation() error = %v", err)
 	}
 }
 

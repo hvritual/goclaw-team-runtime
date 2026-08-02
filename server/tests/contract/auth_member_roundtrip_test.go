@@ -22,6 +22,8 @@ type successfulMemberService struct {
 	createInvitationRequest  contract.Member_CreateInvitationRequest
 	listMyInvitationsRequest contract.Member_ListMyInvitationsRequest
 	getMyInvitationRequest   contract.Member_GetMyInvitationRequest
+	acceptInvitationRequest  contract.Member_AcceptInvitationRequest
+	declineInvitationRequest contract.Member_DeclineInvitationRequest
 }
 
 func (s *successfulMemberService) ListMembers(_ context.Context, request contract.Member_ListMembersRequest) (contract.Member_ListMembersResponse, error) {
@@ -97,6 +99,20 @@ func (s *successfulMemberService) GetMyInvitation(_ context.Context, request con
 	value := personalInvitationContract()
 	value.Id = request.InvitationId
 	return contract.Member_GetMyInvitationResponse{Invitation: &value}, nil
+}
+
+func (s *successfulMemberService) AcceptInvitation(_ context.Context, request contract.Member_AcceptInvitationRequest) (contract.Member_AcceptInvitationResponse, error) {
+	s.acceptInvitationRequest = request
+	value := contract.Member_Member{
+		Id: "member-accepted", WorkspaceId: "workspace-1", UserId: "invitee-user", Role: "member",
+		CreatedAt: "2026-08-02T12:00:00Z", Name: "Invitee", Email: "invitee@example.test",
+	}
+	return contract.Member_AcceptInvitationResponse{Member: &value}, nil
+}
+
+func (s *successfulMemberService) DeclineInvitation(_ context.Context, request contract.Member_DeclineInvitationRequest) (contract.Member_DeclineInvitationResponse, error) {
+	s.declineInvitationRequest = request
+	return contract.Member_DeclineInvitationResponse{}, nil
 }
 
 func personalInvitationContract() contract.Member_Invitation {
@@ -206,6 +222,19 @@ func assertPersonalInvitationGRPCRoundTrip(t *testing.T, client contract.MemberS
 	}
 	if service.getMyInvitationRequest.InvitationId != "invitation-detail" || personalDetail.Invitation == nil || personalDetail.Invitation.Id != "invitation-detail" {
 		t.Fatalf("unexpected personal invitation detail round trip request=%+v result=%+v", service.getMyInvitationRequest, personalDetail)
+	}
+	accepted, err := client.AcceptInvitation(t.Context(), contract.Member_AcceptInvitationRequest{InvitationId: "invitation-accept"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.acceptInvitationRequest.InvitationId != "invitation-accept" || accepted.Member == nil || accepted.Member.Id != "member-accepted" {
+		t.Fatalf("unexpected invitation accept round trip request=%+v result=%+v", service.acceptInvitationRequest, accepted)
+	}
+	if _, err := client.DeclineInvitation(t.Context(), contract.Member_DeclineInvitationRequest{InvitationId: "invitation-decline"}); err != nil {
+		t.Fatal(err)
+	}
+	if service.declineInvitationRequest.InvitationId != "invitation-decline" {
+		t.Fatalf("unexpected invitation decline request=%+v", service.declineInvitationRequest)
 	}
 }
 

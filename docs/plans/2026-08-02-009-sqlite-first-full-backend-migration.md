@@ -40,7 +40,7 @@ of full migration.
 
 | Module / service | SQLite native status | Remaining legacy work |
 | --- | --- | --- |
-| Auth / Member | A1 role change, A2 delete/leave, A3 member list, A4 invitation revoke/workspace-list/create, and A5 personal invitation reads switched | PostgreSQL parity, accept/decline invitations |
+| Auth / Member | A1 role change, A2 delete/leave, A3 member list, A4 invitation revoke/workspace-list/create, A5 personal invitation reads, and A6 invitation decisions switched | PostgreSQL parity |
 | Auth / Agent | scaffold only | identity, authorization, persistence, routes |
 | Workspace / Project | scaffold only | lifecycle, resources, events |
 | Workspace / Todo | scaffold only | full task API and persistence |
@@ -167,6 +167,39 @@ acceptance, decline and the remaining migration matrix are still pending.
 
 This checkpoint completes personal invitation listing and lookup. Acceptance,
 decline, PostgreSQL parity and the remaining migration matrix are still pending.
+
+## Checkpoint 2026-08-02 — Auth A6 Invitation Decisions
+
+- Added Proto-owned `AcceptInvitation` and `DeclineInvitation` operations for
+  the existing decision routes. They are one invitation-decision use case: both
+  share ownership, lifecycle, workspace-existence, transaction and rollback
+  rules; acceptance preserves the top-level member response while decline
+  preserves 204/no-body behavior.
+- Moved invitee ownership, pending-state and expiry policy into the Invitation
+  domain. Auth re-reads authoritative state inside the mutation transaction;
+  expired acceptance persists `expired`, while repeated or conflicting
+  decisions cannot consume the invitation.
+- Kept Workspace existence behind its public contract and outside the Auth
+  transaction. The SQLite runtime intentionally uses a two-phase preflight so
+  its single connection cannot deadlock, followed by an authoritative Auth
+  recheck before mutation.
+- Made member creation, invitation compare-and-set, and onboarding completion
+  atomic in the native Auth SQLite provider. Conflict and onboarding failures
+  roll back all three effects, and persisted future invitation roles remain
+  readable for legacy compatibility.
+- Replaced the SQLite-local accept/decline SQL branches with the Auth contract,
+  preserving legacy status/message mappings, and added domain, application,
+  real SQLite rollback/lifecycle, raw/generated HTTP, gRPC, SQLite-local and
+  frontend response-schema coverage.
+- Passed focused Auth/contract/SQLite-local tests, full `go test ./...`, `make
+  lint-ddd DDD_BASE_REV=HEAD`, `make vet-ddd`, `make test-race-ddd`, the full
+  Core suite (524 tests), Core typecheck, and the serial frontend workspace
+  suite (five workspace test tasks). `make generated-clean` is run after the
+  generated slice is committed so it can distinguish stale output from the
+  intentional generated changes.
+
+This checkpoint completes SQLite invitation acceptance and decline. PostgreSQL
+parity and the remaining migration matrix are still pending.
 
 ## Required Gates
 

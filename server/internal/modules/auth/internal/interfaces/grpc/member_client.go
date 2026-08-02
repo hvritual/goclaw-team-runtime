@@ -159,6 +159,38 @@ func (c *MemberClient) GetMyInvitation(ctx context.Context, request contract.Mem
 	return result, nil
 }
 
+func (c *MemberClient) AcceptInvitation(ctx context.Context, request contract.Member_AcceptInvitationRequest) (contract.Member_AcceptInvitationResponse, error) {
+	protoRequest := &authv1.AcceptInvitationRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_AcceptInvitationResponse{}, err
+	}
+	response, err := c.client.AcceptInvitation(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_AcceptInvitationResponse{}, err
+	}
+	var result contract.Member_AcceptInvitationResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_AcceptInvitationResponse{}, err
+	}
+	return result, nil
+}
+
+func (c *MemberClient) DeclineInvitation(ctx context.Context, request contract.Member_DeclineInvitationRequest) (contract.Member_DeclineInvitationResponse, error) {
+	protoRequest := &authv1.DeclineInvitationRequest{}
+	if err := encodeMemberContract(request, protoRequest); err != nil {
+		return contract.Member_DeclineInvitationResponse{}, err
+	}
+	response, err := c.client.DeclineInvitation(ctx, protoRequest)
+	if err != nil {
+		return contract.Member_DeclineInvitationResponse{}, err
+	}
+	var result contract.Member_DeclineInvitationResponse
+	if err := decodeMemberProto(response, &result); err != nil {
+		return contract.Member_DeclineInvitationResponse{}, err
+	}
+	return result, nil
+}
+
 func decodeMemberProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {

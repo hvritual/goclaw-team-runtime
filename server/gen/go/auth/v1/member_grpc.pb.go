@@ -28,6 +28,8 @@ const (
 	MemberService_CreateInvitation_FullMethodName         = "/auth.v1.MemberService/CreateInvitation"
 	MemberService_ListMyInvitations_FullMethodName        = "/auth.v1.MemberService/ListMyInvitations"
 	MemberService_GetMyInvitation_FullMethodName          = "/auth.v1.MemberService/GetMyInvitation"
+	MemberService_AcceptInvitation_FullMethodName         = "/auth.v1.MemberService/AcceptInvitation"
+	MemberService_DeclineInvitation_FullMethodName        = "/auth.v1.MemberService/DeclineInvitation"
 )
 
 // MemberServiceClient is the client API for MemberService service.
@@ -61,6 +63,13 @@ type MemberServiceClient interface {
 	// GetMyInvitation returns one invitation only when it belongs to the
 	// authenticated participant by resolved user identity or email.
 	GetMyInvitation(ctx context.Context, in *GetMyInvitationRequest, opts ...grpc.CallOption) (*GetMyInvitationResponse, error)
+	// AcceptInvitation atomically joins the authenticated participant to the
+	// invited workspace, consumes the pending invitation and completes initial
+	// onboarding.
+	AcceptInvitation(ctx context.Context, in *AcceptInvitationRequest, opts ...grpc.CallOption) (*AcceptInvitationResponse, error)
+	// DeclineInvitation consumes one pending invitation belonging to the
+	// authenticated participant without creating a membership.
+	DeclineInvitation(ctx context.Context, in *DeclineInvitationRequest, opts ...grpc.CallOption) (*DeclineInvitationResponse, error)
 }
 
 type memberServiceClient struct {
@@ -161,6 +170,26 @@ func (c *memberServiceClient) GetMyInvitation(ctx context.Context, in *GetMyInvi
 	return out, nil
 }
 
+func (c *memberServiceClient) AcceptInvitation(ctx context.Context, in *AcceptInvitationRequest, opts ...grpc.CallOption) (*AcceptInvitationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AcceptInvitationResponse)
+	err := c.cc.Invoke(ctx, MemberService_AcceptInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memberServiceClient) DeclineInvitation(ctx context.Context, in *DeclineInvitationRequest, opts ...grpc.CallOption) (*DeclineInvitationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeclineInvitationResponse)
+	err := c.cc.Invoke(ctx, MemberService_DeclineInvitation_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemberServiceServer is the server API for MemberService service.
 // All implementations must embed UnimplementedMemberServiceServer
 // for forward compatibility.
@@ -192,6 +221,13 @@ type MemberServiceServer interface {
 	// GetMyInvitation returns one invitation only when it belongs to the
 	// authenticated participant by resolved user identity or email.
 	GetMyInvitation(context.Context, *GetMyInvitationRequest) (*GetMyInvitationResponse, error)
+	// AcceptInvitation atomically joins the authenticated participant to the
+	// invited workspace, consumes the pending invitation and completes initial
+	// onboarding.
+	AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AcceptInvitationResponse, error)
+	// DeclineInvitation consumes one pending invitation belonging to the
+	// authenticated participant without creating a membership.
+	DeclineInvitation(context.Context, *DeclineInvitationRequest) (*DeclineInvitationResponse, error)
 	mustEmbedUnimplementedMemberServiceServer()
 }
 
@@ -228,6 +264,12 @@ func (UnimplementedMemberServiceServer) ListMyInvitations(context.Context, *List
 }
 func (UnimplementedMemberServiceServer) GetMyInvitation(context.Context, *GetMyInvitationRequest) (*GetMyInvitationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMyInvitation not implemented")
+}
+func (UnimplementedMemberServiceServer) AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AcceptInvitationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AcceptInvitation not implemented")
+}
+func (UnimplementedMemberServiceServer) DeclineInvitation(context.Context, *DeclineInvitationRequest) (*DeclineInvitationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeclineInvitation not implemented")
 }
 func (UnimplementedMemberServiceServer) mustEmbedUnimplementedMemberServiceServer() {}
 func (UnimplementedMemberServiceServer) testEmbeddedByValue()                       {}
@@ -412,6 +454,42 @@ func _MemberService_GetMyInvitation_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemberService_AcceptInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AcceptInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).AcceptInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_AcceptInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).AcceptInvitation(ctx, req.(*AcceptInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemberService_DeclineInvitation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeclineInvitationRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemberServiceServer).DeclineInvitation(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemberService_DeclineInvitation_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemberServiceServer).DeclineInvitation(ctx, req.(*DeclineInvitationRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemberService_ServiceDesc is the grpc.ServiceDesc for MemberService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -454,6 +532,14 @@ var MemberService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMyInvitation",
 			Handler:    _MemberService_GetMyInvitation_Handler,
+		},
+		{
+			MethodName: "AcceptInvitation",
+			Handler:    _MemberService_AcceptInvitation_Handler,
+		},
+		{
+			MethodName: "DeclineInvitation",
+			Handler:    _MemberService_DeclineInvitation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

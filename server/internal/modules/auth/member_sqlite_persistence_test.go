@@ -250,6 +250,227 @@ func TestSqlitePersonalInvitationReadsPreserveStoredStrings(t *testing.T) {
 	}
 }
 
+func TestSqliteInvitationDecisionsPreserveTransactionAndLifecycle(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:auth-invitation-decisions?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := t.Context()
+	if err := MigrateSqlite(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	fixedNow := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO users(id, name, email, created_at, updated_at) VALUES
+			('owner-user', 'Owner', 'owner@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('accept-user', 'Accept', 'accept@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('decline-user', 'Decline', 'decline@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('expired-user', 'Expired', 'expired@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('foreign-user', 'Foreign', 'foreign@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('conflict-user', 'Conflict', 'conflict@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z'),
+			('future-user', 'Future', 'future@example.test', '2026-08-02T00:00:00Z', '2026-08-02T00:00:00Z');
+		INSERT INTO members(id, workspace_id, user_id, role, created_at)
+		VALUES ('existing-conflict-member', 'workspace-conflict', 'conflict-user', 'member', '2026-08-02T00:00:00Z');
+		INSERT INTO invitations(
+			id, workspace_id, inviter_id, invitee_email, invitee_user_id, role, status,
+			created_at, updated_at, expires_at
+		) VALUES
+			('accept', 'workspace', 'owner-user', 'accept@example.test', NULL, 'admin', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('decline', 'workspace', 'owner-user', 'decline@example.test', NULL, 'member', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('expired', 'workspace', 'owner-user', 'expired@example.test', NULL, 'member', 'pending',
+			 '2026-08-01T10:00:00Z', '2026-08-01T10:00:00Z', 'not-a-timestamp'),
+			('foreign', 'workspace', 'owner-user', 'other@example.test', 'accept-user', 'member', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('missing-workspace', 'gone', 'owner-user', 'accept@example.test', NULL, 'member', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('conflict', 'workspace-conflict', 'owner-user', 'conflict@example.test', NULL, 'member', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z'),
+			('future-role', 'workspace', 'owner-user', 'future@example.test', NULL, 'viewer', 'pending',
+			 '2026-08-02T10:00:00Z', '2026-08-02T10:00:00Z', '2026-08-09T12:00:00Z');
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	module, err := NewWithSqlitePersistence(SqlitePersistenceConfig{
+		DB: db,
+		WorkspaceIdentities: mappedWorkspaceIdentityReader{
+			"workspace":          {ID: "workspace", Name: "Workspace"},
+			"workspace-conflict": {ID: "workspace-conflict", Name: "Conflict Workspace"},
+		},
+		Now: func() time.Time { return fixedNow },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := module.MemberLocal()
+	assertSuccessfulInvitationDecisions(t, ctx, db, service, fixedNow)
+	assertRejectedInvitationDecisions(t, ctx, db, service)
+	assertInvitationDecisionConflict(t, ctx, db, service)
+	assertFutureInvitationRole(t, ctx, service)
+}
+
+func assertSuccessfulInvitationDecisions(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	service contract.MemberService,
+	fixedNow time.Time,
+) {
+	t.Helper()
+	accepted, err := service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "accept-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "accept"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if accepted.Member == nil || accepted.Member.WorkspaceId != "workspace" || accepted.Member.UserId != "accept-user" || accepted.Member.Role != "admin" {
+		t.Fatalf("unexpected accepted member: %+v", accepted.Member)
+	}
+	var acceptedStatus, acceptedInvitee, onboardedAt string
+	if err := db.QueryRowContext(ctx, `SELECT status, invitee_user_id FROM invitations WHERE id = 'accept'`).Scan(&acceptedStatus, &acceptedInvitee); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT onboarded_at FROM users WHERE id = 'accept-user'`).Scan(&onboardedAt); err != nil {
+		t.Fatal(err)
+	}
+	if acceptedStatus != "accepted" || acceptedInvitee != "accept-user" || onboardedAt != fixedNow.Format(time.RFC3339Nano) {
+		t.Fatalf("accepted status=%q invitee=%q onboarded_at=%q", acceptedStatus, acceptedInvitee, onboardedAt)
+	}
+	if _, err := service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "accept-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "accept"},
+	); !errors.Is(err, contract.ErrInvitationNotPending) {
+		t.Fatalf("second AcceptInvitation() error = %v", err)
+	}
+
+	if _, err := service.DeclineInvitation(
+		contract.WithMemberActor(ctx, "decline-user"),
+		contract.Member_DeclineInvitationRequest{InvitationId: "decline"},
+	); err != nil {
+		t.Fatal(err)
+	}
+	assertInvitationDecisionState(t, ctx, db, "decline", "declined", "decline-user")
+	if _, err := service.DeclineInvitation(
+		contract.WithMemberActor(ctx, "decline-user"),
+		contract.Member_DeclineInvitationRequest{InvitationId: "decline"},
+	); !errors.Is(err, contract.ErrInvitationNotPending) {
+		t.Fatalf("second DeclineInvitation() error = %v", err)
+	}
+}
+
+func assertRejectedInvitationDecisions(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	service contract.MemberService,
+) {
+	t.Helper()
+	_, err := service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "expired-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "expired"},
+	)
+	if !errors.Is(err, contract.ErrInvitationExpired) {
+		t.Fatalf("expired AcceptInvitation() error = %v", err)
+	}
+	assertInvitationDecisionState(t, ctx, db, "expired", "expired", "")
+
+	_, err = service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "foreign-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "foreign"},
+	)
+	if !errors.Is(err, contract.ErrInvitationForbidden) {
+		t.Fatalf("foreign AcceptInvitation() error = %v", err)
+	}
+	assertInvitationDecisionState(t, ctx, db, "foreign", "pending", "accept-user")
+
+	_, err = service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "accept-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "missing-workspace"},
+	)
+	if !errors.Is(err, contract.ErrInvitationNotFound) {
+		t.Fatalf("missing-workspace AcceptInvitation() error = %v", err)
+	}
+	assertInvitationDecisionState(t, ctx, db, "missing-workspace", "pending", "")
+}
+
+func assertInvitationDecisionConflict(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	service contract.MemberService,
+) {
+	t.Helper()
+	_, err := service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "conflict-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "conflict"},
+	)
+	if !errors.Is(err, contract.ErrInvitationMemberExists) {
+		t.Fatalf("conflicting AcceptInvitation() error = %v", err)
+	}
+	assertInvitationDecisionState(t, ctx, db, "conflict", "pending", "")
+	var conflictOnboarded sql.NullString
+	if err := db.QueryRowContext(ctx, `SELECT onboarded_at FROM users WHERE id = 'conflict-user'`).Scan(&conflictOnboarded); err != nil {
+		t.Fatal(err)
+	}
+	if conflictOnboarded.Valid {
+		t.Fatalf("conflicting acceptance completed onboarding at %q", conflictOnboarded.String)
+	}
+}
+
+func assertFutureInvitationRole(t *testing.T, ctx context.Context, service contract.MemberService) {
+	t.Helper()
+	futureAccepted, err := service.AcceptInvitation(
+		contract.WithMemberActor(ctx, "future-user"),
+		contract.Member_AcceptInvitationRequest{InvitationId: "future-role"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if futureAccepted.Member == nil || futureAccepted.Member.Role != "viewer" {
+		t.Fatalf("future role was not preserved: %+v", futureAccepted.Member)
+	}
+	futureMembers, err := service.ListMembers(
+		contract.WithMemberActor(ctx, "future-user"),
+		contract.Member_ListMembersRequest{WorkspaceId: "workspace"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundFutureRole := false
+	for _, membership := range futureMembers.Members {
+		if membership.UserId == "future-user" && membership.Role == "viewer" {
+			foundFutureRole = true
+		}
+	}
+	if !foundFutureRole {
+		t.Fatalf("future role was not readable after acceptance: %+v", futureMembers.Members)
+	}
+}
+
+func assertInvitationDecisionState(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	invitationID string,
+	wantStatus string,
+	wantInvitee string,
+) {
+	t.Helper()
+	var status string
+	var invitee sql.NullString
+	if err := db.QueryRowContext(ctx, `SELECT status, invitee_user_id FROM invitations WHERE id = ?`, invitationID).Scan(&status, &invitee); err != nil {
+		t.Fatal(err)
+	}
+	if status != wantStatus || invitee.String != wantInvitee {
+		t.Fatalf("invitation %s status=%q invitee=%q", invitationID, status, invitee.String)
+	}
+}
+
 func TestSqliteListMembersIsWorkspaceScopedAndOrdered(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:auth-member-list?mode=memory&cache=shared")
 	if err != nil {

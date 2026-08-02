@@ -47,4 +47,12 @@ func (c *MemberClient) GetMyInvitation(ctx context.Context, request contract.Mem
 	return c.service.GetMyInvitation(ctx, request)
 }
 
+func (c *MemberClient) AcceptInvitation(ctx context.Context, request contract.Member_AcceptInvitationRequest) (contract.Member_AcceptInvitationResponse, error) {
+	return c.service.AcceptInvitation(ctx, request)
+}
+
+func (c *MemberClient) DeclineInvitation(ctx context.Context, request contract.Member_DeclineInvitationRequest) (contract.Member_DeclineInvitationResponse, error) {
+	return c.service.DeclineInvitation(ctx, request)
+}
+
 var _ contract.MemberService = (*MemberClient)(nil)

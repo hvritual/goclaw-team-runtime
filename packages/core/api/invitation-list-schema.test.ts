@@ -17,6 +17,17 @@ const VALID_INVITATION = {
   inviter_email: "owner@example.test",
 };
 
+const VALID_MEMBER = {
+  id: "member-1",
+  workspace_id: "workspace-1",
+  user_id: "invitee-user",
+  role: "member",
+  created_at: "2026-08-02T12:00:00Z",
+  name: "Invitee",
+  email: "invitee@example.test",
+  avatar_url: null,
+};
+
 describe("workspace invitation list API boundary", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -185,6 +196,40 @@ describe("personal invitation API boundary", () => {
 
     await expect(client.getInvitation("invitation-1")).rejects.toThrow(
       "Invalid invitation response",
+    );
+  });
+
+  it("validates and returns the accepted membership", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify(VALID_MEMBER), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.acceptInvitation("invitation-1")).resolves.toEqual(
+      VALID_MEMBER,
+    );
+  });
+
+  it("rejects a malformed accepted membership", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...VALID_MEMBER, id: 42 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.acceptInvitation("invitation-1")).rejects.toThrow(
+      "Invalid member response",
     );
   });
 });

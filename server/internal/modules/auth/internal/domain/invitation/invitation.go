@@ -12,6 +12,8 @@ var (
 	ErrInvalidStatus = errors.New("invalid invitation status")
 	ErrInvalidEmail  = errors.New("invalid invitation email")
 	ErrInvalidRole   = errors.New("invalid invitation role")
+	ErrNotPending    = errors.New("invitation is not pending")
+	ErrExpired       = errors.New("invitation has expired")
 )
 
 type Status string
@@ -72,6 +74,26 @@ func (i Invitation) BelongsTo(userID, email string) bool {
 		return true
 	}
 	return i.InviteeEmail == email
+}
+
+// ValidateAcceptance protects the pending-only transition and treats an
+// unreadable legacy expiry as expired, matching the established API behavior.
+func (i Invitation) ValidateAcceptance(now time.Time) error {
+	if i.Status != StatusPending {
+		return ErrNotPending
+	}
+	expiresAt, err := i.ExpiresAt.Time()
+	if err != nil || !expiresAt.After(now.UTC()) {
+		return ErrExpired
+	}
+	return nil
+}
+
+func (i Invitation) ValidateDecline() error {
+	if i.Status != StatusPending {
+		return ErrNotPending
+	}
+	return nil
 }
 
 // NewPending creates the initial Invitation state. Workspace authorization,

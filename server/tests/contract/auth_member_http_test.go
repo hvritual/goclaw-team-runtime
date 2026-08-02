@@ -152,6 +152,31 @@ func TestAuthMemberHTTPPersonalInvitationReadsPreserveTopLevelJSON(t *testing.T)
 	}
 }
 
+func TestAuthMemberHTTPInvitationAcceptUsesTopLevelMember(t *testing.T) {
+	service := &successfulMemberService{}
+	extension := auth.NewMemberExtensionWithService(service)
+	server := kratoshttp.NewServer()
+	extension.RegisterHTTP(server)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/invitations/invitation-accept/accept", nil)
+	response := httptest.NewRecorder()
+
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d; body=%s", response.Code, response.Body.String())
+	}
+	var accepted map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &accepted); err != nil {
+		t.Fatalf("accept response is not a member object: %v; body=%s", err, response.Body.String())
+	}
+	if service.acceptInvitationRequest.InvitationId != "invitation-accept" || accepted["id"] != "member-accepted" || accepted["workspace_id"] != "workspace-1" {
+		t.Fatalf("unexpected accept request=%+v response=%+v", service.acceptInvitationRequest, accepted)
+	}
+	if _, wrapped := accepted["member"]; wrapped {
+		t.Fatalf("accept response leaked wrapper: %+v", accepted)
+	}
+}
+
 func TestAuthMemberHTTPCreateInvitationReturnsCreatedBody(t *testing.T) {
 	service := &successfulMemberService{}
 	extension := auth.NewMemberExtensionWithService(service)
@@ -239,6 +264,7 @@ func TestAuthMemberHTTPMutationsReturnNoContent(t *testing.T) {
 		{method: http.MethodDelete, path: "/api/workspaces/workspace-1/members/member-1"},
 		{method: http.MethodPost, path: "/api/workspaces/workspace-1/leave"},
 		{method: http.MethodDelete, path: "/api/workspaces/workspace-1/invitations/invitation-1"},
+		{method: http.MethodPost, path: "/api/invitations/invitation-1/decline"},
 	}
 	for _, test := range tests {
 		t.Run(test.method+" "+test.path, func(t *testing.T) {
@@ -354,5 +380,18 @@ func assertPersonalInvitationHTTPClientRoundTrip(
 	}
 	if service.getMyInvitationRequest.InvitationId != "invitation-detail" || personalDetail.GetInvitation().GetId() != "invitation-detail" {
 		t.Fatalf("unexpected generated-client personal invitation detail request=%+v result=%+v", service.getMyInvitationRequest, personalDetail)
+	}
+	accepted, err := client.AcceptInvitation(t.Context(), &authv1.AcceptInvitationRequest{InvitationId: "invitation-accept"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if service.acceptInvitationRequest.InvitationId != "invitation-accept" || accepted.GetMember().GetId() != "member-accepted" {
+		t.Fatalf("unexpected generated-client invitation accept request=%+v result=%+v", service.acceptInvitationRequest, accepted)
+	}
+	if _, err := client.DeclineInvitation(t.Context(), &authv1.DeclineInvitationRequest{InvitationId: "invitation-decline"}); err != nil {
+		t.Fatal(err)
+	}
+	if service.declineInvitationRequest.InvitationId != "invitation-decline" {
+		t.Fatalf("unexpected generated-client invitation decline request=%+v", service.declineInvitationRequest)
 	}
 }

@@ -18,7 +18,9 @@ var _ = new(context.Context)
 
 const _ = http.SupportPackageIsVersion3
 
+const OperationMemberServiceAcceptInvitation = "/auth.v1.MemberService/AcceptInvitation"
 const OperationMemberServiceCreateInvitation = "/auth.v1.MemberService/CreateInvitation"
+const OperationMemberServiceDeclineInvitation = "/auth.v1.MemberService/DeclineInvitation"
 const OperationMemberServiceDeleteMember = "/auth.v1.MemberService/DeleteMember"
 const OperationMemberServiceGetMyInvitation = "/auth.v1.MemberService/GetMyInvitation"
 const OperationMemberServiceLeaveWorkspace = "/auth.v1.MemberService/LeaveWorkspace"
@@ -29,9 +31,16 @@ const OperationMemberServiceRevokeInvitation = "/auth.v1.MemberService/RevokeInv
 const OperationMemberServiceUpdateMemberRole = "/auth.v1.MemberService/UpdateMemberRole"
 
 type MemberServiceHTTPServer interface {
+	// AcceptInvitation AcceptInvitation atomically joins the authenticated participant to the
+	// invited workspace, consumes the pending invitation and completes initial
+	// onboarding.
+	AcceptInvitation(context.Context, *AcceptInvitationRequest) (*AcceptInvitationResponse, error)
 	// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
 	// clients continue to use the historical POST /members route.
 	CreateInvitation(context.Context, *CreateInvitationRequest) (*Invitation, error)
+	// DeclineInvitation DeclineInvitation consumes one pending invitation belonging to the
+	// authenticated participant without creating a membership.
+	DeclineInvitation(context.Context, *DeclineInvitationRequest) (*DeclineInvitationResponse, error)
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(context.Context, *DeleteMemberRequest) (*DeleteMemberResponse, error)
@@ -67,6 +76,8 @@ func RegisterMemberServiceHTTPServer(s *http.Server, srv MemberServiceHTTPServer
 	r.Handle("POST", "/api/workspaces/{workspace_id}/members", _MemberService_CreateInvitation0_HTTP_Handler(srv))
 	r.Handle("GET", "/api/invitations", _MemberService_ListMyInvitations0_HTTP_Handler(srv))
 	r.Handle("GET", "/api/invitations/{invitation_id}", _MemberService_GetMyInvitation0_HTTP_Handler(srv))
+	r.Handle("POST", "/api/invitations/{invitation_id}/accept", _MemberService_AcceptInvitation0_HTTP_Handler(srv))
+	r.Handle("POST", "/api/invitations/{invitation_id}/decline", _MemberService_DeclineInvitation0_HTTP_Handler(srv))
 }
 
 func _MemberService_ListMembers0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
@@ -282,10 +293,62 @@ func _MemberService_GetMyInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) f
 	}
 }
 
+func _MemberService_AcceptInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in AcceptInvitationRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceAcceptInvitation)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.AcceptInvitation(ctx, req.(*AcceptInvitationRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*AcceptInvitationResponse)
+		return ctx.Result(200, reply.Member)
+	}
+}
+
+func _MemberService_DeclineInvitation0_HTTP_Handler(srv MemberServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in DeclineInvitationRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationMemberServiceDeclineInvitation)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.DeclineInvitation(ctx, req.(*DeclineInvitationRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		_ = out
+		ctx.Response().WriteHeader(204)
+		return nil
+	}
+}
+
 type MemberServiceHTTPClient interface {
+	// AcceptInvitation AcceptInvitation atomically joins the authenticated participant to the
+	// invited workspace, consumes the pending invitation and completes initial
+	// onboarding.
+	AcceptInvitation(ctx context.Context, req *AcceptInvitationRequest, opts ...http.CallOption) (rsp *AcceptInvitationResponse, err error)
 	// CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
 	// clients continue to use the historical POST /members route.
 	CreateInvitation(ctx context.Context, req *CreateInvitationRequest, opts ...http.CallOption) (rsp *Invitation, err error)
+	// DeclineInvitation DeclineInvitation consumes one pending invitation belonging to the
+	// authenticated participant without creating a membership.
+	DeclineInvitation(ctx context.Context, req *DeclineInvitationRequest, opts ...http.CallOption) (rsp *DeclineInvitationResponse, err error)
 	// DeleteMember DeleteMember removes one membership while preserving authorization and
 	// the invariant that every workspace retains at least one Owner.
 	DeleteMember(ctx context.Context, req *DeleteMemberRequest, opts ...http.CallOption) (rsp *DeleteMemberResponse, err error)
@@ -317,6 +380,25 @@ func NewMemberServiceHTTPClient(client *http.Client) MemberServiceHTTPClient {
 	return &MemberServiceHTTPClientImpl{client}
 }
 
+// AcceptInvitation AcceptInvitation atomically joins the authenticated participant to the
+// invited workspace, consumes the pending invitation and completes initial
+// onboarding.
+func (c *MemberServiceHTTPClientImpl) AcceptInvitation(ctx context.Context, in *AcceptInvitationRequest, opts ...http.CallOption) (*AcceptInvitationResponse, error) {
+	var out AcceptInvitationResponse
+	pattern := "/api/invitations/{invitationId}/accept"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/json"),
+		http.Operation(OperationMemberServiceAcceptInvitation),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "POST", path, nil, &out.Member, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // CreateInvitation CreateInvitation invites one human participant into a workspace. Existing
 // clients continue to use the historical POST /members route.
 func (c *MemberServiceHTTPClientImpl) CreateInvitation(ctx context.Context, in *CreateInvitationRequest, opts ...http.CallOption) (*Invitation, error) {
@@ -330,6 +412,24 @@ func (c *MemberServiceHTTPClientImpl) CreateInvitation(ctx context.Context, in *
 		http.PathTemplate(pattern),
 	}, opts...)
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// DeclineInvitation DeclineInvitation consumes one pending invitation belonging to the
+// authenticated participant without creating a membership.
+func (c *MemberServiceHTTPClientImpl) DeclineInvitation(ctx context.Context, in *DeclineInvitationRequest, opts ...http.CallOption) (*DeclineInvitationResponse, error) {
+	var out DeclineInvitationResponse
+	pattern := "/api/invitations/{invitationId}/decline"
+	path := http.BuildPath(pattern, in, http.WithQueryParams())
+	opts = append([]http.CallOption{
+		http.Accept("application/protojson"),
+		http.Operation(OperationMemberServiceDeclineInvitation),
+		http.PathTemplate(pattern),
+	}, opts...)
+	err := c.cc.Invoke(ctx, "POST", path, nil, &httpbody.HttpBody{}, opts...)
 	if err != nil {
 		return nil, err
 	}

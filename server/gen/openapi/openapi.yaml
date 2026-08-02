@@ -56,6 +56,57 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/invitations/{invitationId}/accept:
+        post:
+            tags:
+                - MemberService
+            description: |-
+                AcceptInvitation atomically joins the authenticated participant to the
+                 invited workspace, consumes the pending invitation and completes initial
+                 onboarding.
+            operationId: MemberService_AcceptInvitation
+            parameters:
+                - name: invitationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Member'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/invitations/{invitationId}/decline:
+        post:
+            tags:
+                - MemberService
+            description: |-
+                DeclineInvitation consumes one pending invitation belonging to the
+                 authenticated participant without creating a membership.
+            operationId: MemberService_DeclineInvitation
+            parameters:
+                - name: invitationId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "204":
+                    description: No Content
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/issues/{id}:
         put:
             tags:
@@ -367,6 +418,11 @@ paths:
                                 $ref: '#/components/schemas/Status'
 components:
     schemas:
+        AcceptInvitationResponse:
+            type: object
+            properties:
+                member:
+                    $ref: '#/components/schemas/Member'
         CreateInvitationRequest:
             type: object
             properties:
@@ -376,6 +432,9 @@ components:
                     type: string
                 role:
                     type: string
+        DeclineInvitationResponse:
+            type: object
+            properties: {}
         DeleteMemberResponse:
             type: object
             properties: {}

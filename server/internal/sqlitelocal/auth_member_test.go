@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/multica-ai/multica/server/internal/modules/auth/contract"
 )
 
 func TestSQLiteLocalAuthMemberFallbackErrorsRemainOperationSpecific(t *testing.T) {
@@ -26,6 +28,30 @@ func TestSQLiteLocalAuthMemberFallbackErrorsRemainOperationSpecific(t *testing.T
 			response := httptest.NewRecorder()
 			writeMemberError(response, errors.New("database unavailable"), fallback)
 			if response.Code != http.StatusInternalServerError || !strings.Contains(response.Body.String(), fallback) {
+				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+			}
+		})
+	}
+}
+
+func TestSQLiteLocalInvitationDecisionErrorsPreserveHTTPContract(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		status  int
+		message string
+	}{
+		{name: "not pending", err: contract.ErrInvitationNotPending, status: http.StatusBadRequest, message: "invitation is not pending"},
+		{name: "expired", err: contract.ErrInvitationExpired, status: http.StatusGone, message: "invitation has expired"},
+		{name: "member exists", err: contract.ErrInvitationMemberExists, status: http.StatusConflict, message: "you are already a member of this workspace"},
+		{name: "changed", err: contract.ErrInvitationChanged, status: http.StatusConflict, message: "invitation is no longer pending"},
+		{name: "onboarding", err: contract.ErrInvitationOnboarding, status: http.StatusInternalServerError, message: "failed to complete onboarding"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			writeMemberError(response, test.err, "fallback")
+			if response.Code != test.status || !strings.Contains(response.Body.String(), test.message) {
 				t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 			}
 		})

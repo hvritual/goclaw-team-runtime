@@ -56,6 +56,30 @@ func TestInvitationBelongsToResolvedUserOrEmail(t *testing.T) {
 	}
 }
 
+func TestInvitationDecisionValidation(t *testing.T) {
+	now := time.Date(2026, time.August, 2, 12, 0, 0, 0, time.UTC)
+	valid := Invitation{Status: StatusPending, ExpiresAt: NewTimestamp(now.Add(time.Hour))}
+	if err := valid.ValidateAcceptance(now); err != nil {
+		t.Fatalf("valid acceptance: %v", err)
+	}
+	if err := valid.ValidateDecline(); err != nil {
+		t.Fatalf("valid decline: %v", err)
+	}
+
+	notPending := valid
+	notPending.Status = StatusAccepted
+	if !errors.Is(notPending.ValidateAcceptance(now), ErrNotPending) || !errors.Is(notPending.ValidateDecline(), ErrNotPending) {
+		t.Fatal("non-pending invitation allowed a decision")
+	}
+	for _, expiresAt := range []Timestamp{NewTimestamp(now), Timestamp("legacy-invalid")} {
+		expired := valid
+		expired.ExpiresAt = expiresAt
+		if !errors.Is(expired.ValidateAcceptance(now), ErrExpired) {
+			t.Fatalf("expiry %q was accepted", expiresAt)
+		}
+	}
+}
+
 func TestNewPendingRejectsInvalidInviteeAndOwnerRole(t *testing.T) {
 	tests := []struct {
 		name  string

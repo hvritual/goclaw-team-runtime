@@ -29,6 +29,16 @@ func writeMemberError(w http.ResponseWriter, err error, fallback string) {
 		writeError(w, http.StatusNotFound, "user not found")
 	case errors.Is(err, contract.ErrInvitationForbidden):
 		writeError(w, http.StatusForbidden, "invitation does not belong to you")
+	case errors.Is(err, contract.ErrInvitationNotPending):
+		writeError(w, http.StatusBadRequest, "invitation is not pending")
+	case errors.Is(err, contract.ErrInvitationExpired):
+		writeError(w, http.StatusGone, "invitation has expired")
+	case errors.Is(err, contract.ErrInvitationMemberExists):
+		writeError(w, http.StatusConflict, "you are already a member of this workspace")
+	case errors.Is(err, contract.ErrInvitationChanged):
+		writeError(w, http.StatusConflict, "invitation is no longer pending")
+	case errors.Is(err, contract.ErrInvitationOnboarding):
+		writeError(w, http.StatusInternalServerError, "failed to complete onboarding")
 	case errors.Is(err, contract.ErrInsufficientWorkspaceRole):
 		writeError(w, http.StatusForbidden, "insufficient workspace role")
 	case errors.Is(err, contract.ErrOwnerRoleRequiresOwner):

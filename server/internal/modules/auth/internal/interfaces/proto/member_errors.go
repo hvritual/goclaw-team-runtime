@@ -91,6 +91,22 @@ func (s *memberTransportService) GetMyInvitation(ctx context.Context, request co
 	return result, nil
 }
 
+func (s *memberTransportService) AcceptInvitation(ctx context.Context, request contract.Member_AcceptInvitationRequest) (contract.Member_AcceptInvitationResponse, error) {
+	result, err := s.next.AcceptInvitation(ctx, request)
+	if err != nil {
+		return contract.Member_AcceptInvitationResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
+func (s *memberTransportService) DeclineInvitation(ctx context.Context, request contract.Member_DeclineInvitationRequest) (contract.Member_DeclineInvitationResponse, error) {
+	result, err := s.next.DeclineInvitation(ctx, request)
+	if err != nil {
+		return contract.Member_DeclineInvitationResponse{}, memberTransportError(err)
+	}
+	return result, nil
+}
+
 func (s *memberTransportService) AuthorizeCreateInvitation(
 	ctx context.Context,
 	request contract.Member_CreateInvitationRequest,
@@ -118,6 +134,16 @@ func memberTransportError(err error) error {
 		return kratoserrors.New(http.StatusNotFound, "AUTH_USER_NOT_FOUND", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvitationForbidden):
 		return kratoserrors.New(http.StatusForbidden, "INVITATION_FORBIDDEN", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationNotPending):
+		return kratoserrors.New(http.StatusBadRequest, "INVITATION_NOT_PENDING", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationExpired):
+		return kratoserrors.New(http.StatusGone, "INVITATION_EXPIRED", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationMemberExists):
+		return kratoserrors.New(http.StatusConflict, "INVITATION_MEMBER_EXISTS", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationChanged):
+		return kratoserrors.New(http.StatusConflict, "INVITATION_CHANGED", err.Error()).WithCause(err)
+	case errors.Is(err, contract.ErrInvitationOnboarding):
+		return kratoserrors.New(http.StatusInternalServerError, "INVITATION_ONBOARDING_FAILED", contract.ErrInvitationOnboarding.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvalidInvitationEmail):
 		return kratoserrors.New(http.StatusBadRequest, "INVALID_INVITATION_EMAIL", err.Error()).WithCause(err)
 	case errors.Is(err, contract.ErrInvalidInvitationRole):

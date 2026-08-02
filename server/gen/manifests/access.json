@@ -25,11 +25,25 @@
   ],
   "permissions": [
     {
+      "code": "auth.invitation.accept_mine",
+      "name": "Accept my invitation",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "accept_mine"
+    },
+    {
       "code": "auth.invitation.create",
       "name": "Create invitation",
       "module": "auth",
       "resource": "auth.invitation",
       "action": "create"
+    },
+    {
+      "code": "auth.invitation.decline_mine",
+      "name": "Decline my invitation",
+      "module": "auth",
+      "resource": "auth.invitation",
+      "action": "decline_mine"
     },
     {
       "code": "auth.invitation.get_mine",
@@ -111,11 +125,33 @@
     },
     {
       "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/AcceptInvitation",
+      "module": "auth",
+      "http_method": "POST",
+      "http_path": "/api/invitations/{invitation_id}/accept",
+      "permission_code": "auth.invitation.accept_mine",
+      "public": false,
+      "audit": true,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
       "method": "/auth.v1.MemberService/CreateInvitation",
       "module": "auth",
       "http_method": "POST",
       "http_path": "/api/workspaces/{workspace_id}/members",
       "permission_code": "auth.invitation.create",
+      "public": false,
+      "audit": true,
+      "idempotent": false
+    },
+    {
+      "service": "auth.v1.MemberService",
+      "method": "/auth.v1.MemberService/DeclineInvitation",
+      "module": "auth",
+      "http_method": "POST",
+      "http_path": "/api/invitations/{invitation_id}/decline",
+      "permission_code": "auth.invitation.decline_mine",
       "public": false,
       "audit": true,
       "idempotent": false

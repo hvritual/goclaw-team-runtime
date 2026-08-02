@@ -45,10 +45,20 @@ func (s *MemberStore) withinTransaction(ctx context.Context, label string, opera
 
 func (s *MemberStore) WithinInvitationTransaction(
 	ctx context.Context,
-	operation func(application.MemberRepository, application.InvitationRepository) error,
+	operation func(
+		application.MemberRepository,
+		application.InvitationRepository,
+		application.InvitationDecisionRepository,
+	) error,
 ) error {
 	return s.withinTransaction(ctx, "invitation", func(tx *sql.Tx) error {
-		return operation(&memberRepository{tx: tx}, &invitationRepository{tx: tx})
+		members := &memberRepository{tx: tx}
+		invitations := &invitationRepository{tx: tx}
+		decisions := &invitationDecisionRepository{
+			memberRepository:     members,
+			invitationRepository: invitations,
+		}
+		return operation(members, invitations, decisions)
 	})
 }
 
@@ -58,6 +68,11 @@ type memberRepository struct {
 
 type invitationRepository struct {
 	tx *sql.Tx
+}
+
+type invitationDecisionRepository struct {
+	*memberRepository
+	*invitationRepository
 }
 
 func (r *invitationRepository) ExpirePendingByWorkspace(ctx context.Context, workspaceID string, expiredAt time.Time) error {
@@ -212,6 +227,66 @@ func (r *invitationRepository) FindByID(ctx context.Context, invitationID string
 	return value, err
 }
 
+func (r *invitationRepository) AcceptPending(
+	ctx context.Context,
+	invitationID string,
+	inviteeUserID string,
+	updatedAt time.Time,
+) error {
+	return transitionPendingInvitation(
+		r.tx.ExecContext(ctx, `UPDATE invitations
+			SET status = 'accepted', invitee_user_id = ?, updated_at = ?
+			WHERE id = ? AND status = 'pending'`,
+			inviteeUserID, updatedAt.UTC().Format(time.RFC3339Nano), invitationID,
+		),
+	)
+}
+
+func (r *invitationRepository) DeclinePending(
+	ctx context.Context,
+	invitationID string,
+	inviteeUserID string,
+	updatedAt time.Time,
+) error {
+	return transitionPendingInvitation(
+		r.tx.ExecContext(ctx, `UPDATE invitations
+			SET status = 'declined', invitee_user_id = ?, updated_at = ?
+			WHERE id = ? AND status = 'pending'`,
+			inviteeUserID, updatedAt.UTC().Format(time.RFC3339Nano), invitationID,
+		),
+	)
+}
+
+func (r *invitationRepository) ExpirePendingByID(
+	ctx context.Context,
+	invitationID string,
+	updatedAt time.Time,
+) error {
+	_, err := r.tx.ExecContext(ctx, `UPDATE invitations
+		SET status = 'expired', updated_at = ?
+		WHERE id = ? AND status = 'pending'`,
+		updatedAt.UTC().Format(time.RFC3339Nano), invitationID,
+	)
+	if err != nil {
+		return fmt.Errorf("expire invitation: %w", err)
+	}
+	return nil
+}
+
+func transitionPendingInvitation(result sql.Result, err error) error {
+	if err != nil {
+		return fmt.Errorf("transition invitation: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read transitioned invitation count: %w", err)
+	}
+	if affected == 0 {
+		return application.ErrInvitationChanged
+	}
+	return nil
+}
+
 func (r *memberRepository) FindByUserAndWorkspace(ctx context.Context, userID, workspaceID string) (member.Member, error) {
 	return scanMember(r.tx.QueryRowContext(ctx, memberProjection+`
 		WHERE m.user_id = ? AND m.workspace_id = ?`, userID, workspaceID))
@@ -282,6 +357,30 @@ func (r *memberRepository) FindUserByID(ctx context.Context, userID string) (mem
 		value.AvatarURL = &avatarURL.String
 	}
 	return value, nil
+}
+
+func (r *memberRepository) CreateMember(ctx context.Context, value member.Member) error {
+	_, err := r.tx.ExecContext(ctx, `INSERT INTO members(id, workspace_id, user_id, role, created_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		value.ID, value.WorkspaceID, value.UserID, string(value.Role), value.CreatedAt,
+	)
+	if err != nil {
+		// The established SQLite route reports every insert failure as an
+		// existing workspace membership after validating the invitation.
+		return application.ErrMembershipAlreadyExists
+	}
+	return nil
+}
+
+func (r *memberRepository) CompleteOnboarding(ctx context.Context, userID string, completedAt time.Time) error {
+	timestamp := completedAt.UTC().Format(time.RFC3339Nano)
+	if _, err := r.tx.ExecContext(ctx, `UPDATE users
+		SET onboarded_at = COALESCE(onboarded_at, ?), updated_at = ? WHERE id = ?`,
+		timestamp, timestamp, userID,
+	); err != nil {
+		return fmt.Errorf("complete invitation onboarding: %w", err)
+	}
+	return nil
 }
 
 func (r *memberRepository) CountOwners(ctx context.Context, workspaceID string) (int, error) {
@@ -372,11 +471,7 @@ func scanMember(row memberScanner) (member.Member, error) {
 		}
 		return member.Member{}, fmt.Errorf("scan member: %w", err)
 	}
-	parsedRole, err := member.ParseRole(role)
-	if err != nil {
-		return member.Member{}, fmt.Errorf("scan member role: %w", err)
-	}
-	value.Role = parsedRole
+	value.Role = member.Role(role)
 	if avatarURL.Valid {
 		value.AvatarURL = &avatarURL.String
 	}

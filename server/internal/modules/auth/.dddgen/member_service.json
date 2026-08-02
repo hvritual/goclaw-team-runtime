@@ -36,9 +36,37 @@
     {
       "name": "GetMyInvitation",
       "simple_string": false
+    },
+    {
+      "name": "AcceptInvitation",
+      "simple_string": false
+    },
+    {
+      "name": "DeclineInvitation",
+      "simple_string": false
     }
   ],
   "retained_dtos": [
+    {
+      "name": "Member_AcceptInvitationRequest",
+      "fields": [
+        {
+          "name": "InvitationId",
+          "type": "string",
+          "json_tag": "invitationId"
+        }
+      ]
+    },
+    {
+      "name": "Member_AcceptInvitationResponse",
+      "fields": [
+        {
+          "name": "Member",
+          "type": "*Member_Member",
+          "json_tag": "member"
+        }
+      ]
+    },
     {
       "name": "Member_CreateInvitationRequest",
       "fields": [
@@ -58,6 +86,20 @@
           "json_tag": "role"
         }
       ]
+    },
+    {
+      "name": "Member_DeclineInvitationRequest",
+      "fields": [
+        {
+          "name": "InvitationId",
+          "type": "string",
+          "json_tag": "invitationId"
+        }
+      ]
+    },
+    {
+      "name": "Member_DeclineInvitationResponse",
+      "fields": null
     },
     {
       "name": "Member_DeleteMemberRequest",

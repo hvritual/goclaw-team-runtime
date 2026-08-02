@@ -1073,9 +1073,17 @@ export class ApiClient {
   }
 
   async acceptInvitation(invitationId: string): Promise<MemberWithUser> {
-    return this.fetch(`/api/invitations/${invitationId}/accept`, {
+    const raw = await this.fetch<unknown>(`/api/invitations/${invitationId}/accept`, {
       method: "POST",
     });
+    const member = parseWithFallback<MemberWithUser | null>(
+      raw,
+      MemberWithUserSchema.nullable(),
+      null,
+      { endpoint: "POST /api/invitations/:id/accept" },
+    );
+    if (!member) throw new Error("Invalid member response");
+    return member;
   }
 
   async declineInvitation(invitationId: string): Promise<void> {

@@ -20,6 +20,7 @@ type Config struct {
 	WorkspaceIdentities workspacecontract.WorkspaceIdentityReader
 	Now                 func() time.Time
 	NewInvitationID     func() string
+	NewMemberID         func() string
 }
 
 func New(Config) contract.Service {
@@ -41,6 +42,11 @@ func NewMember(config Config) (contract.MemberService, error) {
 		newInvitationID = uuid.NewString
 	}
 	options = append(options, application.WithInvitationIDGenerator(newInvitationID))
+	newMemberID := config.NewMemberID
+	if newMemberID == nil {
+		newMemberID = uuid.NewString
+	}
+	options = append(options, application.WithMemberIDGenerator(newMemberID))
 	if config.Now != nil {
 		options = append(options, application.WithInvitationClock(config.Now))
 	}

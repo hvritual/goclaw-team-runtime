@@ -54,6 +54,14 @@ func (s *fakeMemberService) GetMyInvitation(context.Context, contract.Member_Get
 	return contract.Member_GetMyInvitationResponse{}, s.err
 }
 
+func (s *fakeMemberService) AcceptInvitation(context.Context, contract.Member_AcceptInvitationRequest) (contract.Member_AcceptInvitationResponse, error) {
+	return contract.Member_AcceptInvitationResponse{}, s.err
+}
+
+func (s *fakeMemberService) DeclineInvitation(context.Context, contract.Member_DeclineInvitationRequest) (contract.Member_DeclineInvitationResponse, error) {
+	return contract.Member_DeclineInvitationResponse{}, s.err
+}
+
 func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 	tests := []struct {
 		name string
@@ -67,6 +75,11 @@ func TestMemberTransportServiceMapsDomainErrors(t *testing.T) {
 		{name: "invitation missing", err: contract.ErrInvitationNotFound, code: http.StatusNotFound},
 		{name: "auth user missing", err: contract.ErrAuthUserNotFound, code: http.StatusNotFound},
 		{name: "foreign invitation", err: contract.ErrInvitationForbidden, code: http.StatusForbidden},
+		{name: "invitation not pending", err: contract.ErrInvitationNotPending, code: http.StatusBadRequest},
+		{name: "invitation expired", err: contract.ErrInvitationExpired, code: http.StatusGone},
+		{name: "invitation member exists", err: contract.ErrInvitationMemberExists, code: http.StatusConflict},
+		{name: "invitation changed", err: contract.ErrInvitationChanged, code: http.StatusConflict},
+		{name: "invitation onboarding", err: contract.ErrInvitationOnboarding, code: http.StatusInternalServerError},
 		{name: "invalid invitation email", err: contract.ErrInvalidInvitationEmail, code: http.StatusBadRequest},
 		{name: "invalid invitation role", err: contract.ErrInvalidInvitationRole, code: http.StatusBadRequest},
 		{name: "invitee already member", err: contract.ErrInviteeAlreadyMember, code: http.StatusConflict},
