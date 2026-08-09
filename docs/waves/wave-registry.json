@@ -3,8 +3,8 @@
   "track_id": "MVP-RECOVERY-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "TR-W00",
-  "updated_at": "2026-07-28",
+  "active_wave": "TCF-W01",
+  "updated_at": "2026-08-09",
   "waves": [
     {
       "id": "MVP-W00",
@@ -12,10 +12,7 @@
       "status": "complete",
       "document": "recovery/mvp-w00/plan-r006.md",
       "depends_on": [],
-      "allowed_change_scope": [
-        "docs/waves/**",
-        "docs/recovery/**"
-      ],
+      "allowed_change_scope": ["docs/waves/**", "docs/recovery/**"],
       "product_code_changes_allowed": false
     },
     {
@@ -36,10 +33,7 @@
       "title": "Session Transport, Dashboard Shell, and Local Browser Regression Gate",
       "status": "superseded",
       "document": "frontend-stability/fe-w01/plan-r012.md",
-      "depends_on": [
-        "FE-W00",
-        "MVP-W00"
-      ],
+      "depends_on": ["FE-W00", "MVP-W00"],
       "allowed_change_scope": [
         "docs/waves/frontend-stability/**",
         "docs/recovery/**",
@@ -60,9 +54,7 @@
       "title": "Read Model Contracts",
       "status": "superseded",
       "document": "frontend-stability/fe-w02/plan-r001.md",
-      "depends_on": [
-        "FE-W01"
-      ],
+      "depends_on": ["FE-W01"],
       "allowed_change_scope": [
         "all Team Web Console loader paths",
         "typed RPC response adapters",
@@ -76,9 +68,7 @@
       "title": "Command Workflows",
       "status": "superseded",
       "document": "frontend-stability/fe-w03/plan-r001.md",
-      "depends_on": [
-        "FE-W02"
-      ],
+      "depends_on": ["FE-W02"],
       "allowed_change_scope": [
         "Chat, Spec, Approvals, Development and Harness command flows",
         "confirmed mutation RPC contract fixes",
@@ -91,9 +81,7 @@
       "title": "UX Resilience and Accessibility",
       "status": "superseded",
       "document": "frontend-stability/fe-w04/plan-r001.md",
-      "depends_on": [
-        "FE-W03"
-      ],
+      "depends_on": ["FE-W03"],
       "allowed_change_scope": [
         "shared UI primitives and styles",
         "explicit state rendering",
@@ -107,9 +95,7 @@
       "title": "Integrated Verification and Release",
       "status": "superseded",
       "document": "frontend-stability/fe-w05/plan-r001.md",
-      "depends_on": [
-        "FE-W04"
-      ],
+      "depends_on": ["FE-W04"],
       "allowed_change_scope": [
         "tests",
         "release scripts",
@@ -122,11 +108,9 @@
     {
       "id": "TR-W00",
       "title": "Team Control and Runner Application Boundary",
-      "status": "active",
+      "status": "superseded",
       "document": "team-runtime/tr-w00/plan-r001.md",
-      "depends_on": [
-        "MVP-W00"
-      ],
+      "depends_on": ["MVP-W00"],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -144,13 +128,27 @@
       "product_code_changes_allowed": true
     },
     {
+      "id": "TCF-W01",
+      "title": "Multica-referenced Team Control Web Console",
+      "status": "active",
+      "document": "team-control-frontend/tcf-w01/plan-r001.md",
+      "depends_on": ["MVP-W00"],
+      "allowed_change_scope": [
+        "docs/waves/**",
+        "docs/TEAM_WEB_CONSOLE_CN.md",
+        "ui/src/**",
+        "ui/tests/**",
+        "ui/package.json",
+        "ui/package-lock.json"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
       "id": "TC-W01",
       "title": "Team Control Registries, Budgets, and Context Compiler",
       "status": "planned",
       "document": "team-runtime/tc-w01/plan-r001.md",
-      "depends_on": [
-        "TR-W00"
-      ],
+      "depends_on": ["TR-W00"],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -168,9 +166,7 @@
       "title": "Runner Lifecycle, Local Execution, and Version Management",
       "status": "planned",
       "document": "team-runtime/rn-w01/plan-r001.md",
-      "depends_on": [
-        "TC-W01"
-      ],
+      "depends_on": ["TC-W01"],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -188,9 +184,7 @@
       "title": "Runner MCP, Knowledge, Skills, and Context Integration",
       "status": "planned",
       "document": "team-runtime/int-w01/plan-r001.md",
-      "depends_on": [
-        "RN-W01"
-      ],
+      "depends_on": ["RN-W01"],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -212,9 +206,7 @@
       "title": "Cross-platform Packaging, Operations, and Pilot Release",
       "status": "planned",
       "document": "team-runtime/rel-w01/plan-r001.md",
-      "depends_on": [
-        "INT-W01"
-      ],
+      "depends_on": ["INT-W01"],
       "allowed_change_scope": [
         "docs/waves/**",
         "docs/**",
@@ -231,14 +223,8 @@
       "title": "Three-person Controlled Pilot",
       "status": "blocked",
       "document": "pilot-readiness/pilot-w00/plan-r006.md",
-      "depends_on": [
-        "FE-W00",
-        "MVP-W00",
-        "REL-W01"
-      ],
-      "allowed_change_scope": [
-        "docs/**"
-      ],
+      "depends_on": ["FE-W00", "MVP-W00", "REL-W01"],
+      "allowed_change_scope": ["docs/**"],
       "product_code_changes_allowed": false
     }
   ]
