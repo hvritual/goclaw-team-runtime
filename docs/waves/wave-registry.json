@@ -3,8 +3,8 @@
   "track_id": "TEAM-RUNTIME-2026-07",
   "project_id": "goclaw-team-runtime",
   "current_release": "0.8.0-pilot.1-recovered.1",
-  "active_wave": "RN-W01",
-  "updated_at": "2026-07-29",
+  "active_wave": "STG1-W01",
+  "updated_at": "2026-08-09",
   "waves": [
     {
       "id": "MVP-W00",
@@ -165,9 +165,48 @@
       "product_code_changes_allowed": true
     },
     {
+      "id": "TCF-W01",
+      "title": "Multica-referenced Team Control Web Console",
+      "status": "superseded",
+      "document": "team-control-frontend/tcf-w01/plan-r001.md",
+      "depends_on": [
+        "TC-W01"
+      ],
+      "allowed_change_scope": [
+        "docs/waves/**",
+        "docs/TEAM_WEB_CONSOLE_CN.md",
+        "ui/src/**",
+        "ui/tests/**",
+        "ui/package.json",
+        "ui/package-lock.json"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
+      "id": "STG1-W01",
+      "title": "MVP Daily Development Kernel",
+      "status": "active",
+      "document": "stage-one/stg1-w01/plan-r001.md",
+      "depends_on": [
+        "TC-W01"
+      ],
+      "allowed_change_scope": [
+        "docs/waves/**",
+        "docs/IMPLEMENTATION_STATUS_CN.md",
+        "docs/TEAM_DEVELOPMENT_CN.md",
+        "docs/TEAM_WEB_CONSOLE_CN.md",
+        "teamcontrol/**",
+        "gateway/team_control.go",
+        "gateway/team_runtime_test.go",
+        "ui/src/**",
+        "ui/tests/**"
+      ],
+      "product_code_changes_allowed": true
+    },
+    {
       "id": "RN-W01",
       "title": "Runner Lifecycle, Local Execution, and Version Management",
-      "status": "active",
+      "status": "planned",
       "document": "team-runtime/rn-w01/plan-r002.md",
       "depends_on": [
         "TC-W01"

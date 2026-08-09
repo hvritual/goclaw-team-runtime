@@ -545,7 +545,9 @@ func validResourceType(value ResourceType) bool {
 	case ResourceIssue, ResourceTask, ResourceWorkItem, ResourceRun, ResourceTrace,
 		ResourceCommit, ResourcePullRequest, ResourceCI, ResourceRelease,
 		ResourceRegressionCase, ResourceSpec, ResourceArtifact, ResourceDocument,
-		ResourceComponent, ResourceRepository, ResourcePolicy:
+		ResourceComponent, ResourceRepository, ResourcePolicy, ResourceRequest,
+		ResourceIntentContract, ResourceSolution, ResourceFrozenPlan,
+		ResourceChangeIntent, ResourceDefect, ResourceRisk:
 		return true
 	default:
 		return false

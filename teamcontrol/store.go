@@ -234,6 +234,7 @@ func normalizeState(value *state) error {
 	if value.ContextBundles == nil {
 		value.ContextBundles = make(map[string]ContextBundle)
 	}
+	normalizeDeliveryState(&value.Delivery)
 	for key, bundle := range value.ContextBundles {
 		if bundle.Budget.LegacyUserID != "" {
 			bundle.Budget.BudgetUserID = bundle.Budget.LegacyUserID
@@ -289,6 +290,9 @@ func normalizeState(value *state) error {
 	)
 	if err != nil {
 		return fmt.Errorf("context bundles: %w", err)
+	}
+	if err := validateDeliveryJournal(value); err != nil {
+		return fmt.Errorf("delivery journal: %w", err)
 	}
 	return nil
 }

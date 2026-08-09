@@ -1,369 +1,957 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { useTeam } from './context';
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useTeam } from "./context";
 import {
   Button,
   Empty,
   ErrorState,
   formatRelative,
   Loading,
-  Metric,
   PageHeader,
-  Section,
   Status,
   toneForState,
-} from './primitives';
+} from "./primitives";
 import {
-  TeamAssignment,
-  TeamComponentsSummary,
-  TeamControlSummary,
-  TeamDocsSummary,
-  TeamIssue,
+  TeamComponentRecord,
+  TeamDocumentRecord,
   TeamMember,
+  TeamPolicyBundle,
   TeamPolicyStatus,
+  TeamRepository,
   TeamRunner,
-  TeamWorkItem,
-} from './types';
-import { useAsyncData } from './use-data';
-import { controlSummaryState } from './control-summary-state';
-import { nextIssueStatuses, nextWorkItemStatuses } from './workflow-state';
+  TeamRunnerTask,
+} from "./types";
+import { useAsyncData } from "./use-data";
 
-interface TeamData {
+type ControlTab = "people" | "runners" | "assets" | "policy";
+
+interface ControlData {
   members: TeamMember[];
-  work: TeamWorkItem[];
-  issues: TeamIssue[];
-  assignments: TeamAssignment[];
   runners: TeamRunner[];
-  policy: TeamPolicyStatus;
-  docs: TeamDocsSummary;
-  components: TeamComponentsSummary;
+  runnerTasks: TeamRunnerTask[];
+  repositories: TeamRepository[];
+  documents: TeamDocumentRecord[];
+  components: TeamComponentRecord[];
+  policies: TeamPolicyBundle[];
+  policyStatus: TeamPolicyStatus;
 }
 
-const selectStyle = {
-  minWidth: 130,
-  border: '1px solid #dedbd8',
-  borderRadius: 4,
-  background: '#fff',
-  padding: '7px 9px',
-  fontSize: 11,
-};
-
 export function TeamPage() {
-  const { client, projectID } = useTeam();
-  const [busy, setBusy] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [issueTitle, setIssueTitle] = useState('');
-  const [issueDescription, setIssueDescription] = useState('');
-  const [issueSeverity, setIssueSeverity] = useState<TeamIssue['severity']>('medium');
-  const [workTitle, setWorkTitle] = useState('');
-  const [workInstructions, setWorkInstructions] = useState('');
-  const [linkedIssue, setLinkedIssue] = useState('');
-  const [issueNext, setIssueNext] = useState<Record<string, TeamIssue['status'] | ''>>({});
-  const [workNext, setWorkNext] = useState<Record<string, TeamWorkItem['status'] | ''>>({});
-  const [resolutions, setResolutions] = useState<Record<string, string>>({});
-  const [assignees, setAssignees] = useState<Record<string, string>>({});
-  const projectRef = useRef(projectID);
-  projectRef.current = projectID;
-  const load = useCallback(async (): Promise<TeamData> => {
-    const [members, work, issues, assignments, runners, policy, docs, components] =
-      await Promise.all([
-        client.rpc<TeamMember[]>('team.members', { project_id: projectID }),
-        client.rpc<TeamWorkItem[]>('work.items', { project_id: projectID, limit: 60 }),
-        client.rpc<TeamIssue[]>('issue.list', { project_id: projectID, limit: 60 }),
-        client.rpc<TeamAssignment[]>('assignment.list', { project_id: projectID }),
-        client.rpc<TeamRunner[]>('runner.list', { project_id: projectID }),
-        client.rpc<TeamPolicyStatus>('policy.status', { project_id: projectID }),
-        client.rpc<TeamDocsSummary>('docs.summary', { project_id: projectID, limit: 10 }),
-        client.rpc<TeamComponentsSummary>('components.summary', { project_id: projectID, limit: 10 }),
-      ]);
-    return { members, work, issues, assignments, runners, policy, docs, components };
+  const { client, projectID, projects } = useTeam();
+  const [tab, setTab] = useState<ControlTab>("people");
+  const [form, setForm] = useState<
+    "member" | "repository" | "document" | "component" | "policy" | ""
+  >("");
+  const [busy, setBusy] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [memberID, setMemberID] = useState("");
+  const [memberRole, setMemberRole] = useState("developer");
+  const [memberDomains, setMemberDomains] = useState("");
+  const [memberCapacity, setMemberCapacity] = useState(10);
+  const [repositoryName, setRepositoryName] = useState("");
+  const [repositoryURL, setRepositoryURL] = useState("");
+  const [repositoryPath, setRepositoryPath] = useState("");
+  const [repositoryBranch, setRepositoryBranch] = useState("main");
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [documentKey, setDocumentKey] = useState("");
+  const [documentURI, setDocumentURI] = useState("");
+  const [documentKind, setDocumentKind] =
+    useState<TeamDocumentRecord["kind"]>("adr");
+  const [componentName, setComponentName] = useState("");
+  const [componentKind, setComponentKind] =
+    useState<TeamComponentRecord["kind"]>("service");
+  const [componentRepo, setComponentRepo] = useState("");
+  const [componentPath, setComponentPath] = useState("");
+  const [policyName, setPolicyName] = useState("");
+  const [policyScope, setPolicyScope] =
+    useState<TeamPolicyBundle["scope"]>("project");
+  const [policyScopeID, setPolicyScopeID] = useState(projectID);
+  const [policyVersion, setPolicyVersion] = useState(1);
+  const [policyRules, setPolicyRules] = useState(
+    '{\n  "review.required": true\n}',
+  );
+
+  const load = useCallback(async (): Promise<ControlData> => {
+    const [
+      members,
+      runners,
+      runnerTasks,
+      repositories,
+      documents,
+      components,
+      policies,
+      policyStatus,
+    ] = await Promise.all([
+      client.rpc<TeamMember[]>("team.members", { project_id: projectID }),
+      client.rpc<TeamRunner[]>("runner.list", { project_id: projectID }),
+      client.rpc<TeamRunnerTask[]>("runner.tasks", { project_id: projectID }),
+      client.rpc<TeamRepository[]>("repository.list", {
+        project_id: projectID,
+      }),
+      client.rpc<TeamDocumentRecord[]>("document.list", {
+        project_id: projectID,
+      }),
+      client.rpc<TeamComponentRecord[]>("component.list", {
+        project_id: projectID,
+      }),
+      client.rpc<TeamPolicyBundle[]>("policy.list", { project_id: projectID }),
+      client.rpc<TeamPolicyStatus>("policy.status", { project_id: projectID }),
+    ]);
+    return {
+      members,
+      runners,
+      runnerTasks,
+      repositories,
+      documents,
+      components,
+      policies,
+      policyStatus,
+    };
   }, [client, projectID]);
   const state = useAsyncData(load, [load]);
-  const loadControl = useCallback(
-    () => client.rpc<TeamControlSummary>(
-      'control.summary',
-      { project_id: projectID },
-    ),
-    [client, projectID],
-  );
-  const controlState = useAsyncData(loadControl, [loadControl]);
-  const controlView = controlSummaryState(controlState);
 
   useEffect(() => {
-    setBusy('');
-    setActionError('');
-    setIssueNext({});
-    setWorkNext({});
-    setResolutions({});
-    setAssignees({});
-    setLinkedIssue('');
-  }, [projectID]);
+    if (policyScope === "project") setPolicyScopeID(projectID);
+  }, [policyScope, projectID]);
 
   const mutate = async (
     key: string,
     action: () => Promise<unknown>,
-    onSuccess?: () => void,
+    done?: () => void,
   ) => {
-    const mutationProject = projectID;
     setBusy(key);
-    setActionError('');
+    setActionError("");
     try {
       await action();
-      if (projectRef.current !== mutationProject) return;
-      onSuccess?.();
+      done?.();
       state.reload();
-      controlState.reload();
     } catch (reason) {
-      if (projectRef.current === mutationProject) {
-        setActionError(reason instanceof Error ? reason.message : String(reason));
-      }
+      setActionError(reason instanceof Error ? reason.message : String(reason));
     } finally {
-      if (projectRef.current === mutationProject) setBusy('');
+      setBusy("");
     }
   };
 
-  const createIssue = (event: FormEvent) => {
+  if (state.loading && !state.data) return <Loading label="加载团队控制面…" />;
+  if (state.error || !state.data)
+    return <ErrorState error={state.error} onRetry={state.reload} />;
+  const {
+    members,
+    runners,
+    runnerTasks,
+    repositories,
+    documents,
+    components,
+    policies,
+    policyStatus,
+  } = state.data;
+  const currentProject = projects.find((project) => project.id === projectID);
+  const names = new Map(
+    members.map((member) => [member.id, member.display_name]),
+  );
+  const activeRunnerTasks = runnerTasks.filter(
+    (item) => !["completed", "cancelled"].includes(item.status),
+  );
+
+  const addMember = (event: FormEvent) => {
     event.preventDefault();
-    if (!issueTitle.trim()) return;
-    void mutate('create-issue', () => client.rpc('issue.create', {
-      project_id: projectID,
-      type: 'bug',
-      title: issueTitle.trim(),
-      description: issueDescription.trim(),
-      severity: issueSeverity,
-    }), () => {
-      setIssueTitle('');
-      setIssueDescription('');
-      setIssueSeverity('medium');
-    });
+    if (!memberID.trim()) return;
+    void mutate(
+      "member",
+      () =>
+        client.rpc("project.member.add", {
+          project_id: projectID,
+          user_id: memberID.trim(),
+          role: memberRole,
+          business_domains: memberDomains
+            .split(",")
+            .map((value) => value.trim())
+            .filter(Boolean),
+          capacity_points: memberCapacity,
+        }),
+      () => {
+        setMemberID("");
+        setMemberDomains("");
+        setForm("");
+      },
+    );
   };
 
-  const createWorkItem = (event: FormEvent) => {
+  const addRepository = (event: FormEvent) => {
     event.preventDefault();
-    if (!workTitle.trim() || !workInstructions.trim()) return;
-    void mutate('create-work', () => client.rpc('work.create', {
-      project_id: projectID,
-      issue_id: linkedIssue,
-      title: workTitle.trim(),
-      instructions: workInstructions.trim(),
-      priority: 'p2',
-    }), () => {
-      setWorkTitle('');
-      setWorkInstructions('');
-      setLinkedIssue('');
-    });
+    if (!repositoryName.trim()) return;
+    void mutate(
+      "repository",
+      () =>
+        client.rpc("repository.create", {
+          project_id: projectID,
+          name: repositoryName.trim(),
+          remote_url: repositoryURL.trim(),
+          local_path: repositoryPath.trim(),
+          default_branch: repositoryBranch.trim() || "main",
+        }),
+      () => {
+        setRepositoryName("");
+        setRepositoryURL("");
+        setRepositoryPath("");
+        setForm("");
+      },
+    );
   };
 
-  if (state.loading && !state.data) return <Loading label="加载成员、任务、Runner 与工程资产…" />;
-  if (state.error || !state.data) return <ErrorState error={state.error} onRetry={state.reload} />;
-  const { members, work, issues, assignments, runners, policy, docs, components } = state.data;
-  const names = new Map(members.map((member) => [member.id, member.display_name]));
-  const openIssues = issues.filter((item) =>
-    !['resolved', 'closed', 'cancelled'].includes(item.status));
-  const activeMembers = members.filter((member) => member.status !== 'disabled');
-  const activeAssignment = (targetType: TeamAssignment['target_type'], targetID: string) =>
-    assignments.find((assignment) =>
-      assignment.target_type === targetType &&
-      assignment.target_id === targetID &&
-      assignment.role === 'owner' &&
-      assignment.status === 'active');
-
-  const assign = (targetType: TeamAssignment['target_type'], targetID: string) => {
-    const key = `${targetType}:${targetID}`;
-    const userID = assignees[key];
-    if (!userID) return;
-    void mutate(`assign-${key}`, () => client.rpc('assignment.create', {
-      project_id: projectID,
-      target_type: targetType,
-      target_id: targetID,
-      user_id: userID,
-      role: 'owner',
-    }), () => setAssignees((current) => ({ ...current, [key]: '' })));
+  const addDocument = (event: FormEvent) => {
+    event.preventDefault();
+    if (!documentTitle.trim() || !documentKey.trim() || !documentURI.trim())
+      return;
+    void mutate(
+      "document",
+      () =>
+        client.rpc("document.register", {
+          project_id: projectID,
+          key: documentKey.trim(),
+          title: documentTitle.trim(),
+          kind: documentKind,
+          status: "active",
+          uri: documentURI.trim(),
+        }),
+      () => {
+        setDocumentTitle("");
+        setDocumentKey("");
+        setDocumentURI("");
+        setForm("");
+      },
+    );
   };
+
+  const addComponent = (event: FormEvent) => {
+    event.preventDefault();
+    if (!componentName.trim()) return;
+    void mutate(
+      "component",
+      () =>
+        client.rpc("component.register", {
+          project_id: projectID,
+          repository_id: componentRepo,
+          name: componentName.trim(),
+          kind: componentKind,
+          root_path: componentPath.trim(),
+        }),
+      () => {
+        setComponentName("");
+        setComponentRepo("");
+        setComponentPath("");
+        setForm("");
+      },
+    );
+  };
+
+  const addPolicy = (event: FormEvent) => {
+    event.preventDefault();
+    let rules: Record<string, unknown>;
+    try {
+      rules = JSON.parse(policyRules) as Record<string, unknown>;
+    } catch {
+      setActionError("Policy Rules 必须是有效 JSON 对象");
+      return;
+    }
+    const projectScopeID =
+      policyScope === "team" ? currentProject?.team_id : projectID;
+    const scopeID = policyScopeID.trim() || projectScopeID;
+    if (!policyName.trim() || !scopeID) return;
+    void mutate(
+      "policy",
+      () =>
+        client.rpc("policy.put", {
+          name: policyName.trim(),
+          scope: policyScope,
+          scope_id: scopeID,
+          version: policyVersion,
+          priority: 100,
+          enabled: true,
+          rules,
+        }),
+      () => {
+        setPolicyName("");
+        setForm("");
+      },
+    );
+  };
+
+  const actionLabel =
+    tab === "people"
+      ? "添加成员"
+      : tab === "assets"
+        ? "登记资产"
+        : tab === "policy"
+          ? "新增策略"
+          : "";
 
   return (
-    <>
-      <PageHeader title="团队" description="成员、任务、Bug、Runner、策略、文档和共享组件均由 Gateway 按项目授权返回。" />
-      <div className="metric-grid compact">
-        <Metric label="项目成员" value={members.length} />
-        <Metric label="活动任务" value={work.filter((item) => !['done', 'cancelled'].includes(item.status)).length} />
-        <Metric label="未关闭 Bug" value={openIssues.length} tone={openIssues.some((item) => ['critical', 'high'].includes(item.severity)) ? 'danger' : 'neutral'} />
-        <Metric label="在线 Runner" value={runners.filter((item) => ['online', 'busy'].includes(item.status)).length} tone="success" />
+    <div className="collection-page">
+      <PageHeader
+        title="团队控制"
+        description="项目成员、Runner、仓库、文档、组件与策略都由中央单写者按项目授权返回。"
+        actions={
+          actionLabel ? (
+            <Button
+              tone="accent"
+              onClick={() =>
+                setForm(
+                  tab === "people"
+                    ? "member"
+                    : tab === "policy"
+                      ? "policy"
+                      : "repository",
+                )
+              }
+            >
+              {actionLabel}
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="summary-strip">
+        <span>
+          <strong>{members.length}</strong>
+          <small>成员</small>
+        </span>
+        <span>
+          <strong>
+            {
+              runners.filter((item) => ["online", "busy"].includes(item.status))
+                .length
+            }
+            /{runners.length}
+          </strong>
+          <small>Runner 在线</small>
+        </span>
+        <span>
+          <strong>{repositories.length}</strong>
+          <small>仓库</small>
+        </span>
+        <span>
+          <strong>{documents.length + components.length}</strong>
+          <small>工程资产</small>
+        </span>
+        <span>
+          <strong>
+            {policyStatus.compliant ? "一致" : policyStatus.drift_count}
+          </strong>
+          <small>策略状态</small>
+        </span>
       </div>
-      {actionError ? <p className="inline-error" role="alert">{actionError}</p> : null}
-      <div className="dashboard-grid">
-        <Section title="新建 Bug" className="span-two">
-          <form className="governance-form" style={{ margin: 0, padding: 12 }} onSubmit={createIssue}>
-            <div className="form-grid">
-              <label><span>标题</span><input value={issueTitle} onChange={(event) => setIssueTitle(event.target.value)} maxLength={300} required /></label>
-              <label><span>严重度</span>
-                <select style={selectStyle} value={issueSeverity} onChange={(event) => setIssueSeverity(event.target.value as TeamIssue['severity'])}>
-                  {(['critical', 'high', 'medium', 'low'] as const).map((value) => <option key={value} value={value}>{value}</option>)}
-                </select>
-              </label>
-              <label><span>描述</span><textarea value={issueDescription} onChange={(event) => setIssueDescription(event.target.value)} rows={2} /></label>
-            </div>
-            <div className="button-row"><Button tone="accent" busy={busy === 'create-issue'} disabled={!issueTitle.trim()}>登记 Bug</Button></div>
-          </form>
-        </Section>
-        <Section title="新建任务">
-          <form className="governance-form" style={{ margin: 0, padding: 12 }} onSubmit={createWorkItem}>
-            <label><span>标题</span><input value={workTitle} onChange={(event) => setWorkTitle(event.target.value)} maxLength={300} required /></label>
-            <label><span>执行说明</span><textarea value={workInstructions} onChange={(event) => setWorkInstructions(event.target.value)} rows={2} required /></label>
-            <label><span>关联 Bug（可选）</span>
-              <select style={selectStyle} value={linkedIssue} onChange={(event) => setLinkedIssue(event.target.value)}>
-                <option value="">不关联</option>
-                {openIssues.map((issue) => <option key={issue.id} value={issue.id}>{issue.id} · {issue.title}</option>)}
+      <div className="segmented-control control-tabs" role="tablist">
+        {(
+          [
+            ["people", "成员与容量"],
+            ["runners", "Runner"],
+            ["assets", "工程资产"],
+            ["policy", "策略"],
+          ] as Array<[ControlTab, string]>
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            className={tab === id ? "is-active" : ""}
+            onClick={() => {
+              setTab(id);
+              setForm("");
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {actionError ? (
+        <p className="inline-error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
+      {form === "member" ? (
+        <form className="create-surface compact-create" onSubmit={addMember}>
+          <div className="surface-heading">
+            <strong>加入项目成员</strong>
+            <Button type="button" onClick={() => setForm("")}>取消</Button>
+          </div>
+          <div className="form-grid form-grid-wide">
+            <label>
+              <span>User ID</span>
+              <input
+                value={memberID}
+                onChange={(event) => setMemberID(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>项目角色</span>
+              <select
+                value={memberRole}
+                onChange={(event) => setMemberRole(event.target.value)}
+              >
+                {["owner", "maintainer", "developer", "reviewer", "viewer"].map(
+                  (value) => (
+                    <option key={value}>{value}</option>
+                  ),
+                )}
               </select>
             </label>
-            <div className="button-row"><Button tone="accent" busy={busy === 'create-work'} disabled={!workTitle.trim() || !workInstructions.trim()}>创建任务</Button></div>
-          </form>
-        </Section>
+            <label>
+              <span>业务域</span>
+              <input
+                value={memberDomains}
+                onChange={(event) => setMemberDomains(event.target.value)}
+                placeholder="device, cloud"
+              />
+            </label>
+            <label>
+              <span>容量点</span>
+              <input
+                type="number"
+                min={0}
+                max={10000}
+                value={memberCapacity}
+                onChange={(event) =>
+                  setMemberCapacity(Number(event.target.value))
+                }
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <Button tone="accent" busy={busy === "member"}>
+              添加
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {form === "repository" ? (
+        <form
+          className="create-surface compact-create"
+          onSubmit={addRepository}
+        >
+          <div className="surface-heading">
+            <strong>登记仓库</strong>
+            <div className="button-row">
+              <Button type="button" onClick={() => setForm("document")}>改为文档</Button>
+              <Button type="button" onClick={() => setForm("component")}>改为组件</Button>
+              <Button type="button" onClick={() => setForm("")}>取消</Button>
+            </div>
+          </div>
+          <div className="form-grid form-grid-wide">
+            <label>
+              <span>名称</span>
+              <input
+                value={repositoryName}
+                onChange={(event) => setRepositoryName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>Remote URL</span>
+              <input
+                value={repositoryURL}
+                onChange={(event) => setRepositoryURL(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>受管本地路径</span>
+              <input
+                value={repositoryPath}
+                onChange={(event) => setRepositoryPath(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>默认分支</span>
+              <input
+                value={repositoryBranch}
+                onChange={(event) => setRepositoryBranch(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <Button tone="accent" busy={busy === "repository"}>
+              登记
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {form === "document" ? (
+        <form className="create-surface compact-create" onSubmit={addDocument}>
+          <div className="surface-heading">
+            <strong>登记文档</strong>
+            <div className="button-row">
+              <Button type="button" onClick={() => setForm("repository")}>仓库</Button>
+              <Button type="button" onClick={() => setForm("component")}>组件</Button>
+              <Button type="button" onClick={() => setForm("")}>取消</Button>
+            </div>
+          </div>
+          <div className="form-grid form-grid-wide">
+            <label>
+              <span>Key</span>
+              <input
+                value={documentKey}
+                onChange={(event) => setDocumentKey(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>标题</span>
+              <input
+                value={documentTitle}
+                onChange={(event) => setDocumentTitle(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>类型</span>
+              <select
+                value={documentKind}
+                onChange={(event) =>
+                  setDocumentKind(
+                    event.target.value as TeamDocumentRecord["kind"],
+                  )
+                }
+              >
+                {[
+                  "prd",
+                  "adr",
+                  "design",
+                  "runbook",
+                  "api",
+                  "test_plan",
+                  "report",
+                  "knowledge",
+                  "other",
+                ].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>URI</span>
+              <input
+                value={documentURI}
+                onChange={(event) => setDocumentURI(event.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <Button tone="accent" busy={busy === "document"}>
+              登记
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {form === "component" ? (
+        <form className="create-surface compact-create" onSubmit={addComponent}>
+          <div className="surface-heading">
+            <strong>登记共享组件</strong>
+            <div className="button-row">
+              <Button type="button" onClick={() => setForm("repository")}>仓库</Button>
+              <Button type="button" onClick={() => setForm("document")}>文档</Button>
+              <Button type="button" onClick={() => setForm("")}>取消</Button>
+            </div>
+          </div>
+          <div className="form-grid form-grid-wide">
+            <label>
+              <span>名称</span>
+              <input
+                value={componentName}
+                onChange={(event) => setComponentName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>类型</span>
+              <select
+                value={componentKind}
+                onChange={(event) =>
+                  setComponentKind(
+                    event.target.value as TeamComponentRecord["kind"],
+                  )
+                }
+              >
+                {["service", "library", "app", "module", "device", "other"].map(
+                  (value) => (
+                    <option key={value}>{value}</option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label>
+              <span>仓库</span>
+              <select
+                value={componentRepo}
+                onChange={(event) => setComponentRepo(event.target.value)}
+              >
+                <option value="">未绑定</option>
+                {repositories.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Root path</span>
+              <input
+                value={componentPath}
+                onChange={(event) => setComponentPath(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <Button tone="accent" busy={busy === "component"}>
+              登记
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {form === "policy" ? (
+        <form className="create-surface compact-create" onSubmit={addPolicy}>
+          <div className="surface-heading">
+            <strong>新增 Policy Bundle</strong>
+            <Button type="button" onClick={() => setForm("")}>取消</Button>
+          </div>
+          <div className="form-grid form-grid-wide">
+            <label>
+              <span>名称</span>
+              <input
+                value={policyName}
+                onChange={(event) => setPolicyName(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>层级</span>
+              <select
+                value={policyScope}
+                onChange={(event) => {
+                  const next = event.target.value as TeamPolicyBundle["scope"];
+                  setPolicyScope(next);
+                  setPolicyScopeID(
+                    next === "team"
+                      ? (currentProject?.team_id ?? "")
+                      : next === "project"
+                        ? projectID
+                        : "",
+                  );
+                }}
+              >
+                {["team", "project", "repository", "component"].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Scope ID</span>
+              <input
+                value={policyScopeID}
+                onChange={(event) => setPolicyScopeID(event.target.value)}
+                required
+              />
+            </label>
+            <label>
+              <span>版本</span>
+              <input
+                type="number"
+                min={1}
+                value={policyVersion}
+                onChange={(event) =>
+                  setPolicyVersion(Number(event.target.value))
+                }
+              />
+            </label>
+            <label className="field-span-full">
+              <span>Rules JSON</span>
+              <textarea
+                rows={7}
+                value={policyRules}
+                onChange={(event) => setPolicyRules(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <Button tone="accent" busy={busy === "policy"}>
+              保存策略层
+            </Button>
+          </div>
+        </form>
+      ) : null}
 
-        <Section title="成员负载" className="span-two">
-          {members.length === 0 ? <Empty title="尚未登记项目成员" /> : (
-            <div className="member-grid">
+      {tab === "people" ? (
+        <section className="collection-surface">
+          {members.length === 0 ? (
+            <Empty title="尚无项目成员" />
+          ) : (
+            <div className="member-directory">
               {members.map((member) => {
-                const capacity = member.capacity;
-                const utilization = Math.max(0, Math.min(100, capacity?.utilization_percent ?? 0));
+                const utilization = Math.max(
+                  0,
+                  Math.min(100, member.capacity?.utilization_percent ?? 0),
+                );
                 return (
-                  <article className="member-card" key={member.id}>
-                    <div className="avatar">{(member.display_name || member.id).slice(0, 1).toUpperCase()}</div>
-                    <div>
-                      <div className="card-heading"><div><strong>{member.display_name || member.id}</strong><small>{member.role} · {(member.business_domains ?? []).join(' / ') || '未设置业务域'}</small></div><Status tone={toneForState(member.status)}>{member.status}</Status></div>
-                      <progress className="progress-track" max={100} value={utilization} aria-label={`${member.display_name} 利用率 ${utilization}%`} />
-                      <small>{capacity?.active_work ?? 0} 进行中 · {capacity?.queued_work ?? 0} 排队 · {capacity?.blocked_work ?? 0} 阻塞 · {utilization}%</small>
+                  <article key={member.id}>
+                    <div className="avatar">
+                      {(member.display_name || member.id)
+                        .slice(0, 1)
+                        .toUpperCase()}
+                    </div>
+                    <div className="member-content">
+                      <div>
+                        <strong>{member.display_name || member.id}</strong>
+                        <Status tone={toneForState(member.status)}>
+                          {member.status}
+                        </Status>
+                      </div>
+                      <small>
+                        {member.role} ·{" "}
+                        {(member.business_domains ?? []).join(" / ") ||
+                          "未设置业务域"}
+                      </small>
+                      <progress
+                        className="progress-track"
+                        max={100}
+                        value={utilization}
+                      />
+                      <p>
+                        {member.capacity?.active_work ?? 0} 进行中 ·{" "}
+                        {member.capacity?.queued_work ?? 0} 排队 ·{" "}
+                        {member.capacity?.blocked_work ?? 0} 阻塞 ·{" "}
+                        {utilization}%
+                      </p>
                     </div>
                   </article>
                 );
               })}
             </div>
           )}
-        </Section>
-        <Section title="Runner 与租约">
-          {runners.length === 0 ? <Empty title="没有已登记 Runner" /> : (
-            <div className="stack-list">
-              {runners.map((runner) => (
-                <article className="stack-item" key={runner.id}>
-                  <div><strong>{runner.display_name || runner.id}</strong><small>{names.get(runner.member_id ?? '') || runner.member_id || '未绑定'} · {runner.current_work_id || '空闲'} · {formatRelative(runner.last_seen_at)}</small></div>
-                  <Status tone={toneForState(runner.status)}>{runner.status}</Status>
-                </article>
-              ))}
-            </div>
-          )}
-        </Section>
-        <Section title="工程策略">
-          <div className="fact-strip vertical">
-            <span><small>有效版本</small><strong>{policy.effective_version?.slice(0, 16) || '未锁定'}</strong></span>
-            <span><small>状态</small><strong>{policy.compliant ? '一致' : '存在漂移'}</strong></span>
-            <span><small>层数</small><strong>{policy.layers?.length ?? 0}</strong></span>
+        </section>
+      ) : null}
+      {tab === "runners" ? (
+        <section className="collection-surface">
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Runner</th>
+                  <th>Owner</th>
+                  <th>能力</th>
+                  <th>当前任务</th>
+                  <th>状态</th>
+                  <th>心跳</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runners.map((runner) => (
+                  <tr key={runner.id}>
+                    <td>
+                      <strong>{runner.display_name || runner.id}</strong>
+                      <small>{runner.id}</small>
+                    </td>
+                    <td>
+                      {names.get(runner.member_id ?? "") ||
+                        runner.member_id ||
+                        "未绑定"}
+                    </td>
+                    <td>{(runner.capabilities ?? []).join(" · ") || "—"}</td>
+                    <td>{runner.current_work_id || "空闲"}</td>
+                    <td>
+                      <Status tone={toneForState(runner.status)}>
+                        {runner.status}
+                      </Status>
+                    </td>
+                    <td>{formatRelative(runner.last_seen_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          {(policy.layers ?? []).map((layer) => <div className="stack-item compact" key={layer.id}><span>{layer.scope} · {layer.id}@{layer.version}</span><Status tone={layer.compliant === false ? 'danger' : 'success'}>{layer.compliant === false ? '漂移' : '一致'}</Status></div>)}
-        </Section>
-        <Section title="中央上下文治理">
-          {controlView.kind === 'loading'
-            ? <Loading label="加载中央上下文治理…" />
-            : null}
-          {controlView.kind === 'denied'
-            ? <Empty title="无权查看中央上下文治理" detail="请联系项目管理员调整只读权限。" />
-            : null}
-          {controlView.kind === 'error'
-            ? <ErrorState error={controlView.error} onRetry={controlState.reload} />
-            : null}
-          {controlView.kind === 'empty'
-            ? <Empty title="尚未登记中央预算、知识、Skill 或 Runner release" />
-            : null}
-          {controlView.kind === 'ready' ? (
-            <div className="fact-strip vertical">
-              <span><small>Token 预算</small><strong>{controlView.data.used_tokens.toLocaleString()} / {controlView.data.limit_tokens.toLocaleString()}</strong></span>
-              <span><small>批准知识</small><strong>{controlView.data.approved_knowledge} / {controlView.data.knowledge_count}</strong></span>
-              <span><small>批准 Skill</small><strong>{controlView.data.approved_skills} / {controlView.data.skill_count}</strong></span>
-              <span><small>Runner release</small><strong>{controlView.data.runner_release_count}</strong></span>
-              <span><small>Context Bundle</small><strong>{controlView.data.context_bundle_count}</strong></span>
-            </div>
+          {runners.length === 0 ? (
+            <Empty
+              title="没有已登记 Runner"
+              detail="Runner 注册和 device key 操作必须在成员自己的工作站执行。"
+            />
           ) : null}
-        </Section>
-
-        <Section title="活动任务" className="span-two">
-          {work.length === 0 ? <Empty title="暂无任务" /> : (
-            <div className="table-wrap"><table><thead><tr><th>任务</th><th>负责人</th><th>状态流转</th><th>负责人操作</th></tr></thead><tbody>
-              {work.filter((item) => !['done', 'cancelled'].includes(item.status)).slice(0, 20).map((item) => {
-                const key = `work_item:${item.id}`;
-                const owner = activeAssignment('work_item', item.id);
-                const next = workNext[item.id] ?? '';
-                return <tr key={item.id}>
-                  <td><strong>{item.title}</strong><small>{item.id} · {item.business_domain || '未设置业务域'}</small></td>
-                  <td>{names.get(owner?.user_id ?? '') || owner?.user_id || item.assignee_id || '未分配'}</td>
-                  <td><div className="button-row">
-                    <select style={selectStyle} aria-label={`${item.id} 下一状态`} value={next} onChange={(event) => setWorkNext((current) => ({ ...current, [item.id]: event.target.value as TeamWorkItem['status'] }))}>
-                      <option value="">选择合法状态</option>
-                      {nextWorkItemStatuses(item.status).map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                    <Button busy={busy === `transition-work-${item.id}`} disabled={!next} onClick={() => void mutate(`transition-work-${item.id}`, () => client.rpc('work.transition', { project_id: projectID, work_item_id: item.id, status: next }), () => setWorkNext((current) => ({ ...current, [item.id]: '' })))}>流转</Button>
-                  </div></td>
-                  <td>{owner ? (
-                    <Button tone="danger" busy={busy === `release-${key}`} onClick={() => void mutate(`release-${key}`, () => client.rpc('assignment.release', { project_id: projectID, assignment_id: owner.id }))}>解除</Button>
-                  ) : (
-                    <div className="button-row">
-                      <select style={selectStyle} aria-label={`${item.id} 负责人`} value={assignees[key] ?? ''} onChange={(event) => setAssignees((current) => ({ ...current, [key]: event.target.value }))}>
-                        <option value="">选择成员</option>
-                        {activeMembers.map((member) => <option key={member.id} value={member.id}>{member.display_name}</option>)}
-                      </select>
-                      <Button busy={busy === `assign-${key}`} disabled={!assignees[key]} onClick={() => assign('work_item', item.id)}>分配</Button>
+          <div className="subsection">
+            <div className="surface-heading">
+              <strong>活动队列</strong>
+              <small>{activeRunnerTasks.length} 个任务</small>
+            </div>
+            {activeRunnerTasks.length ? (
+              <div className="stack-list">
+                {activeRunnerTasks.map((task) => (
+                  <article className="stack-item" key={task.id}>
+                    <div>
+                      <strong>{task.id}</strong>
+                      <small>
+                        {task.runner_id || "尚未领取"} · attempt{" "}
+                        {task.attempt ?? 0}
+                      </small>
                     </div>
-                  )}</td>
-                </tr>;
-              })}
-            </tbody></table></div>
-          )}
-        </Section>
-
-        <Section title="Bug 状态" className="span-two">
-          {openIssues.length === 0 ? <Empty title="没有未关闭 Bug" /> : (
-            <div className="stack-list">{openIssues.slice(0, 20).map((item) => {
-              const key = `issue:${item.id}`;
-              const owner = activeAssignment('issue', item.id);
-              const next = issueNext[item.id] ?? '';
-              const needsResolution = next === 'resolved' || next === 'closed';
-              return <article className="stack-item vertical" key={item.id}>
-                <div>
-                  <strong>{item.title}</strong>
-                  <small>{item.id} · {names.get(owner?.user_id ?? '') || owner?.user_id || item.owner_id || '未分配'}</small>
-                  <div className="button-row" style={{ justifyContent: 'flex-start', marginTop: 8 }}>
-                    <select style={selectStyle} aria-label={`${item.id} 下一状态`} value={next} onChange={(event) => setIssueNext((current) => ({ ...current, [item.id]: event.target.value as TeamIssue['status'] }))}>
-                      <option value="">选择合法状态</option>
-                      {nextIssueStatuses(item.status).map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                    {needsResolution ? <input aria-label={`${item.id} 解决说明`} placeholder="解决说明或关联修复证据" value={resolutions[item.id] ?? ''} onChange={(event) => setResolutions((current) => ({ ...current, [item.id]: event.target.value }))} style={{ minWidth: 210 }} /> : null}
-                    <Button busy={busy === `transition-issue-${item.id}`} disabled={!next || (needsResolution && !(resolutions[item.id] ?? '').trim())} onClick={() => void mutate(`transition-issue-${item.id}`, () => client.rpc('issue.transition', { project_id: projectID, issue_id: item.id, status: next, resolution: resolutions[item.id]?.trim() ?? '' }), () => {
-                      setIssueNext((current) => ({ ...current, [item.id]: '' }));
-                      setResolutions((current) => ({ ...current, [item.id]: '' }));
-                    })}>流转</Button>
-                  </div>
-                  <div className="button-row" style={{ justifyContent: 'flex-start', marginTop: 8 }}>
-                    {owner ? <Button tone="danger" busy={busy === `release-${key}`} onClick={() => void mutate(`release-${key}`, () => client.rpc('assignment.release', { project_id: projectID, assignment_id: owner.id }))}>解除负责人</Button> : <>
-                      <select style={selectStyle} aria-label={`${item.id} 负责人`} value={assignees[key] ?? ''} onChange={(event) => setAssignees((current) => ({ ...current, [key]: event.target.value }))}>
-                        <option value="">选择成员</option>
-                        {activeMembers.map((member) => <option key={member.id} value={member.id}>{member.display_name}</option>)}
-                      </select>
-                      <Button busy={busy === `assign-${key}`} disabled={!assignees[key]} onClick={() => assign('issue', item.id)}>分配负责人</Button>
-                    </>}
-                  </div>
-                </div>
-                <Status tone={toneForState(item.severity)}>{item.severity} · {item.status}</Status>
-              </article>;
-            })}</div>
-          )}
-        </Section>
-
-        <Section title={`方案文档 ${docs.total}`}>
-          <div className="fact-strip vertical"><span><small>已批准</small><strong>{docs.approved}</strong></span><span><small>陈旧</small><strong>{docs.stale}</strong></span><span><small>待复核</small><strong>{docs.review_due}</strong></span></div>
-          {(docs.items ?? []).map((item) => <div className="stack-item compact" key={item.id}><div><strong>{item.title}</strong><small>{item.path}</small></div><Status tone={toneForState(item.status)}>{item.status}</Status></div>)}
-        </Section>
-        <Section title={`共享组件 ${components.total}`}>
-          <div className="fact-strip vertical"><span><small>可复用</small><strong>{components.reusable}</strong></span><span><small>待评审</small><strong>{components.pending_review}</strong></span><span><small>弃用</small><strong>{components.deprecated}</strong></span></div>
-          {(components.items ?? []).map((item) => <div className="stack-item compact" key={item.id}><div><strong>{item.name}</strong><small>{item.kind} · {item.owner_id || '未分配'}</small></div><Status tone={toneForState(item.status)}>{item.status}</Status></div>)}
-        </Section>
-      </div>
-    </>
+                    <Status tone={toneForState(task.status)}>
+                      {task.status}
+                    </Status>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty title="队列为空" />
+            )}
+          </div>
+        </section>
+      ) : null}
+      {tab === "assets" ? (
+        <div className="asset-columns">
+          <section className="collection-surface">
+            <div className="surface-heading">
+              <strong>Repositories</strong>
+              <Button onClick={() => setForm("repository")}>登记</Button>
+            </div>
+            {repositories.length ? (
+              <div className="stack-list">
+                {repositories.map((item) => (
+                  <article className="stack-item" key={item.id}>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <small>
+                        {item.remote_url || item.local_path || item.id}
+                      </small>
+                    </div>
+                    <Status>{item.default_branch}</Status>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty title="尚无仓库" />
+            )}
+          </section>
+          <section className="collection-surface">
+            <div className="surface-heading">
+              <strong>Documents</strong>
+              <Button onClick={() => setForm("document")}>登记</Button>
+            </div>
+            {documents.length ? (
+              <div className="stack-list">
+                {documents.map((item) => (
+                  <article className="stack-item" key={item.id}>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <small>
+                        {item.key} · {item.uri}
+                      </small>
+                    </div>
+                    <Status tone={toneForState(item.status)}>
+                      {item.kind} · {item.status}
+                    </Status>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty title="尚无方案文档" />
+            )}
+          </section>
+          <section className="collection-surface">
+            <div className="surface-heading">
+              <strong>Components</strong>
+              <Button onClick={() => setForm("component")}>登记</Button>
+            </div>
+            {components.length ? (
+              <div className="stack-list">
+                {components.map((item) => (
+                  <article className="stack-item" key={item.id}>
+                    <div>
+                      <strong>{item.name}</strong>
+                      <small>
+                        {item.repository_id || "未绑定仓库"} ·{" "}
+                        {item.root_path || "/"}
+                      </small>
+                    </div>
+                    <Status>{item.kind}</Status>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <Empty title="尚无共享组件" />
+            )}
+          </section>
+        </div>
+      ) : null}
+      {tab === "policy" ? (
+        <div className="asset-columns">
+          <section className="collection-surface">
+            <div className="surface-heading">
+              <strong>有效策略</strong>
+              <Status tone={policyStatus.compliant ? "success" : "danger"}>
+                {policyStatus.compliant
+                  ? "一致"
+                  : `${policyStatus.drift_count} 项漂移`}
+              </Status>
+            </div>
+            <dl className="property-list policy-summary">
+              <div>
+                <dt>Effective hash</dt>
+                <dd>
+                  <code>{policyStatus.effective_version || "未解析"}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Layers</dt>
+                <dd>{policyStatus.layers?.length ?? 0}</dd>
+              </div>
+              <div>
+                <dt>Checked</dt>
+                <dd>{formatRelative(policyStatus.checked_at)}</dd>
+              </div>
+            </dl>
+          </section>
+          <section className="collection-surface span-two">
+            <div className="surface-heading">
+              <strong>Policy Bundles</strong>
+              <Button onClick={() => setForm("policy")}>新增</Button>
+            </div>
+            {policies.length ? (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>策略</th>
+                      <th>层级</th>
+                      <th>版本</th>
+                      <th>优先级</th>
+                      <th>状态</th>
+                      <th>Hash</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {policies.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.name}</strong>
+                          <small>{item.id}</small>
+                        </td>
+                        <td>
+                          {item.scope} · {item.scope_id}
+                        </td>
+                        <td>{item.version}</td>
+                        <td>{item.priority}</td>
+                        <td>
+                          <Status tone={item.enabled ? "success" : "neutral"}>
+                            {item.enabled ? "enabled" : "disabled"}
+                          </Status>
+                        </td>
+                        <td>
+                          <code>{item.hash.slice(0, 12)}</code>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <Empty title="尚无策略层" />
+            )}
+          </section>
+        </div>
+      ) : null}
+    </div>
   );
 }

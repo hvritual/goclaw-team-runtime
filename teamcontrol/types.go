@@ -86,6 +86,10 @@ const (
 	ActionRunnerReleaseWrite Action = "runner_release.write"
 	ActionContextRead        Action = "context.read"
 	ActionContextCompile     Action = "context.compile"
+	ActionDeliveryRead       Action = "delivery.read"
+	ActionDeliveryWrite      Action = "delivery.write"
+	ActionDeliveryReview     Action = "delivery.review"
+	ActionDeliveryAccept     Action = "delivery.accept"
 )
 
 type User struct {
@@ -273,6 +277,13 @@ type WorkItem struct {
 	DependsOn            []string       `json:"depends_on,omitempty"`
 	ComponentIDs         []string       `json:"component_ids,omitempty"`
 	VerificationCommands [][]string     `json:"verification_commands,omitempty"`
+	SourceType           ResourceType   `json:"source_type,omitempty"`
+	SourceID             string         `json:"source_id,omitempty"`
+	ContractID           string         `json:"contract_id,omitempty"`
+	ObjectiveRef         string         `json:"objective_ref,omitempty"`
+	EvidenceRequirements []string       `json:"evidence_requirements,omitempty"`
+	RiskLevel            IssueSeverity  `json:"risk_level,omitempty"`
+	Revision             uint64         `json:"revision"`
 	CreatedBy            string         `json:"created_by"`
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`
@@ -361,6 +372,13 @@ const (
 	ResourceComponent      ResourceType = "component"
 	ResourceRepository     ResourceType = "repository"
 	ResourcePolicy         ResourceType = "policy"
+	ResourceRequest        ResourceType = "request"
+	ResourceIntentContract ResourceType = "intent_contract"
+	ResourceSolution       ResourceType = "solution"
+	ResourceFrozenPlan     ResourceType = "frozen_plan"
+	ResourceChangeIntent   ResourceType = "change_intent"
+	ResourceDefect         ResourceType = "defect"
+	ResourceRisk           ResourceType = "risk"
 )
 
 type CorrelationLink struct {
@@ -616,6 +634,7 @@ type state struct {
 	SkillReleases      map[string]SkillRelease      `json:"skill_releases"`
 	RunnerReleases     map[string]RunnerRelease     `json:"runner_releases"`
 	ContextBundles     map[string]ContextBundle     `json:"context_bundles"`
+	Delivery           DeliveryState                `json:"delivery"`
 	UpdatedAt          time.Time                    `json:"updated_at"`
 }
 
@@ -643,6 +662,7 @@ func newState() state {
 		SkillReleases:      make(map[string]SkillRelease),
 		RunnerReleases:     make(map[string]RunnerRelease),
 		ContextBundles:     make(map[string]ContextBundle),
+		Delivery:           newDeliveryState(),
 		UpdatedAt:          time.Now().UTC(),
 	}
 }

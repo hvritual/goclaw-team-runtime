@@ -404,6 +404,88 @@ func TestControlPlaneRegistryRPCsAreProjectScoped(t *testing.T) {
 	}
 }
 
+func TestDeliveryRPCsUseAuthenticatedActorAndProjectScope(t *testing.T) {
+	fixture := newGatewayTeamFixture(t)
+	handler := &Handler{registry: NewMethodRegistry()}
+	handler.SetTeamControlService(&fixture.service)
+	session := teamSessionID(fixture.alice.ID)
+
+	result, err := handler.registry.Call(
+		"delivery.command",
+		session,
+		map[string]interface{}{
+			"id":                "cmd-rpc-request",
+			"project_id":        fixture.project.ID,
+			"type":              "request.create",
+			"actor_id":          fixture.bob.ID,
+			"expected_revision": 0,
+			"payload": map[string]interface{}{
+				"id":                  "request-rpc",
+				"title":               "RPC delivery request",
+				"description":         "The authenticated principal must own the event.",
+				"acceptance_criteria": []string{"the stored actor is authenticated"},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, ok := result.(teamcontrol.DeliveryCommandResult)
+	if !ok || len(receipt.Events) != 1 || receipt.Events[0].ActorID != fixture.alice.ID {
+		t.Fatalf("unexpected delivery command result: %#v", result)
+	}
+
+	projected, err := handler.registry.Call(
+		"delivery.projection",
+		session,
+		map[string]interface{}{"project_id": fixture.project.ID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection, ok := projected.(teamcontrol.DeliveryProjection)
+	if !ok || projection.Requests["request-rpc"].CreatedBy != fixture.alice.ID {
+		t.Fatalf("unexpected delivery projection: %#v", projected)
+	}
+
+	events, err := handler.registry.Call(
+		"delivery.events",
+		session,
+		map[string]interface{}{
+			"project_id": fixture.project.ID,
+			"limit":      10,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, ok := events.([]teamcontrol.DeliveryEvent)
+	if !ok || len(listed) != 1 || listed[0].ProjectID != fixture.project.ID {
+		t.Fatalf("unexpected delivery events: %#v", events)
+	}
+
+	integrity, err := handler.registry.Call(
+		"delivery.integrity",
+		session,
+		map[string]interface{}{"project_id": fixture.project.ID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, ok := integrity.(teamcontrol.DeliveryIntegrityReport)
+	if !ok || !report.ProjectionStable || report.EventCount != 1 {
+		t.Fatalf("unexpected delivery integrity report: %#v", integrity)
+	}
+
+	if _, err := handler.registry.Call(
+		"delivery.projection",
+		teamSessionID(fixture.viewer.ID),
+		map[string]interface{}{"project_id": fixture.project.ID},
+	); !errors.Is(err, teamcontrol.ErrForbidden) {
+		t.Fatalf("cross-project delivery read error = %v, want forbidden", err)
+	}
+}
+
 func TestLegacyUnsafeUsageMetadataDoesNotEscapeRPC(t *testing.T) {
 	fixture := newGatewayTeamFixture(t)
 	budget, err := fixture.service.PutTokenBudget(
