@@ -1,0 +1,122 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "RegisterAgent",
+      "simple_string": false
+    },
+    {
+      "name": "GetAgent",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "Agent",
+      "source": ".auth.v1.Agent",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "IdentityMetadata",
+          "type": "map[string]any",
+          "json_tag": "identityMetadata"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    },
+    {
+      "name": "GetAgentRequest",
+      "source": ".auth.v1.GetAgentRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "AgentId",
+          "type": "string",
+          "json_tag": "agentId"
+        }
+      ]
+    },
+    {
+      "name": "GetAgentResponse",
+      "source": ".auth.v1.GetAgentResponse",
+      "fields": [
+        {
+          "name": "Agent",
+          "type": "*Agent",
+          "json_tag": "agent"
+        }
+      ]
+    },
+    {
+      "name": "RegisterAgentRequest",
+      "source": ".auth.v1.RegisterAgentRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "IdentityMetadata",
+          "type": "map[string]any",
+          "json_tag": "identityMetadata"
+        }
+      ]
+    },
+    {
+      "name": "RegisterAgentResponse",
+      "source": ".auth.v1.RegisterAgentResponse",
+      "fields": [
+        {
+          "name": "Agent",
+          "type": "*Agent",
+          "json_tag": "agent"
+        }
+      ]
+    },
+    {
+      "name": "Struct",
+      "source": ".google.protobuf.Struct",
+      "alias": "map[string]any",
+      "fields": null
+    }
+  ]
+}

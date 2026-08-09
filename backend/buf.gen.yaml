@@ -1,0 +1,17 @@
+version: v2
+
+clean: true
+
+plugins:
+  - local: protoc-gen-go
+    out: rpc/pb
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: rpc/pb
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-http
+    out: rpc/pb
+    opt:
+      - paths=source_relative

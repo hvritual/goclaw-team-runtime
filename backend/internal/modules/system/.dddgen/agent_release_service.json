@@ -1,0 +1,142 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "PublishAgentRelease",
+      "simple_string": false
+    },
+    {
+      "name": "ResolveAgentUpgrade",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "AgentRelease",
+      "source": ".system.v1.AgentRelease",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "Version",
+          "type": "string",
+          "json_tag": "version"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Artifacts",
+          "type": "[]AgentReleaseArtifact",
+          "json_tag": "artifacts"
+        },
+        {
+          "name": "PublishedAt",
+          "type": "string",
+          "json_tag": "publishedAt"
+        }
+      ]
+    },
+    {
+      "name": "AgentReleaseArtifact",
+      "source": ".system.v1.AgentReleaseArtifact",
+      "fields": [
+        {
+          "name": "Platform",
+          "type": "string",
+          "json_tag": "platform"
+        },
+        {
+          "name": "Architecture",
+          "type": "string",
+          "json_tag": "architecture"
+        },
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        },
+        {
+          "name": "Checksum",
+          "type": "string",
+          "json_tag": "checksum"
+        }
+      ]
+    },
+    {
+      "name": "PublishAgentReleaseRequest",
+      "source": ".system.v1.PublishAgentReleaseRequest",
+      "fields": [
+        {
+          "name": "Version",
+          "type": "string",
+          "json_tag": "version"
+        },
+        {
+          "name": "Artifacts",
+          "type": "[]AgentReleaseArtifact",
+          "json_tag": "artifacts"
+        }
+      ]
+    },
+    {
+      "name": "PublishAgentReleaseResponse",
+      "source": ".system.v1.PublishAgentReleaseResponse",
+      "fields": [
+        {
+          "name": "Release",
+          "type": "*AgentRelease",
+          "json_tag": "release"
+        }
+      ]
+    },
+    {
+      "name": "ResolveAgentUpgradeRequest",
+      "source": ".system.v1.ResolveAgentUpgradeRequest",
+      "fields": [
+        {
+          "name": "AgentId",
+          "type": "string",
+          "json_tag": "agentId"
+        },
+        {
+          "name": "CurrentVersion",
+          "type": "string",
+          "json_tag": "currentVersion"
+        },
+        {
+          "name": "Platform",
+          "type": "string",
+          "json_tag": "platform"
+        },
+        {
+          "name": "Architecture",
+          "type": "string",
+          "json_tag": "architecture"
+        }
+      ]
+    },
+    {
+      "name": "ResolveAgentUpgradeResponse",
+      "source": ".system.v1.ResolveAgentUpgradeResponse",
+      "fields": [
+        {
+          "name": "TargetRelease",
+          "type": "*AgentRelease",
+          "json_tag": "targetRelease"
+        },
+        {
+          "name": "UpgradePolicy",
+          "type": "string",
+          "json_tag": "upgradePolicy"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,409 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "CreateTodo",
+      "simple_string": false
+    },
+    {
+      "name": "GetTodo",
+      "simple_string": false
+    },
+    {
+      "name": "ListTodos",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateTodo",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateTodoStatus",
+      "simple_string": false
+    },
+    {
+      "name": "DeleteTodo",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "CreateTodoRequest",
+      "source": ".workspace.v1.CreateTodoRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "string",
+          "json_tag": "description"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "IssueId",
+          "type": "*string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "Position",
+          "type": "float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        }
+      ]
+    },
+    {
+      "name": "CreateTodoResponse",
+      "source": ".workspace.v1.CreateTodoResponse",
+      "fields": [
+        {
+          "name": "Todo",
+          "type": "*Todo",
+          "json_tag": "todo"
+        }
+      ]
+    },
+    {
+      "name": "DeleteTodoRequest",
+      "source": ".workspace.v1.DeleteTodoRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "TodoId",
+          "type": "string",
+          "json_tag": "todoId"
+        }
+      ]
+    },
+    {
+      "name": "DeleteTodoResponse",
+      "source": ".workspace.v1.DeleteTodoResponse",
+      "fields": null
+    },
+    {
+      "name": "GetTodoRequest",
+      "source": ".workspace.v1.GetTodoRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "TodoId",
+          "type": "string",
+          "json_tag": "todoId"
+        }
+      ]
+    },
+    {
+      "name": "GetTodoResponse",
+      "source": ".workspace.v1.GetTodoResponse",
+      "fields": [
+        {
+          "name": "Todo",
+          "type": "*Todo",
+          "json_tag": "todo"
+        }
+      ]
+    },
+    {
+      "name": "ListTodosRequest",
+      "source": ".workspace.v1.ListTodosRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "IssueId",
+          "type": "*string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "name": "ListTodosResponse",
+      "source": ".workspace.v1.ListTodosResponse",
+      "fields": [
+        {
+          "name": "Todos",
+          "type": "[]Todo",
+          "json_tag": "todos"
+        },
+        {
+          "name": "Total",
+          "type": "int32",
+          "json_tag": "total"
+        }
+      ]
+    },
+    {
+      "name": "Todo",
+      "source": ".workspace.v1.Todo",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "IssueId",
+          "type": "*string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        },
+        {
+          "name": "Priority",
+          "type": "string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "CreatorType",
+          "type": "string",
+          "json_tag": "creatorType"
+        },
+        {
+          "name": "CreatorId",
+          "type": "string",
+          "json_tag": "creatorId"
+        },
+        {
+          "name": "Position",
+          "type": "float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        },
+        {
+          "name": "CompletedAt",
+          "type": "*string",
+          "json_tag": "completedAt"
+        }
+      ]
+    },
+    {
+      "name": "UpdateTodoRequest",
+      "source": ".workspace.v1.UpdateTodoRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "TodoId",
+          "type": "string",
+          "json_tag": "todoId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "IssueId",
+          "type": "*string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "Title",
+          "type": "*string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "*string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "*string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "*string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "Position",
+          "type": "*float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        }
+      ]
+    },
+    {
+      "name": "UpdateTodoResponse",
+      "source": ".workspace.v1.UpdateTodoResponse",
+      "fields": [
+        {
+          "name": "Todo",
+          "type": "*Todo",
+          "json_tag": "todo"
+        }
+      ]
+    },
+    {
+      "name": "UpdateTodoStatusRequest",
+      "source": ".workspace.v1.UpdateTodoStatusRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "TodoId",
+          "type": "string",
+          "json_tag": "todoId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "name": "UpdateTodoStatusResponse",
+      "source": ".workspace.v1.UpdateTodoStatusResponse",
+      "fields": [
+        {
+          "name": "Todo",
+          "type": "*Todo",
+          "json_tag": "todo"
+        }
+      ]
+    }
+  ]
+}

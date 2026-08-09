@@ -138,6 +138,28 @@ In `server/internal/handler/`, always know where a UUID came from before using i
 - Trusted UUID round-trips from sqlc results or test fixtures use `parseUUID(s)`, which panics on invalid input.
 - Outside handlers, `util.ParseUUID(s) (pgtype.UUID, error)` is the safe variant; always check the error.
 
+## Backend Agent Orchestration
+
+For work scoped to `backend/`, keep the primary Sol agent responsible for
+requirement analysis, implementation planning, architectural decisions,
+acceptance, and final synthesis. For complex or multi-step work, plan before
+product code changes begin and continue to follow `backend/AGENTS.md` and its
+versioned-plan gate.
+
+Automatically delegate bounded, independent, read-only investigations to the
+project `side_luna` custom agent. Suitable work includes locating backend code
+paths, extracting constraints, reviewing logs or test output, checking
+documentation, and identifying local risks or missing cases in a proposed
+plan. Use subagent workflows for this automatic delegation; `/side` remains a
+user-initiated ephemeral conversation.
+
+Wait for delegated evidence when it affects the next step. The primary agent
+must verify and integrate the result rather than treating a Luna conclusion as
+an architectural or acceptance decision. Do not delegate simple questions,
+final decisions, write-heavy tasks, or work that could edit files concurrently
+with the primary agent. Delegation never bypasses task scope, plan approval,
+traceability, or independent review.
+
 ## Native DDD Scaffold
 
 New bounded-context scaffolding uses the repository's dddgen-native layout under

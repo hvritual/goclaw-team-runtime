@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+service WorkspaceService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc Ping(PingRequest) returns (PingResponse) {
+    option (google.api.http) = {get: "/v1/workspace/ping"};
+    option (annotations.v1.access) = {public: true};
+  }
+}
+
+message PingRequest {}
+message PingResponse {
+  string message = 1;
+}

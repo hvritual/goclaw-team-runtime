@@ -1,0 +1,168 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "PutWorkspaceSetting",
+      "simple_string": false
+    },
+    {
+      "name": "PutWorkspaceSkillBinding",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "PutWorkspaceSettingRequest",
+      "source": ".workspace.v1.PutWorkspaceSettingRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Key",
+          "type": "string",
+          "json_tag": "key"
+        },
+        {
+          "name": "Value",
+          "type": "map[string]any",
+          "json_tag": "value"
+        }
+      ]
+    },
+    {
+      "name": "PutWorkspaceSettingResponse",
+      "source": ".workspace.v1.PutWorkspaceSettingResponse",
+      "fields": [
+        {
+          "name": "Setting",
+          "type": "*WorkspaceSetting",
+          "json_tag": "setting"
+        }
+      ]
+    },
+    {
+      "name": "PutWorkspaceSkillBindingRequest",
+      "source": ".workspace.v1.PutWorkspaceSkillBindingRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "SkillId",
+          "type": "string",
+          "json_tag": "skillId"
+        },
+        {
+          "name": "SkillVersionId",
+          "type": "*string",
+          "json_tag": "skillVersionId"
+        },
+        {
+          "name": "Enabled",
+          "type": "bool",
+          "json_tag": "enabled"
+        },
+        {
+          "name": "Configuration",
+          "type": "map[string]any",
+          "json_tag": "configuration"
+        },
+        {
+          "name": "AgentIds",
+          "type": "[]string",
+          "json_tag": "agentIds"
+        }
+      ]
+    },
+    {
+      "name": "PutWorkspaceSkillBindingResponse",
+      "source": ".workspace.v1.PutWorkspaceSkillBindingResponse",
+      "fields": [
+        {
+          "name": "Binding",
+          "type": "*WorkspaceSkillBinding",
+          "json_tag": "binding"
+        }
+      ]
+    },
+    {
+      "name": "Struct",
+      "source": ".google.protobuf.Struct",
+      "alias": "map[string]any",
+      "fields": null
+    },
+    {
+      "name": "WorkspaceSetting",
+      "source": ".workspace.v1.WorkspaceSetting",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Key",
+          "type": "string",
+          "json_tag": "key"
+        },
+        {
+          "name": "Value",
+          "type": "map[string]any",
+          "json_tag": "value"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    },
+    {
+      "name": "WorkspaceSkillBinding",
+      "source": ".workspace.v1.WorkspaceSkillBinding",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "SkillId",
+          "type": "string",
+          "json_tag": "skillId"
+        },
+        {
+          "name": "SkillVersionId",
+          "type": "*string",
+          "json_tag": "skillVersionId"
+        },
+        {
+          "name": "Enabled",
+          "type": "bool",
+          "json_tag": "enabled"
+        },
+        {
+          "name": "Configuration",
+          "type": "map[string]any",
+          "json_tag": "configuration"
+        },
+        {
+          "name": "AgentIds",
+          "type": "[]string",
+          "json_tag": "agentIds"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    }
+  ]
+}

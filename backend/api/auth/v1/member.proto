@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/auth/v1;authv1";
+
+// MemberService owns human Workspace membership, invitations, Workspace roles,
+// and the invariant that every Workspace retains at least one owner. Workspace
+// remains the tenant and authorization boundary.
+service MemberService {
+  option (annotations.v1.module) = {
+    code: "auth"
+    name: "Auth"
+    version: "v1"
+  };
+
+  // ProvisionWorkspaceOwner is the trusted Auth half of Workspace creation.
+  // It owns only membership state and does not create or validate a Workspace.
+  rpc ProvisionWorkspaceOwner(ProvisionWorkspaceOwnerRequest) returns (ProvisionWorkspaceOwnerResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.provision_workspace_owner"
+      permission_name: "Provision workspace owner"
+      resource: "auth.member"
+      action: "provision_workspace_owner"
+      audit: true
+      idempotent: true
+    };
+  }
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.list"
+      permission_name: "List members"
+      resource: "auth.member"
+      action: "list"
+    };
+  }
+  rpc UpdateMemberRole(UpdateMemberRoleRequest) returns (UpdateMemberRoleResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "auth.member.update_role"
+      permission_name: "Update member role"
+      resource: "auth.member"
+      action: "update_role"
+      audit: true
+    };
+  }
+}
+
+message ProvisionWorkspaceOwnerRequest {
+  string workspace_id = 1;
+  string user_id = 2;
+}
+
+message ProvisionWorkspaceOwnerResponse {
+  Member member = 1;
+  // False means the same completed Workspace/User command was replayed.
+  bool created = 2;
+}
+
+message Member {
+  string id = 1;
+  string workspace_id = 2;
+  string user_id = 3;
+  // role remains owner, admin, or member for existing JSON compatibility.
+  string role = 4;
+  string name = 5;
+  string email = 6;
+  optional string avatar_url = 7;
+  string created_at = 8;
+}
+
+message ListMembersRequest {
+  string workspace_id = 1;
+}
+
+message ListMembersResponse {
+  repeated Member members = 1;
+}
+
+message UpdateMemberRoleRequest {
+  string workspace_id = 1;
+  string member_id = 2;
+  string role = 3;
+}
+
+message UpdateMemberRoleResponse {
+  Member member = 1;
+}

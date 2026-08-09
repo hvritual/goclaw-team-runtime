@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// RequirementService owns versioned Project requirements, approval state,
+// coverage, and Requirement-to-Issue traceability. Referenced Projects and
+// Issues remain owned by their respective Workspace services.
+service RequirementService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc SaveRequirementVersion(SaveRequirementVersionRequest) returns (SaveRequirementVersionResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.requirement.save_version"
+      permission_name: "Save requirement version"
+      resource: "workspace.requirement"
+      action: "save_version"
+      audit: true
+    };
+  }
+  rpc GetRequirement(GetRequirementRequest) returns (GetRequirementResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.requirement.get"
+      permission_name: "Get requirement"
+      resource: "workspace.requirement"
+      action: "get"
+    };
+  }
+}
+
+message Requirement {
+  string id = 1;
+  string workspace_id = 2;
+  string project_id = 3;
+  string title = 4;
+  int32 current_version = 5;
+  string approval_status = 6;
+  string coverage_status = 7;
+  repeated string issue_ids = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message RequirementVersion {
+  string id = 1;
+  string requirement_id = 2;
+  int32 version = 3;
+  string content = 4;
+  string created_at = 5;
+}
+
+message SaveRequirementVersionRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+  optional string requirement_id = 3;
+  string title = 4;
+  string content = 5;
+  repeated string issue_ids = 6;
+}
+
+message SaveRequirementVersionResponse {
+  Requirement requirement = 1;
+  RequirementVersion version = 2;
+}
+
+message GetRequirementRequest {
+  string workspace_id = 1;
+  string requirement_id = 2;
+}
+
+message GetRequirementResponse {
+  Requirement requirement = 1;
+  RequirementVersion current_version = 2;
+}

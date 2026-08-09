@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// SettingService owns tenant configuration whose meaning and lifecycle belong
+// to one Workspace. It also owns tenant-level Skill enablement, configuration,
+// and Agent bindings; system.v1 owns Skill definitions and versions.
+service SettingService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc PutWorkspaceSetting(PutWorkspaceSettingRequest) returns (PutWorkspaceSettingResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.setting.put"
+      permission_name: "Put workspace setting"
+      resource: "workspace.setting"
+      action: "put"
+      audit: true
+    };
+  }
+  rpc PutWorkspaceSkillBinding(PutWorkspaceSkillBindingRequest) returns (PutWorkspaceSkillBindingResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.skill_binding.put"
+      permission_name: "Put workspace skill binding"
+      resource: "workspace.skill_binding"
+      action: "put"
+      audit: true
+    };
+  }
+}
+
+message WorkspaceSetting {
+  string workspace_id = 1;
+  string key = 2;
+  google.protobuf.Struct value = 3;
+  string updated_at = 4;
+}
+
+message WorkspaceSkillBinding {
+  string workspace_id = 1;
+  // skill_id and skill_version_id reference system.v1 identities.
+  string skill_id = 2;
+  optional string skill_version_id = 3;
+  bool enabled = 4;
+  google.protobuf.Struct configuration = 5;
+  // Each agent_id references an auth.v1 Agent in the same Workspace.
+  repeated string agent_ids = 6;
+  string updated_at = 7;
+}
+
+message PutWorkspaceSettingRequest {
+  string workspace_id = 1;
+  string key = 2;
+  google.protobuf.Struct value = 3;
+}
+
+message PutWorkspaceSettingResponse {
+  WorkspaceSetting setting = 1;
+}
+
+message PutWorkspaceSkillBindingRequest {
+  string workspace_id = 1;
+  string skill_id = 2;
+  optional string skill_version_id = 3;
+  bool enabled = 4;
+  google.protobuf.Struct configuration = 5;
+  repeated string agent_ids = 6;
+}
+
+message PutWorkspaceSkillBindingResponse {
+  WorkspaceSkillBinding binding = 1;
+}

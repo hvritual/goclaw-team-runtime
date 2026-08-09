@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package system.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/system/v1;systemv1";
+
+// AgentReleaseService owns Agent release publication, immutable versions,
+// compatible artifacts, and upgrade policy. auth.v1 owns Agent identity; asset
+// content referenced by artifacts remains owned by space.v1.
+service AgentReleaseService {
+  option (annotations.v1.module) = {
+    code: "system"
+    name: "System"
+    version: "v1"
+  };
+
+  rpc PublishAgentRelease(PublishAgentReleaseRequest) returns (PublishAgentReleaseResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "system.agent_release.publish"
+      permission_name: "Publish agent release"
+      resource: "system.agent_release"
+      action: "publish"
+      audit: true
+    };
+  }
+  rpc ResolveAgentUpgrade(ResolveAgentUpgradeRequest) returns (ResolveAgentUpgradeResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "system.agent_release.resolve_upgrade"
+      permission_name: "Resolve agent upgrade"
+      resource: "system.agent_release"
+      action: "resolve_upgrade"
+    };
+  }
+}
+
+message AgentRelease {
+  string id = 1;
+  string version = 2;
+  string status = 3;
+  repeated AgentReleaseArtifact artifacts = 4;
+  string published_at = 5;
+}
+
+message AgentReleaseArtifact {
+  string platform = 1;
+  string architecture = 2;
+  // asset_id references a verified space.v1 Asset.
+  string asset_id = 3;
+  string checksum = 4;
+}
+
+message PublishAgentReleaseRequest {
+  string version = 1;
+  repeated AgentReleaseArtifact artifacts = 2;
+}
+
+message PublishAgentReleaseResponse {
+  AgentRelease release = 1;
+}
+
+message ResolveAgentUpgradeRequest {
+  // agent_id references an auth.v1 Agent; System does not own that identity.
+  string agent_id = 1;
+  string current_version = 2;
+  string platform = 3;
+  string architecture = 4;
+}
+
+message ResolveAgentUpgradeResponse {
+  optional AgentRelease target_release = 1;
+  string upgrade_policy = 2;
+}

@@ -1,0 +1,310 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "CreateProject",
+      "simple_string": false
+    },
+    {
+      "name": "GetProject",
+      "simple_string": false
+    },
+    {
+      "name": "ListProjects",
+      "simple_string": false
+    },
+    {
+      "name": "SearchProjects",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateProject",
+      "simple_string": false
+    },
+    {
+      "name": "DeleteProject",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "CreateProjectRequest",
+      "source": ".workspace.v1.CreateProjectRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Description",
+          "type": "string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "CreateProjectResponse",
+      "source": ".workspace.v1.CreateProjectResponse",
+      "fields": [
+        {
+          "name": "Project",
+          "type": "*Project",
+          "json_tag": "project"
+        }
+      ]
+    },
+    {
+      "name": "DeleteProjectRequest",
+      "source": ".workspace.v1.DeleteProjectRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        }
+      ]
+    },
+    {
+      "name": "DeleteProjectResponse",
+      "source": ".workspace.v1.DeleteProjectResponse",
+      "fields": null
+    },
+    {
+      "name": "GetProjectRequest",
+      "source": ".workspace.v1.GetProjectRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        }
+      ]
+    },
+    {
+      "name": "GetProjectResponse",
+      "source": ".workspace.v1.GetProjectResponse",
+      "fields": [
+        {
+          "name": "Project",
+          "type": "*Project",
+          "json_tag": "project"
+        }
+      ]
+    },
+    {
+      "name": "ListProjectsRequest",
+      "source": ".workspace.v1.ListProjectsRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "name": "ListProjectsResponse",
+      "source": ".workspace.v1.ListProjectsResponse",
+      "fields": [
+        {
+          "name": "Projects",
+          "type": "[]Project",
+          "json_tag": "projects"
+        },
+        {
+          "name": "Total",
+          "type": "int32",
+          "json_tag": "total"
+        }
+      ]
+    },
+    {
+      "name": "Project",
+      "source": ".workspace.v1.Project",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Description",
+          "type": "string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    },
+    {
+      "name": "ProjectSearchHit",
+      "source": ".workspace.v1.ProjectSearchHit",
+      "fields": [
+        {
+          "name": "Project",
+          "type": "*Project",
+          "json_tag": "project"
+        },
+        {
+          "name": "MatchSource",
+          "type": "string",
+          "json_tag": "matchSource"
+        },
+        {
+          "name": "MatchedSnippet",
+          "type": "*string",
+          "json_tag": "matchedSnippet"
+        }
+      ]
+    },
+    {
+      "name": "SearchProjectsRequest",
+      "source": ".workspace.v1.SearchProjectsRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Query",
+          "type": "string",
+          "json_tag": "query"
+        },
+        {
+          "name": "IncludeClosed",
+          "type": "bool",
+          "json_tag": "includeClosed"
+        },
+        {
+          "name": "Limit",
+          "type": "int32",
+          "json_tag": "limit"
+        },
+        {
+          "name": "Offset",
+          "type": "int32",
+          "json_tag": "offset"
+        }
+      ]
+    },
+    {
+      "name": "SearchProjectsResponse",
+      "source": ".workspace.v1.SearchProjectsResponse",
+      "fields": [
+        {
+          "name": "Hits",
+          "type": "[]ProjectSearchHit",
+          "json_tag": "hits"
+        },
+        {
+          "name": "Total",
+          "type": "int32",
+          "json_tag": "total"
+        }
+      ]
+    },
+    {
+      "name": "UpdateProjectRequest",
+      "source": ".workspace.v1.UpdateProjectRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "Name",
+          "type": "*string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Description",
+          "type": "*string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "*string",
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "name": "UpdateProjectResponse",
+      "source": ".workspace.v1.UpdateProjectResponse",
+      "fields": [
+        {
+          "name": "Project",
+          "type": "*Project",
+          "json_tag": "project"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "SaveRequirementVersion",
+      "simple_string": false
+    },
+    {
+      "name": "GetRequirement",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "GetRequirementRequest",
+      "source": ".workspace.v1.GetRequirementRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "RequirementId",
+          "type": "string",
+          "json_tag": "requirementId"
+        }
+      ]
+    },
+    {
+      "name": "GetRequirementResponse",
+      "source": ".workspace.v1.GetRequirementResponse",
+      "fields": [
+        {
+          "name": "Requirement",
+          "type": "*Requirement",
+          "json_tag": "requirement"
+        },
+        {
+          "name": "CurrentVersion",
+          "type": "*RequirementVersion",
+          "json_tag": "currentVersion"
+        }
+      ]
+    },
+    {
+      "name": "Requirement",
+      "source": ".workspace.v1.Requirement",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "CurrentVersion",
+          "type": "int32",
+          "json_tag": "currentVersion"
+        },
+        {
+          "name": "ApprovalStatus",
+          "type": "string",
+          "json_tag": "approvalStatus"
+        },
+        {
+          "name": "CoverageStatus",
+          "type": "string",
+          "json_tag": "coverageStatus"
+        },
+        {
+          "name": "IssueIds",
+          "type": "[]string",
+          "json_tag": "issueIds"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    },
+    {
+      "name": "RequirementVersion",
+      "source": ".workspace.v1.RequirementVersion",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "RequirementId",
+          "type": "string",
+          "json_tag": "requirementId"
+        },
+        {
+          "name": "Version",
+          "type": "int32",
+          "json_tag": "version"
+        },
+        {
+          "name": "Content",
+          "type": "string",
+          "json_tag": "content"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        }
+      ]
+    },
+    {
+      "name": "SaveRequirementVersionRequest",
+      "source": ".workspace.v1.SaveRequirementVersionRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "RequirementId",
+          "type": "*string",
+          "json_tag": "requirementId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Content",
+          "type": "string",
+          "json_tag": "content"
+        },
+        {
+          "name": "IssueIds",
+          "type": "[]string",
+          "json_tag": "issueIds"
+        }
+      ]
+    },
+    {
+      "name": "SaveRequirementVersionResponse",
+      "source": ".workspace.v1.SaveRequirementVersionResponse",
+      "fields": [
+        {
+          "name": "Requirement",
+          "type": "*Requirement",
+          "json_tag": "requirement"
+        },
+        {
+          "name": "Version",
+          "type": "*RequirementVersion",
+          "json_tag": "version"
+        }
+      ]
+    }
+  ]
+}

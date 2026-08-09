@@ -1,0 +1,126 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "CreateKnowledge",
+      "simple_string": false
+    },
+    {
+      "name": "GetKnowledge",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "CreateKnowledgeRequest",
+      "source": ".workspace.v1.CreateKnowledgeRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Summary",
+          "type": "string",
+          "json_tag": "summary"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "CreateKnowledgeResponse",
+      "source": ".workspace.v1.CreateKnowledgeResponse",
+      "fields": [
+        {
+          "name": "Knowledge",
+          "type": "*Knowledge",
+          "json_tag": "knowledge"
+        }
+      ]
+    },
+    {
+      "name": "GetKnowledgeRequest",
+      "source": ".workspace.v1.GetKnowledgeRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "KnowledgeId",
+          "type": "string",
+          "json_tag": "knowledgeId"
+        }
+      ]
+    },
+    {
+      "name": "GetKnowledgeResponse",
+      "source": ".workspace.v1.GetKnowledgeResponse",
+      "fields": [
+        {
+          "name": "Knowledge",
+          "type": "*Knowledge",
+          "json_tag": "knowledge"
+        }
+      ]
+    },
+    {
+      "name": "Knowledge",
+      "source": ".workspace.v1.Knowledge",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Summary",
+          "type": "string",
+          "json_tag": "summary"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package space.v1;
+
+import "annotations/v1/access.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/space/v1;spacev1";
+
+// AssetService exclusively owns workspace-isolated asset upload, storage,
+// validation, immutable versions, metadata, and access lifecycle. Consumer
+// modules own business associations and retain only the stable asset_id.
+service AssetService {
+  option (annotations.v1.module) = {
+    code: "space"
+    name: "Space"
+    version: "v1"
+  };
+
+  rpc UploadAsset(UploadAssetRequest) returns (UploadAssetResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "space.asset.upload"
+      permission_name: "Upload asset"
+      resource: "space.asset"
+      action: "upload"
+      audit: true
+    };
+  }
+  rpc CreateAssetVersion(CreateAssetVersionRequest) returns (CreateAssetVersionResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "space.asset.create_version"
+      permission_name: "Create asset version"
+      resource: "space.asset"
+      action: "create_version"
+      audit: true
+    };
+  }
+  rpc GetAsset(GetAssetRequest) returns (GetAssetResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "space.asset.get"
+      permission_name: "Get asset"
+      resource: "space.asset"
+      action: "get"
+    };
+  }
+}
+
+message Asset {
+  string id = 1;
+  string workspace_id = 2;
+  string current_version_id = 3;
+  string filename = 4;
+  string media_type = 5;
+  int64 size_bytes = 6;
+  string checksum = 7;
+  google.protobuf.Struct metadata = 8;
+  string access_status = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message AssetVersion {
+  string id = 1;
+  string asset_id = 2;
+  string media_type = 3;
+  int64 size_bytes = 4;
+  string checksum = 5;
+  google.protobuf.Struct metadata = 6;
+  string created_at = 7;
+}
+
+message UploadAssetRequest {
+  string workspace_id = 1;
+  string filename = 2;
+  string media_type = 3;
+  bytes content = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message UploadAssetResponse {
+  // asset_id is stable across Asset versions.
+  string asset_id = 1;
+  Asset asset = 2;
+  AssetVersion version = 3;
+}
+
+message CreateAssetVersionRequest {
+  string workspace_id = 1;
+  string asset_id = 2;
+  string media_type = 3;
+  bytes content = 4;
+  google.protobuf.Struct metadata = 5;
+}
+
+message CreateAssetVersionResponse {
+  string asset_id = 1;
+  Asset asset = 2;
+  AssetVersion version = 3;
+}
+
+message GetAssetRequest {
+  string workspace_id = 1;
+  string asset_id = 2;
+}
+
+message GetAssetResponse {
+  Asset asset = 1;
+  AssetVersion current_version = 2;
+}

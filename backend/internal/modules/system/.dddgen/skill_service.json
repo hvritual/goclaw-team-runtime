@@ -1,0 +1,147 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "PublishSkillVersion",
+      "simple_string": false
+    },
+    {
+      "name": "GetSkill",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "GetSkillRequest",
+      "source": ".system.v1.GetSkillRequest",
+      "fields": [
+        {
+          "name": "SkillId",
+          "type": "string",
+          "json_tag": "skillId"
+        },
+        {
+          "name": "Version",
+          "type": "*string",
+          "json_tag": "version"
+        }
+      ]
+    },
+    {
+      "name": "GetSkillResponse",
+      "source": ".system.v1.GetSkillResponse",
+      "fields": [
+        {
+          "name": "Skill",
+          "type": "*SkillDefinition",
+          "json_tag": "skill"
+        },
+        {
+          "name": "Version",
+          "type": "*SkillVersion",
+          "json_tag": "version"
+        }
+      ]
+    },
+    {
+      "name": "PublishSkillVersionRequest",
+      "source": ".system.v1.PublishSkillVersionRequest",
+      "fields": [
+        {
+          "name": "SkillId",
+          "type": "string",
+          "json_tag": "skillId"
+        },
+        {
+          "name": "Version",
+          "type": "string",
+          "json_tag": "version"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "PublishSkillVersionResponse",
+      "source": ".system.v1.PublishSkillVersionResponse",
+      "fields": [
+        {
+          "name": "Skill",
+          "type": "*SkillDefinition",
+          "json_tag": "skill"
+        },
+        {
+          "name": "Version",
+          "type": "*SkillVersion",
+          "json_tag": "version"
+        }
+      ]
+    },
+    {
+      "name": "SkillDefinition",
+      "source": ".system.v1.SkillDefinition",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Description",
+          "type": "string",
+          "json_tag": "description"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        }
+      ]
+    },
+    {
+      "name": "SkillVersion",
+      "source": ".system.v1.SkillVersion",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "SkillId",
+          "type": "string",
+          "json_tag": "skillId"
+        },
+        {
+          "name": "Version",
+          "type": "string",
+          "json_tag": "version"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        },
+        {
+          "name": "PublishedAt",
+          "type": "string",
+          "json_tag": "publishedAt"
+        }
+      ]
+    }
+  ]
+}

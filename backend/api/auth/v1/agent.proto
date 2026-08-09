@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package auth.v1;
+
+import "annotations/v1/access.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/auth/v1;authv1";
+
+// AgentService owns Agent identity, Workspace team membership, and
+// authorization attributes. system.v1 owns release packages, versions, and
+// upgrade policy; TodoService excludes Agent execution lifecycle.
+service AgentService {
+  option (annotations.v1.module) = {
+    code: "auth"
+    name: "Auth"
+    version: "v1"
+  };
+
+  rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "auth.agent.register"
+      permission_name: "Register agent"
+      resource: "auth.agent"
+      action: "register"
+      audit: true
+    };
+  }
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "auth.agent.get"
+      permission_name: "Get agent"
+      resource: "auth.agent"
+      action: "get"
+    };
+  }
+}
+
+message Agent {
+  string id = 1;
+  string workspace_id = 2;
+  string name = 3;
+  string status = 4;
+  google.protobuf.Struct identity_metadata = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message RegisterAgentRequest {
+  string workspace_id = 1;
+  string name = 2;
+  google.protobuf.Struct identity_metadata = 3;
+}
+
+message RegisterAgentResponse {
+  Agent agent = 1;
+}
+
+message GetAgentRequest {
+  string workspace_id = 1;
+  string agent_id = 2;
+}
+
+message GetAgentResponse {
+  Agent agent = 1;
+}

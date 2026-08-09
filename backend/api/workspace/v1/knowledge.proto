@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// KnowledgeService owns governed workspace knowledge from evidence through
+// review and publication. It owns Asset associations, while space.v1 owns the
+// upload, storage, validation, version, metadata, and access lifecycle.
+service KnowledgeService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc CreateKnowledge(CreateKnowledgeRequest) returns (CreateKnowledgeResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.knowledge.create"
+      permission_name: "Create knowledge"
+      resource: "workspace.knowledge"
+      action: "create"
+      audit: true
+    };
+  }
+  rpc GetKnowledge(GetKnowledgeRequest) returns (GetKnowledgeResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.knowledge.get"
+      permission_name: "Get knowledge"
+      resource: "workspace.knowledge"
+      action: "get"
+    };
+  }
+}
+
+message Knowledge {
+  string id = 1;
+  string workspace_id = 2;
+  string title = 3;
+  string summary = 4;
+  string status = 5;
+  repeated string asset_ids = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message CreateKnowledgeRequest {
+  string workspace_id = 1;
+  string title = 2;
+  string summary = 3;
+  repeated string asset_ids = 4;
+}
+
+message CreateKnowledgeResponse {
+  Knowledge knowledge = 1;
+}
+
+message GetKnowledgeRequest {
+  string workspace_id = 1;
+  string knowledge_id = 2;
+}
+
+message GetKnowledgeResponse {
+  Knowledge knowledge = 1;
+}

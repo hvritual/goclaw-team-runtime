@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// RelationshipService is the authoritative source for Project-to-Member and
+// Project-to-Agent relations. Implementations must verify the Project and Actor
+// belong to the same Workspace. Project deletion removes these relations inside
+// the Workspace module's consistency boundary.
+service RelationshipService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc PutProjectActorRelation(PutProjectActorRelationRequest) returns (PutProjectActorRelationResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.relationship.put"
+      permission_name: "Put project actor relation"
+      resource: "workspace.relationship"
+      action: "put"
+      audit: true
+    };
+  }
+  rpc ListProjectActorRelations(ListProjectActorRelationsRequest) returns (ListProjectActorRelationsResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.relationship.list"
+      permission_name: "List project actor relations"
+      resource: "workspace.relationship"
+      action: "list"
+    };
+  }
+  rpc DeleteProjectActorRelation(DeleteProjectActorRelationRequest) returns (DeleteProjectActorRelationResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.relationship.delete"
+      permission_name: "Delete project actor relation"
+      resource: "workspace.relationship"
+      action: "delete"
+      audit: true
+    };
+  }
+}
+
+message ProjectActorRelation {
+  string workspace_id = 1;
+  string project_id = 2;
+  // actor_type remains member or agent; auth.v1 owns the referenced identity.
+  string actor_type = 3;
+  string actor_id = 4;
+  // role remains lead, member, or agent for existing JSON compatibility.
+  string role = 5;
+}
+
+message PutProjectActorRelationRequest {
+  ProjectActorRelation relation = 1;
+}
+
+message PutProjectActorRelationResponse {
+  ProjectActorRelation relation = 1;
+}
+
+message ListProjectActorRelationsRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+}
+
+message ListProjectActorRelationsResponse {
+  repeated ProjectActorRelation relations = 1;
+}
+
+message DeleteProjectActorRelationRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+  string actor_type = 3;
+  string actor_id = 4;
+}
+
+message DeleteProjectActorRelationResponse {}

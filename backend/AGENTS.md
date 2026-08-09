@@ -2,49 +2,62 @@
 
 These rules apply to every human and Codex change in this repository.
 
-## Wave planning gate
+## Agent orchestration
 
-- Every staged, multi-step, or multi-module update must have an entry in
-  `docs/waves/wave-registry.json` and an approved revisioned plan under
-  `docs/waves/` before product code is changed.
-- Update the plan before implementation. A frozen task must reference the
-  `Wave-ID`, `Issue-ID`, exact plan revision, and step ID that authorize its
-  scope.
-- Product code may change only when the registry marks that Wave `active`, the
-  active plan permits product changes, and the file/contract is inside its
-  allowed scope. `FE-W00` and any other discovery-only Wave are documentation
-  and diagnostic work only.
-- A reported or statically suspected problem is not a confirmed defect. It may
-  enter a repair Wave only after reproduction evidence records the environment,
-  role, project, action, expected result, actual result, and sanitized logs.
-- An approved plan revision is immutable. Material scope, contract, gate, risk,
-  or rollback changes require a new plan revision before implementation
-  continues. Append status, decisions, and evidence to the Wave journal; do not
-  rewrite history.
-- Do not activate a later Wave while its dependencies are incomplete. Do not
-  mark a Wave complete without indexed verification evidence and independent
-  review.
-- In Team mode, the runtime resolves the requested Wave step from the active
-  registry at the registered repository's exact base commit, freezes the plan
-  revision and hashes, and revalidates them at freeze, enqueue, and acceptance.
-  Repository work outside that path must still follow this policy manually; do
-  not describe an unbound local task as Wave-governed.
+- Follow `Backend Agent Orchestration` in the root `CLAUDE.md`. It keeps Sol on
+  primary planning and uses the project `side_luna` agent for bounded read-only
+  investigations without weakening the versioned-plan gate below.
+
+## Versioned implementation plans
+
+- Every staged, multi-step, or multi-module update must have a versioned plan
+  under `backend/docs/plans/<work-item>/` before product code is changed.
+- Use `plan.md` as the current plan entry point and `plan_vN.md` (for example,
+  `plan_v1.md` and `plan_v2.md`) as immutable execution snapshots. `plan.md`
+  must identify and link to the exact approved version currently in force.
+- Each versioned plan must declare a stable `Plan-ID`, version, status, base
+  commit, scope and non-goals, invariants, dependencies, ordered step IDs,
+  acceptance criteria, deterministic verification, risks, and rollback.
+- A task may change product code only when it references an approved plan
+  version and one active step. The changed file or contract must be inside that
+  step's declared scope; discovery-only steps permit documentation and
+  diagnostics only.
+- Before starting or resuming a step, reread `plan.md`, the referenced
+  `plan_vN.md`, and the task scope. Stop when they disagree or when the next
+  action is not explicitly covered. Do not infer broader authority from the
+  plan's overall goal.
+- An approved `plan_vN.md` is immutable after execution begins. Material changes
+  to scope, contracts, gates, dependencies, risks, or rollback require a new
+  `plan_v(N+1).md`; update `plan.md` only after the new version is approved.
+- Record progress, decisions, deviations, and verification evidence in an
+  append-only journal next to the plan. Never rewrite an older plan version to
+  match work that has already happened.
+- A reported or statically suspected problem is not a confirmed defect. A repair
+  step requires reproduction evidence covering the environment, role, project,
+  action, expected result, actual result, and sanitized logs.
+- Execute steps in dependency order. Do not start a dependent step while its
+  prerequisites are incomplete, and do not mark a plan complete without indexed
+  verification evidence and independent review.
+- In Team mode, freeze the exact plan version, step ID, base commit, and content
+  hashes at task creation, then revalidate them at enqueue, execution, and
+  acceptance. Work outside Team mode must apply the same checks manually.
 
 ## Traceability
 
 - Work only from a frozen task with a project, repository, assignee, base commit,
-  policy bundle hash, acceptance criteria, and deterministic verification.
-- Keep each change in its task worktree and revision-specific branch.
+  policy bundle hash, `Plan-ID`, `Plan-Version`, `Plan-Step`, acceptance
+  criteria, and deterministic verification.
+- Keep each change in its task worktree and plan-version-specific branch.
 - Every commit must include `Task-ID`, `Project-ID`, `Task-Revision`, and
-  `Work-Item` trailers. Include `Wave-ID`, `Wave-Revision`, `Wave-Step`,
-  `Issue`, and `Policy-Bundle` when present.
+  `Work-Item` trailers. Include `Plan-ID`, `Plan-Version`, `Plan-Step`, `Issue`,
+  and `Policy-Bundle` when present.
 - Do not mix unrelated fixes into one task or pull request.
 
 ## Context compaction and workspace recovery
 
 - Before context compaction, handoff, or an expected interruption, write a
   recovery checkpoint to the task's durable journal or task artifacts. Include
-  the task, project, Wave, plan revision, and step identifiers; repository,
+  the task, project, plan ID, plan version, and step identifiers; repository,
   worktree, branch, and base commit; current scope and acceptance criteria;
   files changed; decisions made; verification already run and its results;
   unresolved risks or blockers; and the next concrete action.
@@ -53,11 +66,11 @@ These rules apply to every human and Codex change in this repository.
   store credentials or unsanitized secrets in a checkpoint.
 - After compaction, restart, or reassignment, restore the workspace from ground
   truth before changing product code: reread the applicable `AGENTS.md` and
-  `CLAUDE.md`, the frozen task, active Wave registry entry, approved plan, and
-  Wave journal; then inspect the current worktree, branch, base commit, Git
+  `CLAUDE.md`, the frozen task, `plan.md`, the exact approved `plan_vN.md`, and
+  the plan journal; then inspect the current worktree, branch, base commit, Git
   status and diff, changed files, and recorded verification evidence.
 - Treat a recovery checkpoint as a navigation aid, not as authority. The current
-  repository, frozen task, registry, approved plan, and control-plane state take
+  repository, frozen task, approved plan version, and control-plane state take
   precedence. If they disagree with the checkpoint, stop implementation, record
   the drift, and refresh or re-freeze the task before continuing.
 - Preserve user and agent work already present in the worktree. Do not repeat

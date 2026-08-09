@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// ProjectService owns workspace-scoped Project identity, lifecycle, and
+// delivery state. RelationshipService owns Project actor assignments, while
+// AssetService owns the content behind referenced asset_ids.
+service ProjectService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc CreateProject(CreateProjectRequest) returns (CreateProjectResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.create"
+      permission_name: "Create project"
+      resource: "workspace.project"
+      action: "create"
+      audit: true
+    };
+  }
+  rpc GetProject(GetProjectRequest) returns (GetProjectResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.get"
+      permission_name: "Get project"
+      resource: "workspace.project"
+      action: "get"
+    };
+  }
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.list"
+      permission_name: "List projects"
+      resource: "workspace.project"
+      action: "list"
+    };
+  }
+  rpc SearchProjects(SearchProjectsRequest) returns (SearchProjectsResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.search"
+      permission_name: "Search projects"
+      resource: "workspace.project"
+      action: "search"
+    };
+  }
+  rpc UpdateProject(UpdateProjectRequest) returns (UpdateProjectResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.update"
+      permission_name: "Update project"
+      resource: "workspace.project"
+      action: "update"
+      audit: true
+    };
+  }
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.project.delete"
+      permission_name: "Delete project"
+      resource: "workspace.project"
+      action: "delete"
+      audit: true
+    };
+  }
+}
+
+message Project {
+  string id = 1;
+  string workspace_id = 2;
+  string name = 3;
+  string description = 4;
+  // status remains a lowercase string for existing JSON compatibility.
+  string status = 5;
+  // Each value is a stable space.v1 Asset ID; Workspace owns the association.
+  repeated string asset_ids = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message CreateProjectRequest {
+  string workspace_id = 1;
+  string name = 2;
+  string description = 3;
+  string status = 4;
+  repeated string asset_ids = 5;
+}
+
+message CreateProjectResponse {
+  Project project = 1;
+}
+
+message GetProjectRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+}
+
+message GetProjectResponse {
+  Project project = 1;
+}
+
+message ListProjectsRequest {
+  string workspace_id = 1;
+  // Empty status lists every Project; otherwise the accepted lowercase status
+  // vocabulary applies.
+  string status = 2;
+}
+
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  int32 total = 2;
+}
+
+message SearchProjectsRequest {
+  string workspace_id = 1;
+  string query = 2;
+  bool include_closed = 3;
+  // Zero selects the default limit. Values above 50 are capped.
+  int32 limit = 4;
+  int32 offset = 5;
+}
+
+message ProjectSearchHit {
+  Project project = 1;
+  string match_source = 2;
+  optional string matched_snippet = 3;
+}
+
+message SearchProjectsResponse {
+  repeated ProjectSearchHit hits = 1;
+  int32 total = 2;
+}
+
+message UpdateProjectRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+  optional string name = 3;
+  optional string description = 4;
+  optional string status = 5;
+}
+
+message UpdateProjectResponse {
+  Project project = 1;
+}
+
+message DeleteProjectRequest {
+  string workspace_id = 1;
+  string project_id = 2;
+}
+
+message DeleteProjectResponse {}

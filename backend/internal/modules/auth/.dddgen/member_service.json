@@ -1,0 +1,152 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "ProvisionWorkspaceOwner",
+      "simple_string": false
+    },
+    {
+      "name": "ListMembers",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateMemberRole",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "ListMembersRequest",
+      "source": ".auth.v1.ListMembersRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        }
+      ]
+    },
+    {
+      "name": "ListMembersResponse",
+      "source": ".auth.v1.ListMembersResponse",
+      "fields": [
+        {
+          "name": "Members",
+          "type": "[]Member",
+          "json_tag": "members"
+        }
+      ]
+    },
+    {
+      "name": "Member",
+      "source": ".auth.v1.Member",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "UserId",
+          "type": "string",
+          "json_tag": "userId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        },
+        {
+          "name": "Name",
+          "type": "string",
+          "json_tag": "name"
+        },
+        {
+          "name": "Email",
+          "type": "string",
+          "json_tag": "email"
+        },
+        {
+          "name": "AvatarUrl",
+          "type": "*string",
+          "json_tag": "avatarUrl"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        }
+      ]
+    },
+    {
+      "name": "ProvisionWorkspaceOwnerRequest",
+      "source": ".auth.v1.ProvisionWorkspaceOwnerRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "UserId",
+          "type": "string",
+          "json_tag": "userId"
+        }
+      ]
+    },
+    {
+      "name": "ProvisionWorkspaceOwnerResponse",
+      "source": ".auth.v1.ProvisionWorkspaceOwnerResponse",
+      "fields": [
+        {
+          "name": "Member",
+          "type": "*Member",
+          "json_tag": "member"
+        },
+        {
+          "name": "Created",
+          "type": "bool",
+          "json_tag": "created"
+        }
+      ]
+    },
+    {
+      "name": "UpdateMemberRoleRequest",
+      "source": ".auth.v1.UpdateMemberRoleRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "MemberId",
+          "type": "string",
+          "json_tag": "memberId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        }
+      ]
+    },
+    {
+      "name": "UpdateMemberRoleResponse",
+      "source": ".auth.v1.UpdateMemberRoleResponse",
+      "fields": [
+        {
+          "name": "Member",
+          "type": "*Member",
+          "json_tag": "member"
+        }
+      ]
+    }
+  ]
+}

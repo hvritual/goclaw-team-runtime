@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// TodoService owns ordinary workspace task lifecycle. A Todo may reference a
+// Project, Issue, Member, or Agent identity, but never represents an Agent
+// execution, run, release, or upgrade lifecycle.
+service TodoService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.create"
+      permission_name: "Create todo"
+      resource: "workspace.todo"
+      action: "create"
+      audit: true
+    };
+  }
+  rpc GetTodo(GetTodoRequest) returns (GetTodoResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.get"
+      permission_name: "Get todo"
+      resource: "workspace.todo"
+      action: "get"
+    };
+  }
+  rpc ListTodos(ListTodosRequest) returns (ListTodosResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.list"
+      permission_name: "List todos"
+      resource: "workspace.todo"
+      action: "list"
+    };
+  }
+  rpc UpdateTodo(UpdateTodoRequest) returns (UpdateTodoResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.update"
+      permission_name: "Update todo"
+      resource: "workspace.todo"
+      action: "update"
+      audit: true
+    };
+  }
+  rpc UpdateTodoStatus(UpdateTodoStatusRequest) returns (UpdateTodoStatusResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.update_status"
+      permission_name: "Update todo status"
+      resource: "workspace.todo"
+      action: "update_status"
+      audit: true
+    };
+  }
+  rpc DeleteTodo(DeleteTodoRequest) returns (DeleteTodoResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.todo.delete"
+      permission_name: "Delete todo"
+      resource: "workspace.todo"
+      action: "delete"
+      audit: true
+      idempotent: true
+    };
+  }
+}
+
+message Todo {
+  string id = 1;
+  string workspace_id = 2;
+  string title = 3;
+  string description = 4;
+  // status remains a lowercase string for existing JSON compatibility.
+  string status = 5;
+  optional string project_id = 6;
+  optional string issue_id = 7;
+  // assignee_type remains member or agent; the identity is owned by auth.v1.
+  optional string assignee_type = 8;
+  optional string assignee_id = 9;
+  string created_at = 10;
+  string updated_at = 11;
+  // priority remains urgent, high, medium, low, or none for JSON compatibility.
+  string priority = 12;
+  string creator_type = 13;
+  string creator_id = 14;
+  double position = 15;
+  optional string start_date = 16;
+  optional string due_date = 17;
+  optional string completed_at = 18;
+}
+
+message CreateTodoRequest {
+  string workspace_id = 1;
+  string title = 2;
+  string description = 3;
+  optional string project_id = 4;
+  optional string issue_id = 5;
+  optional string assignee_type = 6;
+  optional string assignee_id = 7;
+  string status = 8;
+  string priority = 9;
+  double position = 10;
+  optional string start_date = 11;
+  optional string due_date = 12;
+}
+
+message CreateTodoResponse {
+  Todo todo = 1;
+}
+
+message GetTodoRequest {
+  string workspace_id = 1;
+  string todo_id = 2;
+}
+
+message GetTodoResponse {
+  Todo todo = 1;
+}
+
+message ListTodosRequest {
+  string workspace_id = 1;
+  optional string project_id = 2;
+  optional string issue_id = 3;
+  string status = 4;
+}
+
+message ListTodosResponse {
+  repeated Todo todos = 1;
+  int32 total = 2;
+}
+
+message UpdateTodoRequest {
+  string workspace_id = 1;
+  string todo_id = 2;
+  optional string project_id = 3;
+  optional string issue_id = 4;
+  optional string title = 5;
+  optional string description = 6;
+  optional string status = 7;
+  optional string priority = 8;
+  optional string assignee_type = 9;
+  optional string assignee_id = 10;
+  optional double position = 11;
+  optional string start_date = 12;
+  optional string due_date = 13;
+}
+
+message UpdateTodoResponse {
+  Todo todo = 1;
+}
+
+message UpdateTodoStatusRequest {
+  string workspace_id = 1;
+  string todo_id = 2;
+  string status = 3;
+}
+
+message UpdateTodoStatusResponse {
+  Todo todo = 1;
+}
+
+message DeleteTodoRequest {
+  string workspace_id = 1;
+  string todo_id = 2;
+}
+
+message DeleteTodoResponse {}

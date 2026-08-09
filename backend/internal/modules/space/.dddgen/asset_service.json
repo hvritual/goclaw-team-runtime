@@ -1,0 +1,264 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "UploadAsset",
+      "simple_string": false
+    },
+    {
+      "name": "CreateAssetVersion",
+      "simple_string": false
+    },
+    {
+      "name": "GetAsset",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "Asset",
+      "source": ".space.v1.Asset",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "CurrentVersionId",
+          "type": "string",
+          "json_tag": "currentVersionId"
+        },
+        {
+          "name": "Filename",
+          "type": "string",
+          "json_tag": "filename"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "SizeBytes",
+          "type": "string",
+          "json_tag": "sizeBytes"
+        },
+        {
+          "name": "Checksum",
+          "type": "string",
+          "json_tag": "checksum"
+        },
+        {
+          "name": "Metadata",
+          "type": "map[string]any",
+          "json_tag": "metadata"
+        },
+        {
+          "name": "AccessStatus",
+          "type": "string",
+          "json_tag": "accessStatus"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        }
+      ]
+    },
+    {
+      "name": "AssetVersion",
+      "source": ".space.v1.AssetVersion",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "SizeBytes",
+          "type": "string",
+          "json_tag": "sizeBytes"
+        },
+        {
+          "name": "Checksum",
+          "type": "string",
+          "json_tag": "checksum"
+        },
+        {
+          "name": "Metadata",
+          "type": "map[string]any",
+          "json_tag": "metadata"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        }
+      ]
+    },
+    {
+      "name": "CreateAssetVersionRequest",
+      "source": ".space.v1.CreateAssetVersionRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "Content",
+          "type": "[]byte",
+          "json_tag": "content"
+        },
+        {
+          "name": "Metadata",
+          "type": "map[string]any",
+          "json_tag": "metadata"
+        }
+      ]
+    },
+    {
+      "name": "CreateAssetVersionResponse",
+      "source": ".space.v1.CreateAssetVersionResponse",
+      "fields": [
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        },
+        {
+          "name": "Asset",
+          "type": "*Asset",
+          "json_tag": "asset"
+        },
+        {
+          "name": "Version",
+          "type": "*AssetVersion",
+          "json_tag": "version"
+        }
+      ]
+    },
+    {
+      "name": "GetAssetRequest",
+      "source": ".space.v1.GetAssetRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        }
+      ]
+    },
+    {
+      "name": "GetAssetResponse",
+      "source": ".space.v1.GetAssetResponse",
+      "fields": [
+        {
+          "name": "Asset",
+          "type": "*Asset",
+          "json_tag": "asset"
+        },
+        {
+          "name": "CurrentVersion",
+          "type": "*AssetVersion",
+          "json_tag": "currentVersion"
+        }
+      ]
+    },
+    {
+      "name": "Struct",
+      "source": ".google.protobuf.Struct",
+      "alias": "map[string]any",
+      "fields": null
+    },
+    {
+      "name": "UploadAssetRequest",
+      "source": ".space.v1.UploadAssetRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Filename",
+          "type": "string",
+          "json_tag": "filename"
+        },
+        {
+          "name": "MediaType",
+          "type": "string",
+          "json_tag": "mediaType"
+        },
+        {
+          "name": "Content",
+          "type": "[]byte",
+          "json_tag": "content"
+        },
+        {
+          "name": "Metadata",
+          "type": "map[string]any",
+          "json_tag": "metadata"
+        }
+      ]
+    },
+    {
+      "name": "UploadAssetResponse",
+      "source": ".space.v1.UploadAssetResponse",
+      "fields": [
+        {
+          "name": "AssetId",
+          "type": "string",
+          "json_tag": "assetId"
+        },
+        {
+          "name": "Asset",
+          "type": "*Asset",
+          "json_tag": "asset"
+        },
+        {
+          "name": "Version",
+          "type": "*AssetVersion",
+          "json_tag": "version"
+        }
+      ]
+    }
+  ]
+}

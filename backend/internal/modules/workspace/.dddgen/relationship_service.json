@@ -1,0 +1,131 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "PutProjectActorRelation",
+      "simple_string": false
+    },
+    {
+      "name": "ListProjectActorRelations",
+      "simple_string": false
+    },
+    {
+      "name": "DeleteProjectActorRelation",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "DeleteProjectActorRelationRequest",
+      "source": ".workspace.v1.DeleteProjectActorRelationRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "ActorType",
+          "type": "string",
+          "json_tag": "actorType"
+        },
+        {
+          "name": "ActorId",
+          "type": "string",
+          "json_tag": "actorId"
+        }
+      ]
+    },
+    {
+      "name": "DeleteProjectActorRelationResponse",
+      "source": ".workspace.v1.DeleteProjectActorRelationResponse",
+      "fields": null
+    },
+    {
+      "name": "ListProjectActorRelationsRequest",
+      "source": ".workspace.v1.ListProjectActorRelationsRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        }
+      ]
+    },
+    {
+      "name": "ListProjectActorRelationsResponse",
+      "source": ".workspace.v1.ListProjectActorRelationsResponse",
+      "fields": [
+        {
+          "name": "Relations",
+          "type": "[]ProjectActorRelation",
+          "json_tag": "relations"
+        }
+      ]
+    },
+    {
+      "name": "ProjectActorRelation",
+      "source": ".workspace.v1.ProjectActorRelation",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "ActorType",
+          "type": "string",
+          "json_tag": "actorType"
+        },
+        {
+          "name": "ActorId",
+          "type": "string",
+          "json_tag": "actorId"
+        },
+        {
+          "name": "Role",
+          "type": "string",
+          "json_tag": "role"
+        }
+      ]
+    },
+    {
+      "name": "PutProjectActorRelationRequest",
+      "source": ".workspace.v1.PutProjectActorRelationRequest",
+      "fields": [
+        {
+          "name": "Relation",
+          "type": "*ProjectActorRelation",
+          "json_tag": "relation"
+        }
+      ]
+    },
+    {
+      "name": "PutProjectActorRelationResponse",
+      "source": ".workspace.v1.PutProjectActorRelationResponse",
+      "fields": [
+        {
+          "name": "Relation",
+          "type": "*ProjectActorRelation",
+          "json_tag": "relation"
+        }
+      ]
+    }
+  ]
+}

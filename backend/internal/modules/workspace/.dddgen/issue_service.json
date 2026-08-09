@@ -1,0 +1,471 @@
+{
+  "generated_by": "dddgen",
+  "contract_naming": "message",
+  "methods": [
+    {
+      "name": "CreateIssue",
+      "simple_string": false
+    },
+    {
+      "name": "GetIssue",
+      "simple_string": false
+    },
+    {
+      "name": "ListIssues",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateIssue",
+      "simple_string": false
+    },
+    {
+      "name": "UpdateIssueStatus",
+      "simple_string": false
+    }
+  ],
+  "retained_dtos": [
+    {
+      "name": "CreateIssueRequest",
+      "source": ".workspace.v1.CreateIssueRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "*string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "ParentIssueId",
+          "type": "*string",
+          "json_tag": "parentIssueId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "Position",
+          "type": "float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "Stage",
+          "type": "*int32",
+          "json_tag": "stage"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "CreateIssueResponse",
+      "source": ".workspace.v1.CreateIssueResponse",
+      "fields": [
+        {
+          "name": "Issue",
+          "type": "*Issue",
+          "json_tag": "issue"
+        }
+      ]
+    },
+    {
+      "name": "GetIssueRequest",
+      "source": ".workspace.v1.GetIssueRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "IssueId",
+          "type": "string",
+          "json_tag": "issueId"
+        }
+      ]
+    },
+    {
+      "name": "GetIssueResponse",
+      "source": ".workspace.v1.GetIssueResponse",
+      "fields": [
+        {
+          "name": "Issue",
+          "type": "*Issue",
+          "json_tag": "issue"
+        }
+      ]
+    },
+    {
+      "name": "Issue",
+      "source": ".workspace.v1.Issue",
+      "fields": [
+        {
+          "name": "Id",
+          "type": "string",
+          "json_tag": "id"
+        },
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "Number",
+          "type": "int32",
+          "json_tag": "number"
+        },
+        {
+          "name": "Identifier",
+          "type": "string",
+          "json_tag": "identifier"
+        },
+        {
+          "name": "Title",
+          "type": "string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "*string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "CreatorType",
+          "type": "string",
+          "json_tag": "creatorType"
+        },
+        {
+          "name": "CreatorId",
+          "type": "string",
+          "json_tag": "creatorId"
+        },
+        {
+          "name": "ParentIssueId",
+          "type": "*string",
+          "json_tag": "parentIssueId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "Position",
+          "type": "float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "Stage",
+          "type": "*int32",
+          "json_tag": "stage"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        },
+        {
+          "name": "CreatedAt",
+          "type": "string",
+          "json_tag": "createdAt"
+        },
+        {
+          "name": "UpdatedAt",
+          "type": "string",
+          "json_tag": "updatedAt"
+        },
+        {
+          "name": "Metadata",
+          "type": "map[string]any",
+          "json_tag": "metadata"
+        },
+        {
+          "name": "Properties",
+          "type": "map[string]any",
+          "json_tag": "properties"
+        },
+        {
+          "name": "AssetIds",
+          "type": "[]string",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "IssueAssetIDs",
+      "source": ".workspace.v1.IssueAssetIDs",
+      "fields": [
+        {
+          "name": "Values",
+          "type": "[]string",
+          "json_tag": "values"
+        }
+      ]
+    },
+    {
+      "name": "ListIssuesRequest",
+      "source": ".workspace.v1.ListIssuesRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "ParentIssueId",
+          "type": "*string",
+          "json_tag": "parentIssueId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "CreatorType",
+          "type": "*string",
+          "json_tag": "creatorType"
+        },
+        {
+          "name": "CreatorId",
+          "type": "*string",
+          "json_tag": "creatorId"
+        }
+      ]
+    },
+    {
+      "name": "ListIssuesResponse",
+      "source": ".workspace.v1.ListIssuesResponse",
+      "fields": [
+        {
+          "name": "Issues",
+          "type": "[]Issue",
+          "json_tag": "issues"
+        },
+        {
+          "name": "Total",
+          "type": "int32",
+          "json_tag": "total"
+        }
+      ]
+    },
+    {
+      "name": "Struct",
+      "source": ".google.protobuf.Struct",
+      "alias": "map[string]any",
+      "fields": null
+    },
+    {
+      "name": "UpdateIssueRequest",
+      "source": ".workspace.v1.UpdateIssueRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "IssueId",
+          "type": "string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "Title",
+          "type": "*string",
+          "json_tag": "title"
+        },
+        {
+          "name": "Description",
+          "type": "*string",
+          "json_tag": "description"
+        },
+        {
+          "name": "Status",
+          "type": "*string",
+          "json_tag": "status"
+        },
+        {
+          "name": "Priority",
+          "type": "*string",
+          "json_tag": "priority"
+        },
+        {
+          "name": "AssigneeType",
+          "type": "*string",
+          "json_tag": "assigneeType"
+        },
+        {
+          "name": "AssigneeId",
+          "type": "*string",
+          "json_tag": "assigneeId"
+        },
+        {
+          "name": "ParentIssueId",
+          "type": "*string",
+          "json_tag": "parentIssueId"
+        },
+        {
+          "name": "ProjectId",
+          "type": "*string",
+          "json_tag": "projectId"
+        },
+        {
+          "name": "Position",
+          "type": "*float64",
+          "json_tag": "position"
+        },
+        {
+          "name": "Stage",
+          "type": "*int32",
+          "json_tag": "stage"
+        },
+        {
+          "name": "StartDate",
+          "type": "*string",
+          "json_tag": "startDate"
+        },
+        {
+          "name": "DueDate",
+          "type": "*string",
+          "json_tag": "dueDate"
+        },
+        {
+          "name": "AssetIds",
+          "type": "*IssueAssetIDs",
+          "json_tag": "assetIds"
+        }
+      ]
+    },
+    {
+      "name": "UpdateIssueResponse",
+      "source": ".workspace.v1.UpdateIssueResponse",
+      "fields": [
+        {
+          "name": "Issue",
+          "type": "*Issue",
+          "json_tag": "issue"
+        }
+      ]
+    },
+    {
+      "name": "UpdateIssueStatusRequest",
+      "source": ".workspace.v1.UpdateIssueStatusRequest",
+      "fields": [
+        {
+          "name": "WorkspaceId",
+          "type": "string",
+          "json_tag": "workspaceId"
+        },
+        {
+          "name": "IssueId",
+          "type": "string",
+          "json_tag": "issueId"
+        },
+        {
+          "name": "Status",
+          "type": "string",
+          "json_tag": "status"
+        }
+      ]
+    },
+    {
+      "name": "UpdateIssueStatusResponse",
+      "source": ".workspace.v1.UpdateIssueStatusResponse",
+      "fields": [
+        {
+          "name": "Issue",
+          "type": "*Issue",
+          "json_tag": "issue"
+        }
+      ]
+    }
+  ]
+}

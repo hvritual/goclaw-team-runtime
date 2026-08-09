@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package system.v1;
+
+import "annotations/v1/access.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/system/v1;systemv1";
+
+// SkillService owns the system-level, versioned Skill catalog: stable
+// definitions, immutable versions, and publication. Workspace owns tenant-level
+// enablement, configuration, and Agent binding references.
+service SkillService {
+  option (annotations.v1.module) = {
+    code: "system"
+    name: "System"
+    version: "v1"
+  };
+
+  rpc PublishSkillVersion(PublishSkillVersionRequest) returns (PublishSkillVersionResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "system.skill.publish_version"
+      permission_name: "Publish skill version"
+      resource: "system.skill"
+      action: "publish_version"
+      audit: true
+    };
+  }
+  rpc GetSkill(GetSkillRequest) returns (GetSkillResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "system.skill.get"
+      permission_name: "Get skill"
+      resource: "system.skill"
+      action: "get"
+    };
+  }
+}
+
+message SkillDefinition {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string created_at = 4;
+}
+
+message SkillVersion {
+  string id = 1;
+  string skill_id = 2;
+  string version = 3;
+  string status = 4;
+  // Each asset_id references content owned by space.v1.
+  repeated string asset_ids = 5;
+  string published_at = 6;
+}
+
+message PublishSkillVersionRequest {
+  string skill_id = 1;
+  string version = 2;
+  repeated string asset_ids = 3;
+}
+
+message PublishSkillVersionResponse {
+  SkillDefinition skill = 1;
+  SkillVersion version = 2;
+}
+
+message GetSkillRequest {
+  string skill_id = 1;
+  optional string version = 2;
+}
+
+message GetSkillResponse {
+  SkillDefinition skill = 1;
+  SkillVersion version = 2;
+}

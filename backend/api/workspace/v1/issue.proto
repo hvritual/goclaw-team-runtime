@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package workspace.v1;
+
+import "annotations/v1/access.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1";
+
+// IssueService owns workspace-scoped Issue workflow and business associations.
+// Project and Asset references are stored as IDs; their identities and content
+// lifecycles remain owned by ProjectService and space.v1.AssetService.
+service IssueService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc CreateIssue(CreateIssueRequest) returns (CreateIssueResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.create"
+      permission_name: "Create issue"
+      resource: "workspace.issue"
+      action: "create"
+      audit: true
+    };
+  }
+  rpc GetIssue(GetIssueRequest) returns (GetIssueResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.get"
+      permission_name: "Get issue"
+      resource: "workspace.issue"
+      action: "get"
+    };
+  }
+  rpc ListIssues(ListIssuesRequest) returns (ListIssuesResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.list"
+      permission_name: "List issues"
+      resource: "workspace.issue"
+      action: "list"
+    };
+  }
+  rpc UpdateIssue(UpdateIssueRequest) returns (UpdateIssueResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.update"
+      permission_name: "Update issue"
+      resource: "workspace.issue"
+      action: "update"
+      audit: true
+    };
+  }
+  rpc UpdateIssueStatus(UpdateIssueStatusRequest) returns (UpdateIssueStatusResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.update_status"
+      permission_name: "Update issue status"
+      resource: "workspace.issue"
+      action: "update_status"
+      audit: true
+    };
+  }
+}
+
+message IssueAssetIDs {
+  repeated string values = 1;
+}
+
+message Issue {
+  string id = 1;
+  string workspace_id = 2;
+  int32 number = 3;
+  string identifier = 4;
+  string title = 5;
+  optional string description = 6;
+  // status and priority remain lowercase strings for JSON compatibility.
+  string status = 7;
+  string priority = 8;
+  optional string assignee_type = 9;
+  // Member and Agent assignee identities are owned by auth.v1.
+  optional string assignee_id = 10;
+  string creator_type = 11;
+  string creator_id = 12;
+  optional string parent_issue_id = 13;
+  optional string project_id = 14;
+  double position = 15;
+  optional int32 stage = 16;
+  optional string start_date = 17;
+  optional string due_date = 18;
+  string created_at = 19;
+  string updated_at = 20;
+  google.protobuf.Struct metadata = 21;
+  google.protobuf.Struct properties = 22;
+  // Each value is a stable space.v1 Asset ID; Issue owns the association.
+  repeated string asset_ids = 23;
+}
+
+message CreateIssueRequest {
+  string workspace_id = 1;
+  string title = 2;
+  optional string description = 3;
+  string status = 4;
+  string priority = 5;
+  optional string assignee_type = 6;
+  optional string assignee_id = 7;
+  optional string parent_issue_id = 8;
+  optional string project_id = 9;
+  double position = 10;
+  optional int32 stage = 11;
+  optional string start_date = 12;
+  optional string due_date = 13;
+  repeated string asset_ids = 14;
+}
+
+message CreateIssueResponse {
+  Issue issue = 1;
+}
+
+message GetIssueRequest {
+  string workspace_id = 1;
+  // issue_id accepts either an Issue UUID or workspace-scoped identifier.
+  string issue_id = 2;
+}
+
+message GetIssueResponse {
+  Issue issue = 1;
+}
+
+message ListIssuesRequest {
+  string workspace_id = 1;
+  optional string project_id = 2;
+  optional string parent_issue_id = 3;
+  string status = 4;
+  string priority = 5;
+  optional string assignee_type = 6;
+  optional string assignee_id = 7;
+  optional string creator_type = 8;
+  optional string creator_id = 9;
+}
+
+message ListIssuesResponse {
+  repeated Issue issues = 1;
+  int32 total = 2;
+}
+
+message UpdateIssueRequest {
+  string workspace_id = 1;
+  // issue_id accepts either an Issue UUID or workspace-scoped identifier.
+  string issue_id = 2;
+  optional string title = 3;
+  optional string description = 4;
+  optional string status = 5;
+  optional string priority = 6;
+  optional string assignee_type = 7;
+  optional string assignee_id = 8;
+  optional string parent_issue_id = 9;
+  optional string project_id = 10;
+  optional double position = 11;
+  // Zero clears an existing stage; positive stages start at one.
+  optional int32 stage = 12;
+  optional string start_date = 13;
+  optional string due_date = 14;
+  // Message presence distinguishes omission from clearing all associations.
+  optional IssueAssetIDs asset_ids = 15;
+}
+
+message UpdateIssueResponse {
+  Issue issue = 1;
+}
+
+message UpdateIssueStatusRequest {
+  string workspace_id = 1;
+  // issue_id accepts either an Issue UUID or workspace-scoped identifier.
+  string issue_id = 2;
+  string status = 3;
+}
+
+message UpdateIssueStatusResponse {
+  Issue issue = 1;
+}
