@@ -654,12 +654,14 @@ func roleAllows(role ProjectRole, action Action) bool {
 		switch action {
 		case ActionIssueWrite, ActionIssueTransition,
 			ActionWorkItemWrite, ActionArtifactWrite,
-			ActionDocumentWrite, ActionComponentWrite:
+			ActionDocumentWrite, ActionComponentWrite,
+			ActionDeliveryWrite:
 			return true
 		}
 	case ProjectReviewer:
 		switch action {
-		case ActionIssueTransition, ActionArtifactWrite, ActionDocumentWrite:
+		case ActionIssueTransition, ActionArtifactWrite, ActionDocumentWrite,
+			ActionDeliveryReview:
 			return true
 		}
 	}
@@ -696,7 +698,11 @@ func isKnownProjectAction(action Action) bool {
 		ActionRunnerReleaseRead,
 		ActionRunnerReleaseWrite,
 		ActionContextRead,
-		ActionContextCompile:
+		ActionContextCompile,
+		ActionDeliveryRead,
+		ActionDeliveryWrite,
+		ActionDeliveryReview,
+		ActionDeliveryAccept:
 		return true
 	default:
 		return false
@@ -717,7 +723,8 @@ func isProjectReadAction(action Action) bool {
 		ActionKnowledgeRead,
 		ActionSkillRead,
 		ActionRunnerReleaseRead,
-		ActionContextRead:
+		ActionContextRead,
+		ActionDeliveryRead:
 		return true
 	default:
 		return false

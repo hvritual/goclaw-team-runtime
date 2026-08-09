@@ -82,6 +82,74 @@ func (h *Handler) registerTeamControlMethods() {
 	h.registry.Register("context.compile", h.rpcCompileContext)
 	h.registry.Register("context.list", h.rpcListContextBundles)
 	h.registry.Register("control.summary", h.rpcControlSummary)
+	h.registry.Register("delivery.command", h.rpcExecuteDeliveryCommand)
+	h.registry.Register("delivery.projection", h.rpcDeliveryProjection)
+	h.registry.Register("delivery.events", h.rpcDeliveryEvents)
+	h.registry.Register("delivery.integrity", h.rpcDeliveryIntegrity)
+}
+
+func (h *Handler) rpcExecuteDeliveryCommand(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	var command teamcontrol.DeliveryCommand
+	if err := decodeDomainParams(params, &command); err != nil {
+		return nil, err
+	}
+	command.ActorID = actorID
+	return h.teamSvc.ExecuteDeliveryCommand(actorID, command)
+}
+
+func (h *Handler) rpcDeliveryProjection(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.GetDeliveryProjection(
+		actorID,
+		stringParam(params["project_id"]),
+	)
+}
+
+func (h *Handler) rpcDeliveryEvents(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	after := intParam(params["after_sequence"], 0)
+	if after < 0 {
+		after = 0
+	}
+	return h.teamSvc.ListDeliveryEvents(
+		actorID,
+		stringParam(params["project_id"]),
+		uint64(after),
+		intParam(params["limit"], 100),
+	)
+}
+
+func (h *Handler) rpcDeliveryIntegrity(
+	sessionID string,
+	params map[string]interface{},
+) (interface{}, error) {
+	actorID, err := h.principalID(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return h.teamSvc.VerifyDeliveryIntegrity(
+		actorID,
+		stringParam(params["project_id"]),
+	)
 }
 
 func (h *Handler) rpcCreateTeamUser(
