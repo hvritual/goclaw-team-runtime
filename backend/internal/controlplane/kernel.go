@@ -233,7 +233,7 @@ func (k *DeliveryKernel) Replay(ctx context.Context, workspaceID, projectID stri
 	if err != nil {
 		return ProjectProjection{}, err
 	}
-	projection := ProjectProjection{WorkspaceID: workspaceID, ProjectID: projectID, Nodes: map[string]WorkNode{}, Edges: map[string]WorkEdge{}, Evidence: map[string]EvidenceRef{}, Checks: map[string][]CheckResult{}, Acceptances: map[string]Acceptance{}}
+	projection := ProjectProjection{SchemaVersion: kernelSchemaVersion, WorkspaceID: workspaceID, ProjectID: projectID, Nodes: map[string]WorkNode{}, Edges: map[string]WorkEdge{}, Evidence: map[string]EvidenceRef{}, Checks: map[string][]CheckResult{}, Acceptances: map[string]Acceptance{}}
 	previousHash := ""
 	for index, event := range events {
 		if event.SchemaVersion != kernelSchemaVersion || event.WorkspaceID != workspaceID || event.ProjectID != projectID || event.Sequence != int64(index+1) || event.PreviousHash != previousHash || hashSessionEvent(event) != event.Hash {
