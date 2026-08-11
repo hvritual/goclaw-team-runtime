@@ -73,3 +73,12 @@
 - Reopen idempotency, concurrent command CAS, tamper detection, dependency cycle rejection, DoneGate authority, and race tests passed in Backend CI Run `31488460948`.
 - Plan v4 consolidates the four P2 domain wrappers into one typed slice because they share the same versioned Work Node and kernel command boundary; it does not relax any v3 invariant.
 - Next action: implement and verify Requirement, Quality, Review/Knowledge, and Execution flows.
+
+## 2026-08-11 — P0P2-S04X completed; P0P2-S08 activated
+
+- Requirement flow covers Request, Intent, Solution/ADR, four deterministic reviews, independent Freeze, ChangeIntent revision invalidation, and traced Task creation.
+- Quality flow covers Defect reproduction, Risk probability/impact/response/due date, deterministic verification, and close gates.
+- Review and Knowledge cover structured model findings, independent resolution, candidate sources/evidence, deduplication, publication, and invalidation/version advance.
+- Execution covers queue, exclusive claim, bounded lease, heartbeat, cancel, retry, opaque Secret references, mandatory Evidence return, and validation handoff; Runner has no acceptance authority.
+- Backend CI Run `31488861815` passed `make check` and `make test-race` for the typed P2 slice.
+- Next action: expose the Team Control HTTP command and projection contract with server-side identity resolution.
