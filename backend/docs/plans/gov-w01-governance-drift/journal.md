@@ -18,3 +18,11 @@
   available repository interface exposes it.
 - Created isolated branch `agent/gov-w01-governance-drift-001`.
 - Next action: publish this plan, then activate `GOV-W01-S01`.
+
+## 2026-08-12 — plan v2 activated; GOV-W01-S01 active
+
+- Context-source inspection found `docs/contexts/system/CONTEXT.md` also says
+  execution ownership is unresolved.
+- Plan v2 adds that exact documentation path to S02; no product or runtime scope
+  changed.
+- Root rules remain the active first repair step.
