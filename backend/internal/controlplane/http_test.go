@@ -33,6 +33,13 @@ func TestHTTPCommandsProjectionAndProblems(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("create status=%d body=%s", response.Code, response.Body.String())
 	}
+	intentRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"requirement.intent","command_id":"command-intent","expected_head":1,"payload":{"id":"requirement-1","text":"Deliver the API"}}`)))
+	intentRequest.Header.Set("X-Test-Actor", "owner-1")
+	intent := httptest.NewRecorder()
+	handler.ServeHTTP(intent, intentRequest)
+	if intent.Code != http.StatusCreated {
+		t.Fatalf("intent status=%d body=%s", intent.Code, intent.Body.String())
+	}
 
 	projectionRequest := httptest.NewRequest(http.MethodGet, "/v1/workspaces/workspace-1/projects/project-1/projection", nil)
 	projectionRequest.Header.Set("X-Test-Actor", "owner-1")
