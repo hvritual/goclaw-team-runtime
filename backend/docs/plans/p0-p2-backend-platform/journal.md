@@ -18,3 +18,12 @@
 - Revalidated that P0 product scope is limited to backend-local build, policy, container, and documentation files.
 - Root workflow wiring remains explicitly path-blocked.
 - Next action: implement `P0P2-S01` and record deterministic checks that are actually available.
+
+## 2026-08-11 — P0P2-S01 implemented; P0P2-S02 activated
+
+- Added backend-local `Makefile`, policy and check scripts, container build, operator README, and the minimal control-plane health process.
+- P0 implementation commit: `7667b6693ab1cb4aabde7222eaa7b7d3b2a3e78f`.
+- Shell syntax validation passed for both CI scripts.
+- Go format/test/race/vet and Docker build remain environment-blocked and are not claimed.
+- Root workflow integration remains path-blocked.
+- Next action: implement the P1 foundation with transactional persistence and workspace authorization.
