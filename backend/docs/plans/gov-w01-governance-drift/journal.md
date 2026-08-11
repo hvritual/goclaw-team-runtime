@@ -26,3 +26,28 @@
 - Plan v2 adds that exact documentation path to S02; no product or runtime scope
   changed.
 - Root rules remain the active first repair step.
+
+## 2026-08-12 — GOV-W01-S01 through S03 verified; S04 blocked
+
+- Root `AGENTS.md` and `CLAUDE.md` now make `server/**` permanently
+  read-only without plan-level exceptions.
+- Execution/Runtime is established in the Context Map and dedicated context
+  document; System and canonical backend vocabulary are aligned.
+- Root CI now validates PRs and pushes for `main` and the canonical branch,
+  owns the repository-wide server boundary, and runs canonical backend check
+  plus race.
+- Duplicate `.github/workflows/backend.yml` is removed.
+- Unified CI exposed and repaired one pre-existing frozen-lockfile mismatch in
+  the `packages/views` importer.
+- Canonical CI no longer attempts absent legacy `server/**` or
+  `apps/mobile` paths. Legacy runtime jobs remain main-only reporting.
+- Candidate `7415c4e32346a1a89db966130ad2c0e4e577d6ad` passed GitHub CI Run
+  `31546015838`: governance-policy, canonical-backend check/race, frontend
+  build/typecheck/lint, frontend tests, frontend aggregate, and `required`.
+- PR #10 is Draft and contains no `server/**` diff.
+- Remote branch-protection/ruleset mutation is unavailable through the connected
+  repository interface. The exact required configuration is recorded in
+  `docs/governance/CANONICAL-BRANCH-PROTECTION.md`; documentation alone does
+  not satisfy S04.
+- Next action: apply and inspect the remote `canonical-integration` ruleset
+  requiring `CI / required`, then obtain independent review before merge.
