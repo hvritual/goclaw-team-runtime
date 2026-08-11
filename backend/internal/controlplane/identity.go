@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	authCookieName = "multica_auth"
-	csrfCookieName = "multica_csrf"
+	authCookieName  = "multica_auth"
+	csrfCookieName  = "multica_csrf"
 	maxIdentityBody = 1 << 20
 )
 
