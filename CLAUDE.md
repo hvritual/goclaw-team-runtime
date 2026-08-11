@@ -2,6 +2,20 @@
 
 Guidance for Claude Code when working in this repository. Keep this file short and authoritative: rules here should be hard to infer from code or easy to get wrong.
 
+## Canonical Branch and Backend
+
+`codex/multica-six-domain-baseline` is the canonical integration branch. Base continuing pull
+requests on it; treat `main` and historical `agent/*` branches only as
+migration sources or audit history.
+
+Every backend change must first read `backend/AGENTS.md` and use `backend/`
+as the reference implementation for contracts, package boundaries, layout, and
+tests. Do not carry legacy root-level `teamcontrol/`, `gateway/`,
+`workstation/`, or other backend trees forward by merging them unchanged.
+Port still-required behavior into the canonical backend under an approved
+versioned plan. A plan that changes backend code outside `backend/` must
+explicitly justify the exception and its compatibility impact.
+
 ## Conventions
 
 The source of truth for code naming, i18n glossary, and Chinese product voice is:
