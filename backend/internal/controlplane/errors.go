@@ -6,11 +6,12 @@ import (
 )
 
 var (
-	ErrInvalid   = errors.New("invalid argument")
-	ErrNotFound  = errors.New("not found")
-	ErrConflict  = errors.New("conflict")
-	ErrDenied    = errors.New("permission denied")
-	ErrInvariant = errors.New("invariant violation")
+	ErrInvalid     = errors.New("invalid argument")
+	ErrNotFound    = errors.New("not found")
+	ErrConflict    = errors.New("conflict")
+	ErrDenied      = errors.New("permission denied")
+	ErrInvariant   = errors.New("invariant violation")
+	ErrUnavailable = errors.New("dependency unavailable")
 )
 
 // OpError preserves a stable machine code while retaining operation context.
@@ -48,4 +49,8 @@ func denied(op, message string) error {
 
 func invariant(op, message string) error {
 	return &OpError{Op: op, Code: "invariant", Err: fmt.Errorf("%w: %s", ErrInvariant, message)}
+}
+
+func unavailable(op, message string) error {
+	return &OpError{Op: op, Code: "unavailable", Err: fmt.Errorf("%w: %s", ErrUnavailable, message)}
 }
