@@ -151,31 +151,34 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 			ID   string      `json:"id"`
 			Data QualityData `json:"data"`
 		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CreateRisk(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
+		}
 	case "quality.close":
 		var value DoneCommand
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.CloseQualityItem(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
-		}
-		if err = json.Unmarshal(command.Payload, &value); err == nil {
-			result, err = a.flows.CreateRisk(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
 		}
 	case "finding.create":
 		var value struct {
 			ID   string            `json:"id"`
 			Data ReviewFindingData `json:"data"`
 		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CreateReviewFinding(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
+		}
 	case "finding.resolve":
 		var value DoneCommand
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.ResolveFinding(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
 		}
-		if err = json.Unmarshal(command.Payload, &value); err == nil {
-			result, err = a.flows.CreateReviewFinding(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
-		}
 	case "knowledge.create":
 		var value struct {
 			ID   string        `json:"id"`
 			Data KnowledgeData `json:"data"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CreateKnowledgeCandidate(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
 		}
 	case "knowledge.publish":
 		var value DoneCommand
@@ -188,9 +191,6 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 		}
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.InvalidateKnowledge(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID)
-		}
-		if err = json.Unmarshal(command.Payload, &value); err == nil {
-			result, err = a.flows.CreateKnowledgeCandidate(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
 		}
 	case "run.queue":
 		var value RunCommand
