@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	controlplane "github.com/hvritual/workspace/internal/controlplane"
 )
 
 func main() {
@@ -17,16 +19,51 @@ func main() {
 		address = ":8080"
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	databasePath := os.Getenv("CONTROLPLANE_SQLITE_PATH")
+	if databasePath == "" {
+		databasePath = "controlplane.db"
+	}
+	repository, err := controlplane.OpenSQLite(context.Background(), databasePath)
+	if err != nil {
+		slog.Error("open control plane repository", "error", err)
+		os.Exit(1)
+	}
+	defer repository.Close()
+	service, err := controlplane.NewService(repository, nil)
+	if err != nil {
+		slog.Error("create control plane service", "error", err)
+		os.Exit(1)
+	}
+	store, err := controlplane.KernelStoreFrom(repository)
+	if err != nil {
+		slog.Error("create kernel store", "error", err)
+		os.Exit(1)
+	}
+	kernel, err := controlplane.NewDeliveryKernel(store, nil, service.Authorize)
+	if err != nil {
+		slog.Error("create delivery kernel", "error", err)
+		os.Exit(1)
+	}
+	flows, err := controlplane.NewP2Flows(kernel)
+	if err != nil {
+		slog.Error("create P2 flows", "error", err)
+		os.Exit(1)
+	}
+	api, err := controlplane.NewHTTPAPI(kernel, flows, func(request *http.Request) (controlplane.Actor, error) {
+		if os.Getenv("CONTROLPLANE_ALLOW_HEADER_IDENTITY") != "true" {
+			return controlplane.Actor{}, controlplane.ErrDenied
+		}
+		kind := controlplane.ActorKind(request.Header.Get("X-Actor-Kind"))
+		return controlplane.Actor{ID: request.Header.Get("X-Actor-ID"), WorkspaceID: request.Header.Get("X-Workspace-ID"), Kind: kind}, nil
 	})
+	if err != nil {
+		slog.Error("create HTTP API", "error", err)
+		os.Exit(1)
+	}
 
 	server := &http.Server{
 		Addr:              address,
-		Handler:           mux,
+		Handler:           api.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
