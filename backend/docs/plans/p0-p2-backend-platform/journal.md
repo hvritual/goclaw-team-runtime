@@ -37,3 +37,22 @@
 - Plan v2 grants one non-backend path exception: `.github/workflows/backend.yml`.
 - All `server/**`, other root paths, `apps/**`, and `packages/**` remain forbidden.
 - Next action: publish the read-only backend workflow and use its result to decide whether `P0P2-S03` may start.
+
+## 2026-08-11 — P0P2-S02G completed; P0P2-S03 activated
+
+- Published `.github/workflows/backend.yml` at commit `e8e347996519a96e83db749b8a7efdc24e6d3fa5`.
+- Workflow Run `31486953485` completed successfully.
+- `make check` passed, covering gofmt, path and dependency policy, generated-code cleanliness, `go vet ./...`, and `go test ./...`.
+- `make test-race` passed.
+- The workflow used read-only contents permission, no secrets, and the immutable PR base SHA.
+- P1 deterministic verification is satisfied; independent final acceptance remains pending.
+- Next action: implement the append-only Delivery Kernel under `P0P2-S03`.
+
+## 2026-08-11 — P0P2-S03 paused; P0P2-S02R activated under plan v3
+
+- Read-only review identified that an Agent could bootstrap a workspace and become Owner.
+- Permission evaluation allowed Owner/Admin to pass unknown permissions instead of failing closed.
+- The last-Owner check occurred outside the member mutation transaction and was unsafe under concurrent PostgreSQL writes.
+- The first in-memory kernel draft was rejected before publication because it lacked durable transactional event and command storage.
+- Plan v3 inserts the P1 invariant repair as a hard prerequisite and strengthens S03 acceptance to require reopen-safe persistence and typed command authority.
+- Next action: add reproduction tests, repair P1 invariants, and rerun Backend CI before S03.
