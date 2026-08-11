@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: GoClaw Team Control API
+  version: 1.0.0
+  description: Authenticated workspace projection and Delivery Kernel contract.
+servers:
+  - url: /control-plane
+paths:
+  /v1/workspaces/{workspace}:
+    get:
+      operationId: getWorkspace
+      parameters:
+        - $ref: '#/components/parameters/Workspace'
+      responses:
+        '200':
+          description: Trusted workspace projection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+  /v1/workspaces/{workspace}/members:
+    get:
+      operationId: listMembers
+      parameters:
+        - $ref: '#/components/parameters/Workspace'
+      responses:
+        '200':
+          description: Trusted active human members and control-plane agents.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembersResponse'
+        default:
+          $ref: '#/components/responses/Problem'
+  /v1/workspaces/{workspace}/projects/{project}/projection:
+    get:
+      operationId: getProjectProjection
+      parameters:
+        - $ref: '#/components/parameters/Workspace'
+        - $ref: '#/components/parameters/Project'
+      responses:
+        '200':
+          description: Replay-verified project state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectProjection'
+        default:
+          $ref: '#/components/responses/Problem'
+  /v1/workspaces/{workspace}/projects/{project}/events:
+    get:
+      operationId: streamProjectEvents
+      parameters:
+        - $ref: '#/components/parameters/Workspace'
+        - $ref: '#/components/parameters/Project'
+        - name: after
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: Last-Event-ID
+          in: header
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Project-scoped SSE. Each session event uses its sequence as the event id.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        default:
+          $ref: '#/components/responses/Problem'
+  /v1/workspaces/{workspace}/projects/{project}/commands:
+    post:
+      operationId: executeProjectCommand
+      parameters:
+        - $ref: '#/components/parameters/Workspace'
+        - $ref: '#/components/parameters/Project'
+        - name: X-CSRF-Token
+          in: header
+          description: Required for cookie-authenticated mutations.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommandRequest'
+      responses:
+        '201':
+          description: Idempotent append result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppendResult'
+        default:
+          $ref: '#/components/responses/Problem'
+components:
+  parameters:
+    Workspace:
+      name: workspace
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Identifier'
+    Project:
+      name: project
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Identifier'
+  responses:
+    Problem:
+      description: Stable RFC 7807-style failure. Status may be 400, 403, 404, 409, 422, 500, or 503.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    Identifier:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$'
+    WorkspaceResponse:
+      type: object
+      required: [schema_version, workspace]
+      properties:
+        schema_version: { const: 1 }
+        workspace:
+          $ref: '#/components/schemas/Workspace'
+    Workspace:
+      type: object
+      required: [id, name, state, version, created_at, updated_at]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        name: { type: string }
+        state: { enum: [active, archived] }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    MembersResponse:
+      type: object
+      required: [schema_version, members]
+      properties:
+        schema_version: { const: 1 }
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+    Member:
+      type: object
+      required: [workspace_id, id, kind, role, state, version, created_at, updated_at]
+      properties:
+        workspace_id: { $ref: '#/components/schemas/Identifier' }
+        id: { $ref: '#/components/schemas/Identifier' }
+        kind: { enum: [human, agent] }
+        role: { enum: [owner, admin, member, reviewer, viewer] }
+        state: { enum: [active, removed] }
+        version: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ProjectProjection:
+      type: object
+      required: [schema_version, workspace_id, project_id, head, head_hash, nodes, edges, evidence, checks, acceptances]
+      properties:
+        schema_version: { const: 1 }
+        workspace_id: { $ref: '#/components/schemas/Identifier' }
+        project_id: { $ref: '#/components/schemas/Identifier' }
+        head: { type: integer, minimum: 0 }
+        head_hash: { type: string }
+        nodes: { type: object, additionalProperties: true }
+        edges: { type: object, additionalProperties: true }
+        evidence: { type: object, additionalProperties: true }
+        checks: { type: object, additionalProperties: true }
+        acceptances: { type: object, additionalProperties: true }
+    CommandRequest:
+      type: object
+      additionalProperties: false
+      required: [type, command_id, expected_head, payload]
+      properties:
+        type:
+          enum:
+            - requirement.start
+            - requirement.intent
+            - requirement.solution
+            - requirement.freeze
+            - requirement.change
+            - requirement.task
+            - defect.create
+            - risk.create
+            - quality.close
+            - finding.create
+            - finding.resolve
+            - knowledge.create
+            - knowledge.publish
+            - knowledge.invalidate
+            - run.queue
+            - run.claim
+            - run.heartbeat
+            - run.complete
+            - run.cancel
+            - run.retry
+            - evidence.attach
+            - check.record
+            - done.accept
+        command_id: { $ref: '#/components/schemas/Identifier' }
+        expected_head: { type: integer, minimum: 0 }
+        payload:
+          type: object
+          description: Command-specific payload validated by the Delivery Kernel.
+    AppendResult:
+      type: object
+      required: [events, head, head_hash, replayed]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionEvent'
+        head: { type: integer, minimum: 1 }
+        head_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        replayed: { type: boolean }
+    SessionEvent:
+      type: object
+      required: [schema_version, workspace_id, project_id, sequence, event_id, command_id, type, actor_id, actor_kind, payload, previous_hash, hash, occurred_at]
+      properties:
+        schema_version: { const: 1 }
+        workspace_id: { $ref: '#/components/schemas/Identifier' }
+        project_id: { $ref: '#/components/schemas/Identifier' }
+        sequence: { type: integer, minimum: 1 }
+        event_id: { type: string, format: uuid }
+        command_id: { $ref: '#/components/schemas/Identifier' }
+        type: { type: string }
+        actor_id: { $ref: '#/components/schemas/Identifier' }
+        actor_kind: { enum: [human, agent] }
+        payload: {}
+        previous_hash: { type: string }
+        hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        occurred_at: { type: string, format: date-time }
+    Problem:
+      type: object
+      required: [type, title, status, code, detail]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        code: { type: string }
+        field: { type: string }
+        detail: { type: string }
