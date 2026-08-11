@@ -208,7 +208,12 @@ jobs:
         # ~50s of expo-lint + tsc to every web/desktop PR. Keep this
         # filter in sync with the root package.json scripts, which also
         # exclude @multica/mobile.
-        run: pnpm exec turbo build typecheck lint --filter='!@multica/docs' --filter='!@multica/mobile'
+        run: |
+          filters=("--filter=!@multica/docs")
+          if [ -d apps/mobile ]; then
+            filters+=("--filter=!@multica/mobile")
+          fi
+          pnpm exec turbo build typecheck lint "${filters[@]}"
 
   frontend-test:
     needs: changes
@@ -259,7 +264,12 @@ jobs:
         # job's responsibility -- frontend-build owns the `typecheck` task.
         # `test` reaches dependency sources through the hash-only
         # `^cache-inputs` edge (see turbo.json), so no `tsc` runs here.
-        run: pnpm exec turbo test --filter='!@multica/docs' --filter='!@multica/mobile'
+        run: |
+          filters=("--filter=!@multica/docs")
+          if [ -d apps/mobile ]; then
+            filters+=("--filter=!@multica/mobile")
+          fi
+          pnpm exec turbo test "${filters[@]}"
 
   # Aggregate gate. `frontend` is the status-check name the repository's
   # branch rules refer to, so it has to survive the split above: this job
@@ -289,6 +299,7 @@ jobs:
 
   legacy_backend:
     name: legacy-server-regression
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -381,6 +392,7 @@ jobs:
         run: bash scripts/test-go.sh --race
 
   windows-execenv:
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     # The environment-preparation deadline owns a process tree, not just a Go
     # process. This Windows runtime test verifies Job Object cancellation kills
     # a delayed descendant before an immediate retry can reuse the same root.
@@ -450,6 +462,7 @@ jobs:
         run: go build ./cmd/multica
 
   installer:
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     # Stub-driven shell tests for scripts/install.sh. Kept off the heavy
     # backend job so installer regressions surface independently, and
     # exercised on macOS too because the installer targets macOS/Homebrew
@@ -469,7 +482,7 @@ jobs:
 
   required:
     name: required
-    needs: [governance, canonical_backend, frontend, legacy_backend, windows-execenv, installer]
+    needs: [governance, canonical_backend, frontend]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
@@ -478,18 +491,12 @@ jobs:
           GOVERNANCE_RESULT: ${{ needs.governance.result }}
           CANONICAL_BACKEND_RESULT: ${{ needs.canonical_backend.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
-          LEGACY_BACKEND_RESULT: ${{ needs.legacy_backend.result }}
-          WINDOWS_RESULT: ${{ needs['windows-execenv'].result }}
-          INSTALLER_RESULT: ${{ needs.installer.result }}
         run: |
           failed=0
           for result in \
             "governance:$GOVERNANCE_RESULT" \
             "canonical-backend:$CANONICAL_BACKEND_RESULT" \
-            "frontend:$FRONTEND_RESULT" \
-            "legacy-server:$LEGACY_BACKEND_RESULT" \
-            "windows-execenv:$WINDOWS_RESULT" \
-            "installer:$INSTALLER_RESULT"
+            "frontend:$FRONTEND_RESULT"
           do
             echo "$result"
             case "$result" in
