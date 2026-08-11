@@ -9,10 +9,10 @@ import (
 const kernelSchemaVersion = 1
 
 const (
-	EventWorkNodeUpserted  = "work.node.upserted.v1"
-	EventWorkEdgeAdded     = "work.edge.added.v1"
-	EventEvidenceAttached  = "evidence.attached.v1"
-	EventCheckRecorded     = "check.recorded.v1"
+	EventWorkNodeUpserted   = "work.node.upserted.v1"
+	EventWorkEdgeAdded      = "work.edge.added.v1"
+	EventEvidenceAttached   = "evidence.attached.v1"
+	EventCheckRecorded      = "check.recorded.v1"
 	EventAcceptanceRecorded = "acceptance.recorded.v1"
 )
 
@@ -33,13 +33,13 @@ type SessionEvent struct {
 }
 
 type CommandEnvelope struct {
-	WorkspaceID string
-	ProjectID   string
-	CommandID   string
-	Name        string
-	Actor       Actor
+	WorkspaceID  string
+	ProjectID    string
+	CommandID    string
+	Name         string
+	Actor        Actor
 	ExpectedHead int64
-	Request     json.RawMessage
+	Request      json.RawMessage
 }
 
 type ProposedEvent struct {
@@ -79,17 +79,17 @@ type WorkEdge struct {
 }
 
 type EvidenceRef struct {
-	ID          string    `json:"id"`
-	SubjectID   string    `json:"subject_id"`
-	Kind        string    `json:"kind"`
-	URI         string    `json:"uri"`
-	SHA256      string    `json:"sha256"`
-	Size        int64     `json:"size"`
-	MediaType   string    `json:"media_type"`
-	ProducedBy  string    `json:"produced_by"`
-	RunID       string    `json:"run_id,omitempty"`
-	Sanitized   bool      `json:"sanitized"`
-	CapturedAt  time.Time `json:"captured_at"`
+	ID         string    `json:"id"`
+	SubjectID  string    `json:"subject_id"`
+	Kind       string    `json:"kind"`
+	URI        string    `json:"uri"`
+	SHA256     string    `json:"sha256"`
+	Size       int64     `json:"size"`
+	MediaType  string    `json:"media_type"`
+	ProducedBy string    `json:"produced_by"`
+	RunID      string    `json:"run_id,omitempty"`
+	Sanitized  bool      `json:"sanitized"`
+	CapturedAt time.Time `json:"captured_at"`
 }
 
 type CheckOutcome string
