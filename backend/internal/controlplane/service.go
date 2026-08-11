@@ -202,6 +202,121 @@ func (s *Service) ListMembers(ctx context.Context, actor Actor, includeRemoved b
 	return s.repository.ListMembers(ctx, actor.WorkspaceID, includeRemoved)
 }
 
+func (s *Service) reconcileTrustedSnapshot(ctx context.Context, snapshot TrustedWorkspaceSnapshot) error {
+	const op = "reconcile trusted workspace snapshot"
+	if err := validateIdentifier(op, "workspace_id", snapshot.ID); err != nil {
+		return err
+	}
+	if strings.TrimSpace(snapshot.Name) == "" || snapshot.ActorID == "" || len(snapshot.Members) == 0 {
+		return invalid(op, "snapshot", "workspace name, actor, and members are required")
+	}
+	var ownerID string
+	seen := make(map[string]struct{}, len(snapshot.Members))
+	for _, member := range snapshot.Members {
+		if err := validateIdentifier(op, "member_id", member.ID); err != nil {
+			return err
+		}
+		if _, exists := seen[member.ID]; exists {
+			return invalid(op, "members", "duplicate member")
+		}
+		seen[member.ID] = struct{}{}
+		if err := validateKindRole(op, ActorHuman, member.Role); err != nil {
+			return err
+		}
+		if member.Role == RoleOwner && ownerID == "" {
+			ownerID = member.ID
+		}
+	}
+	if ownerID == "" {
+		return invariant(op, "snapshot must retain an active human owner")
+	}
+	if _, exists := seen[snapshot.ActorID]; !exists {
+		return denied(op, "authenticated actor is absent from the snapshot")
+	}
+
+	now := s.now()
+	workspace, err := s.repository.GetWorkspace(ctx, snapshot.ID)
+	if errors.Is(err, ErrNotFound) {
+		owner := Actor{ID: ownerID, Kind: ActorHuman}
+		if _, createErr := s.CreateWorkspace(ctx, owner, snapshot.ID, snapshot.Name); createErr != nil && !errors.Is(createErr, ErrConflict) {
+			return createErr
+		}
+		workspace, err = s.repository.GetWorkspace(ctx, snapshot.ID)
+	}
+	if err != nil {
+		return fmt.Errorf("%s: get workspace: %w", op, err)
+	}
+	if workspace.Name != strings.TrimSpace(snapshot.Name) || workspace.State != WorkspaceActive {
+		expectedVersion := workspace.Version
+		workspace.Name = strings.TrimSpace(snapshot.Name)
+		workspace.State = WorkspaceActive
+		workspace.Version++
+		workspace.UpdatedAt = now
+		audit := s.audit(snapshot.ID, snapshot.ActorID, "identity.workspace.sync", "workspace", snapshot.ID, nil)
+		if err := s.repository.UpdateWorkspace(ctx, workspace, expectedVersion, audit); err != nil {
+			return fmt.Errorf("%s: update workspace: %w", op, err)
+		}
+	}
+
+	ordered := make([]TrustedMember, 0, len(snapshot.Members))
+	for _, member := range snapshot.Members {
+		if member.Role == RoleOwner {
+			ordered = append(ordered, member)
+		}
+	}
+	for _, member := range snapshot.Members {
+		if member.Role != RoleOwner {
+			ordered = append(ordered, member)
+		}
+	}
+	for _, trusted := range ordered {
+		current, getErr := s.repository.GetMember(ctx, snapshot.ID, trusted.ID)
+		switch {
+		case errors.Is(getErr, ErrNotFound):
+			member := Member{WorkspaceID: snapshot.ID, ID: trusted.ID, Kind: ActorHuman, Role: trusted.Role, State: MemberActive, Version: 1, CreatedAt: now, UpdatedAt: now}
+			audit := s.audit(snapshot.ID, snapshot.ActorID, "identity.member.sync", "member", trusted.ID, map[string]string{"role": string(trusted.Role)})
+			if saveErr := s.repository.SaveMember(ctx, member, 0, audit); saveErr != nil {
+				return fmt.Errorf("%s: add member: %w", op, saveErr)
+			}
+		case getErr != nil:
+			return fmt.Errorf("%s: get member: %w", op, getErr)
+		case current.Kind != ActorHuman || current.Role != trusted.Role || current.State != MemberActive:
+			expectedVersion := current.Version
+			current.Kind = ActorHuman
+			current.Role = trusted.Role
+			current.State = MemberActive
+			current.Version++
+			current.UpdatedAt = now
+			audit := s.audit(snapshot.ID, snapshot.ActorID, "identity.member.sync", "member", trusted.ID, map[string]string{"role": string(trusted.Role)})
+			if saveErr := s.repository.SaveMember(ctx, current, expectedVersion, audit); saveErr != nil {
+				return fmt.Errorf("%s: update member: %w", op, saveErr)
+			}
+		}
+	}
+
+	currentMembers, err := s.repository.ListMembers(ctx, snapshot.ID, false)
+	if err != nil {
+		return fmt.Errorf("%s: list members: %w", op, err)
+	}
+	for _, current := range currentMembers {
+		if current.Kind != ActorHuman {
+			continue
+		}
+		if _, trusted := seen[current.ID]; trusted {
+			continue
+		}
+		expectedVersion := current.Version
+		current.State = MemberRemoved
+		current.Version++
+		current.UpdatedAt = now
+		audit := s.audit(snapshot.ID, snapshot.ActorID, "identity.member.remove", "member", current.ID, nil)
+		if saveErr := s.repository.SaveMember(ctx, current, expectedVersion, audit); saveErr != nil {
+			return fmt.Errorf("%s: remove member: %w", op, saveErr)
+		}
+	}
+	return nil
+}
+
 func (s *Service) Authorize(ctx context.Context, actor Actor, permission string) error {
 	const op = "authorize"
 	if err := validateActor(actor, true); err != nil {
