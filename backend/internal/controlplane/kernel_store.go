@@ -68,17 +68,17 @@ func (r *sqlRepository) AppendCommand(ctx context.Context, command CommandEnvelo
 			}
 			event := SessionEvent{
 				SchemaVersion: kernelSchemaVersion,
-				WorkspaceID: command.WorkspaceID,
-				ProjectID: command.ProjectID,
-				Sequence: head + int64(index) + 1,
-				EventID: uuid.NewString(),
-				CommandID: command.CommandID,
-				Type: candidate.Type,
-				ActorID: command.Actor.ID,
-				ActorKind: command.Actor.Kind,
-				Payload: append(json.RawMessage(nil), candidate.Payload...),
-				PreviousHash: previousHash,
-				OccurredAt: candidate.OccurredAt.UTC(),
+				WorkspaceID:   command.WorkspaceID,
+				ProjectID:     command.ProjectID,
+				Sequence:      head + int64(index) + 1,
+				EventID:       uuid.NewString(),
+				CommandID:     command.CommandID,
+				Type:          candidate.Type,
+				ActorID:       command.Actor.ID,
+				ActorKind:     command.Actor.Kind,
+				Payload:       append(json.RawMessage(nil), candidate.Payload...),
+				PreviousHash:  previousHash,
+				OccurredAt:    candidate.OccurredAt.UTC(),
 			}
 			event.Hash = hashSessionEvent(event)
 			if event.Hash == "" {
