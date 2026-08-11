@@ -8,6 +8,27 @@ These rules apply to every human and Codex change in this repository.
   primary planning and uses the project `side_luna` agent for bounded read-only
   investigations without weakening the versioned-plan gate below.
 
+## Backend path boundary
+
+This section records the user's explicit repository-governance decision of
+2026-08-11 and overrides any older plan-level exception elsewhere in the
+repository.
+
+- `backend/` is the only writable backend implementation root.
+- `server/` is read-only migration evidence. Never modify `server/**` for
+  features, bug fixes, refactors, tests, configuration, schemas, migrations,
+  generators, or implementation-coupled documentation.
+- When required behavior exists only in `server/`, inspect it and port the
+  behavior into `backend/` under an approved versioned plan with tests. Do not
+  patch, synchronize, mirror, or extend the legacy tree.
+- Frozen tasks, plan steps, worktrees, and review scopes for backend work must
+  exclude `server/**` from allowed paths. A candidate diff containing any
+  `server/**` change is invalid and must be stopped before deterministic checks,
+  model review, or DoneGate.
+- This boundary has no plan-level exception. Changing it requires a new explicit
+  repository-governance decision from the user; an implementation plan alone is
+  insufficient authority.
+
 ## Versioned implementation plans
 
 - Every staged, multi-step, or multi-module update must have a versioned plan
