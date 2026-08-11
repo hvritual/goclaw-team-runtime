@@ -1,0 +1,43 @@
+name: Backend
+
+on:
+  pull_request:
+    branches:
+      - codex/multica-six-domain-baseline
+    paths:
+      - backend/**
+      - .github/workflows/backend.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic:
+    name: check-and-race
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_REF: ${{ github.event.pull_request.base.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Check
+        working-directory: backend
+        run: make check
+
+      - name: Race
+        working-directory: backend
+        run: make test-race
