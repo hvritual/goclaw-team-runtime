@@ -65,3 +65,11 @@
 - Member mutations serialize by workspace in PostgreSQL and verify an active human Owner inside the mutation transaction; SQLite concurrency regression covers the invariant.
 - Backend CI Run `31487772122` passed `make check` and `make test-race`.
 - Next action: publish and verify the durable typed Delivery Kernel.
+
+## 2026-08-11 — P0P2-S03 completed; P0P2-S04X activated under plan v4
+
+- Added dedicated project-head, command-result, and session-event tables.
+- Command request hashing, original-result replay, Head CAS, domain-separated SHA-256 chaining, strict replay, Work Graph, immutable Evidence, deterministic Checker results, and independent Human DoneGate are implemented.
+- Reopen idempotency, concurrent command CAS, tamper detection, dependency cycle rejection, DoneGate authority, and race tests passed in Backend CI Run `31488460948`.
+- Plan v4 consolidates the four P2 domain wrappers into one typed slice because they share the same versioned Work Node and kernel command boundary; it does not relax any v3 invariant.
+- Next action: implement and verify Requirement, Quality, Review/Knowledge, and Execution flows.
