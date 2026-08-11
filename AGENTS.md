@@ -8,6 +8,23 @@ This file provides guidance to AI agents when working with code in this reposito
 > Use `Makefile`, `package.json`, and `pnpm-workspace.yaml` as the
 > source of truth for the full command list.
 
+## Canonical Development Baseline
+
+- `codex/multica-six-domain-baseline` is the integration base for all continuing work. New pull
+  requests target this branch unless an approved migration plan explicitly
+  declares another base.
+- For every backend task, read `backend/AGENTS.md` first and use the contracts,
+  package boundaries, directory layout, and implementation under `backend/` as
+  the canonical reference.
+- Do not merge legacy root-level backend trees such as `teamcontrol/`,
+  `gateway/`, or `workstation/` into the baseline unchanged. Port required
+  behavior into the `backend/` architecture under a versioned plan with tests.
+- A backend change outside `backend/` must be explicitly scoped and justified
+  by the approved plan, including its compatibility impact on the canonical
+  backend.
+- `main` and historical `agent/*` branches are migration inputs and audit
+  history, not implementation bases.
+
 ## Quick Reference
 
 ### Architecture
