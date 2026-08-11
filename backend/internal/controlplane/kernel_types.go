@@ -62,13 +62,14 @@ type KernelStore interface {
 }
 
 type WorkNode struct {
-	ID          string   `json:"id"`
-	Kind        string   `json:"kind"`
-	Revision    int64    `json:"revision"`
-	State       string   `json:"state"`
-	CreatorID   string   `json:"creator_id"`
-	AssigneeIDs []string `json:"assignee_ids"`
-	ExecutorIDs []string `json:"executor_ids"`
+	ID          string          `json:"id"`
+	Kind        string          `json:"kind"`
+	Revision    int64           `json:"revision"`
+	State       string          `json:"state"`
+	CreatorID   string          `json:"creator_id"`
+	AssigneeIDs []string        `json:"assignee_ids"`
+	ExecutorIDs []string        `json:"executor_ids"`
+	Data        json.RawMessage `json:"data,omitempty"`
 }
 
 type WorkEdge struct {
