@@ -122,13 +122,13 @@ type Acceptance struct {
 
 type ProjectProjection struct {
 	SchemaVersion int                      `json:"schema_version"`
-	WorkspaceID string                   `json:"workspace_id"`
-	ProjectID   string                   `json:"project_id"`
-	Head        int64                    `json:"head"`
-	HeadHash    string                   `json:"head_hash"`
-	Nodes       map[string]WorkNode      `json:"nodes"`
-	Edges       map[string]WorkEdge      `json:"edges"`
-	Evidence    map[string]EvidenceRef   `json:"evidence"`
-	Checks      map[string][]CheckResult `json:"checks"`
-	Acceptances map[string]Acceptance    `json:"acceptances"`
+	WorkspaceID   string                   `json:"workspace_id"`
+	ProjectID     string                   `json:"project_id"`
+	Head          int64                    `json:"head"`
+	HeadHash      string                   `json:"head_hash"`
+	Nodes         map[string]WorkNode      `json:"nodes"`
+	Edges         map[string]WorkEdge      `json:"edges"`
+	Evidence      map[string]EvidenceRef   `json:"evidence"`
+	Checks        map[string][]CheckResult `json:"checks"`
+	Acceptances   map[string]Acceptance    `json:"acceptances"`
 }
