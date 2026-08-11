@@ -27,3 +27,13 @@
 - Go format/test/race/vet and Docker build remain environment-blocked and are not claimed.
 - Root workflow integration remains path-blocked.
 - Next action: implement the P1 foundation with transactional persistence and workspace authorization.
+
+## 2026-08-11 — P0P2-S02 implemented; P0P2-S02G activated under plan v2
+
+- P1 foundation implementation commit is `420c84ff3eacf8bfecd299f58bc55dde8f498f90`.
+- New Go files passed syntax-tree parsing, but Go test, race, and vet remain unverified.
+- Draft PR #8 had no workflow run, so P2 stayed blocked.
+- User explicitly authorized `backend CI` on 2026-08-11.
+- Plan v2 grants one non-backend path exception: `.github/workflows/backend.yml`.
+- All `server/**`, other root paths, `apps/**`, and `packages/**` remain forbidden.
+- Next action: publish the read-only backend workflow and use its result to decide whether `P0P2-S03` may start.
