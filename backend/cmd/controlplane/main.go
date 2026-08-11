@@ -49,13 +49,22 @@ func main() {
 		slog.Error("create P2 flows", "error", err)
 		os.Exit(1)
 	}
-	api, err := controlplane.NewHTTPAPI(kernel, flows, func(request *http.Request) (controlplane.Actor, error) {
-		if os.Getenv("CONTROLPLANE_ALLOW_HEADER_IDENTITY") != "true" {
-			return controlplane.Actor{}, controlplane.ErrDenied
+	identity := deniedIdentityResolver()
+	if upstreamURL := os.Getenv("CONTROLPLANE_IDENTITY_UPSTREAM_URL"); upstreamURL != "" {
+		identity, err = controlplane.NewUpstreamIdentityResolver(upstreamURL, &http.Client{Timeout: 5 * time.Second})
+		if err != nil {
+			slog.Error("create upstream identity resolver", "error", err)
+			os.Exit(1)
 		}
-		kind := controlplane.ActorKind(request.Header.Get("X-Actor-Kind"))
-		return controlplane.Actor{ID: request.Header.Get("X-Actor-ID"), WorkspaceID: request.Header.Get("X-Workspace-ID"), Kind: kind}, nil
-	})
+	} else if os.Getenv("CONTROLPLANE_ALLOW_HEADER_IDENTITY") == "true" {
+		identity = func(request *http.Request) (controlplane.ResolvedIdentity, error) {
+			kind := controlplane.ActorKind(request.Header.Get("X-Actor-Kind"))
+			return controlplane.ResolvedIdentity{Actor: controlplane.Actor{
+				ID: request.Header.Get("X-Actor-ID"), WorkspaceID: request.Header.Get("X-Workspace-ID"), Kind: kind,
+			}}, nil
+		}
+	}
+	api, err := controlplane.NewHTTPAPI(service, kernel, flows, identity)
 	if err != nil {
 		slog.Error("create HTTP API", "error", err)
 		os.Exit(1)
@@ -83,5 +92,11 @@ func main() {
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("serve control plane", "error", err)
 		os.Exit(1)
+	}
+}
+
+func deniedIdentityResolver() controlplane.IdentityResolver {
+	return func(_ *http.Request) (controlplane.ResolvedIdentity, error) {
+		return controlplane.ResolvedIdentity{}, controlplane.ErrDenied
 	}
 }
