@@ -194,6 +194,9 @@ func (r *sqlRepository) ListMembers(ctx context.Context, workspaceID string, inc
 
 func (r *sqlRepository) SaveMember(ctx context.Context, member Member, expectedVersion int64, audit AuditEntry) error {
 	return r.transaction(ctx, func(tx *sql.Tx) error {
+		if err := r.lockWorkspaceMembers(ctx, tx, member.WorkspaceID); err != nil {
+			return err
+		}
 		if expectedVersion == 0 {
 			if err := r.insertMember(ctx, tx, member); err != nil {
 				return err
@@ -209,8 +212,34 @@ func (r *sqlRepository) SaveMember(ctx context.Context, member Member, expectedV
 				return err
 			}
 		}
+		if err := r.requireActiveHumanOwner(ctx, tx, member.WorkspaceID); err != nil {
+			return err
+		}
 		return r.insertAudit(ctx, tx, audit)
 	})
+}
+
+func (r *sqlRepository) lockWorkspaceMembers(ctx context.Context, tx *sql.Tx, workspaceID string) error {
+	if r.dialect != DialectPostgres {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, r.bind(`SELECT pg_advisory_xact_lock(hashtextextended(?, 0))`), workspaceID); err != nil {
+		return fmt.Errorf("lock workspace members: %w", err)
+	}
+	return nil
+}
+
+func (r *sqlRepository) requireActiveHumanOwner(ctx context.Context, tx *sql.Tx, workspaceID string) error {
+	row := tx.QueryRowContext(ctx, r.bind(`SELECT COUNT(*) FROM cp_members
+        WHERE workspace_id = ? AND kind = 'human' AND role = 'owner' AND state = 'active'`), workspaceID)
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return fmt.Errorf("count active owners: %w", err)
+	}
+	if count < 1 {
+		return invariant("save member", "workspace must retain at least one active human owner")
+	}
+	return nil
 }
 
 func (r *sqlRepository) insertMember(ctx context.Context, tx *sql.Tx, member Member) error {
