@@ -35,17 +35,16 @@ aggregate job has the job name `required`, producing the stable context:
 CI / required
 ```
 
-The aggregate fails unless all of these jobs succeed:
+The canonical aggregate fails unless all of these jobs succeed:
 
 - governance-policy;
 - canonical-backend;
-- frontend;
-- legacy-server-regression;
-- Windows execution-environment regression;
-- installer regression.
+- path-aware frontend.
 
-Conditional work is kept inside reporting jobs so a required status does not
-remain pending because a job was omitted by a path filter.
+Legacy server, Windows legacy runtime, and installer regressions run only for
+`main`. They remain visible migration evidence but cannot veto the canonical
+integration branch. Conditional frontend work is kept inside reporting jobs so
+the required status does not remain pending when frontend paths are unchanged.
 
 ## Verification
 
