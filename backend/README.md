@@ -25,6 +25,23 @@ built on that platform, not six top-level bounded contexts:
 The control-plane process exposes these capabilities without allowing a Runner
 or model review to advance authoritative acceptance state.
 
+## Team Control identity
+
+Production requests must set `CONTROLPLANE_IDENTITY_UPSTREAM_URL` to the
+absolute origin of the existing Multica API. The control plane forwards only
+the incoming `Authorization` bearer value or `multica_auth` cookie to
+`/api/me`, `/api/workspaces/{id}`, and `/api/workspaces/{id}/members`.
+Redirects, incomplete member snapshots, and upstream failures fail closed.
+
+Cookie-authenticated mutations also require the existing `multica_csrf` value
+in `X-CSRF-Token`. `CONTROLPLANE_ALLOW_HEADER_IDENTITY=true` is an explicit
+local-development escape hatch and must not be enabled in production. With
+neither setting, business endpoints deny all requests.
+
+The v1 contract is in `openapi/team-control.v1.yaml`. Project updates stream
+from `/v1/workspaces/{workspace}/projects/{project}/events` using SSE and may
+resume with `after` or `Last-Event-ID`.
+
 ## Commands
 
 ```bash
@@ -32,7 +49,7 @@ make check
 make test-race
 make policy-check BASE_REF=codex/multica-six-domain-baseline
 make run
-docker build -t goclaw-controlplane:p0p2 .
+docker build -t goclaw-controlplane:tc-w01 .
 ```
 
 `make check` is the backend-local deterministic gate. Repository CI must call
