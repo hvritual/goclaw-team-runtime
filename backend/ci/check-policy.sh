@@ -19,9 +19,9 @@ if printf '%s\n' "$changed" | grep -E '^server/' >/dev/null 2>&1; then
   exit 1
 fi
 
-if printf '%s\n' "$changed" | grep -Ev '^(backend/|$)' >/dev/null 2>&1; then
-  echo "policy-check: P0P2-BACKEND-PLATFORM-001 permits only backend/**" >&2
-  printf '%s\n' "$changed" | grep -Ev '^(backend/|$)' >&2
+if printf '%s\n' "$changed" | grep -Ev '^(backend/|\.github/workflows/backend\.yml$|$)' >/dev/null 2>&1; then
+  echo "policy-check: P0P2-BACKEND-PLATFORM-001 v2 permits only backend/** and .github/workflows/backend.yml" >&2
+  printf '%s\n' "$changed" | grep -Ev '^(backend/|\.github/workflows/backend\.yml$|$)' >&2
   exit 1
 fi
 
