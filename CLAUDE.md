@@ -29,7 +29,8 @@ Read it before editing translations in `packages/views/locales/`, naming routes/
 
 Multica is an AI-native task management platform for small teams, with agents as first-class assignees that can own issues, comment, and change status.
 
-- `server/`: Go backend, Chi router, sqlc, gorilla/websocket.
+- `backend/`: canonical GoClaw/Team Runtime backend reference and versioned-plan root.
+- `server/`: Multica application backend (Chi, sqlc, WebSocket); change it only when an approved plan reconciles the change with `backend/`.
 - `apps/web/`: Next.js App Router.
 - `apps/desktop/`: Electron desktop app.
 - `apps/mobile/`: Expo / React Native iOS app. Read `apps/mobile/CLAUDE.md` before touching it.
