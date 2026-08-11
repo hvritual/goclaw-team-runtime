@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 )
 
 type IdentityResolver func(*http.Request) (Actor, error)
@@ -107,6 +108,36 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.StartRequirement(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Text)
 		}
+	case "requirement.intent":
+		var value IDText
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.FinalizeIntent(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Text)
+		}
+	case "requirement.solution":
+		var value IDText
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.ProposeSolution(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Text)
+		}
+	case "requirement.freeze":
+		var value DoneCommand
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.FreezeRequirement(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
+		}
+	case "requirement.change":
+		var value IDText
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.ChangeIntent(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Text)
+		}
+	case "requirement.task":
+		var value struct {
+			RequirementID string `json:"requirement_id"`
+			TaskID        string `json:"task_id"`
+			AssigneeID    string `json:"assignee_id"`
+			EdgeCommandID string `json:"edge_command_id"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CreateRequirementTask(request.Context(), actor, command.CommandID, value.EdgeCommandID, projectID, command.ExpectedHead, value.RequirementID, value.TaskID, value.AssigneeID)
+		}
 	case "defect.create":
 		var value struct {
 			ID   string      `json:"id"`
@@ -120,6 +151,11 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 			ID   string      `json:"id"`
 			Data QualityData `json:"data"`
 		}
+	case "quality.close":
+		var value DoneCommand
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CloseQualityItem(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
+		}
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.CreateRisk(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
 		}
@@ -127,6 +163,11 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 		var value struct {
 			ID   string            `json:"id"`
 			Data ReviewFindingData `json:"data"`
+		}
+	case "finding.resolve":
+		var value DoneCommand
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.ResolveFinding(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
 		}
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.CreateReviewFinding(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
@@ -136,6 +177,18 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 			ID   string        `json:"id"`
 			Data KnowledgeData `json:"data"`
 		}
+	case "knowledge.publish":
+		var value DoneCommand
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.PublishKnowledge(request.Context(), actor, command.CommandID, projectID, value.SubjectID, value.Revision, command.ExpectedHead)
+		}
+	case "knowledge.invalidate":
+		var value struct {
+			ID string `json:"id"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.InvalidateKnowledge(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID)
+		}
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.CreateKnowledgeCandidate(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Data)
 		}
@@ -143,6 +196,43 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 		var value RunCommand
 		if err = json.Unmarshal(command.Payload, &value); err == nil {
 			result, err = a.flows.QueueRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.WorkspaceRef, value.SecretRefs, value.MaxAttempts)
+		}
+	case "run.claim":
+		var value struct {
+			ID           string `json:"id"`
+			LeaseSeconds int64  `json:"lease_seconds"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.ClaimRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, time.Duration(value.LeaseSeconds)*time.Second)
+		}
+	case "run.heartbeat":
+		var value struct {
+			ID           string `json:"id"`
+			LeaseSeconds int64  `json:"lease_seconds"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.HeartbeatRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, time.Duration(value.LeaseSeconds)*time.Second)
+		}
+	case "run.complete":
+		var value struct {
+			ID string `json:"id"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CompleteRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID)
+		}
+	case "run.cancel":
+		var value struct {
+			ID string `json:"id"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.CancelRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID)
+		}
+	case "run.retry":
+		var value struct {
+			ID string `json:"id"`
+		}
+		if err = json.Unmarshal(command.Payload, &value); err == nil {
+			result, err = a.flows.RetryRun(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID)
 		}
 	case "evidence.attach":
 		var value EvidenceRef
