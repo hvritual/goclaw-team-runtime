@@ -56,3 +56,12 @@
 - The first in-memory kernel draft was rejected before publication because it lacked durable transactional event and command storage.
 - Plan v3 inserts the P1 invariant repair as a hard prerequisite and strengthens S03 acceptance to require reopen-safe persistence and typed command authority.
 - Next action: add reproduction tests, repair P1 invariants, and rerun Backend CI before S03.
+
+## 2026-08-11 — P0P2-S02R completed; P0P2-S03 activated
+
+- Rejected Agent workspace bootstrap and enforced a human initial Owner.
+- Replaced role-centric permission fallthrough with an explicit permission allowlist; unknown permissions now fail closed.
+- Authorization preserves infrastructure failures instead of converting every lookup error to Denied.
+- Member mutations serialize by workspace in PostgreSQL and verify an active human Owner inside the mutation transaction; SQLite concurrency regression covers the invariant.
+- Backend CI Run `31487772122` passed `make check` and `make test-race`.
+- Next action: publish and verify the durable typed Delivery Kernel.
