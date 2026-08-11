@@ -3,6 +3,7 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -41,6 +42,9 @@ func (s *Service) CreateWorkspace(ctx context.Context, actor Actor, id, name str
 	const op = "create workspace"
 	if err := validateActor(actor, false); err != nil {
 		return Workspace{}, err
+	}
+	if actor.Kind != ActorHuman {
+		return Workspace{}, denied(op, "a human owner is required to create a workspace")
 	}
 	if err := validateIdentifier(op, "workspace_id", id); err != nil {
 		return Workspace{}, err
@@ -205,6 +209,9 @@ func (s *Service) Authorize(ctx context.Context, actor Actor, permission string)
 	}
 	member, err := s.repository.GetMember(ctx, actor.WorkspaceID, actor.ID)
 	if err != nil {
+		if !errors.Is(err, ErrNotFound) {
+			return fmt.Errorf("%s: resolve member: %w", op, err)
+		}
 		return denied(op, "actor is not an active workspace member")
 	}
 	if member.State != MemberActive || member.Kind != actor.Kind {
@@ -324,17 +331,17 @@ func validateKindRole(op string, kind ActorKind, role Role) error {
 }
 
 func roleAllows(role Role, permission string) bool {
-	switch role {
-	case RoleOwner:
-		return true
-	case RoleAdmin:
-		return permission != PermissionAccept
-	case RoleMember:
-		return permission == PermissionRead || permission == PermissionWrite || permission == PermissionRun
-	case RoleReviewer:
-		return permission == PermissionRead || permission == PermissionReview || permission == PermissionAccept
-	case RoleViewer:
-		return permission == PermissionRead
+	switch permission {
+	case PermissionRead:
+		return role == RoleOwner || role == RoleAdmin || role == RoleMember || role == RoleReviewer || role == RoleViewer
+	case PermissionWrite, PermissionRun:
+		return role == RoleOwner || role == RoleAdmin || role == RoleMember
+	case PermissionManageMembers:
+		return role == RoleOwner || role == RoleAdmin
+	case PermissionReview:
+		return role == RoleOwner || role == RoleAdmin || role == RoleReviewer
+	case PermissionAccept:
+		return role == RoleOwner || role == RoleReviewer
 	default:
 		return false
 	}
