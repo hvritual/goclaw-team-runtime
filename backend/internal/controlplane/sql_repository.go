@@ -72,6 +72,21 @@ func (r *sqlRepository) migrate(ctx context.Context) error {
             id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, actor_id TEXT NOT NULL, action TEXT NOT NULL,
             resource TEXT NOT NULL, resource_id TEXT NOT NULL, metadata TEXT NOT NULL, occurred_at TEXT NOT NULL
         )`,
+		`CREATE TABLE IF NOT EXISTS cp_project_heads (
+            workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, head_seq BIGINT NOT NULL, head_hash TEXT NOT NULL,
+            PRIMARY KEY (workspace_id, project_id)
+        )`,
+		`CREATE TABLE IF NOT EXISTS cp_kernel_commands (
+            workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, command_id TEXT NOT NULL,
+            command_name TEXT NOT NULL, request_hash TEXT NOT NULL, result_json TEXT NOT NULL, created_at TEXT NOT NULL,
+            PRIMARY KEY (workspace_id, project_id, command_id)
+        )`,
+		`CREATE TABLE IF NOT EXISTS cp_session_events (
+            workspace_id TEXT NOT NULL, project_id TEXT NOT NULL, seq BIGINT NOT NULL, event_id TEXT NOT NULL,
+            command_id TEXT NOT NULL, schema_version INTEGER NOT NULL, type TEXT NOT NULL, actor_id TEXT NOT NULL,
+            actor_kind TEXT NOT NULL, payload TEXT NOT NULL, previous_hash TEXT NOT NULL, hash TEXT NOT NULL,
+            occurred_at TEXT NOT NULL, PRIMARY KEY (workspace_id, project_id, seq), UNIQUE (workspace_id, event_id)
+        )`,
 	}
 	for index, statement := range statements {
 		if _, err := r.db.ExecContext(ctx, r.bind(statement)); err != nil {
@@ -82,12 +97,14 @@ func (r *sqlRepository) migrate(ctx context.Context) error {
 		`CREATE INDEX IF NOT EXISTS cp_members_workspace_idx ON cp_members (workspace_id, state)`,
 		`CREATE INDEX IF NOT EXISTS cp_records_workspace_kind_idx ON cp_records (workspace_id, kind, updated_at)`,
 		`CREATE INDEX IF NOT EXISTS cp_audit_workspace_idx ON cp_audit (workspace_id, occurred_at)`,
+		`CREATE INDEX IF NOT EXISTS cp_session_events_command_idx ON cp_session_events (workspace_id, project_id, command_id)`,
 	}
 	if r.dialect == DialectPostgres {
 		indexes = []string{
 			`CREATE INDEX CONCURRENTLY IF NOT EXISTS cp_members_workspace_idx ON cp_members (workspace_id, state)`,
 			`CREATE INDEX CONCURRENTLY IF NOT EXISTS cp_records_workspace_kind_idx ON cp_records (workspace_id, kind, updated_at)`,
 			`CREATE INDEX CONCURRENTLY IF NOT EXISTS cp_audit_workspace_idx ON cp_audit (workspace_id, occurred_at)`,
+			`CREATE INDEX CONCURRENTLY IF NOT EXISTS cp_session_events_command_idx ON cp_session_events (workspace_id, project_id, command_id)`,
 		}
 	}
 	for index, statement := range indexes {
