@@ -100,7 +100,7 @@ func TestUpstreamIdentityResolverFailsClosed(t *testing.T) {
 		{name: "timeout", delay: 50 * time.Millisecond, timeout: 10 * time.Millisecond},
 	}
 	for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			upstream := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 				if test.delay > 0 {
 					time.Sleep(test.delay)
