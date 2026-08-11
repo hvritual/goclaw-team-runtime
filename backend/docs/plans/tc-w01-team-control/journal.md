@@ -19,3 +19,13 @@
 - Added schema-versioned workspace/member read endpoints and identity/reconciliation tests.
 - Activated `plan_v2.md`: human membership remains a read-only projection of one upstream authority; no duplicate role mutation API is introduced.
 - Activated `TC-W01-S02`: OpenAPI and project-scoped resumable SSE are being implemented.
+
+## 2026-08-11 — TC-W01-S02 verified; Draft PR opened
+
+- Published OpenAPI v1 for the workspace, members, projection, command, Problem, append-result, and SSE contracts. All 23 supported command names are enumerated.
+- Added project-scoped SSE with authorization, `after`/`Last-Event-ID` resume, one-second bounded polling, 15-second heartbeat, no intermediate state buffer, and request-context cleanup.
+- Added `schema_version: 1` to replayed projections and schema-versioned workspace/member response envelopes. Problem responses use `application/problem+json` and safe public details.
+- Opened Draft PR #9 at candidate `2172508f355436a658b575cb5d99f99d6ed96cf0`; the PR is mergeable and remains Draft for later frontend and independent acceptance work.
+- GitHub Backend run #39 (`31512040101`) passed `make check` and `make test-race` on Go 1.26.1. This covers gofmt, path/import policy, generated-clean, vet, unit tests, and race tests.
+- No `server/**` path or legacy backend import appears in the PR diff.
+- Activated `TC-W01-S03`: the next slice is the shared TypeScript client and React Query model.
