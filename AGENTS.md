@@ -31,7 +31,8 @@ This file provides guidance to AI agents when working with code in this reposito
 
 Go backend + monorepo frontend (pnpm workspaces + Turborepo) with shared packages.
 
-- `server/` - Go backend (Chi router, sqlc, gorilla/websocket)
+- `backend/` - Canonical GoClaw/Team Runtime backend reference and versioned-plan root
+- `server/` - Multica application backend; modify only when an approved plan reconciles the change with `backend/`
 - `apps/web/` - Next.js frontend (App Router)
 - `apps/desktop/` - Electron desktop app
 - `packages/core/` - Headless business logic (Zustand stores, React Query hooks, API client)
