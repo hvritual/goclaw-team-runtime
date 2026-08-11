@@ -82,3 +82,14 @@
 - Execution covers queue, exclusive claim, bounded lease, heartbeat, cancel, retry, opaque Secret references, mandatory Evidence return, and validation handoff; Runner has no acceptance authority.
 - Backend CI Run `31488861815` passed `make check` and `make test-race` for the typed P2 slice.
 - Next action: expose the Team Control HTTP command and projection contract with server-side identity resolution.
+
+## 2026-08-11 — P0P2-S08 completed; P0P2-S09 handoff active
+
+- Added typed JSON command routing for the complete P2 lifecycle and a replayed project projection endpoint covering nodes, edges, Evidence, Checks, and Acceptances.
+- Stable Problem responses map invalid, denied, not-found, conflict, invariant, and internal failures without treating infrastructure failures as authorization denials.
+- HTTP identity is injected by a server-side resolver; default runtime refuses Header identity unless `CONTROLPLANE_ALLOW_HEADER_IDENTITY=true` is explicitly enabled for development.
+- The runtime now opens the canonical SQLite repository, constructs Service, Kernel, P2 flows, and HTTP API, and retains `/healthz` and `/readyz`.
+- Backend CI Run `31489462734` passed `make check` and `make test-race` at commit `681b1e76ff60c9d904768dbfeb8d317763ae5e1e`.
+- P0, P1, Delivery Kernel, and P2 backend implementation are complete on Draft PR #8.
+- Residual DoneGate items: independent product/code/security/docs acceptance, Docker build evidence, and frontend wiring under separately authorized non-backend paths.
+- No merge, release, deployment, `server/**`, `apps/**`, or `packages/**` change was performed.
