@@ -121,6 +121,7 @@ type Acceptance struct {
 }
 
 type ProjectProjection struct {
+	SchemaVersion int                      `json:"schema_version"`
 	WorkspaceID string                   `json:"workspace_id"`
 	ProjectID   string                   `json:"project_id"`
 	Head        int64                    `json:"head"`
