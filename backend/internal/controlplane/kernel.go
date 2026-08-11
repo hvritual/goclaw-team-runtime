@@ -242,24 +242,36 @@ func (k *DeliveryKernel) Replay(ctx context.Context, workspaceID, projectID stri
 		switch event.Type {
 		case EventWorkNodeUpserted:
 			var value WorkNode
-			if err := json.Unmarshal(event.Payload, &value); err != nil { return ProjectProjection{}, invariant("replay kernel", "invalid node event") }
+			if err := json.Unmarshal(event.Payload, &value); err != nil {
+				return ProjectProjection{}, invariant("replay kernel", "invalid node event")
+			}
 			projection.Nodes[value.ID] = value
 		case EventWorkEdgeAdded:
 			var value WorkEdge
-			if err := json.Unmarshal(event.Payload, &value); err != nil { return ProjectProjection{}, invariant("replay kernel", "invalid edge event") }
+			if err := json.Unmarshal(event.Payload, &value); err != nil {
+				return ProjectProjection{}, invariant("replay kernel", "invalid edge event")
+			}
 			projection.Edges[value.ID] = value
 		case EventEvidenceAttached:
 			var value EvidenceRef
-			if err := json.Unmarshal(event.Payload, &value); err != nil { return ProjectProjection{}, invariant("replay kernel", "invalid evidence event") }
-			if previous, ok := projection.Evidence[value.ID]; ok && previous.SHA256 != value.SHA256 { return ProjectProjection{}, invariant("replay kernel", "evidence digest changed") }
+			if err := json.Unmarshal(event.Payload, &value); err != nil {
+				return ProjectProjection{}, invariant("replay kernel", "invalid evidence event")
+			}
+			if previous, ok := projection.Evidence[value.ID]; ok && previous.SHA256 != value.SHA256 {
+				return ProjectProjection{}, invariant("replay kernel", "evidence digest changed")
+			}
 			projection.Evidence[value.ID] = value
 		case EventCheckRecorded:
 			var value CheckResult
-			if err := json.Unmarshal(event.Payload, &value); err != nil { return ProjectProjection{}, invariant("replay kernel", "invalid check event") }
+			if err := json.Unmarshal(event.Payload, &value); err != nil {
+				return ProjectProjection{}, invariant("replay kernel", "invalid check event")
+			}
 			projection.Checks[value.SubjectID] = append(projection.Checks[value.SubjectID], value)
 		case EventAcceptanceRecorded:
 			var value Acceptance
-			if err := json.Unmarshal(event.Payload, &value); err != nil { return ProjectProjection{}, invariant("replay kernel", "invalid acceptance event") }
+			if err := json.Unmarshal(event.Payload, &value); err != nil {
+				return ProjectProjection{}, invariant("replay kernel", "invalid acceptance event")
+			}
 			projection.Acceptances[value.SubjectID] = value
 			node := projection.Nodes[value.SubjectID]
 			node.State = "done"
@@ -278,35 +290,83 @@ func (k *DeliveryKernel) append(ctx context.Context, actor Actor, commandID, pro
 }
 
 func (k *DeliveryKernel) allow(ctx context.Context, actor Actor, permission string) error {
-	if k.authorize != nil { return k.authorize(ctx, actor, permission) }
+	if k.authorize != nil {
+		return k.authorize(ctx, actor, permission)
+	}
 	return validateActor(actor, true)
 }
 
 func validateWorkNode(op string, node WorkNode) error {
-	if err := validateIdentifier(op, "node_id", node.ID); err != nil { return err }
-	if node.Kind == "" || node.State == "" || node.Revision < 1 || node.CreatorID == "" { return invalid(op, "node", "kind, state, revision, and creator are required") }
+	if err := validateIdentifier(op, "node_id", node.ID); err != nil {
+		return err
+	}
+	if node.Kind == "" || node.State == "" || node.Revision < 1 || node.CreatorID == "" {
+		return invalid(op, "node", "kind, state, revision, and creator are required")
+	}
 	return nil
 }
 
 func validateEvidence(op string, evidence EvidenceRef) error {
-	for field, value := range map[string]string{"evidence_id": evidence.ID, "subject_id": evidence.SubjectID, "producer_id": evidence.ProducedBy} { if err := validateIdentifier(op, field, value); err != nil { return err } }
+	for field, value := range map[string]string{"evidence_id": evidence.ID, "subject_id": evidence.SubjectID, "producer_id": evidence.ProducedBy} {
+		if err := validateIdentifier(op, field, value); err != nil {
+			return err
+		}
+	}
 	parsed, err := url.Parse(evidence.URI)
-	if err != nil || parsed.Scheme != "artifact" || parsed.RawQuery != "" || parsed.User != nil { return invalid(op, "uri", "must be an artifact URI without credentials or query parameters") }
-	if evidence.Kind == "" || evidence.MediaType == "" || evidence.Size < 0 || !validSHA256(evidence.SHA256) || !evidence.Sanitized { return invalid(op, "evidence", "immutable digest, media type, size, and sanitized marker are required") }
+	if err != nil || parsed.Scheme != "artifact" || parsed.RawQuery != "" || parsed.User != nil {
+		return invalid(op, "uri", "must be an artifact URI without credentials or query parameters")
+	}
+	if evidence.Kind == "" || evidence.MediaType == "" || evidence.Size < 0 || !validSHA256(evidence.SHA256) || !evidence.Sanitized {
+		return invalid(op, "evidence", "immutable digest, media type, size, and sanitized marker are required")
+	}
 	return nil
 }
 
-func validSHA256(value string) bool { decoded, err := hex.DecodeString(value); return err == nil && len(decoded) == sha256.Size }
+func validSHA256(value string) bool {
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == sha256.Size
+}
 
-func contains(values []string, target string) bool { for _, value := range values { if value == target { return true } }; return false }
+func contains(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
+}
 
 func graphHasCycle(projection ProjectProjection) bool {
 	adjacent := map[string][]string{}
-	for _, edge := range projection.Edges { if edge.Kind == "depends_on" || edge.Kind == "blocks" { adjacent[edge.From] = append(adjacent[edge.From], edge.To) } }
+	for _, edge := range projection.Edges {
+		if edge.Kind == "depends_on" || edge.Kind == "blocks" {
+			adjacent[edge.From] = append(adjacent[edge.From], edge.To)
+		}
+	}
 	visiting, visited := map[string]bool{}, map[string]bool{}
 	var visit func(string) bool
-	visit = func(node string) bool { if visiting[node] { return true }; if visited[node] { return false }; visiting[node] = true; for _, next := range adjacent[node] { if visit(next) { return true } }; visiting[node] = false; visited[node] = true; return false }
-	for node := range projection.Nodes { if visit(node) { return true } }
+	visit = func(node string) bool {
+		if visiting[node] {
+			return true
+		}
+		if visited[node] {
+			return false
+		}
+		visiting[node] = true
+		for _, next := range adjacent[node] {
+			if visit(next) {
+				return true
+			}
+		}
+		visiting[node] = false
+		visited[node] = true
+		return false
+	}
+	for node := range projection.Nodes {
+		if visit(node) {
+			return true
+		}
+	}
 	return false
 }
 
