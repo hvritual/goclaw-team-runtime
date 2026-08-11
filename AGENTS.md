@@ -1,27 +1,32 @@
 # Repository Guidelines
 
-This file provides guidance to AI agents when working with code in this repository.
+This file provides guidance to AI agents when working with code in this
+repository.
 
 > **Single source of truth:** This file is a concise pointer document.
-> All authoritative architecture, coding rules, and conventions
-> live in **CLAUDE.md** at the project root. Read that file first.
-> Use `Makefile`, `package.json`, and `pnpm-workspace.yaml` as the
-> source of truth for the full command list.
+> Authoritative architecture, coding rules, and conventions live in
+> [CLAUDE.md](CLAUDE.md). Backend work must additionally obey
+> [backend/AGENTS.md](backend/AGENTS.md). A nested policy may narrow these rules
+> but cannot grant an exception to the `server/**` boundary below.
 
 ## Canonical Development Baseline
 
-- `codex/multica-six-domain-baseline` is the integration base for all continuing work. New pull
-  requests target this branch unless an approved migration plan explicitly
-  declares another base.
-- For every backend task, read `backend/AGENTS.md` first and use the contracts,
-  package boundaries, directory layout, and implementation under `backend/` as
-  the canonical reference.
-- Do not merge legacy root-level backend trees such as `teamcontrol/`,
-  `gateway/`, or `workstation/` into the baseline unchanged. Port required
-  behavior into the `backend/` architecture under a versioned plan with tests.
-- A backend change outside `backend/` must be explicitly scoped and justified
-  by the approved plan, including its compatibility impact on the canonical
-  backend.
+- `codex/multica-six-domain-baseline` is the integration base for continuing
+  work. New pull requests target this branch unless an explicit repository
+  migration decision establishes a successor.
+- `backend/**` is the only writable backend implementation root.
+- `server/**` is permanently read-only migration evidence. No implementation
+  plan, task, review, compatibility requirement, test request, or generated-code
+  workflow may authorize a `server/**` modification.
+- When required behavior exists only in `server/**`, inspect it and port the
+  behavior into `backend/**` under a versioned plan with tests. Never patch,
+  synchronize, mirror, refactor, extend, generate into, or delete from the
+  legacy tree.
+- Every candidate diff containing any `server/**` path is invalid and must be
+  blocked before deterministic checks, review, merge, or DoneGate.
+- Legacy root-level backend trees such as `teamcontrol/`, `gateway/`, and
+  `workstation/` are migration inputs only. Port required behavior into the
+  canonical backend; do not merge those trees into the baseline unchanged.
 - `main` and historical `agent/*` branches are migration inputs and audit
   history, not implementation bases.
 
@@ -29,44 +34,55 @@ This file provides guidance to AI agents when working with code in this reposito
 
 ### Architecture
 
-Go backend + monorepo frontend (pnpm workspaces + Turborepo) with shared packages.
+Go backend plus a pnpm/Turborepo frontend monorepo with shared packages.
 
-- `backend/` - Canonical GoClaw/Team Runtime backend reference and versioned-plan root
-- `server/` - Multica application backend; modify only when an approved plan reconciles the change with `backend/`
-- `apps/web/` - Next.js frontend (App Router)
-- `apps/desktop/` - Electron desktop app
-- `packages/core/` - Headless business logic (Zustand stores, React Query hooks, API client)
-- `packages/ui/` - Atomic UI components (shadcn/Base UI, zero business logic)
-- `packages/views/` - Shared business pages/components
-- `packages/tsconfig/` - Shared TypeScript config
+- `backend/` — canonical GoClaw/Team Runtime backend and versioned-plan root.
+- `server/` — permanently read-only legacy Multica backend migration evidence.
+- `apps/web/` — Next.js frontend using the App Router.
+- `apps/desktop/` — Electron desktop app.
+- `packages/core/` — headless business logic, React Query hooks, API clients,
+  and client-owned Zustand state.
+- `packages/ui/` — atomic shadcn/Base UI components with no business logic.
+- `packages/views/` — shared business pages and components.
+- `packages/tsconfig/` — shared TypeScript configuration.
 
-### State Management (critical)
+### State Management
 
-- **React Query** owns all server state (issues, members, agents, inbox, workspace list)
-- **Zustand** owns client/view state (view filters, drafts, modals, desktop tab state); current workspace identity is route-driven and only mirrored for platform plumbing
-- All Zustand stores live in `packages/core/` - never in `packages/views/` or app directories
-- WS events update React Query for server data; store writes are only for clearing client-owned pointers with a single responder/self-event guard
+- React Query owns server state such as issues, members, agents, inbox, and
+  workspaces.
+- Zustand owns client/view state such as filters, drafts, modals, and desktop
+  tabs; current workspace identity remains route-driven.
+- Shared Zustand stores live in `packages/core/`, never in
+  `packages/views/` or app directories.
+- Realtime events update React Query for server data. They may clear
+  client-owned pointers only through one responder with a self-event guard.
 
-### Package Boundaries (hard rules)
+### Package Boundaries
 
-- `packages/core/` - zero react-dom, zero localStorage, zero process.env
-- `packages/ui/` - zero `@multica/core` imports
-- `packages/views/` - zero `next/*`, zero `react-router-dom`, use `NavigationAdapter` for routing
-- `apps/web/platform/` - only place for Next.js APIs
+- `packages/core/`: no `react-dom`, direct `localStorage`, or
+  `process.env`.
+- `packages/ui/`: no `@multica/core` imports or business logic.
+- `packages/views/`: no `next/*`, `react-router-dom`, or stores; use the
+  navigation adapter.
+- `apps/web/platform/`: the only place for Next.js platform APIs.
 
-### Database Migrations (hard rules)
+### Database Migrations
 
-- Never add database foreign keys or cascading actions. Enforce relationships and perform dependent cleanup explicitly in the application layer, using transactions when the operation must be atomic.
-- Every index created by a migration, including unique indexes and indexes on new tables, must use `CREATE [UNIQUE] INDEX CONCURRENTLY`. Keep each concurrent index build in its own single-statement migration file.
+- Do not add database foreign keys or cascading actions. Enforce relationships
+  and dependent cleanup in application transactions.
+- Every created index, including unique indexes, must use
+  `CREATE [UNIQUE] INDEX CONCURRENTLY` in its own single-statement migration.
 
 ### Commands
 
 ```bash
-make dev              # Auto-setup + start everything
-pnpm typecheck        # TypeScript check
-pnpm test             # TS unit tests (Vitest)
-make test             # Go tests
-make check            # Full verification pipeline
+make dev
+pnpm typecheck
+pnpm test
+make test
+make check
+cd backend && make check && make test-race
 ```
 
-See CLAUDE.md for the authoritative rules and common commands.
+Use repository scripts as the command source of truth. See
+[CLAUDE.md](CLAUDE.md) for the authoritative rules.
