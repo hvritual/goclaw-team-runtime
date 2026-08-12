@@ -29,3 +29,23 @@
 - GitHub Backend run #39 (`31512040101`) passed `make check` and `make test-race` on Go 1.26.1. This covers gofmt, path/import policy, generated-clean, vet, unit tests, and race tests.
 - No `server/**` path or legacy backend import appears in the PR diff.
 - Activated `TC-W01-S03`: the next slice is the shared TypeScript client and React Query model.
+
+## 2026-08-12 — TC-W01 resumed under plan v3
+
+- User explicitly resumed TC-W01 and authorized completion of S03 through S06,
+  including independent product, code, security, and documentation review and
+  merge of Draft PR #9 after blocking findings are cleared.
+- User explicitly deferred CI work. Plan v3 forbids workflow, required-check,
+  branch-protection, and Ruleset changes while preserving local deterministic,
+  Docker, Playwright, responsive, and accessibility verification.
+- Revalidated PR #9 at Head
+  `8ca49704e720a545bd8a39436e74a1fc4608d9f6`: open, Draft, mergeable, with no
+  submitted reviews or unresolved review threads.
+- Preserved `server/**` as permanently read-only and left GOV-W01 PR #10 out of
+  this execution.
+- The available checkout containing legacy untracked work was rejected as a
+  task worktree. A clean verification tree was reconstructed from the public
+  Multica source plus the exact PR #9 files; remote commits will use the GitHub
+  commit tree API with expected-Head checks because `gh` and private clone
+  credentials are unavailable locally.
+- Activated `TC-W01-S03` under Task Revision `r003`.
