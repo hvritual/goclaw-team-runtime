@@ -171,6 +171,74 @@ func TestRepositorySerializesLastOwnerRemoval(t *testing.T) {
 	}
 }
 
+func TestReconcileTrustedSnapshotProjectsRolesAndRemovals(t *testing.T) {
+	ctx := context.Background()
+	service, repository := newTestService(t, filepath.Join(t.TempDir(), "identity.db"))
+	defer repository.Close()
+	owner := Actor{ID: "old-owner", Kind: ActorHuman}
+	if _, err := service.CreateWorkspace(ctx, owner, "workspace-1", "Old name"); err != nil {
+		t.Fatal(err)
+	}
+	owner.WorkspaceID = "workspace-1"
+	if _, err := service.AddMember(ctx, owner, "removed-member", ActorHuman, RoleMember); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AddMember(ctx, owner, "agent-1", ActorAgent, RoleMember); err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot := TrustedWorkspaceSnapshot{
+		ID: "workspace-1", Name: "Trusted name", ActorID: "new-owner",
+		Members: []TrustedMember{{ID: "new-owner", Role: RoleOwner}, {ID: "old-owner", Role: RoleAdmin}},
+	}
+	if err := service.reconcileTrustedSnapshot(ctx, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	workspace, err := repository.GetWorkspace(ctx, "workspace-1")
+	if err != nil || workspace.Name != "Trusted name" {
+		t.Fatalf("workspace = %#v, error = %v", workspace, err)
+	}
+	members, err := repository.ListMembers(ctx, "workspace-1", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := make(map[string]Member)
+	for _, member := range members {
+		states[member.ID] = member
+	}
+	if states["new-owner"].Role != RoleOwner || states["old-owner"].Role != RoleAdmin || states["removed-member"].State != MemberRemoved {
+		t.Fatalf("projected members = %#v", states)
+	}
+	if states["agent-1"].State != MemberActive {
+		t.Fatalf("agent should not be changed by human identity projection: %#v", states["agent-1"])
+	}
+}
+
+func TestReconcileTrustedSnapshotRejectsAgentIDCollision(t *testing.T) {
+	ctx := context.Background()
+	service, repository := newTestService(t, filepath.Join(t.TempDir(), "identity-collision.db"))
+	defer repository.Close()
+	owner := Actor{ID: "owner-1", Kind: ActorHuman}
+	if _, err := service.CreateWorkspace(ctx, owner, "workspace-1", "Primary"); err != nil {
+		t.Fatal(err)
+	}
+	owner.WorkspaceID = "workspace-1"
+	if _, err := service.AddMember(ctx, owner, "shared-id", ActorAgent, RoleMember); err != nil {
+		t.Fatal(err)
+	}
+	err := service.reconcileTrustedSnapshot(ctx, TrustedWorkspaceSnapshot{
+		ID: "workspace-1", Name: "Primary", ActorID: "owner-1",
+		Members: []TrustedMember{{ID: "owner-1", Role: RoleOwner}, {ID: "shared-id", Role: RoleMember}},
+	})
+	if !errors.Is(err, ErrInvariant) {
+		t.Fatalf("collision error = %v, want invariant", err)
+	}
+	member, getErr := repository.GetMember(ctx, "workspace-1", "shared-id")
+	if getErr != nil || member.Kind != ActorAgent {
+		t.Fatalf("agent changed: %#v error=%v", member, getErr)
+	}
+}
+
 func newTestService(t *testing.T, path string) (*Service, Repository) {
 	t.Helper()
 	repository, err := OpenSQLite(context.Background(), path)

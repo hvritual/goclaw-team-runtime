@@ -3,8 +3,11 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var RequirementReviewPolicies = []string{"review.scenario", "review.capacity", "review.risk", "review.cost"}
@@ -209,16 +212,47 @@ func (f *P2Flows) InvalidateKnowledge(ctx context.Context, actor Actor, commandI
 }
 
 func (f *P2Flows) QueueRun(ctx context.Context, actor Actor, commandID, projectID string, head int64, id, workspaceRef string, secretRefs []string, maxAttempts int) (AppendResult, error) {
-	if workspaceRef == "" || maxAttempts < 1 {
+	if !validWorkspaceReference(workspaceRef) || maxAttempts < 1 {
 		return AppendResult{}, invalid("queue run", "run", "workspace reference and positive max attempts are required")
 	}
 	for _, ref := range secretRefs {
-		if !strings.HasPrefix(ref, "secret://") || strings.ContainsAny(ref, "?=#") {
-			return AppendResult{}, invalid("queue run", "secret_ref", "must be an opaque secret reference")
+		if !validSecretReference(ref) {
+			return AppendResult{}, invalid("queue run", "secret_ref", "must be a canonical secret://provider/uuid reference")
 		}
 	}
 	data := RunData{MaxAttempts: maxAttempts, WorkspaceRef: workspaceRef, SecretRefs: append([]string(nil), secretRefs...)}
 	return f.upsert(ctx, actor, commandID, projectID, head, WorkNode{ID: id, Kind: "run", Revision: 1, State: "queued", CreatorID: actor.ID}, data)
+}
+
+func validSecretReference(value string) bool {
+	if len(value) == 0 || len(value) > 256 {
+		return false
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "secret" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" {
+		return false
+	}
+	if !identifierPattern.MatchString(parsed.Host) {
+		return false
+	}
+	id := strings.TrimPrefix(parsed.EscapedPath(), "/")
+	return !strings.Contains(id, "/") && uuid.Validate(id) == nil && parsed.String() == value
+}
+
+func validWorkspaceReference(value string) bool {
+	if len(value) == 0 || len(value) > 512 {
+		return false
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme != "worktree" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" || !identifierPattern.MatchString(parsed.Host) || parsed.String() != value {
+		return false
+	}
+	for _, segment := range strings.Split(strings.Trim(parsed.EscapedPath(), "/"), "/") {
+		if segment != "" && !identifierPattern.MatchString(segment) {
+			return false
+		}
+	}
+	return true
 }
 
 func (f *P2Flows) ClaimRun(ctx context.Context, runner Actor, commandID, projectID string, head int64, id string, lease time.Duration) (AppendResult, error) {

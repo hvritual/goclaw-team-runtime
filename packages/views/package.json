@@ -17,6 +17,7 @@
     "./issues/utils/filter": "./issues/utils/filter.ts",
     "./issues/utils/sort": "./issues/utils/sort.ts",
     "./projects/components": "./projects/components/index.ts",
+    "./team-control": "./team-control/index.ts",
     "./tasks": "./tasks/index.ts",
     "./knowledge": "./knowledge/index.ts",
     "./modals/registry": "./modals/registry.tsx",

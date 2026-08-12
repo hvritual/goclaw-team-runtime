@@ -186,6 +186,36 @@ func (r *sqlRepository) ListSessionEvents(ctx context.Context, workspaceID, proj
 	return events, rows.Err()
 }
 
+func (r *sqlRepository) ListSessionEventsAfter(ctx context.Context, workspaceID, projectID string, after int64, limit int) ([]SessionEvent, error) {
+	if after < 0 || limit < 1 || limit > 1000 {
+		return nil, invalid("list session events after", "cursor", "requires a non-negative cursor and a bounded limit")
+	}
+	rows, err := r.db.QueryContext(ctx, r.bind(`SELECT schema_version, workspace_id, project_id, seq, event_id,
+        command_id, type, actor_id, actor_kind, payload, previous_hash, hash, occurred_at
+        FROM cp_session_events WHERE workspace_id = ? AND project_id = ? AND seq > ? ORDER BY seq LIMIT ?`), workspaceID, projectID, after, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list session events after: %w", err)
+	}
+	defer rows.Close()
+	var events []SessionEvent
+	for rows.Next() {
+		var event SessionEvent
+		var payload, occurred string
+		if err := rows.Scan(&event.SchemaVersion, &event.WorkspaceID, &event.ProjectID, &event.Sequence, &event.EventID,
+			&event.CommandID, &event.Type, &event.ActorID, &event.ActorKind, &payload, &event.PreviousHash,
+			&event.Hash, &occurred); err != nil {
+			return nil, fmt.Errorf("scan session event after: %w", err)
+		}
+		parsed, err := time.Parse(time.RFC3339Nano, occurred)
+		if err != nil {
+			return nil, invariant("list session events after", "invalid occurred_at")
+		}
+		event.Payload, event.OccurredAt = json.RawMessage(payload), parsed.UTC()
+		events = append(events, event)
+	}
+	return events, rows.Err()
+}
+
 func hashSessionEvent(event SessionEvent) string {
 	hash := sha256.New()
 	writeHashField(hash, []byte("goclaw/session-event/v1"))

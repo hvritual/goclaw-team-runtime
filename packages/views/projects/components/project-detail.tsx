@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { BookOpen, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, ShieldCheck, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
@@ -454,6 +454,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             leaf={<span className="truncate font-medium text-foreground">{project.title}</span>}
             actions={
               <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`${wsPaths.projectDetail(projectId)}/control`)}
+              >
+                <ShieldCheck data-icon="inline-start" />
+                {t(($) => $.team_control.entry)}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon-sm"

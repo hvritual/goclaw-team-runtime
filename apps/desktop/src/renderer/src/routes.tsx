@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { createMemoryRouter, Outlet, useMatches } from "react-router-dom";
+import { createMemoryRouter, Outlet, useMatches, useParams } from "react-router-dom";
 import type { RouteObject } from "react-router-dom";
 import { IssueDetailPage } from "./pages/issue-detail-page";
 import { ProjectDetailPage } from "./pages/project-detail-page";
@@ -10,6 +10,7 @@ import { IssuesPage } from "@multica/views/issues/components";
 import { ProjectsPage } from "@multica/views/projects/components";
 import { TasksPage } from "@multica/views/tasks";
 import { KnowledgePage } from "@multica/views/knowledge";
+import { TeamControlPage } from "@multica/views/team-control";
 import { MyIssuesPage } from "@multica/views/my-issues";
 import { SkillsPage } from "@multica/views/skills";
 import { SettingsPage } from "@multica/views/settings";
@@ -38,6 +39,11 @@ function DesktopSettingsRoute() {
       ]}
     />
   );
+}
+
+function DesktopTeamControlRoute() {
+  const { id } = useParams<{ id: string }>();
+  return id ? <TeamControlPage projectId={id} /> : null;
 }
 
 /**
@@ -122,6 +128,11 @@ export const appRoutes: RouteObject[] = [
             path: "projects/:id",
             element: <ProjectDetailPage />,
             handle: { title: "Project" },
+          },
+          {
+            path: "projects/:id/control",
+            element: <DesktopTeamControlRoute />,
+            handle: { title: "Team Control" },
           },
           {
             path: "tasks",

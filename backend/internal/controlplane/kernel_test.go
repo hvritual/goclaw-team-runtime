@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -137,7 +138,7 @@ func TestDoneGateUsesChecksEvidenceAndIndependentHuman(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	evidence := EvidenceRef{ID: "evidence-1", SubjectID: node.ID, Kind: "test-report", URI: "artifact://run-1/report.json", SHA256: digest, Size: 42, MediaType: "application/json", ProducedBy: runner.ID, RunID: "run-1", Sanitized: true}
+	evidence := EvidenceRef{ID: "evidence-1", SubjectID: node.ID, Kind: "test-report", URI: "artifact://runner/11111111-1111-4111-8111-111111111111", SHA256: digest, Size: 42, MediaType: "application/json", ProducedBy: runner.ID, RunID: "run-1", Sanitized: true}
 	if _, err := kernel.AttachEvidence(ctx, runner, "command-2", "project-1", 1, evidence); err != nil {
 		t.Fatal(err)
 	}
@@ -167,6 +168,26 @@ func TestDoneGateUsesChecksEvidenceAndIndependentHuman(t *testing.T) {
 	}
 	if projection.Nodes[node.ID].State != "done" || projection.Acceptances[node.ID].AcceptorID != acceptor.ID {
 		t.Fatalf("projection = %#v", projection)
+	}
+}
+
+func TestEvidenceURIRejectsFragmentsAndCredentialShapes(t *testing.T) {
+	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "evidence-uri.db"))
+	defer repository.Close()
+	actor := Actor{ID: "agent-1", WorkspaceID: "workspace-1", Kind: ActorAgent}
+	creator := Actor{ID: "creator-1", WorkspaceID: "workspace-1", Kind: ActorHuman}
+	if _, err := kernel.UpsertNode(context.Background(), creator, "command-1", "project-1", 0, WorkNode{ID: "task-1", Kind: "task", Revision: 1, State: "validation", CreatorID: creator.ID}); err != nil {
+		t.Fatal(err)
+	}
+	for index, uri := range []string{
+		"artifact://runner/11111111-1111-4111-8111-111111111111#token=x",
+		"artifact://user:token@runner/11111111-1111-4111-8111-111111111111",
+		"artifact://runner/report.json",
+	} {
+		evidence := EvidenceRef{ID: "evidence-" + string(rune('a'+index)), SubjectID: "task-1", Kind: "report", URI: uri, SHA256: strings.Repeat("a", 64), Size: 1, MediaType: "application/json", ProducedBy: actor.ID, Sanitized: true}
+		if _, err := kernel.AttachEvidence(context.Background(), actor, "evidence-command-"+string(rune('a'+index)), "project-1", 1, evidence); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("URI %q error = %v, want invalid", uri, err)
+		}
 	}
 }
 

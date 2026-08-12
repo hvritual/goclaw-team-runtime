@@ -100,7 +100,131 @@
     "work_items": "工作项",
     "requirements": "需求"
   },
-  "requirements": {
+  "team_control": {
+    "entry": "团队控制",
+    "title": "团队控制",
+    "loading": "正在加载团队控制",
+    "back": "返回项目",
+    "head": "Head {{count}}",
+    "connection": {
+      "connecting": "正在连接",
+      "connected": "实时",
+      "reconnecting": "正在重新连接",
+      "offline": "离线",
+      "stale_hint": "仍显示最近一次验证的投影。命令会继续使用当前显示的 Head，服务器将拒绝过期状态。"
+    },
+    "errors": {
+      "denied_title": "无权访问团队控制",
+      "denied_description": "当前已认证的工作区角色无权读取此受治理项目。",
+      "unavailable_title": "团队控制暂不可用",
+      "request_failed": "请求失败（{{status}}）。",
+      "unknown": "无法完成该请求。",
+      "conflict_title": "权威状态已更改",
+      "rejected_title": "命令被拒绝",
+      "conflict_hint": " 请检查已刷新的投影后重新提交。"
+    },
+    "summary": {
+      "aria": "项目治理摘要",
+      "work_nodes": "工作节点",
+      "work_nodes_description": "需求、任务、质量、审查、知识与运行",
+      "evidence": "证据",
+      "evidence_description": "附加到受治理对象的脱敏工件",
+      "checks": "检查",
+      "checks_description": "确定性检查与审查策略结果",
+      "accepted": "已接受",
+      "accepted_description": "当前修订版本的独立人工接受记录"
+    },
+    "tabs": {
+      "overview": "概览",
+      "requirements": "需求",
+      "quality": "质量",
+      "review": "审查与知识",
+      "runner": "Runner",
+      "governance": "证据与检查",
+      "members": "成员"
+    },
+    "overview": {
+      "title": "受治理交付图",
+      "description": "所有可见状态均由仅追加的 Delivery Kernel 重放生成。",
+      "edges": "边",
+      "edges_description": "追踪与依赖关系",
+      "head_hash": "Head 哈希",
+      "initial": "初始",
+      "head_hash_description": "当前哈希链检查点",
+      "schema": "Schema",
+      "schema_description": "经防御性解析的客户端契约"
+    },
+    "empty": {
+      "description": "此受治理项目暂时没有匹配的工作节点。",
+      "all": "暂无受治理工作",
+      "requirements": "暂无需求或任务",
+      "quality": "暂无缺陷或风险",
+      "review": "暂无发现或知识候选",
+      "runner": "暂无排队中或运行中的任务"
+    },
+    "node": {
+      "revision": "修订 {{count}}",
+      "assignees_one": "{{count}} 位负责人",
+      "assignees_other": "{{count}} 位负责人"
+    },
+    "governance": {
+      "evidence_title": "证据",
+      "evidence_description": "受治理工作引用的脱敏工件。",
+      "no_evidence": "尚未附加证据。",
+      "sanitized": "已脱敏",
+      "unsafe": "不安全",
+      "checks_title": "检查与接受",
+      "checks_description": "策略结果本身并不表示已被接受。",
+      "recorded_checks": "已记录检查",
+      "independent_acceptances": "独立接受记录"
+    },
+    "members": {
+      "title": "可信工作区成员",
+      "description": "此处的人类成员关系为只读，并以上游系统为权威来源。",
+      "empty_title": "暂无可信成员",
+      "empty_description": "此只读投影中暂无可用的活跃工作区成员。"
+    },
+    "actions": {
+      "requirement_title": "发起需求",
+      "requirement_description": "记录原始请求；意图与方案审查将从受治理节点继续。",
+      "defect_title": "报告缺陷",
+      "defect_description": "创建包含严重程度与可复现证据的缺陷。",
+      "risk_title": "添加风险",
+      "risk_description": "记录概率、影响、应对方案和下次审查时间。",
+      "finding_title": "添加审查发现",
+      "finding_description": "创建关联规则且需要独立解决的发现。",
+      "knowledge_title": "创建知识候选",
+      "knowledge_description": "提交有证据支持的知识，但不会自动发布。",
+      "run_title": "运行入队",
+      "run_description": "将受控执行加入队列。Runner 仍需获取租约并返回证据。",
+      "submitted": "已提交{{action}}",
+      "id": "ID",
+      "id_description": "稳定的项目级标识符；仅可使用字母、数字、点、下划线和短横线。",
+      "summary": "摘要",
+      "severity": "严重程度",
+      "severity_placeholder": "critical、high、medium 或 low",
+      "reproduction": "复现证据",
+      "probability": "概率（1–5）",
+      "impact": "影响（1–5）",
+      "response_plan": "应对方案",
+      "review_due": "审查到期时间",
+      "rule_id": "规则 ID",
+      "dedup_key": "去重键",
+      "source_ids": "来源 ID",
+      "source_ids_placeholder": "source-1, source-2",
+      "evidence_ids": "证据 ID",
+      "evidence_ids_placeholder": "evidence-1",
+      "workspace_reference": "工作区引用",
+      "workspace_reference_placeholder": "workspace://project/branch",
+      "maximum_attempts": "最大尝试次数",
+      "secret_references": "不透明密钥引用",
+      "secret_references_placeholder": "secret://github/11111111-1111-4111-8111-111111111111",
+      "secret_references_description": "仅提交引用；密钥值绝不会进入团队控制。",
+      "cancel": "取消",
+      "submit": "提交命令"
+    }
+  }
+  ,"requirements": {
     "title": "需求基线",
     "subtitle": "在实施前明确项目范围和验收标准。",
     "status_draft": "草稿",

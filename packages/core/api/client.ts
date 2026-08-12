@@ -392,6 +392,22 @@ export class ApiClient {
     return res.json() as Promise<T>;
   }
 
+  /** Authenticated transport for the canonical control-plane process. */
+  async requestControlPlane(path: string, init?: RequestInit): Promise<Response> {
+    const parsed = new URL(path, "https://control-plane.invalid");
+    if (
+      parsed.origin !== "https://control-plane.invalid"
+      || !parsed.pathname.startsWith("/v1/")
+      || parsed.search !== ""
+      || parsed.hash !== ""
+      || path.includes("\\")
+      || parsed.pathname !== path
+    ) {
+      throw new Error("control-plane path must be a normalized /v1/ path");
+    }
+    return this.fetchRaw(`/control-plane${path}`, init);
+  }
+
   // Auth
   async sendCode(email: string): Promise<void> {
     await this.fetch("/auth/send-code", {

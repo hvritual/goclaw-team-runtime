@@ -9,7 +9,10 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type DeliveryKernel struct {
@@ -105,6 +108,9 @@ func (k *DeliveryKernel) AttachEvidence(ctx context.Context, actor Actor, comman
 	const op = "attach evidence"
 	if err := k.allow(ctx, actor, PermissionRun); err != nil {
 		return AppendResult{}, err
+	}
+	if actor.Kind != ActorAgent {
+		return AppendResult{}, denied(op, "only a trusted Runner Agent may attest sanitized evidence")
 	}
 	if evidence.ProducedBy != actor.ID {
 		return AppendResult{}, denied(op, "producer does not match actor")
@@ -233,7 +239,7 @@ func (k *DeliveryKernel) Replay(ctx context.Context, workspaceID, projectID stri
 	if err != nil {
 		return ProjectProjection{}, err
 	}
-	projection := ProjectProjection{WorkspaceID: workspaceID, ProjectID: projectID, Nodes: map[string]WorkNode{}, Edges: map[string]WorkEdge{}, Evidence: map[string]EvidenceRef{}, Checks: map[string][]CheckResult{}, Acceptances: map[string]Acceptance{}}
+	projection := ProjectProjection{SchemaVersion: kernelSchemaVersion, WorkspaceID: workspaceID, ProjectID: projectID, Nodes: map[string]WorkNode{}, Edges: map[string]WorkEdge{}, Evidence: map[string]EvidenceRef{}, Checks: map[string][]CheckResult{}, Acceptances: map[string]Acceptance{}}
 	previousHash := ""
 	for index, event := range events {
 		if event.SchemaVersion != kernelSchemaVersion || event.WorkspaceID != workspaceID || event.ProjectID != projectID || event.Sequence != int64(index+1) || event.PreviousHash != previousHash || hashSessionEvent(event) != event.Hash {
@@ -313,8 +319,9 @@ func validateEvidence(op string, evidence EvidenceRef) error {
 		}
 	}
 	parsed, err := url.Parse(evidence.URI)
-	if err != nil || parsed.Scheme != "artifact" || parsed.RawQuery != "" || parsed.User != nil {
-		return invalid(op, "uri", "must be an artifact URI without credentials or query parameters")
+	artifactID := strings.TrimPrefix(parsed.EscapedPath(), "/")
+	if len(evidence.URI) == 0 || len(evidence.URI) > 512 || err != nil || parsed.Scheme != "artifact" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil || parsed.Opaque != "" || !identifierPattern.MatchString(parsed.Host) || strings.Contains(artifactID, "/") || uuid.Validate(artifactID) != nil || parsed.String() != evidence.URI {
+		return invalid(op, "uri", "must be a canonical artifact://provider/uuid URI")
 	}
 	if evidence.Kind == "" || evidence.MediaType == "" || evidence.Size < 0 || !validSHA256(evidence.SHA256) || !evidence.Sanitized {
 		return invalid(op, "evidence", "immutable digest, media type, size, and sanitized marker are required")

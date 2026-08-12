@@ -1,0 +1,196 @@
+# TC-W01 Team Control Journal
+
+## 2026-08-11 — TC-W01-S00 activated
+
+- User explicitly authorized merging PR #8 and implementing TC-W01.
+- PR #8 Head `18466522bafabb43d2ac2371875c9f343e5a771c` was still mergeable with no unresolved review threads.
+- PR #8 was marked ready and merged with merge commit `c43f4300eb29cf6778e67594e54cc79f8fb5057e`, preserving the 49-commit P0-P2 audit chain.
+- Created isolated branch `agent/tc-w01-team-control-001` from the exact merge commit.
+- Confirmed `server/**` remains permanently read-only. TC-W01 may port read-only identity behavior but cannot import or modify the legacy backend.
+- Confirmed Web and Desktop share `packages/core`, `packages/ui`, and `packages/views`; the Team Control view will be implemented once and wired into both platforms.
+- Local environment has Node 24 and pnpm 11 but no Go, Docker, or GitHub CLI. Go, race, Docker, and remote branch checks must be obtained from CI and the connected GitHub repository.
+- Next action: publish the immutable plan, then activate `TC-W01-S01`.
+
+## 2026-08-11 — TC-W01-S01 implemented; plan v2 activated
+
+- Added a production upstream identity resolver for the existing Web cookie session and Desktop bearer credential. Redirects are disabled, the upstream origin is validated, responses are size/time bounded, and only the authentication credential is forwarded to the three allowlisted read endpoints.
+- Added local HMAC CSRF verification for cookie-authenticated unsafe requests. Production defaults to denied without `CONTROLPLANE_IDENTITY_UPSTREAM_URL`; actor headers require the explicit development switch.
+- Added fail-closed trusted workspace/member reconciliation. Owners are synchronized first, stale human members are marked removed, Agents are left untouched, and every CAS conflict aborts the request instead of accepting stale authority.
+- Added schema-versioned workspace/member read endpoints and identity/reconciliation tests.
+- Activated `plan_v2.md`: human membership remains a read-only projection of one upstream authority; no duplicate role mutation API is introduced.
+- Activated `TC-W01-S02`: OpenAPI and project-scoped resumable SSE are being implemented.
+
+## 2026-08-11 — TC-W01-S02 verified; Draft PR opened
+
+- Published OpenAPI v1 for the workspace, members, projection, command, Problem, append-result, and SSE contracts. All 23 supported command names are enumerated.
+- Added project-scoped SSE with authorization, `after`/`Last-Event-ID` resume, one-second bounded polling, 15-second heartbeat, no intermediate state buffer, and request-context cleanup.
+- Added `schema_version: 1` to replayed projections and schema-versioned workspace/member response envelopes. Problem responses use `application/problem+json` and safe public details.
+- Opened Draft PR #9 at candidate `2172508f355436a658b575cb5d99f99d6ed96cf0`; the PR is mergeable and remains Draft for later frontend and independent acceptance work.
+- GitHub Backend run #39 (`31512040101`) passed `make check` and `make test-race` on Go 1.26.1. This covers gofmt, path/import policy, generated-clean, vet, unit tests, and race tests.
+- No `server/**` path or legacy backend import appears in the PR diff.
+- Activated `TC-W01-S03`: the next slice is the shared TypeScript client and React Query model.
+
+## 2026-08-12 — TC-W01 resumed under plan v3
+
+- User explicitly resumed TC-W01 and authorized completion of S03 through S06,
+  including independent product, code, security, and documentation review and
+  merge of Draft PR #9 after blocking findings are cleared.
+- User explicitly deferred CI work. Plan v3 forbids workflow, required-check,
+  branch-protection, and Ruleset changes while preserving local deterministic,
+  Docker, Playwright, responsive, and accessibility verification.
+- Revalidated PR #9 at Head
+  `8ca49704e720a545bd8a39436e74a1fc4608d9f6`: open, Draft, mergeable, with no
+  submitted reviews or unresolved review threads.
+- Preserved `server/**` as permanently read-only and left GOV-W01 PR #10 out of
+  this execution.
+- The available checkout containing legacy untracked work was rejected as a
+  task worktree. A clean verification tree was reconstructed from the public
+  Multica source plus the exact PR #9 files; remote commits will use the GitHub
+  commit tree API with expected-Head checks because `gh` and private clone
+  credentials are unavailable locally.
+- Activated `TC-W01-S03` under Task Revision `r003`.
+
+## 2026-08-12 — TC-W01-S03 implemented and verified
+
+- Added defensive Zod schemas and safe read fallbacks for workspace, members,
+  project projection, nodes, edges, Evidence, Checks, acceptances, events, and
+  append results. Malformed command success responses fail explicitly instead
+  of fabricating authoritative state.
+- Extended the existing `ApiClient` with a path-constrained control-plane
+  transport so Web cookies, Desktop bearer credentials, HMAC CSRF, request
+  identity, and unauthorized handling remain shared. No token is placed in an
+  EventSource URL or stored by Team Control.
+- Added fully scoped React Query keys and options for workspace, members, and
+  project projection. Concurrent identical reads are deduplicated by React
+  Query.
+- Added command mutation handling with no optimistic governed-state update.
+  Success invalidates the exact projection; a 409/`conflict` also invalidates
+  and preserves the error for an explicit user retry.
+- Added an authenticated fetch-stream SSE parser and lifecycle hook with
+  `Last-Event-ID` resume, abort cleanup, reconnect state, malformed-event
+  rejection, and exact workspace/project projection invalidation only.
+- Focused Core verification passed: 4 files / 10 tests and TypeScript
+  `tsc --noEmit`.
+- The dependency install required a temporary non-frozen lock update because
+  the public verification baseline has a pnpm override mismatch. No lockfile or
+  workspace configuration change is part of the TC-W01 candidate.
+- Activated `TC-W01-S04`.
+
+## 2026-08-12 — TC-W01 plan v4 activated for locale parity
+
+- The first S04 shared-page implementation and focused Views tests passed, but
+  the deterministic Views lint gate rejected 42 user-facing literal strings.
+- The existing plan did not authorize the locale resources required to fix the
+  finding. Product changes paused before any locale file was edited.
+- Read the authoritative naming, glossary, and Chinese voice conventions.
+- Plan v4 adds only the four existing `projects` locale resources and requires
+  namespace parity. CI, dependencies, generated resources, mobile, and every
+  unrelated locale remain out of scope.
+- `TC-W01-S04` remains active under Task Revision `r004`.
+
+## 2026-08-12 — TC-W01-S04 implemented and verified
+
+- Added one shared Team Control page in `packages/views` and exported it for
+  both products. Web now exposes the project-scoped control route and Desktop
+  maps the same route shape to the same component.
+- Added a project-detail entry point and explicit loading, denied,
+  unavailable, connecting, reconnecting, and offline states. The responsive
+  surface covers governed work, quality, review, knowledge, Runner, Evidence,
+  Checks, acceptances, and trusted read-only members.
+- Added guarded creation dialogs for requirement, defect, risk, review
+  finding, knowledge candidate, and run commands. Commands always submit the
+  displayed authoritative Head; conflicts keep input visible while the S03
+  mutation refreshes the exact projection.
+- Moved all Team Control product copy under `projects.team_control` for English,
+  Simplified Chinese, Japanese, and Korean. Locale parity and dead plural-key
+  guards passed.
+- Focused Views verification passed: locale parity plus Team Control and
+  project-detail suites, 3 files / 165 tests. Focused ESLint reports zero
+  errors; the sole warning is the pre-existing `ProjectDetail` effect
+  dependency warning outside this change.
+- The full Views TypeScript check reaches only the public-baseline missing
+  `hast` declaration in `common/task-transcript/diff-highlight.ts`; it reports
+  no Team Control diagnostic. S05 will perform app build and browser-level
+  verification after supplying a temporary validation-only dependency link.
+- Activated `TC-W01-S05`. CI and workflow files remain explicitly excluded.
+
+## 2026-08-12 — TC-W01-S05 locally verified; CI deferred
+
+- Added a production-rendered Playwright specification for the shared Web
+  route. It validates governed projection render, keyboard tab focus,
+  accessible dialog labels, CAS 409 refresh with preserved form input, scoped
+  SSE refresh, a non-enumerating 403 state, and no document overflow at a
+  390-by-844 viewport.
+- Playwright passed all 3 tests against the optimized Next production build.
+  The container had no preinstalled browser and the official download endpoint
+  failed certificate validation, so a temporary Chromium package was unpacked
+  under `/tmp`; no browser, dependency, lockfile, or test configuration change
+  is part of the candidate.
+- Web production build passed and its final route table contains
+  `/[workspaceSlug]/projects/[id]/control`. Desktop Electron/Vite production
+  build passed for main, preload, and renderer; the optional CLI bundle was
+  skipped because Go is absent and Desktop retains its existing runtime
+  fallback.
+- Core, Views, and Web TypeScript checks passed after a temporary
+  validation-only `hast` type link. Desktop's direct raw TypeScript invocation
+  still reports its public-baseline Vite `ImportMeta.env` and asset declaration
+  gaps, while the authoritative Electron/Vite production build passes.
+- Focused ESLint passes with zero errors across Core, Views, Web, Desktop, and
+  Team Control tests. The only warning remains the pre-existing
+  `ProjectDetail` effect dependency warning.
+- Go and Docker are not installed in this execution environment, so backend
+  race and Docker-image checks were not rerun locally. The prior backend
+  deterministic and race evidence remains recorded under S02; Docker runtime
+  verification is an explicit residual rather than an inferred pass.
+- Per the user's instruction, no workflow, required-check, Ruleset, or other CI
+  change was made. Activated `TC-W01-S06` for independent four-domain review.
+
+## 2026-08-12 — TC-W01-S06 first review findings remediated
+
+- Independent product, code, security, and documentation review froze
+  candidate `12bb05fad59cfa9e762302631c457a1959db76a4` and rejected it. The local
+  verification tree had been reconstructed from a newer public Multica tree,
+  so several existing files were published as whole-file replacements relative
+  to private base `c43f4300eb29cf6778e67594e54cc79f8fb5057e`. The replacements removed
+  existing Tasks, Knowledge, Requirement baseline, retrospective, package
+  exports, locale keys, and Desktop routes while importing unrelated product
+  domains. This was a merge blocker.
+- Reconstructed Core, Views, Web, and Desktop from the exact private base Git
+  tree, then reapplied only narrow Team Control transport, export, locale,
+  project-entry, and route changes. No unrelated base feature was repaired,
+  removed, or upgraded, and `server/**` remains untouched.
+- Product findings were cleared by handling workspace/member/projection errors
+  uniformly, adding an explicit empty-member state, and removing the discarded
+  Runner label field. Team Control Views now has 10 focused interaction/state
+  tests; all pass.
+- Code findings were cleared by preserving a stable command ID per dialog
+  intent, carrying the last observed SSE cursor across failed streams, enabling
+  SSE only after a projection succeeds, stopping retries for terminal 4xx, and
+  applying bounded exponential reconnect backoff. The authenticated transport
+  rejects non-canonical traversal/query/fragment/backslash paths; responses are
+  checked against their requested workspace/project scope; Problem bodies use
+  the Zod boundary.
+- Security findings were cleared by reauthorizing each SSE connection every 15
+  seconds, terminating silently on identity/permission drift, reading event
+  history with `seq > after` and a 200-event batch limit, applying bounded SSE
+  write deadlines, and validating project identifiers on every handler.
+  `secret_ref`, `workspace_ref`, and Evidence URI now require canonical opaque
+  UUID-backed references without userinfo, query, fragment, or credential-shaped
+  aliases. Human projection/Agent ID collisions fail closed, and only a Runner
+  Agent may attest sanitized Evidence.
+- Documentation findings were cleared by defining all 23 OpenAPI command
+  variants and their payload schemas, adding typed projection value schemas,
+  and updating the README to treat CI as explicitly deferred rather than a
+  current merge blocker.
+- Installed Go 1.26.1 temporarily under `/tmp` and ran the real backend module:
+  `go test ./...`, `go test -race ./...`, `go vet ./...`, and gofmt cleanliness
+  all passed. Core Team Control verification passed 4 files / 15 tests plus a
+  focused strict TypeScript compile. Views Team Control passed 1 file / 10
+  tests; the four `projects.team_control` objects have identical key shape.
+- The exact private base itself has pre-existing whole-package build/typecheck
+  failures across unmodified Agent/Runtime/Inbox/localization/Web route areas.
+  These are explicitly outside TC-W01 and are not repaired or represented as
+  passing. Docker remains unavailable. No workflow, required-check, Ruleset,
+  branch-protection, lockfile, or workspace configuration change is included.
+- S06 remains active. The remediated exact candidate must be published, frozen,
+  and independently re-reviewed before any ready-for-review or merge action.

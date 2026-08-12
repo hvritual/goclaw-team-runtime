@@ -101,7 +101,131 @@
     ,"work_items": "Work items",
     "requirements": "Requirements"
   },
-  "requirements": {
+  "team_control": {
+    "entry": "Team Control",
+    "title": "Team Control",
+    "loading": "Loading Team Control",
+    "back": "Back to project",
+    "head": "Head {{count}}",
+    "connection": {
+      "connecting": "Connecting",
+      "connected": "Live",
+      "reconnecting": "Reconnecting",
+      "offline": "Offline",
+      "stale_hint": "The last verified projection remains visible. Commands still use the displayed Head, and the server will reject stale state."
+    },
+    "errors": {
+      "denied_title": "Team Control access denied",
+      "denied_description": "Your authenticated workspace role cannot read this governed project.",
+      "unavailable_title": "Team Control unavailable",
+      "request_failed": "Request failed ({{status}}).",
+      "unknown": "The request could not be completed.",
+      "conflict_title": "Authoritative state changed",
+      "rejected_title": "Command rejected",
+      "conflict_hint": " Review the refreshed projection and submit again."
+    },
+    "summary": {
+      "aria": "Project governance summary",
+      "work_nodes": "Work nodes",
+      "work_nodes_description": "Requirements, tasks, quality, review, knowledge, and runs",
+      "evidence": "Evidence",
+      "evidence_description": "Sanitized artifacts attached to governed subjects",
+      "checks": "Checks",
+      "checks_description": "Deterministic and review policy outcomes",
+      "accepted": "Accepted",
+      "accepted_description": "Independent human acceptances at current revisions"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "requirements": "Requirements",
+      "quality": "Quality",
+      "review": "Review & knowledge",
+      "runner": "Runner",
+      "governance": "Evidence & checks",
+      "members": "Members"
+    },
+    "overview": {
+      "title": "Governed delivery graph",
+      "description": "All visible state is replayed from the append-only Delivery Kernel.",
+      "edges": "Edges",
+      "edges_description": "Trace and dependency relationships",
+      "head_hash": "Head hash",
+      "initial": "Initial",
+      "head_hash_description": "Current hash-chain checkpoint",
+      "schema": "Schema",
+      "schema_description": "Defensively parsed client contract"
+    },
+    "empty": {
+      "description": "This governed project has no matching work nodes yet.",
+      "all": "No governed work yet",
+      "requirements": "No requirements or tasks",
+      "quality": "No defects or risks",
+      "review": "No findings or knowledge candidates",
+      "runner": "No queued or active runs"
+    },
+    "node": {
+      "revision": "Revision {{count}}",
+      "assignees_one": "{{count}} assignee",
+      "assignees_other": "{{count}} assignees"
+    },
+    "governance": {
+      "evidence_title": "Evidence",
+      "evidence_description": "Sanitized artifacts referenced by governed work.",
+      "no_evidence": "No evidence attached.",
+      "sanitized": "Sanitized",
+      "unsafe": "Unsafe",
+      "checks_title": "Checks and acceptance",
+      "checks_description": "Policy outcomes never imply acceptance by themselves.",
+      "recorded_checks": "Recorded checks",
+      "independent_acceptances": "Independent acceptances"
+    },
+    "members": {
+      "title": "Trusted workspace members",
+      "description": "Human membership is read-only here and remains authoritative upstream.",
+      "empty_title": "No trusted members",
+      "empty_description": "No active workspace members are available in this read-only projection."
+    },
+    "actions": {
+      "requirement_title": "Start requirement",
+      "requirement_description": "Capture the original request. Intent and solution reviews continue from the governed node.",
+      "defect_title": "Report defect",
+      "defect_description": "Create a defect with severity and reproducible evidence.",
+      "risk_title": "Add risk",
+      "risk_description": "Record probability, impact, response plan, and the next review time.",
+      "finding_title": "Add review finding",
+      "finding_description": "Create a rule-linked finding that requires independent resolution.",
+      "knowledge_title": "Create knowledge candidate",
+      "knowledge_description": "Propose evidence-backed knowledge without publishing it automatically.",
+      "run_title": "Queue run",
+      "run_description": "Queue a controlled execution. The Runner still needs a lease and must return evidence.",
+      "submitted": "{{action}} submitted",
+      "id": "ID",
+      "id_description": "Stable project-scoped identifier; letters, digits, dot, underscore, and dash only.",
+      "summary": "Summary",
+      "severity": "Severity",
+      "severity_placeholder": "critical, high, medium, or low",
+      "reproduction": "Reproduction evidence",
+      "probability": "Probability (1–5)",
+      "impact": "Impact (1–5)",
+      "response_plan": "Response plan",
+      "review_due": "Review due",
+      "rule_id": "Rule ID",
+      "dedup_key": "Dedup key",
+      "source_ids": "Source IDs",
+      "source_ids_placeholder": "source-1, source-2",
+      "evidence_ids": "Evidence IDs",
+      "evidence_ids_placeholder": "evidence-1",
+      "workspace_reference": "Workspace reference",
+      "workspace_reference_placeholder": "workspace://project/branch",
+      "maximum_attempts": "Maximum attempts",
+      "secret_references": "Opaque secret references",
+      "secret_references_placeholder": "secret://github/11111111-1111-4111-8111-111111111111",
+      "secret_references_description": "References only. Secret values never enter Team Control.",
+      "cancel": "Cancel",
+      "submit": "Submit command"
+    }
+  }
+  ,"requirements": {
     "title": "Requirement baseline",
     "subtitle": "Define the implementation scope before work begins.",
     "status_draft": "Draft",

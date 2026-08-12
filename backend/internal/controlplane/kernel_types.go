@@ -58,6 +58,7 @@ type AppendResult struct {
 type KernelStore interface {
 	AppendCommand(context.Context, CommandEnvelope, []ProposedEvent) (AppendResult, error)
 	ListSessionEvents(context.Context, string, string) ([]SessionEvent, error)
+	ListSessionEventsAfter(context.Context, string, string, int64, int) ([]SessionEvent, error)
 	ProjectHead(context.Context, string, string) (int64, string, error)
 }
 
@@ -121,13 +122,14 @@ type Acceptance struct {
 }
 
 type ProjectProjection struct {
-	WorkspaceID string                   `json:"workspace_id"`
-	ProjectID   string                   `json:"project_id"`
-	Head        int64                    `json:"head"`
-	HeadHash    string                   `json:"head_hash"`
-	Nodes       map[string]WorkNode      `json:"nodes"`
-	Edges       map[string]WorkEdge      `json:"edges"`
-	Evidence    map[string]EvidenceRef   `json:"evidence"`
-	Checks      map[string][]CheckResult `json:"checks"`
-	Acceptances map[string]Acceptance    `json:"acceptances"`
+	SchemaVersion int                      `json:"schema_version"`
+	WorkspaceID   string                   `json:"workspace_id"`
+	ProjectID     string                   `json:"project_id"`
+	Head          int64                    `json:"head"`
+	HeadHash      string                   `json:"head_hash"`
+	Nodes         map[string]WorkNode      `json:"nodes"`
+	Edges         map[string]WorkEdge      `json:"edges"`
+	Evidence      map[string]EvidenceRef   `json:"evidence"`
+	Checks        map[string][]CheckResult `json:"checks"`
+	Acceptances   map[string]Acceptance    `json:"acceptances"`
 }

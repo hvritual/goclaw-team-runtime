@@ -100,7 +100,131 @@
     "work_items": "作業項目",
     "requirements": "要件"
   },
-  "requirements": {
+  "team_control": {
+    "entry": "チームコントロール",
+    "title": "チームコントロール",
+    "loading": "チームコントロールを読み込み中",
+    "back": "プロジェクトに戻る",
+    "head": "Head {{count}}",
+    "connection": {
+      "connecting": "接続中",
+      "connected": "ライブ",
+      "reconnecting": "再接続中",
+      "offline": "オフライン",
+      "stale_hint": "最後に検証されたプロジェクションを表示しています。コマンドは表示中の Head を使用し、古い状態はサーバーで拒否されます。"
+    },
+    "errors": {
+      "denied_title": "チームコントロールへのアクセスが拒否されました",
+      "denied_description": "認証済みのワークスペースロールでは、この管理対象プロジェクトを読み取れません。",
+      "unavailable_title": "チームコントロールを利用できません",
+      "request_failed": "リクエストに失敗しました（{{status}}）。",
+      "unknown": "リクエストを完了できませんでした。",
+      "conflict_title": "正規の状態が変更されました",
+      "rejected_title": "コマンドが拒否されました",
+      "conflict_hint": " 更新されたプロジェクションを確認して再送信してください。"
+    },
+    "summary": {
+      "aria": "プロジェクトガバナンスの概要",
+      "work_nodes": "作業ノード",
+      "work_nodes_description": "要件、タスク、品質、レビュー、ナレッジ、実行",
+      "evidence": "エビデンス",
+      "evidence_description": "管理対象に添付されたサニタイズ済み成果物",
+      "checks": "チェック",
+      "checks_description": "決定的チェックとレビューポリシーの結果",
+      "accepted": "承認済み",
+      "accepted_description": "現在のリビジョンに対する独立した人の承認"
+    },
+    "tabs": {
+      "overview": "概要",
+      "requirements": "要件",
+      "quality": "品質",
+      "review": "レビューとナレッジ",
+      "runner": "Runner",
+      "governance": "エビデンスとチェック",
+      "members": "メンバー"
+    },
+    "overview": {
+      "title": "管理対象デリバリーグラフ",
+      "description": "表示状態はすべて追記専用の Delivery Kernel から再生されます。",
+      "edges": "エッジ",
+      "edges_description": "トレースと依存関係",
+      "head_hash": "Head ハッシュ",
+      "initial": "初期",
+      "head_hash_description": "現在のハッシュチェーンチェックポイント",
+      "schema": "スキーマ",
+      "schema_description": "防御的に解析されたクライアント契約"
+    },
+    "empty": {
+      "description": "この管理対象プロジェクトには、該当する作業ノードがまだありません。",
+      "all": "管理対象の作業はまだありません",
+      "requirements": "要件またはタスクはありません",
+      "quality": "不具合またはリスクはありません",
+      "review": "指摘またはナレッジ候補はありません",
+      "runner": "待機中または実行中のランはありません"
+    },
+    "node": {
+      "revision": "リビジョン {{count}}",
+      "assignees_one": "担当者 {{count}} 人",
+      "assignees_other": "担当者 {{count}} 人"
+    },
+    "governance": {
+      "evidence_title": "エビデンス",
+      "evidence_description": "管理対象作業から参照されるサニタイズ済み成果物です。",
+      "no_evidence": "エビデンスは添付されていません。",
+      "sanitized": "サニタイズ済み",
+      "unsafe": "安全ではありません",
+      "checks_title": "チェックと承認",
+      "checks_description": "ポリシー結果だけで承認されたことにはなりません。",
+      "recorded_checks": "記録済みチェック",
+      "independent_acceptances": "独立承認"
+    },
+    "members": {
+      "title": "信頼済みワークスペースメンバー",
+      "description": "人のメンバーシップはここでは読み取り専用で、上流が正規の情報源です。",
+      "empty_title": "信頼済みメンバーはいません",
+      "empty_description": "この読み取り専用プロジェクションに利用可能なアクティブメンバーはいません。"
+    },
+    "actions": {
+      "requirement_title": "要件を開始",
+      "requirement_description": "元の依頼を記録します。意図と解決策のレビューは管理対象ノードから続行します。",
+      "defect_title": "不具合を報告",
+      "defect_description": "重大度と再現可能なエビデンスを含む不具合を作成します。",
+      "risk_title": "リスクを追加",
+      "risk_description": "確率、影響、対応計画、次回レビュー日時を記録します。",
+      "finding_title": "レビュー指摘を追加",
+      "finding_description": "独立した解決が必要なルール連携の指摘を作成します。",
+      "knowledge_title": "ナレッジ候補を作成",
+      "knowledge_description": "エビデンスに基づくナレッジを、自動公開せずに提案します。",
+      "run_title": "ランをキューに追加",
+      "run_description": "制御された実行をキューに追加します。Runner はリースを取得し、エビデンスを返す必要があります。",
+      "submitted": "{{action}}を送信しました",
+      "id": "ID",
+      "id_description": "プロジェクト内で安定した識別子です。英数字、ピリオド、アンダースコア、ハイフンのみ使用できます。",
+      "summary": "概要",
+      "severity": "重大度",
+      "severity_placeholder": "critical、high、medium、low",
+      "reproduction": "再現エビデンス",
+      "probability": "確率（1～5）",
+      "impact": "影響（1～5）",
+      "response_plan": "対応計画",
+      "review_due": "レビュー期限",
+      "rule_id": "ルール ID",
+      "dedup_key": "重複排除キー",
+      "source_ids": "ソース ID",
+      "source_ids_placeholder": "source-1, source-2",
+      "evidence_ids": "エビデンス ID",
+      "evidence_ids_placeholder": "evidence-1",
+      "workspace_reference": "ワークスペース参照",
+      "workspace_reference_placeholder": "workspace://project/branch",
+      "maximum_attempts": "最大試行回数",
+      "secret_references": "不透明なシークレット参照",
+      "secret_references_placeholder": "secret://github/11111111-1111-4111-8111-111111111111",
+      "secret_references_description": "参照のみです。シークレット値がチームコントロールに入ることはありません。",
+      "cancel": "キャンセル",
+      "submit": "コマンドを送信"
+    }
+  }
+  ,"requirements": {
     "title": "要件ベースライン",
     "subtitle": "作業を開始する前に実装範囲を定義します。",
     "status_draft": "下書き",
