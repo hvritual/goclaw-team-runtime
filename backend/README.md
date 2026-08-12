@@ -52,6 +52,6 @@ make run
 docker build -t goclaw-controlplane:tc-w01 .
 ```
 
-`make check` is the backend-local deterministic gate. Repository CI must call
-it from a separately authorized root workflow change; until then, CI wiring is
-an explicit path blocker rather than a completed gate.
+`make check` is the backend-local deterministic gate. Repository CI wiring is
+explicitly deferred from TC-W01 by user direction and remains a follow-up item;
+this slice does not modify root workflows or treat deferred CI as a merge gate.

@@ -280,7 +280,9 @@ func (s *Service) reconcileTrustedSnapshot(ctx context.Context, snapshot Trusted
 			}
 		case getErr != nil:
 			return fmt.Errorf("%s: get member: %w", op, getErr)
-		case current.Kind != ActorHuman || current.Role != trusted.Role || current.State != MemberActive:
+		case current.Kind == ActorAgent:
+			return invariant(op, "trusted human member id collides with an existing Agent")
+		case current.Role != trusted.Role || current.State != MemberActive:
 			expectedVersion := current.Version
 			current.Kind = ActorHuman
 			current.Role = trusted.Role

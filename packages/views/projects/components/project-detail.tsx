@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, ShieldCheck, Trash2, UserMinus } from "lucide-react";
+import { BookOpen, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, ShieldCheck, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
@@ -13,10 +13,8 @@ import { projectDetailOptions } from "@multica/core/projects/queries";
 import { useUpdateProject, useDeleteProject } from "@multica/core/projects/mutations";
 import { pinListOptions } from "@multica/core/pins";
 import { useCreatePin, useDeletePin } from "@multica/core/pins";
-import { memberListOptions, agentListOptions } from "@multica/core/workspace/queries";
+import { memberListOptions } from "@multica/core/workspace/queries";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { useIssuesScope } from "@multica/core/issues/stores";
-import { useRecentContextStore } from "@multica/core/chat";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { PROJECT_STATUS_ORDER, PROJECT_STATUS_CONFIG, PROJECT_PRIORITY_ORDER } from "@multica/core/projects/config";
@@ -72,6 +70,10 @@ import {
 import { useT } from "../../i18n";
 import { useProjectStatusLabels, useProjectPriorityLabels } from "./labels";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
+import { useCreateProjectRetrospective } from "@multica/core/implementation-knowledge";
+import { ProjectRetrospectiveDialog } from "../../implementation-knowledge/implementation-knowledge-dialogs";
+import { ProjectRetrospectiveHistory } from "../../implementation-knowledge/implementation-knowledge-history";
+import { ProjectRequirementBaseline } from "./project-requirement-baseline";
 
 // ---------------------------------------------------------------------------
 // Property row — sidebar property display
@@ -86,8 +88,8 @@ function PropRow({
 }) {
   return (
     <div className="flex min-h-8 items-center gap-2 rounded-md px-2 -mx-2 hover:bg-accent/50 transition-colors">
-      <span className="w-16 shrink-0 text-caption text-muted-foreground">{label}</span>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 text-caption truncate">
+      <span className="w-16 shrink-0 text-xs text-muted-foreground">{label}</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs truncate">
         {children}
       </div>
     </div>
@@ -107,26 +109,11 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const router = useNavigation();
   const userId = useAuthStore((s) => s.user?.id);
   const { data: project, isLoading } = useQuery(projectDetailOptions(wsId, projectId));
-  const recordRecentContext = useRecentContextStore((s) => s.recordVisit);
-  useEffect(() => {
-    if (project) {
-      recordRecentContext(wsId, {
-        type: "project",
-        id: project.id,
-        label: project.title,
-        subtitle: project.description ?? undefined,
-        icon: project.icon,
-        projectStatus: project.status,
-      });
-    }
-  }, [project?.id, project?.title, project?.description, project?.icon, project?.status, recordRecentContext, wsId]);
-  const issueTab = useIssuesScope(`project:${projectId}`);
   const issueScope = useMemo(
-    () => ({ type: "project" as const, projectId, actorKind: issueTab }),
-    [projectId, issueTab],
+    () => ({ type: "project" as const, projectId }),
+    [projectId],
   );
   const { data: members = [] } = useQuery(memberListOptions(wsId));
-  const { data: agents = [] } = useQuery(agentListOptions(wsId));
   const { getActorName } = useActorName();
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -140,6 +127,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
     const me = members.find((m) => m.user_id === userId);
     return me?.role === "owner" || me?.role === "admin";
   }, [members, userId]);
+  const isProjectLead = project?.lead_type === "member" && project.lead_id === userId;
+  const [detailView, setDetailView] = useState<"work_items" | "requirements">("work_items");
   const createPin = useCreatePin();
   const deletePinMut = useDeletePin();
   const descEditorRef = useRef<ContentEditorRef>(null);
@@ -149,6 +138,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [progressOpen, setProgressOpen] = useState(true);
   const [descriptionOpen, setDescriptionOpen] = useState(true);
+  const [retrospectiveOpen, setRetrospectiveOpen] = useState(false);
+  const createRetrospective = useCreateProjectRetrospective(projectId);
 
   // Sidebar panel
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -200,7 +191,6 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   const [leadFilter, setLeadFilter] = useState("");
   const leadQuery = leadFilter.toLowerCase();
   const filteredMembers = members.filter((m) => m.name.toLowerCase().includes(leadQuery) || matchesPinyin(m.name, leadQuery));
-  const filteredAgents = agents.filter((a) => !a.archived_at && (a.name.toLowerCase().includes(leadQuery) || matchesPinyin(a.name, leadQuery)));
 
   const handleUpdateField = useCallback(
     (data: Parameters<typeof updateProject.mutate>[0] extends { id: string } & infer R ? R : never) => {
@@ -247,7 +237,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             render={
               <button
                 type="button"
-                className="text-display-sm cursor-pointer rounded-lg p-1 -ml-1 hover:bg-accent/60 transition-colors"
+                className="text-2xl cursor-pointer rounded-lg p-1 -ml-1 hover:bg-accent/60 transition-colors"
                 title={t(($) => $.detail.icon_tooltip)}
               >
                 {project.icon || "📁"}
@@ -267,7 +257,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           key={`title-${projectId}`}
           defaultValue={project.title}
           placeholder={t(($) => $.detail.title_placeholder)}
-          className="mt-2 w-full text-title-sm font-semibold leading-snug tracking-tight"
+          className="mt-2 w-full text-base font-semibold leading-snug tracking-tight"
           onBlur={(value) => {
             const trimmed = value.trim();
             if (trimmed && trimmed !== project.title) handleUpdateField({ title: trimmed });
@@ -279,7 +269,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       <div>
         <button
           type="button"
-          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors mb-2 hover:bg-accent/70 ${propertiesOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
+          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${propertiesOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
           onClick={() => setPropertiesOpen(!propertiesOpen)}
         >
           {t(($) => $.detail.section_properties)}
@@ -290,7 +280,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button type="button" className="inline-flex items-center gap-1.5 text-caption hover:text-foreground transition-colors">
+                  <button type="button" className="inline-flex items-center gap-1.5 text-xs hover:text-foreground transition-colors">
                     <span className={cn("size-2 rounded-full", statusCfg.dotColor)} />
                     <span>{statusLabels[project.status]}</span>
                   </button>
@@ -311,7 +301,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <button type="button" className="inline-flex items-center gap-1.5 text-caption hover:text-foreground transition-colors">
+                  <button type="button" className="inline-flex items-center gap-1.5 text-xs hover:text-foreground transition-colors">
                     <PriorityIcon priority={project.priority} />
                     <span>{priorityLabels[project.priority]}</span>
                   </button>
@@ -332,10 +322,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <Popover open={leadOpen} onOpenChange={(v) => { setLeadOpen(v); if (!v) setLeadFilter(""); }}>
               <PopoverTrigger
                 render={
-                  <button type="button" className="inline-flex items-center gap-1.5 text-caption hover:text-foreground transition-colors">
+                  <button type="button" className="inline-flex items-center gap-1.5 text-xs hover:text-foreground transition-colors">
                     {project.lead_type && project.lead_id ? (
                       <>
-                        <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size="sm" enableHoverCard showStatusDot />
+                        <ActorAvatar actorType={project.lead_type} actorId={project.lead_id} size="sm" enableHoverCard />
                         <span className="cursor-pointer">{getActorName(project.lead_type, project.lead_id)}</span>
                       </>
                     ) : (
@@ -351,27 +341,27 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                     value={leadFilter}
                     onChange={(e) => setLeadFilter(e.target.value)}
                     placeholder={t(($) => $.lead.assign_placeholder)}
-                    className="w-full bg-transparent text-body placeholder:text-muted-foreground outline-none"
+                    className="w-full bg-transparent text-sm placeholder:text-muted-foreground outline-none"
                   />
                 </div>
                 <div className="p-1 max-h-60 overflow-y-auto">
                   <button
                     type="button"
                     onClick={() => { handleUpdateField({ lead_type: null, lead_id: null }); setLeadOpen(false); }}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-body hover:bg-accent transition-colors"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
                   >
                     <UserMinus className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-muted-foreground">{t(($) => $.lead.no_lead)}</span>
                   </button>
                   {filteredMembers.length > 0 && (
                     <>
-                      <div className="px-2 pt-2 pb-1 text-caption font-medium text-muted-foreground uppercase tracking-wider">{t(($) => $.lead.members_group)}</div>
+                      <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">{t(($) => $.lead.members_group)}</div>
                       {filteredMembers.map((m) => (
                         <button
                           type="button"
                           key={m.user_id}
                           onClick={() => { handleUpdateField({ lead_type: "member", lead_id: m.user_id }); setLeadOpen(false); }}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-body hover:bg-accent transition-colors"
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
                         >
                           <ActorAvatar actorType="member" actorId={m.user_id} size="sm" />
                           <span>{m.name}</span>
@@ -379,24 +369,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                       ))}
                     </>
                   )}
-                  {filteredAgents.length > 0 && (
-                    <>
-                      <div className="px-2 pt-2 pb-1 text-caption font-medium text-muted-foreground uppercase tracking-wider">{t(($) => $.lead.agents_group)}</div>
-                      {filteredAgents.map((a) => (
-                        <button
-                          type="button"
-                          key={a.id}
-                          onClick={() => { handleUpdateField({ lead_type: "agent", lead_id: a.id }); setLeadOpen(false); }}
-                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-body hover:bg-accent transition-colors"
-                        >
-                          <ActorAvatar actorType="agent" actorId={a.id} size="sm" showStatusDot />
-                          <span>{a.name}</span>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                  {filteredMembers.length === 0 && filteredAgents.length === 0 && leadFilter && (
-                    <div className="px-2 py-3 text-center text-body text-muted-foreground">{t(($) => $.lead.no_results)}</div>
+                  {filteredMembers.length === 0 && leadFilter && (
+                    <div className="px-2 py-3 text-center text-sm text-muted-foreground">{t(($) => $.lead.no_results)}</div>
                   )}
                 </div>
               </PopoverContent>
@@ -418,7 +392,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           <div>
             <button
               type="button"
-              className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors mb-2 hover:bg-accent/70 ${progressOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
+              className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${progressOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setProgressOpen(!progressOpen)}
             >
               {t(($) => $.detail.section_progress)}
@@ -431,7 +405,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="text-caption text-muted-foreground tabular-nums shrink-0">
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                 {issueMetrics.completedCount}/{issueMetrics.totalCount}
               </span>
             </div>}
@@ -443,7 +417,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       <div>
         <button
           type="button"
-          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors mb-2 hover:bg-accent/70 ${descriptionOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
+          className={`flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors mb-2 hover:bg-accent/70 ${descriptionOpen ? "" : "text-muted-foreground hover:text-foreground"}`}
           onClick={() => setDescriptionOpen(!descriptionOpen)}
         >
           {t(($) => $.detail.section_description)}
@@ -458,7 +432,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             onUpdate={(md) => handleUpdateField({ description: md || null })}
             debounceMs={1500}
           />
-          <p className="mt-1 px-2 text-caption text-muted-foreground">
+          <p className="mt-1 px-2 text-xs text-muted-foreground">
             {t(($) => $.detail.description_hint)}
           </p>
         </div>}
@@ -466,6 +440,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
       {/* Resources */}
       <ProjectResourcesSection projectId={projectId} />
+      <ProjectRetrospectiveHistory projectId={projectId} />
     </div>
   );
 
@@ -519,6 +494,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                     <Link2 className="h-3.5 w-3.5" />
                     {t(($) => $.detail.copy_link)}
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRetrospectiveOpen(true)}>
+                    <BookOpen className="h-3.5 w-3.5" />
+                    {t(($) => $.implementation_knowledge.record_action)}
+                  </DropdownMenuItem>
                   {isWorkspaceAdmin && (
                     <>
                       <DropdownMenuSeparator />
@@ -552,10 +531,15 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             }
           />
 
-          <IssueSurface
-            scope={issueScope}
-            modes={["board", "list", "table", "swimlane", "gantt"]}
-          />
+          <div className="flex items-center gap-1 border-b px-4 pt-2">
+            <Button variant={detailView === "work_items" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("work_items")}>{t(($) => $.detail.work_items)}</Button>
+            <Button variant={detailView === "requirements" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("requirements")}>{t(($) => $.detail.requirements)}</Button>
+          </div>
+          {detailView === "work_items" ? (
+            <IssueSurface scope={issueScope} modes={["board", "list", "table", "swimlane", "gantt"]} />
+          ) : (
+            <ProjectRequirementBaseline projectId={projectId} canApprove={isWorkspaceAdmin || isProjectLead} />
+          )}
           </div>
         </ResizablePanel>
         {!isMobile && <ResizableHandle />}
@@ -605,6 +589,18 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </AlertDialogContent>
         </AlertDialog>
       )}
+      <ProjectRetrospectiveDialog
+        open={retrospectiveOpen}
+        onOpenChange={setRetrospectiveOpen}
+        pending={createRetrospective.isPending}
+        onSubmit={(input) => createRetrospective.mutate(input, {
+          onSuccess: () => {
+            setRetrospectiveOpen(false);
+            toast.success(t(($) => $.implementation_knowledge.success));
+          },
+          onError: (error) => toast.error(error instanceof Error && error.message ? error.message : t(($) => $.implementation_knowledge.failed)),
+        })}
+      />
     </>
   );
 }

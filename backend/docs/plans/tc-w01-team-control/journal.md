@@ -144,3 +144,53 @@
   verification is an explicit residual rather than an inferred pass.
 - Per the user's instruction, no workflow, required-check, Ruleset, or other CI
   change was made. Activated `TC-W01-S06` for independent four-domain review.
+
+## 2026-08-12 — TC-W01-S06 first review findings remediated
+
+- Independent product, code, security, and documentation review froze
+  candidate `12bb05fad59cfa9e762302631c457a1959db76a4` and rejected it. The local
+  verification tree had been reconstructed from a newer public Multica tree,
+  so several existing files were published as whole-file replacements relative
+  to private base `c43f4300eb29cf6778e67594e54cc79f8fb5057e`. The replacements removed
+  existing Tasks, Knowledge, Requirement baseline, retrospective, package
+  exports, locale keys, and Desktop routes while importing unrelated product
+  domains. This was a merge blocker.
+- Reconstructed Core, Views, Web, and Desktop from the exact private base Git
+  tree, then reapplied only narrow Team Control transport, export, locale,
+  project-entry, and route changes. No unrelated base feature was repaired,
+  removed, or upgraded, and `server/**` remains untouched.
+- Product findings were cleared by handling workspace/member/projection errors
+  uniformly, adding an explicit empty-member state, and removing the discarded
+  Runner label field. Team Control Views now has 10 focused interaction/state
+  tests; all pass.
+- Code findings were cleared by preserving a stable command ID per dialog
+  intent, carrying the last observed SSE cursor across failed streams, enabling
+  SSE only after a projection succeeds, stopping retries for terminal 4xx, and
+  applying bounded exponential reconnect backoff. The authenticated transport
+  rejects non-canonical traversal/query/fragment/backslash paths; responses are
+  checked against their requested workspace/project scope; Problem bodies use
+  the Zod boundary.
+- Security findings were cleared by reauthorizing each SSE connection every 15
+  seconds, terminating silently on identity/permission drift, reading event
+  history with `seq > after` and a 200-event batch limit, applying bounded SSE
+  write deadlines, and validating project identifiers on every handler.
+  `secret_ref`, `workspace_ref`, and Evidence URI now require canonical opaque
+  UUID-backed references without userinfo, query, fragment, or credential-shaped
+  aliases. Human projection/Agent ID collisions fail closed, and only a Runner
+  Agent may attest sanitized Evidence.
+- Documentation findings were cleared by defining all 23 OpenAPI command
+  variants and their payload schemas, adding typed projection value schemas,
+  and updating the README to treat CI as explicitly deferred rather than a
+  current merge blocker.
+- Installed Go 1.26.1 temporarily under `/tmp` and ran the real backend module:
+  `go test ./...`, `go test -race ./...`, `go vet ./...`, and gofmt cleanliness
+  all passed. Core Team Control verification passed 4 files / 15 tests plus a
+  focused strict TypeScript compile. Views Team Control passed 1 file / 10
+  tests; the four `projects.team_control` objects have identical key shape.
+- The exact private base itself has pre-existing whole-package build/typecheck
+  failures across unmodified Agent/Runtime/Inbox/localization/Web route areas.
+  These are explicitly outside TC-W01 and are not repaired or represented as
+  passing. Docker remains unavailable. No workflow, required-check, Ruleset,
+  branch-protection, lockfile, or workspace configuration change is included.
+- S06 remains active. The remediated exact candidate must be published, frozen,
+  and independently re-reviewed before any ready-for-review or merge action.

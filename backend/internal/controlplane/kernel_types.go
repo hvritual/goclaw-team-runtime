@@ -58,6 +58,7 @@ type AppendResult struct {
 type KernelStore interface {
 	AppendCommand(context.Context, CommandEnvelope, []ProposedEvent) (AppendResult, error)
 	ListSessionEvents(context.Context, string, string) ([]SessionEvent, error)
+	ListSessionEventsAfter(context.Context, string, string, int64, int) ([]SessionEvent, error)
 	ProjectHead(context.Context, string, string) (int64, string, error)
 }
 

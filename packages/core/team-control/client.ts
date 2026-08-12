@@ -3,6 +3,7 @@ import { parseWithFallback } from "../api/schema";
 import {
   TeamControlAppendResultSchema,
   TeamControlMembersResponseSchema,
+  parseTeamControlProblem,
   TeamControlProjectionSchema,
   TeamControlSessionEventSchema,
   TeamControlWorkspaceResponseSchema,
@@ -72,6 +73,8 @@ export class TeamControlContractError extends Error {
   }
 }
 
+export { parseTeamControlProblem };
+
 export async function getTeamControlWorkspace(
   workspaceId: string,
 ): Promise<TeamControlWorkspaceResponse> {
@@ -79,12 +82,13 @@ export async function getTeamControlWorkspace(
   const response = await api.requestControlPlane(endpoint, {
     headers: { Accept: "application/json" },
   });
-  return parseWithFallback(
+  const parsed = parseWithFallback(
     await readJson(response),
     TeamControlWorkspaceResponseSchema,
     emptyWorkspace(workspaceId),
     { endpoint: "team-control.workspace" },
   );
+  return parsed.workspace.id === workspaceId ? parsed : emptyWorkspace(workspaceId);
 }
 
 export async function listTeamControlMembers(
@@ -94,12 +98,15 @@ export async function listTeamControlMembers(
   const response = await api.requestControlPlane(endpoint, {
     headers: { Accept: "application/json" },
   });
-  return parseWithFallback(
+  const parsed = parseWithFallback(
     await readJson(response),
     TeamControlMembersResponseSchema,
     emptyMembers(),
     { endpoint: "team-control.members" },
   );
+  return parsed.members.every((member) => member.workspace_id === workspaceId)
+    ? parsed
+    : emptyMembers();
 }
 
 export async function getTeamControlProjection(
@@ -110,12 +117,15 @@ export async function getTeamControlProjection(
   const response = await api.requestControlPlane(endpoint, {
     headers: { Accept: "application/json" },
   });
-  return parseWithFallback(
+  const parsed = parseWithFallback(
     await readJson(response),
     TeamControlProjectionSchema,
     emptyTeamControlProjection(workspaceId, projectId),
     { endpoint: "team-control.projection" },
   );
+  return parsed.workspace_id === workspaceId && parsed.project_id === projectId
+    ? parsed
+    : emptyTeamControlProjection(workspaceId, projectId);
 }
 
 export async function executeTeamControlCommand(
@@ -139,6 +149,9 @@ export async function executeTeamControlCommand(
   });
   const parsed = TeamControlAppendResultSchema.safeParse(await readJson(response));
   if (!parsed.success) throw new TeamControlContractError("team-control.command");
+  if (parsed.data.events.some((event) => event.workspace_id !== workspaceId || event.project_id !== projectId)) {
+    throw new TeamControlContractError("team-control.command.scope");
+  }
   return parsed.data;
 }
 
@@ -153,6 +166,7 @@ export interface TeamControlStreamOptions {
   after?: number;
   signal: AbortSignal;
   onOpen?: () => void;
+  onCursor?: (sequence: number) => void;
   onEvent: (event: TeamControlSessionEvent) => void;
 }
 
@@ -186,6 +200,7 @@ export async function streamTeamControlEvents(
         const event = parseSSEFrame(frame);
         if (!event || event.sequence <= cursor) continue;
         cursor = event.sequence;
+        options.onCursor?.(cursor);
         options.onEvent(event);
       }
       if (done) break;

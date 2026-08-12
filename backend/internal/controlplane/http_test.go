@@ -7,7 +7,9 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type flushingRecorder struct {
@@ -84,6 +86,22 @@ func TestHTTPCommandsProjectionAndProblems(t *testing.T) {
 	}
 }
 
+func TestHTTPCommandRejectsUnknownPayloadFields(t *testing.T) {
+	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "strict-payload.db"))
+	defer repository.Close()
+	service, _ := NewService(repository, nil)
+	flows, _ := NewP2Flows(kernel)
+	api, _ := NewHTTPAPI(service, kernel, flows, func(request *http.Request) (ResolvedIdentity, error) {
+		return ResolvedIdentity{Actor: Actor{ID: "owner-1", WorkspaceID: request.PathValue("workspace"), Kind: ActorHuman}}, nil
+	})
+	body := []byte(`{"type":"requirement.start","command_id":"command-1","expected_head":0,"payload":{"id":"requirement-1","text":"Need API","unexpected":"secret"}}`)
+	response := httptest.NewRecorder()
+	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader(body)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestHTTPEventStreamResumesAndDisconnects(t *testing.T) {
 	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "events.db"))
 	defer repository.Close()
@@ -118,5 +136,56 @@ func TestHTTPEventStreamResumesAndDisconnects(t *testing.T) {
 	}
 	if got := response.Header().Get("Content-Type"); got != "text/event-stream" {
 		t.Fatalf("content type = %q", got)
+	}
+}
+
+func TestHTTPEventStreamReauthorizesAndStopsAfterRevocation(t *testing.T) {
+	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "revoked-events.db"))
+	defer repository.Close()
+	service, _ := NewService(repository, nil)
+	flows, _ := NewP2Flows(kernel)
+	var resolutions atomic.Int32
+	api, err := NewHTTPAPI(service, kernel, flows, func(request *http.Request) (ResolvedIdentity, error) {
+		if resolutions.Add(1) > 1 {
+			return ResolvedIdentity{}, denied("test identity", "revoked")
+		}
+		return ResolvedIdentity{Actor: Actor{ID: "owner-1", WorkspaceID: request.PathValue("workspace"), Kind: ActorHuman}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	api.sseReauthorizeInterval = 10 * time.Millisecond
+	api.ssePollInterval = time.Hour
+	api.sseHeartbeatInterval = time.Hour
+	request := httptest.NewRequest(http.MethodGet, "/v1/workspaces/workspace-1/projects/project-1/events", nil)
+	response := &flushingRecorder{ResponseRecorder: httptest.NewRecorder(), flushed: make(chan struct{})}
+	done := make(chan struct{})
+	go func() { api.Handler().ServeHTTP(response, request); close(done) }()
+	<-response.flushed
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("event stream did not close after authorization was revoked")
+	}
+	if resolutions.Load() < 2 {
+		t.Fatalf("identity resolutions = %d, want reauthorization", resolutions.Load())
+	}
+}
+
+func TestSessionEventCursorQueryIsBounded(t *testing.T) {
+	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "bounded-events.db"))
+	defer repository.Close()
+	actor := Actor{ID: "owner-1", WorkspaceID: "workspace-1", Kind: ActorHuman}
+	for index := 0; index < 5; index++ {
+		if _, err := kernel.UpsertNode(context.Background(), actor, "command-"+string(rune('a'+index)), "project-1", int64(index), WorkNode{ID: "task-" + string(rune('a'+index)), Kind: "task", Revision: 1, State: "draft", CreatorID: actor.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	events, err := kernel.store.ListSessionEventsAfter(context.Background(), "workspace-1", "project-1", 2, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Sequence != 3 || events[1].Sequence != 4 {
+		t.Fatalf("events = %#v", events)
 	}
 }

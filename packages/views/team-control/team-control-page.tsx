@@ -4,11 +4,14 @@ import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import {
   isTeamControlConflict,
+  parseTeamControlProblem,
   teamControlMembersOptions,
   teamControlProjectionOptions,
   teamControlWorkspaceOptions,
   useTeamControlCommand,
   useTeamControlEvents,
+  createTeamControlCommandId,
+  TeamControlRunQueuePayloadSchema,
   type TeamControlCommandInput,
   type TeamControlConnectionState,
   type TeamControlWorkNode,
@@ -81,6 +84,7 @@ type ActionKind =
   | "run";
 
 interface ActionForm {
+  commandId: string;
   id: string;
   summary: string;
   detail: string;
@@ -92,6 +96,7 @@ interface ActionForm {
 }
 
 const emptyForm = (): ActionForm => ({
+  commandId: createTeamControlCommandId(),
   id: `item-${Date.now().toString(36)}`,
   summary: "",
   detail: "",
@@ -137,7 +142,12 @@ function canSubmitAction(action: ActionKind, form: ActionForm): boolean {
         && parseList(form.extra).length,
       );
     case "run":
-      return Boolean(form.detail.trim() && Number(form.valueA) >= 1);
+      return TeamControlRunQueuePayloadSchema.safeParse({
+        id: form.id,
+        workspace_ref: form.detail,
+        secret_refs: parseList(form.references),
+        max_attempts: Number(form.valueA),
+      }).success;
   }
 }
 
@@ -148,16 +158,18 @@ function buildCommand(
 ): TeamControlCommandInput {
   switch (action) {
     case "requirement":
-      return { type: "requirement.start", expectedHead, payload: { id: form.id, text: form.summary } };
+      return { type: "requirement.start", commandId: form.commandId, expectedHead, payload: { id: form.id, text: form.summary } };
     case "defect":
       return {
         type: "defect.create",
+        commandId: form.commandId,
         expectedHead,
         payload: { id: form.id, data: { summary: form.summary, severity: form.valueA, reproduction: form.detail } },
       };
     case "risk":
       return {
         type: "risk.create",
+        commandId: form.commandId,
         expectedHead,
         payload: {
           id: form.id,
@@ -173,12 +185,14 @@ function buildCommand(
     case "finding":
       return {
         type: "finding.create",
+        commandId: form.commandId,
         expectedHead,
         payload: { id: form.id, data: { rule_id: form.valueA, summary: form.summary, model_finding: false } },
       };
     case "knowledge":
       return {
         type: "knowledge.create",
+        commandId: form.commandId,
         expectedHead,
         payload: {
           id: form.id,
@@ -193,6 +207,7 @@ function buildCommand(
     case "run":
       return {
         type: "run.queue",
+        commandId: form.commandId,
         expectedHead,
         payload: {
           id: form.id,
@@ -221,10 +236,8 @@ function nodeLabel(node: TeamControlWorkNode): string {
 
 function friendlyError(error: unknown, requestFailed: (status: number) => string, unknownError: string): string {
   if (error instanceof ApiError) {
-    const detail = error.body && typeof error.body === "object"
-      ? (error.body as { detail?: unknown }).detail
-      : undefined;
-    if (typeof detail === "string") return detail;
+    const detail = parseTeamControlProblem(error.body)?.detail;
+    if (detail) return detail;
     return requestFailed(error.status);
   }
   return error instanceof Error ? error.message : unknownError;
@@ -331,7 +344,10 @@ export function TeamControlView({ workspaceId, projectId }: { workspaceId: strin
       teamControlProjectionOptions(workspaceId, projectId),
     ],
   });
-  const connection = useTeamControlEvents(workspaceId, projectId);
+  const connection = useTeamControlEvents(workspaceId, projectId, {
+    enabled: Boolean(projectionQuery.data) && !projectionQuery.error,
+    initialCursor: projectionQuery.data?.head,
+  });
   const command = useTeamControlCommand(workspaceId, projectId);
   const [action, setAction] = useState<ActionKind | null>(null);
   const [form, setForm] = useState<ActionForm>(emptyForm);
@@ -399,8 +415,9 @@ export function TeamControlView({ workspaceId, projectId }: { workspaceId: strin
     return <ProjectionSkeleton />;
   }
 
-  if (projectionQuery.error) {
-    const denied = projectionQuery.error instanceof ApiError && projectionQuery.error.status === 403;
+  const queryError = projectionQuery.error ?? workspaceQuery.error ?? membersQuery.error;
+  if (queryError) {
+    const denied = queryError instanceof ApiError && queryError.status === 403;
     return (
       <div className="flex flex-1 items-center justify-center p-4 md:p-6">
         <Alert variant="destructive" className="max-w-xl">
@@ -412,7 +429,7 @@ export function TeamControlView({ workspaceId, projectId }: { workspaceId: strin
             {denied
               ? t(($) => $.team_control.errors.denied_description)
               : friendlyError(
-                  projectionQuery.error,
+                  queryError,
                   (status) => t(($) => $.team_control.errors.request_failed, { status }),
                   t(($) => $.team_control.errors.unknown),
                 )}
@@ -573,7 +590,15 @@ export function TeamControlView({ workspaceId, projectId }: { workspaceId: strin
                 <CardAction><Users /></CardAction>
               </CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {(membersQuery.data?.members ?? []).map((member) => (
+                {(membersQuery.data?.members ?? []).length === 0 ? (
+                  <Empty className="sm:col-span-2 lg:col-span-3">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon"><Users /></EmptyMedia>
+                      <EmptyTitle>{t(($) => $.team_control.members.empty_title)}</EmptyTitle>
+                      <EmptyDescription>{t(($) => $.team_control.members.empty_description)}</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                ) : (membersQuery.data?.members ?? []).map((member) => (
                   <div key={member.id} className="flex min-w-0 items-center gap-3 rounded-lg border p-3">
                     {member.kind === "agent" ? <Bot className="shrink-0" /> : <Users className="shrink-0" />}
                     <div className="min-w-0 flex-1">
@@ -658,12 +683,10 @@ function ActionDialog({
             <Input id="team-control-id" value={form.id} onChange={(event) => set("id", event.target.value)} required />
             <FieldDescription>{t(($) => $.team_control.actions.id_description)}</FieldDescription>
           </Field>
-          <Field>
-            <FieldLabel htmlFor="team-control-summary">{action === "run"
-              ? t(($) => $.team_control.actions.run_label)
-              : t(($) => $.team_control.actions.summary)}</FieldLabel>
-            <Input id="team-control-summary" value={form.summary} onChange={(event) => set("summary", event.target.value)} required={action !== "run"} />
-          </Field>
+          {action !== "run" ? <Field>
+            <FieldLabel htmlFor="team-control-summary">{t(($) => $.team_control.actions.summary)}</FieldLabel>
+            <Input id="team-control-summary" value={form.summary} onChange={(event) => set("summary", event.target.value)} required />
+          </Field> : null}
           {action === "defect" ? (
             <>
               <Field>

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-const IdentifierSchema = z.string().min(1).max(64);
-const TimestampSchema = z.string().min(1);
+const IdentifierSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/);
+const TimestampSchema = z.string().datetime({ offset: true });
 
 export const TeamControlWorkspaceSchema = z.object({
   id: IdentifierSchema,
@@ -64,6 +64,16 @@ export const TeamControlEvidenceSchema = z.object({
   sanitized: z.boolean(),
   captured_at: TimestampSchema,
 }).loose();
+
+const WorktreeReferenceSchema = z.string().regex(/^worktree:\/\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}(\/[A-Za-z0-9][A-Za-z0-9._-]{0,63})*$/);
+const SecretReferenceSchema = z.string().regex(/^secret:\/\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}\/[0-9a-fA-F-]{36}$/);
+
+export const TeamControlRunQueuePayloadSchema = z.object({
+  id: IdentifierSchema,
+  workspace_ref: WorktreeReferenceSchema,
+  secret_refs: z.array(SecretReferenceSchema),
+  max_attempts: z.number().int().positive(),
+}).strict();
 
 export const TeamControlCheckSchema = z.object({
   id: IdentifierSchema,
@@ -129,3 +139,8 @@ export const TeamControlProblemSchema = z.object({
   detail: z.string(),
   field: z.string().optional(),
 }).loose();
+
+export function parseTeamControlProblem(value: unknown) {
+  const parsed = TeamControlProblemSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}

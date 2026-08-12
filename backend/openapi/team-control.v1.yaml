@@ -172,46 +172,266 @@ components:
         project_id: { $ref: '#/components/schemas/Identifier' }
         head: { type: integer, minimum: 0 }
         head_hash: { type: string }
-        nodes: { type: object, additionalProperties: true }
-        edges: { type: object, additionalProperties: true }
-        evidence: { type: object, additionalProperties: true }
-        checks: { type: object, additionalProperties: true }
-        acceptances: { type: object, additionalProperties: true }
-    CommandRequest:
+        nodes: { type: object, additionalProperties: { $ref: '#/components/schemas/WorkNode' } }
+        edges: { type: object, additionalProperties: { $ref: '#/components/schemas/WorkEdge' } }
+        evidence: { type: object, additionalProperties: { $ref: '#/components/schemas/EvidenceRef' } }
+        checks: { type: object, additionalProperties: { type: array, items: { $ref: '#/components/schemas/CheckResult' } } }
+        acceptances: { type: object, additionalProperties: { $ref: '#/components/schemas/Acceptance' } }
+    WorkNode:
       type: object
       additionalProperties: false
-      required: [type, command_id, expected_head, payload]
+      required: [id, kind, revision, state, creator_id, assignee_ids, executor_ids]
       properties:
-        type:
-          enum:
-            - requirement.start
-            - requirement.intent
-            - requirement.solution
-            - requirement.freeze
-            - requirement.change
-            - requirement.task
-            - defect.create
-            - risk.create
-            - quality.close
-            - finding.create
-            - finding.resolve
-            - knowledge.create
-            - knowledge.publish
-            - knowledge.invalidate
-            - run.queue
-            - run.claim
-            - run.heartbeat
-            - run.complete
-            - run.cancel
-            - run.retry
-            - evidence.attach
-            - check.record
-            - done.accept
+        id: { $ref: '#/components/schemas/Identifier' }
+        kind: { type: string, minLength: 1 }
+        revision: { type: integer, minimum: 1 }
+        state: { type: string, minLength: 1 }
+        creator_id: { $ref: '#/components/schemas/Identifier' }
+        assignee_ids: { type: array, items: { $ref: '#/components/schemas/Identifier' } }
+        executor_ids: { type: array, items: { $ref: '#/components/schemas/Identifier' } }
+        data: {}
+    WorkEdge:
+      type: object
+      additionalProperties: false
+      required: [id, from, to, kind]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        from: { $ref: '#/components/schemas/Identifier' }
+        to: { $ref: '#/components/schemas/Identifier' }
+        kind: { enum: [depends_on, blocks, trace] }
+    EvidenceRef:
+      type: object
+      additionalProperties: false
+      required: [id, subject_id, kind, uri, sha256, size, media_type, produced_by, sanitized, captured_at]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        subject_id: { $ref: '#/components/schemas/Identifier' }
+        kind: { type: string, minLength: 1 }
+        uri: { type: string, pattern: '^artifact://[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[0-9a-fA-F-]{36}$' }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        size: { type: integer, minimum: 0 }
+        media_type: { type: string, minLength: 1 }
+        produced_by: { $ref: '#/components/schemas/Identifier' }
+        run_id: { $ref: '#/components/schemas/Identifier' }
+        sanitized: { const: true }
+        captured_at: { type: string, format: date-time }
+    CheckResult:
+      type: object
+      additionalProperties: false
+      required: [id, policy_id, subject_id, revision, outcome, evidence_ids, checker_id, deterministic, recorded_at]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        policy_id: { $ref: '#/components/schemas/Identifier' }
+        subject_id: { $ref: '#/components/schemas/Identifier' }
+        revision: { type: integer, minimum: 1 }
+        outcome: { enum: [passed, failed] }
+        evidence_ids: { type: array, items: { $ref: '#/components/schemas/Identifier' } }
+        checker_id: { $ref: '#/components/schemas/Identifier' }
+        deterministic: { type: boolean }
+        recorded_at: { type: string, format: date-time }
+    Acceptance:
+      type: object
+      additionalProperties: false
+      required: [subject_id, revision, acceptor_id, policy_ids, accepted_at]
+      properties:
+        subject_id: { $ref: '#/components/schemas/Identifier' }
+        revision: { type: integer, minimum: 1 }
+        acceptor_id: { $ref: '#/components/schemas/Identifier' }
+        policy_ids: { type: array, minItems: 1, items: { type: string, minLength: 1 } }
+        accepted_at: { type: string, format: date-time }
+    CommandRequest:
+      unevaluatedProperties: false
+      oneOf:
+        - $ref: '#/components/schemas/RequirementStartCommand'
+        - $ref: '#/components/schemas/RequirementIntentCommand'
+        - $ref: '#/components/schemas/RequirementSolutionCommand'
+        - $ref: '#/components/schemas/RequirementFreezeCommand'
+        - $ref: '#/components/schemas/RequirementChangeCommand'
+        - $ref: '#/components/schemas/RequirementTaskCommand'
+        - $ref: '#/components/schemas/DefectCreateCommand'
+        - $ref: '#/components/schemas/RiskCreateCommand'
+        - $ref: '#/components/schemas/QualityCloseCommand'
+        - $ref: '#/components/schemas/FindingCreateCommand'
+        - $ref: '#/components/schemas/FindingResolveCommand'
+        - $ref: '#/components/schemas/KnowledgeCreateCommand'
+        - $ref: '#/components/schemas/KnowledgePublishCommand'
+        - $ref: '#/components/schemas/KnowledgeInvalidateCommand'
+        - $ref: '#/components/schemas/RunQueueCommand'
+        - $ref: '#/components/schemas/RunClaimCommand'
+        - $ref: '#/components/schemas/RunHeartbeatCommand'
+        - $ref: '#/components/schemas/RunCompleteCommand'
+        - $ref: '#/components/schemas/RunCancelCommand'
+        - $ref: '#/components/schemas/RunRetryCommand'
+        - $ref: '#/components/schemas/EvidenceAttachCommand'
+        - $ref: '#/components/schemas/CheckRecordCommand'
+        - $ref: '#/components/schemas/DoneAcceptCommand'
+      discriminator:
+        propertyName: type
+    CommandBase:
+      type: object
+      required: [command_id, expected_head]
+      properties:
         command_id: { $ref: '#/components/schemas/Identifier' }
         expected_head: { type: integer, minimum: 0 }
-        payload:
+    IDTextPayload:
+      type: object
+      additionalProperties: false
+      required: [id, text]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        text: { type: string, minLength: 1 }
+    DonePayload:
+      type: object
+      additionalProperties: false
+      required: [subject_id, revision]
+      properties:
+        subject_id: { $ref: '#/components/schemas/Identifier' }
+        revision: { type: integer, minimum: 1 }
+        policies: { type: array, items: { type: string, minLength: 1 }, uniqueItems: true }
+    IDOnlyPayload:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+    RequirementTaskPayload:
+      type: object
+      additionalProperties: false
+      required: [requirement_id, task_id, assignee_id, edge_command_id]
+      properties:
+        requirement_id: { $ref: '#/components/schemas/Identifier' }
+        task_id: { $ref: '#/components/schemas/Identifier' }
+        assignee_id: { $ref: '#/components/schemas/Identifier' }
+        edge_command_id: { $ref: '#/components/schemas/Identifier' }
+    DefectCreatePayload:
+      type: object
+      additionalProperties: false
+      required: [id, data]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        data:
           type: object
-          description: Command-specific payload validated by the Delivery Kernel.
+          additionalProperties: false
+          required: [summary, severity, reproduction]
+          properties:
+            summary: { type: string, minLength: 1 }
+            severity: { enum: [critical, high, medium, low] }
+            reproduction: { type: string, minLength: 1 }
+    RiskCreatePayload:
+      type: object
+      additionalProperties: false
+      required: [id, data]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        data:
+          type: object
+          additionalProperties: false
+          required: [summary, probability, impact, response_plan, review_due_at]
+          properties:
+            summary: { type: string, minLength: 1 }
+            probability: { type: integer, minimum: 1, maximum: 5 }
+            impact: { type: integer, minimum: 1, maximum: 5 }
+            response_plan: { type: string, minLength: 1 }
+            review_due_at: { type: string, format: date-time }
+    FindingCreatePayload:
+      type: object
+      additionalProperties: false
+      required: [id, data]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        data:
+          type: object
+          additionalProperties: false
+          required: [rule_id, summary, model_finding]
+          properties:
+            rule_id: { $ref: '#/components/schemas/Identifier' }
+            summary: { type: string, minLength: 1 }
+            model_finding: { type: boolean }
+    KnowledgeCreatePayload:
+      type: object
+      additionalProperties: false
+      required: [id, data]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        data:
+          type: object
+          additionalProperties: false
+          required: [title, source_ids, evidence_ids, dedup_key]
+          properties:
+            title: { type: string, minLength: 1 }
+            source_ids: { type: array, minItems: 1, items: { $ref: '#/components/schemas/Identifier' } }
+            evidence_ids: { type: array, minItems: 1, items: { $ref: '#/components/schemas/Identifier' } }
+            dedup_key: { type: string, minLength: 1 }
+    RunQueuePayload:
+      type: object
+      additionalProperties: false
+      required: [id, workspace_ref, secret_refs, max_attempts]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        workspace_ref: { type: string, pattern: '^worktree://[A-Za-z0-9][A-Za-z0-9._-]{0,63}(/[A-Za-z0-9][A-Za-z0-9._-]{0,63})*$' }
+        secret_refs:
+          type: array
+          items: { type: string, pattern: '^secret://[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[0-9a-fA-F-]{36}$' }
+        max_attempts: { type: integer, minimum: 1 }
+    LeasePayload:
+      type: object
+      additionalProperties: false
+      required: [id, lease_seconds]
+      properties:
+        id: { $ref: '#/components/schemas/Identifier' }
+        lease_seconds: { type: integer, minimum: 1 }
+    CommandVariant:
+      type: object
+      required: [type, payload]
+    RequirementStartCommand: { $ref: '#/components/schemas/RequirementTextCommand' }
+    RequirementIntentCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.intent }, payload: { $ref: '#/components/schemas/IDTextPayload' } } }]
+    RequirementSolutionCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.solution }, payload: { $ref: '#/components/schemas/IDTextPayload' } } }]
+    RequirementChangeCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.change }, payload: { $ref: '#/components/schemas/IDTextPayload' } } }]
+    RequirementTextCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.start }, payload: { $ref: '#/components/schemas/IDTextPayload' } } }]
+    RequirementFreezeCommand: { $ref: '#/components/schemas/RequirementDoneCommand' }
+    RequirementDoneCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.freeze }, payload: { $ref: '#/components/schemas/DonePayload' } } }]
+    RequirementTaskCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: requirement.task }, payload: { $ref: '#/components/schemas/RequirementTaskPayload' } } }]
+    DefectCreateCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: defect.create }, payload: { $ref: '#/components/schemas/DefectCreatePayload' } } }]
+    RiskCreateCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: risk.create }, payload: { $ref: '#/components/schemas/RiskCreatePayload' } } }]
+    QualityCloseCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: quality.close }, payload: { $ref: '#/components/schemas/DonePayload' } } }]
+    FindingCreateCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: finding.create }, payload: { $ref: '#/components/schemas/FindingCreatePayload' } } }]
+    FindingResolveCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: finding.resolve }, payload: { $ref: '#/components/schemas/DonePayload' } } }]
+    KnowledgeCreateCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: knowledge.create }, payload: { $ref: '#/components/schemas/KnowledgeCreatePayload' } } }]
+    KnowledgePublishCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: knowledge.publish }, payload: { $ref: '#/components/schemas/DonePayload' } } }]
+    KnowledgeInvalidateCommand: { $ref: '#/components/schemas/KnowledgeIDCommand' }
+    KnowledgeIDCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: knowledge.invalidate }, payload: { $ref: '#/components/schemas/IDOnlyPayload' } } }]
+    RunQueueCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.queue }, payload: { $ref: '#/components/schemas/RunQueuePayload' } } }]
+    RunClaimCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.claim }, payload: { $ref: '#/components/schemas/LeasePayload' } } }]
+    RunHeartbeatCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.heartbeat }, payload: { $ref: '#/components/schemas/LeasePayload' } } }]
+    RunCompleteCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.complete }, payload: { $ref: '#/components/schemas/IDOnlyPayload' } } }]
+    RunCancelCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.cancel }, payload: { $ref: '#/components/schemas/IDOnlyPayload' } } }]
+    RunRetryCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: run.retry }, payload: { $ref: '#/components/schemas/IDOnlyPayload' } } }]
+    EvidenceAttachCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: evidence.attach }, payload: { $ref: '#/components/schemas/EvidenceRef' } } }]
+    CheckRecordCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: check.record }, payload: { $ref: '#/components/schemas/CheckResult' } } }]
+    DoneAcceptCommand:
+      allOf: [{ $ref: '#/components/schemas/CommandBase' }, { type: object, required: [type, payload], properties: { type: { const: done.accept }, payload: { allOf: [{ $ref: '#/components/schemas/DonePayload' }], required: [policies] } } }]
     AppendResult:
       type: object
       required: [events, head, head_hash, replayed]

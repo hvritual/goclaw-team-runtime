@@ -7,6 +7,7 @@ export {
   getTeamControlWorkspace,
   listTeamControlMembers,
   parseSSEFrame,
+  parseTeamControlProblem,
   streamTeamControlEvents,
 } from "./client";
 export {
@@ -20,6 +21,7 @@ export {
   teamControlWorkspaceOptions,
 } from "./queries";
 export { useTeamControlEvents } from "./use-events";
+export { TeamControlRunQueuePayloadSchema } from "./schemas";
 export type {
   TeamControlAcceptance,
   TeamControlAppendResult,

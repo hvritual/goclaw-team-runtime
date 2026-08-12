@@ -51,6 +51,17 @@ describe("Team Control authenticated client", () => {
     );
   });
 
+  it.each(["/v1/../../api/me", "/v1/workspaces/ws-1?token=x", "/v1\\..\\api/me"])(
+    "rejects a non-canonical control-plane path: %s",
+    async (path) => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+      const client = new ApiClient("https://api.example.test");
+      await expect(client.requestControlPlane(path)).rejects.toThrow("normalized /v1/ path");
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("degrades a malformed projection to a scoped empty projection", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ nodes: "wrong" }), { status: 200 }),

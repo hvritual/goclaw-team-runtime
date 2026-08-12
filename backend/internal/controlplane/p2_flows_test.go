@@ -29,7 +29,7 @@ func TestRequirementFourReviewFreezeAndChangeIntent(t *testing.T) {
 	if _, err := flows.ProposeSolution(ctx, creator, "command-3", "project-1", 2, "requirement-1", "ADR-001 typed kernel"); err != nil {
 		t.Fatal(err)
 	}
-	evidence := EvidenceRef{ID: "evidence-1", SubjectID: "requirement-1", Kind: "review-pack", URI: "artifact://review/pack.json", SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Size: 100, MediaType: "application/json", ProducedBy: runner.ID, Sanitized: true}
+	evidence := EvidenceRef{ID: "evidence-1", SubjectID: "requirement-1", Kind: "review-pack", URI: "artifact://review/11111111-1111-4111-8111-111111111111", SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", Size: 100, MediaType: "application/json", ProducedBy: runner.ID, Sanitized: true}
 	if _, err := kernel.AttachEvidence(ctx, runner, "command-4", "project-1", 3, evidence); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestQualityKnowledgeAndRunBoundaries(t *testing.T) {
 	if _, err := flows.QueueRun(ctx, creator, "command-3", "project-1", 1, "run-1", "worktree://task-1", []string{"raw-token"}, 2); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("raw secret error = %v", err)
 	}
-	if _, err := flows.QueueRun(ctx, creator, "command-4", "project-1", 1, "run-1", "worktree://task-1", []string{"secret://github/token"}, 2); err != nil {
+	if _, err := flows.QueueRun(ctx, creator, "command-4", "project-1", 1, "run-1", "worktree://task-1", []string{"secret://github/11111111-1111-4111-8111-111111111111"}, 2); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := flows.ClaimRun(ctx, runner, "command-5", "project-1", 2, "run-1", time.Minute); err != nil {
@@ -91,7 +91,7 @@ func TestQualityKnowledgeAndRunBoundaries(t *testing.T) {
 	if _, err := flows.ClaimRun(ctx, Actor{ID: "agent-2", WorkspaceID: "workspace-1", Kind: ActorAgent}, "command-6", "project-1", 3, "run-1", time.Minute); !errors.Is(err, ErrConflict) {
 		t.Fatalf("double claim error = %v", err)
 	}
-	runEvidence := EvidenceRef{ID: "run-evidence-1", SubjectID: "run-1", Kind: "execution-log", URI: "artifact://run-1/log.json", SHA256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", Size: 10, MediaType: "application/json", ProducedBy: runner.ID, Sanitized: true}
+	runEvidence := EvidenceRef{ID: "run-evidence-1", SubjectID: "run-1", Kind: "execution-log", URI: "artifact://runner/22222222-2222-4222-8222-222222222222", SHA256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", Size: 10, MediaType: "application/json", ProducedBy: runner.ID, Sanitized: true}
 	if _, err := kernel.AttachEvidence(ctx, runner, "command-7", "project-1", 3, runEvidence); err != nil {
 		t.Fatal(err)
 	}
@@ -104,5 +104,27 @@ func TestQualityKnowledgeAndRunBoundaries(t *testing.T) {
 	}
 	if projection.Nodes["run-1"].State != "validation" {
 		t.Fatalf("run = %#v", projection.Nodes["run-1"])
+	}
+}
+
+func TestRunReferencesRejectCredentialShapedOrNonCanonicalValues(t *testing.T) {
+	kernel, repository := openTestKernel(t, filepath.Join(t.TempDir(), "references.db"))
+	defer repository.Close()
+	flows, _ := NewP2Flows(kernel)
+	actor := Actor{ID: "creator-1", WorkspaceID: "workspace-1", Kind: ActorHuman}
+	badSecrets := []string{
+		"secret://", "secret://github/token", "secret://ghp_example", "secret://user@github/11111111-1111-4111-8111-111111111111",
+		"secret://github/11111111-1111-4111-8111-111111111111?token=x", "secret://github/11111111-1111-4111-8111-111111111111#token",
+	}
+	for index, secret := range badSecrets {
+		if _, err := flows.QueueRun(context.Background(), actor, "bad-secret-"+string(rune('a'+index)), "project-1", 0, "run-bad", "worktree://task-1", []string{secret}, 1); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("secret %q error = %v, want invalid", secret, err)
+		}
+	}
+	badWorkspaces := []string{"https://user:token@example.test/repo", "worktree://task-1?token=x", "worktree://task-1#token", "worktree://"}
+	for index, workspace := range badWorkspaces {
+		if _, err := flows.QueueRun(context.Background(), actor, "bad-workspace-"+string(rune('a'+index)), "project-1", 0, "run-bad", workspace, nil, 1); !errors.Is(err, ErrInvalid) {
+			t.Fatalf("workspace %q error = %v, want invalid", workspace, err)
+		}
 	}
 }

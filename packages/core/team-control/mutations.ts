@@ -1,14 +1,15 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, errorCode } from "../api/client";
+import { ApiError } from "../api/client";
 import { executeTeamControlCommand } from "./client";
+import { parseTeamControlProblem } from "./schemas";
 import { teamControlKeys } from "./queries";
 import type { TeamControlCommandInput } from "./types";
 
 export function isTeamControlConflict(error: unknown): boolean {
   return error instanceof ApiError
-    && (error.status === 409 || errorCode(error) === "conflict");
+    && (error.status === 409 || parseTeamControlProblem(error.body)?.code === "conflict");
 }
 
 export function useTeamControlCommand(
