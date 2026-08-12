@@ -49,3 +49,29 @@
   commit tree API with expected-Head checks because `gh` and private clone
   credentials are unavailable locally.
 - Activated `TC-W01-S03` under Task Revision `r003`.
+
+## 2026-08-12 — TC-W01-S03 implemented and verified
+
+- Added defensive Zod schemas and safe read fallbacks for workspace, members,
+  project projection, nodes, edges, Evidence, Checks, acceptances, events, and
+  append results. Malformed command success responses fail explicitly instead
+  of fabricating authoritative state.
+- Extended the existing `ApiClient` with a path-constrained control-plane
+  transport so Web cookies, Desktop bearer credentials, HMAC CSRF, request
+  identity, and unauthorized handling remain shared. No token is placed in an
+  EventSource URL or stored by Team Control.
+- Added fully scoped React Query keys and options for workspace, members, and
+  project projection. Concurrent identical reads are deduplicated by React
+  Query.
+- Added command mutation handling with no optimistic governed-state update.
+  Success invalidates the exact projection; a 409/`conflict` also invalidates
+  and preserves the error for an explicit user retry.
+- Added an authenticated fetch-stream SSE parser and lifecycle hook with
+  `Last-Event-ID` resume, abort cleanup, reconnect state, malformed-event
+  rejection, and exact workspace/project projection invalidation only.
+- Focused Core verification passed: 4 files / 10 tests and TypeScript
+  `tsc --noEmit`.
+- The dependency install required a temporary non-frozen lock update because
+  the public verification baseline has a pnpm override mismatch. No lockfile or
+  workspace configuration change is part of the TC-W01 candidate.
+- Activated `TC-W01-S04`.
