@@ -113,3 +113,34 @@
   no Team Control diagnostic. S05 will perform app build and browser-level
   verification after supplying a temporary validation-only dependency link.
 - Activated `TC-W01-S05`. CI and workflow files remain explicitly excluded.
+
+## 2026-08-12 — TC-W01-S05 locally verified; CI deferred
+
+- Added a production-rendered Playwright specification for the shared Web
+  route. It validates governed projection render, keyboard tab focus,
+  accessible dialog labels, CAS 409 refresh with preserved form input, scoped
+  SSE refresh, a non-enumerating 403 state, and no document overflow at a
+  390-by-844 viewport.
+- Playwright passed all 3 tests against the optimized Next production build.
+  The container had no preinstalled browser and the official download endpoint
+  failed certificate validation, so a temporary Chromium package was unpacked
+  under `/tmp`; no browser, dependency, lockfile, or test configuration change
+  is part of the candidate.
+- Web production build passed and its final route table contains
+  `/[workspaceSlug]/projects/[id]/control`. Desktop Electron/Vite production
+  build passed for main, preload, and renderer; the optional CLI bundle was
+  skipped because Go is absent and Desktop retains its existing runtime
+  fallback.
+- Core, Views, and Web TypeScript checks passed after a temporary
+  validation-only `hast` type link. Desktop's direct raw TypeScript invocation
+  still reports its public-baseline Vite `ImportMeta.env` and asset declaration
+  gaps, while the authoritative Electron/Vite production build passes.
+- Focused ESLint passes with zero errors across Core, Views, Web, Desktop, and
+  Team Control tests. The only warning remains the pre-existing
+  `ProjectDetail` effect dependency warning.
+- Go and Docker are not installed in this execution environment, so backend
+  race and Docker-image checks were not rerun locally. The prior backend
+  deterministic and race evidence remains recorded under S02; Docker runtime
+  verification is an explicit residual rather than an inferred pass.
+- Per the user's instruction, no workflow, required-check, Ruleset, or other CI
+  change was made. Activated `TC-W01-S06` for independent four-domain review.
