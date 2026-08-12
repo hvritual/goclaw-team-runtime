@@ -1,6 +1,6 @@
 # System
 
-系统（System）是智能体可发布/升级的软件版本和全局 skill 目录的上下文。它不拥有团队成员资格、智能体身份或工作区内的启用配置。智能体执行生命周期的业务归属尚未确认。
+系统（System）是智能体可发布/升级的软件版本和全局 skill 目录的上下文。它不拥有团队成员资格、智能体身份、工作区内的启用配置或智能体执行生命周期；Run、Lease、Heartbeat、Attempt、Retry 与 Cancellation 由 Execution/Runtime Context 拥有。
 
 ## Language
 
@@ -27,3 +27,10 @@ _Avoid_: Skill Definition、Asset Version
 **Skill Publication**:
 使一个 skill 版本可被工作区引用的业务事实。
 _Avoid_: Workspace Enablement
+
+
+## Runtime boundary
+
+- System 发布不可变 Agent Release、Agent Version 与 Skill Version。
+- Execution/Runtime 在 Run 创建时固定这些版本，只解析和执行，不发布、升级或改写它们。
+- System 不拥有 Run、Attempt、Lease、Heartbeat、Retry、Cancellation 或执行 Evidence 的业务语义。

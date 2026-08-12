@@ -2,15 +2,64 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - codex/multica-six-domain-baseline
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - codex/multica-six-domain-baseline
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  governance:
+    name: governance-policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Enforce immutable legacy server boundary
+        run: backend/ci/check-policy.sh
+
+  canonical_backend:
+    name: canonical-backend
+    needs: governance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Deterministic canonical backend checks
+        working-directory: backend
+        run: make check
+
+      - name: Canonical backend race tests
+        working-directory: backend
+        run: make test-race
+
   # Decides whether the (heavy, ~6min) frontend job has anything to do.
   # The frontend job validates the web/desktop apps, the shared packages,
   # the install graph, and the selfhost / reserved-slugs scripts it runs;
@@ -159,7 +208,12 @@ jobs:
         # ~50s of expo-lint + tsc to every web/desktop PR. Keep this
         # filter in sync with the root package.json scripts, which also
         # exclude @multica/mobile.
-        run: pnpm exec turbo build typecheck lint --filter='!@multica/docs' --filter='!@multica/mobile'
+        run: |
+          filters=("--filter=!@multica/docs")
+          if [ -d apps/mobile ]; then
+            filters+=("--filter=!@multica/mobile")
+          fi
+          pnpm exec turbo build typecheck lint "${filters[@]}"
 
   frontend-test:
     needs: changes
@@ -210,7 +264,12 @@ jobs:
         # job's responsibility -- frontend-build owns the `typecheck` task.
         # `test` reaches dependency sources through the hash-only
         # `^cache-inputs` edge (see turbo.json), so no `tsc` runs here.
-        run: pnpm exec turbo test --filter='!@multica/docs' --filter='!@multica/mobile'
+        run: |
+          filters=("--filter=!@multica/docs")
+          if [ -d apps/mobile ]; then
+            filters+=("--filter=!@multica/mobile")
+          fi
+          pnpm exec turbo test "${filters[@]}"
 
   # Aggregate gate. `frontend` is the status-check name the repository's
   # branch rules refer to, so it has to survive the split above: this job
@@ -238,7 +297,9 @@ jobs:
             exit 1
           fi
 
-  backend:
+  legacy_backend:
+    name: legacy-server-regression
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -331,6 +392,7 @@ jobs:
         run: bash scripts/test-go.sh --race
 
   windows-execenv:
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     # The environment-preparation deadline owns a process tree, not just a Go
     # process. This Windows runtime test verifies Job Object cancellation kills
     # a delayed descendant before an immediate retry can reuse the same root.
@@ -349,7 +411,7 @@ jobs:
         working-directory: server
         # Keep this job scoped to the runtime regression it exists to prove.
         # The package's legacy OpenClaw HOME tests are not Windows-safe and are
-        # outside this PR; the normal backend job still runs the full package.
+        # outside this PR; the legacy server regression job still runs the full package.
         run: go test ./internal/daemon/execenv -run '^TestPrepareIsolated_WindowsKillsDescendantBeforeRetry$' -count=1 -timeout=5m
 
       - name: Test Windows agent launcher argv/stdin handling
@@ -360,9 +422,9 @@ jobs:
         # Legacy native argument passing (powershell.exe 5.1, pwsh <= 7.2) a
         # prompt holding embedded quotes is re-tokenised and fragments like
         # `-X` become flags (#5649). Only a real PowerShell host proves this,
-        # so it cannot live in the ubuntu backend job. Scoped to the launcher
+        # so it cannot live in the ubuntu legacy server regression job. Scoped to the launcher
         # tests, which are windows-tagged and therefore run nowhere else today;
-        # the backend job still runs the full package on Linux.
+        # the legacy server regression job still runs the full package on Linux.
         # -v so a silent skip (no PowerShell host resolved, or a -run pattern
         # that stops matching) is visible in the log instead of passing as "ok".
         run: go test ./pkg/agent -v -run '^(TestCursorExecutePromptSurvivesPowerShellShim|TestPlatformCursorInvocation|TestPlatformCopilotInvocation|TestPlatformPiInvocation)' -count=1 -timeout=5m
@@ -389,7 +451,7 @@ jobs:
         # TEMP/TMP are NOT load-bearing (the originally reported root cause,
         # since retracted upstream).
         # Scoped to the windows-tagged shim tests — the package's legacy
-        # OpenClaw HOME tests are not Windows-safe; the backend job still runs
+        # OpenClaw HOME tests are not Windows-safe; the legacy server regression job still runs
         # the full package plus the cross-platform half on Linux.
         # -v so a skip (no node on the runner) is visible instead of passing
         # silently as "ok".
@@ -400,6 +462,7 @@ jobs:
         run: go build ./cmd/multica
 
   installer:
+    if: ${{ github.base_ref == 'main' || github.ref == 'refs/heads/main' }}
     # Stub-driven shell tests for scripts/install.sh. Kept off the heavy
     # backend job so installer regressions surface independently, and
     # exercised on macOS too because the installer targets macOS/Homebrew
@@ -415,3 +478,33 @@ jobs:
 
       - name: Test shell installers
         run: bash scripts/install.test.sh
+
+
+  required:
+    name: required
+    needs: [governance, canonical_backend, frontend]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Aggregate required validation
+        env:
+          GOVERNANCE_RESULT: ${{ needs.governance.result }}
+          CANONICAL_BACKEND_RESULT: ${{ needs.canonical_backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+        run: |
+          failed=0
+          for result in \
+            "governance:$GOVERNANCE_RESULT" \
+            "canonical-backend:$CANONICAL_BACKEND_RESULT" \
+            "frontend:$FRONTEND_RESULT"
+          do
+            echo "$result"
+            case "$result" in
+              *:success) ;;
+              *) failed=1 ;;
+            esac
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::one or more required validation jobs failed or were skipped"
+            exit 1
+          fi

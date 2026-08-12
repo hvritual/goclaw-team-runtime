@@ -8,13 +8,19 @@ Guidance for Claude Code when working in this repository. Keep this file short a
 requests on it; treat `main` and historical `agent/*` branches only as
 migration sources or audit history.
 
-Every backend change must first read `backend/AGENTS.md` and use `backend/`
-as the reference implementation for contracts, package boundaries, layout, and
-tests. Do not carry legacy root-level `teamcontrol/`, `gateway/`,
+Every backend change must first read `backend/AGENTS.md`. `backend/**` is
+the only writable backend implementation root. `server/**` is permanently
+read-only migration evidence: no plan, task, compatibility need, test,
+generator, or review can authorize a change there. When behavior exists only in
+`server/**`, inspect it and port it into `backend/**` under a versioned plan
+with tests; never patch, synchronize, mirror, refactor, extend, generate into,
+or delete from the legacy tree. Every candidate diff containing a
+`server/**` path must fail before deterministic checks, review, merge, or
+DoneGate.
+
+Do not carry legacy root-level `teamcontrol/`, `gateway/`,
 `workstation/`, or other backend trees forward by merging them unchanged.
-Port still-required behavior into the canonical backend under an approved
-versioned plan. A plan that changes backend code outside `backend/` must
-explicitly justify the exception and its compatibility impact.
+They are migration inputs only.
 
 ## Conventions
 
@@ -30,7 +36,7 @@ Read it before editing translations in `packages/views/locales/`, naming routes/
 Multica is an AI-native task management platform for small teams, with agents as first-class assignees that can own issues, comment, and change status.
 
 - `backend/`: canonical GoClaw/Team Runtime backend reference and versioned-plan root.
-- `server/`: Multica application backend (Chi, sqlc, WebSocket); change it only when an approved plan reconciles the change with `backend/`.
+- `server/`: permanently read-only legacy Multica backend migration evidence (Chi, sqlc, WebSocket).
 - `apps/web/`: Next.js App Router.
 - `apps/desktop/`: Electron desktop app.
 - `apps/mobile/`: Expo / React Native iOS app. Read `apps/mobile/CLAUDE.md` before touching it.
@@ -129,8 +135,8 @@ These are hard requirements for every new or modified database design and produc
 - API boundaries are different: installed desktop clients can talk to newer backends, so response parsing must follow the API compatibility rules below.
 - If a flow or API is being replaced and the product is not live, prefer removing the old path instead of preserving both.
 - New global pre-workspace routes must be a single word (`/login`, `/inbox`) or `/{noun}/{verb}` (`/workspaces/new`). Do not add hyphenated root routes like `/new-workspace`.
-- Reserved slugs live in `server/internal/handler/reserved_slugs.json`. Edit it, run `pnpm generate:reserved-slugs`, and commit the generated `packages/core/paths/reserved-slugs.ts`.
-- When changing CLI commands/flags, API fields, or product behavior documented by built-in skills under `server/internal/service/builtin_skills/*`, update the relevant `SKILL.md` and `references/*-source-map.md` in the same PR.
+- `server/internal/handler/reserved_slugs.json` is a read-only legacy source. New reserved-slug ownership must first be ported to `backend/**`; never edit or regenerate from the legacy file.
+- Built-in skills under `server/internal/service/builtin_skills/*` are read-only migration evidence. Port still-required skill ownership into `backend/**` before changing the behavior; do not update the legacy files.
 
 ## API Compatibility
 
@@ -144,9 +150,13 @@ Frontend code must survive backend response drift, especially in installed deskt
 - Server-driven enum switches need a `default` branch.
 - When adding or changing an endpoint, add/update the schema and include a malformed-response test.
 
-## Backend UUID Rules
+## Legacy Server UUID Rules (read-only reference)
 
-In `server/internal/handler/`, always know where a UUID came from before using it in write queries.
+This section documents migration evidence only and grants no authority to edit
+`server/**`. When porting equivalent behavior into `backend/**`, preserve the
+input-trust distinction below without importing the legacy implementation.
+
+In `server/internal/handler/`, UUID handling historically distinguished its source before write queries.
 
 - Resource path params that may be UUIDs or human-readable IDs must be resolved through loaders such as `loadIssueForUser`, `loadSkillForUser`, `loadAgentForUser`, or `requireDaemonRuntimeAccess`; subsequent writes use the resolved `entity.ID`.
 - Pure UUID inputs from request boundaries use `parseUUIDOrBadRequest(w, s, fieldName)` and return immediately on `ok=false`.
@@ -175,14 +185,14 @@ final decisions, write-heavy tasks, or work that could edit files concurrently
 with the primary agent. Delegation never bypasses task scope, plan approval,
 traceability, or independent review.
 
-## Native DDD Scaffold
+## Legacy Native DDD Scaffold (read-only reference)
 
-New bounded-context scaffolding uses the repository's dddgen-native layout under
-`server/internal/modules/<module>`. Proto files under `server/api/` are the source
-of truth for generated Go/gRPC/Kratos HTTP code, OpenAPI, validation, and access
-metadata. Use `make bootstrap`, `make generate`, `make generated-clean`,
-`make vet-ddd`, `make lint-ddd`, and `make test-race-ddd` rather than editing
-generated files directly.
+The dddgen-native layout under `server/internal/modules/<module>` and Proto
+sources under `server/api/` are migration evidence only. Do not scaffold,
+generate, reconcile, register modules, or edit generated/user-owned code under
+`server/**`. Port any still-required contract and generator behavior into an
+approved `backend/**` location with tests before changing it. The historical
+commands and constraints below are retained only to interpret legacy behavior.
 
 `make bootstrap` stages externally distributed `dddgen` and
 `protoc-gen-access` binaries only when their embedded Go package, module, and
@@ -196,14 +206,15 @@ unpinned ambient binary must never generate repository artifacts.
 - Module dependencies cross only through the provider's public `contract`; bind
   local or gRPC adapters in composition, never through another module's database
   tables, infrastructure, or transport packages.
-- Keep concrete module construction in `server/internal/bootstrap`. Register a
-  new module there and update `server/internal/architecturetest` for intentional
-  contract edges.
+- Historical concrete module construction lives in
+  `server/internal/bootstrap`; do not register new modules or update
+  `server/internal/architecturetest`. Port intentional contract edges into
+  `backend/**`.
 - Keep domain independent of Kratos, generated code, databases, caches, and
   provider types. Infrastructure owns dialect SQL and native transactions.
-- The existing Chi/sqlc server remains the production runtime until an explicit
-  tracer-slice cutover is authorized. Do not run a repository-wide migration or
-  expose generated Ping endpoints merely because the native scaffold exists.
+- The existing Chi/sqlc server is read-only runtime migration evidence until a
+  separately authorized cutover. Cutover work must be implemented in
+  `backend/**`; it cannot modify the legacy runtime.
 - Preserve workspace isolation, membership authorization, API compatibility,
   realtime ordering, and SQLite-local parity for every cutover slice.
 
@@ -265,7 +276,8 @@ Tests follow the code:
 | Shared UI components, pages, forms, modals | `packages/views/*.test.tsx` |
 | Platform wiring such as cookies, redirects, search params | `apps/web/*.test.tsx` or `apps/desktop/` |
 | End-to-end flows | `e2e/*.spec.ts` |
-| Backend | `server/` Go tests |
+| Canonical backend | `backend/` Go tests |
+| Legacy server regression | Existing `server/` tests, read-only; no new legacy implementation or tests |
 
 Rules:
 
