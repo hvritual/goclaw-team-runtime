@@ -87,3 +87,29 @@
   namespace parity. CI, dependencies, generated resources, mobile, and every
   unrelated locale remain out of scope.
 - `TC-W01-S04` remains active under Task Revision `r004`.
+
+## 2026-08-12 — TC-W01-S04 implemented and verified
+
+- Added one shared Team Control page in `packages/views` and exported it for
+  both products. Web now exposes the project-scoped control route and Desktop
+  maps the same route shape to the same component.
+- Added a project-detail entry point and explicit loading, denied,
+  unavailable, connecting, reconnecting, and offline states. The responsive
+  surface covers governed work, quality, review, knowledge, Runner, Evidence,
+  Checks, acceptances, and trusted read-only members.
+- Added guarded creation dialogs for requirement, defect, risk, review
+  finding, knowledge candidate, and run commands. Commands always submit the
+  displayed authoritative Head; conflicts keep input visible while the S03
+  mutation refreshes the exact projection.
+- Moved all Team Control product copy under `projects.team_control` for English,
+  Simplified Chinese, Japanese, and Korean. Locale parity and dead plural-key
+  guards passed.
+- Focused Views verification passed: locale parity plus Team Control and
+  project-detail suites, 3 files / 165 tests. Focused ESLint reports zero
+  errors; the sole warning is the pre-existing `ProjectDetail` effect
+  dependency warning outside this change.
+- The full Views TypeScript check reaches only the public-baseline missing
+  `hast` declaration in `common/task-transcript/diff-highlight.ts`; it reports
+  no Team Control diagnostic. S05 will perform app build and browser-level
+  verification after supplying a temporary validation-only dependency link.
+- Activated `TC-W01-S05`. CI and workflow files remain explicitly excluded.
