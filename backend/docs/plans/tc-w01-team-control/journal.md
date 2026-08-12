@@ -75,3 +75,15 @@
   the public verification baseline has a pnpm override mismatch. No lockfile or
   workspace configuration change is part of the TC-W01 candidate.
 - Activated `TC-W01-S04`.
+
+## 2026-08-12 — TC-W01 plan v4 activated for locale parity
+
+- The first S04 shared-page implementation and focused Views tests passed, but
+  the deterministic Views lint gate rejected 42 user-facing literal strings.
+- The existing plan did not authorize the locale resources required to fix the
+  finding. Product changes paused before any locale file was edited.
+- Read the authoritative naming, glossary, and Chinese voice conventions.
+- Plan v4 adds only the four existing `projects` locale resources and requires
+  namespace parity. CI, dependencies, generated resources, mobile, and every
+  unrelated locale remain out of scope.
+- `TC-W01-S04` remains active under Task Revision `r004`.
