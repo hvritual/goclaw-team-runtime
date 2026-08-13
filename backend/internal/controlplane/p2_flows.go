@@ -180,10 +180,13 @@ func (f *P2Flows) IterateContextDiscovery(ctx context.Context, actor Actor, comm
 		if data.Context.State == ContextStateReady {
 			return invariant("iterate context discovery", "context discovery is already ready")
 		}
-		if data.Context.State == ContextStateExhausted || data.Context.Iteration >= data.Context.MaxIterations {
+		humanContinuation := data.Context.State == ContextStateHumanRequired && data.Context.Iteration >= data.Context.MaxIterations
+		if data.Context.State == ContextStateExhausted || (data.Context.Iteration >= data.Context.MaxIterations && !humanContinuation) {
 			return invariant("iterate context discovery", "context discovery iteration budget is exhausted")
 		}
-		data.Context.Iteration++
+		if !humanContinuation {
+			data.Context.Iteration++
+		}
 		data.Context.Needs = cloneContextNeeds(iteration.Needs)
 		data.Context.Gaps = append([]ContextGap(nil), iteration.Gaps...)
 		data.Context.Questions = append([]ContextQuestion(nil), iteration.Questions...)
