@@ -23,7 +23,7 @@ export function buildRuntimePlan(mode, repositoryRoot = process.cwd()) {
     name: "web",
     command: process.execPath,
     args: [path.join(root, "apps", "web", "node_modules", "next", "dist", "bin", "next"), "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"],
-    cwd: root,
+    cwd: path.join(root, "apps", "web"),
     port: 3000,
     env: {
       FRONTEND_PORT: "3000",

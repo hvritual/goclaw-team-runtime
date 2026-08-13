@@ -70,5 +70,8 @@ contract changes, requires a new immutable `plan_vN.md`.
 - `Milestone Accepted`: the entire browser journey and rollback pass, with
   independent review and Human Customer acceptance.
 
-Until `M1-S7` is accepted, the Canonical backend must not be described as a
-complete replacement for the legacy server.
+M1-S7 executable gates passed on 2026-08-14. Final milestone acceptance still
+requires the independent post-live reviews and Human Customer acceptance
+recorded by the active approved plan. Even after acceptance, the readiness
+claim is limited to the frozen local Issue journey; it is not a general
+replacement claim for every legacy surface.

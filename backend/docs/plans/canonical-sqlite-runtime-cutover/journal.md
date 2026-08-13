@@ -353,3 +353,68 @@ Human approval are recorded.
   browser journey, restart or rollback acceptance was executed because the
   unapproved `onboarded_at` Auth correction and pre-existing unowned `:3000` /
   `:8080` processes remain hard gates. M1-S7 and the milestone are not accepted.
+
+## 2026-08-14 — plan v3 approved; controlled local shutdown authorized
+
+- The Human Customer explicitly approved `plan_v3.md`, authorizing only the
+  additive Canonical Auth `onboarded_at` migration/store projection, focused
+  tests and consistent explicit fixture state required by M1-S7.
+- The Human Customer also authorized stopping the previously identified local
+  Web `:3000` PID `25172` and legacy `:8080` PID `23412` process trees for the
+  Canonical-only acceptance run. No other process or data deletion is
+  authorized.
+- Active plan is v3 and active step remains M1-S7. Auth implementation begins
+  with RED tests; live shutdown and acceptance follow only after deterministic
+  Auth gates pass.
+
+## 2026-08-14 — M1-S7 live Canonical acceptance evidence
+
+- RED reproduced the browser gate: Canonical Auth had no `onboarded_at` column
+  or projection. GREEN adds nullable migration `000003`, reads it for login and
+  `/api/me`, keeps new users null, and gives only the explicit fixture a
+  consistent non-null timestamp alongside its owner membership/root. Retained
+  v1/v2 database upgrade preserves all prior User fields. Independent Auth
+  specification and code/security reviews both returned PASS with no P0-P2.
+- The authorized pre-existing Web PID `25172` (and esbuild child `24612`) and
+  legacy SQLite PID `23412` were identity-checked, stopped, and read back
+  absent. Ports `3000/8000/8080/9000` were quiescent before Canonical startup;
+  no other process was stopped and no database or log was deleted.
+- The first live selector run correctly failed closed because Web was launched
+  from the repository root and Next could not find `app/pages`. RED fixed the
+  Web cwd to `apps/web`; selector tests returned `22/22`. Subsequent clean
+  startup migrated the previously absent `data/multica-canonical.db`, exposed
+  Web `3000`, HTTP `8000`, gRPC `9000`, exact health/readiness and no `8080`.
+- The runtime was stopped, the explicit non-overwriting fixture reported
+  `created`, and the same database restarted. The in-app Browser plugin was
+  attempted twice but its runtime failed before navigation with `failed to
+  write kernel assets: os error 3`; the required browser-client assets existed.
+  The frozen repository Playwright scenario therefore ran as the documented
+  fallback against installed Chrome. A missing bundled Chromium was handled by
+  explicit `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`; no browser download occurred.
+- Real Chromium acceptance passed in `13.3s`: UI email/code login, Workspace
+  list/selection, Issue list/open and base detail; metadata GET/PUT/GET/DELETE;
+  cookie CSRF; two `issue_metadata:changed` frames; and no HTTP/WebSocket URL on
+  port `8080`. The accepted Canonical base-detail capability intentionally has
+  no full-detail Metadata dialog, so metadata readback is asserted through the
+  same-origin API while the base detail remains visible. A sanitized trace is
+  retained at `.local-runtime/m1-s7-20260814/canonical-network-trace.json` and
+  in the Playwright result attachment.
+- Completion audit then found that this first successful browser run compiled
+  a preserved, unrelated dirty `packages/ui` Input change that is excluded
+  from the M1-S7 candidate. Independent specification review therefore did not
+  accept that trace as clean-candidate evidence. The scoped v3 candidate must
+  be committed and the same journey rerun from an isolated worktree before
+  M1-S7 can be accepted; the user-owned Input change remains untouched.
+- Verifier mutation wrote `retained-1786643490292`; stop/restart readback
+  matched. Quiescent snapshot and rollback preserved exact hashes for the
+  Canonical DB, retained legacy DBs, WAL/SHM files and logs, selected legacy
+  without starting it, then reselected Canonical, restarted the same DB and
+  read the retained value again.
+- Final gates pass: full backend tests, vet and module verification; changed-Go
+  `gofmt -d`; focused Auth/fixture x3 and retained/concurrency/restart x20;
+  selector/verifier `22/22`; Core `87` files / `557` tests, Core typecheck/lint,
+  Views and Web typecheck; diff check and no tracked/untracked `server/**`.
+  `make fmt-check` itself is not claimed: the Windows wrapper exits before the
+  formatter with `exit was unexpected at this time`; the underlying changed-Go
+  format check is clean. Windows race binaries remain the recorded
+  `0xc0000139` environment limitation.

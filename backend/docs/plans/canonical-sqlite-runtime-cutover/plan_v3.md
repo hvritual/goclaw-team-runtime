@@ -2,11 +2,12 @@
 
 - Plan-ID: `canonical-sqlite-runtime-cutover`
 - Version: `3`
-- Status: `proposed; Human Customer approval required`
-- Supersedes after approval: `plan_v2.md`
+- Status: `approved`
+- Approval source: Human Customer confirmation dated `2026-08-14`
+- Supersedes: `plan_v2.md`
 - Base commit: `46e55d5`
 - Branch and integration target: `codex/multica-six-domain-baseline`
-- Active step after approval: `M1-S7`
+- Active step: `M1-S7`
 
 ## Reason for revision
 

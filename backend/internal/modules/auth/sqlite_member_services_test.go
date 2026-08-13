@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -74,8 +76,28 @@ func TestAuthSqliteMigrationsAreRepeatableAndOwnOnlyAuthTables(t *testing.T) {
 		t.Fatalf("second MigrateSqlite() error = %v", err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM auth_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 2 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM auth_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 3 {
 		t.Fatalf("migration count/error = %d/%v", migrationCount, err)
+	}
+	var onboardedColumn int
+	rows, err := db.Query(`PRAGMA table_info(auth_users)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		if name == "onboarded_at" {
+			onboardedColumn++
+		}
+	}
+	if err := rows.Close(); err != nil || onboardedColumn != 1 {
+		t.Fatalf("onboarded_at columns/error = %d/%v", onboardedColumn, err)
 	}
 	for _, table := range []string{"auth_users", "auth_members", "auth_workspace_membership_roots", "auth_sessions"} {
 		var found string
@@ -97,6 +119,47 @@ func TestAuthSqliteMigrationsAreRepeatableAndOwnOnlyAuthTables(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO auth_members(id, workspace_id, user_id, role, created_at)
 		VALUES ('invalid', 'workspace', 'user', 'viewer', '2026-08-03T00:00:00Z')`); err == nil {
 		t.Fatal("invalid member role persisted")
+	}
+}
+
+func TestAuthSqliteMigrationAddsNullableOnboardedAtWithoutChangingRetainedUser(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "retained.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE auth_schema_migrations (version TEXT PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{"000001_auth_member.up.sql", "000002_local_auth.up.sql"} {
+		migration, err := fs.ReadFile(SqliteMigrationFS(), SqliteMigrationDir()+"/"+version)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(string(migration)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO auth_schema_migrations(version) VALUES(?)`, version); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const createdAt = "2026-08-13T01:02:03Z"
+	if _, err := db.Exec(`INSERT INTO auth_users(id,name,email,created_at,updated_at) VALUES(?,?,?,?,?)`,
+		"retained-user", "Retained", "retained@example.com", createdAt, createdAt); err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	var id, name, email, created, updated string
+	var onboarded sql.NullString
+	if err := db.QueryRow(`SELECT id,name,email,onboarded_at,created_at,updated_at FROM auth_users WHERE id='retained-user'`).Scan(
+		&id, &name, &email, &onboarded, &created, &updated,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if id != "retained-user" || name != "Retained" || email != "retained@example.com" || onboarded.Valid || created != createdAt || updated != createdAt {
+		t.Fatalf("retained user changed: %q %q %q %#v %q %q", id, name, email, onboarded, created, updated)
 	}
 }
 

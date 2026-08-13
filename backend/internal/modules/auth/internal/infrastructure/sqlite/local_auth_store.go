@@ -18,7 +18,7 @@ type LocalAuthStore struct{ db *sql.DB }
 func NewLocalAuthStore(db *sql.DB) *LocalAuthStore { return &LocalAuthStore{db: db} }
 
 func (s *LocalAuthStore) FindOrCreateUser(ctx context.Context, email string, now time.Time) (application.LocalUser, error) {
-	user, err := s.findUser(ctx, `SELECT id,name,email,avatar_url,created_at,updated_at FROM auth_users WHERE email=?`, email)
+	user, err := s.findUser(ctx, `SELECT id,name,email,avatar_url,onboarded_at,created_at,updated_at FROM auth_users WHERE email=?`, email)
 	if err == nil {
 		return user, nil
 	}
@@ -31,7 +31,7 @@ func (s *LocalAuthStore) FindOrCreateUser(ctx context.Context, email string, now
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO auth_users(id,name,email,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(email) DO NOTHING`, newUserID, name, email, timestamp, timestamp); err != nil {
 		return application.LocalUser{}, err
 	}
-	return s.findUser(ctx, `SELECT id,name,email,avatar_url,created_at,updated_at FROM auth_users WHERE email=?`, email)
+	return s.findUser(ctx, `SELECT id,name,email,avatar_url,onboarded_at,created_at,updated_at FROM auth_users WHERE email=?`, email)
 }
 
 func (s *LocalAuthStore) CreateSession(ctx context.Context, token, userID string, createdAt, expiresAt time.Time) error {
@@ -40,7 +40,7 @@ func (s *LocalAuthStore) CreateSession(ctx context.Context, token, userID string
 }
 
 func (s *LocalAuthStore) FindSessionUser(ctx context.Context, token string, now time.Time) (application.LocalUser, error) {
-	user, err := s.findUser(ctx, `SELECT u.id,u.name,u.email,u.avatar_url,u.created_at,u.updated_at
+	user, err := s.findUser(ctx, `SELECT u.id,u.name,u.email,u.avatar_url,u.onboarded_at,u.created_at,u.updated_at
 		FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id
 		WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at_unix_nano>?`, tokenHash(token), now.UnixNano())
 	if errors.Is(err, sql.ErrNoRows) {
@@ -57,12 +57,16 @@ func (s *LocalAuthStore) RevokeSession(ctx context.Context, token string, now ti
 func (s *LocalAuthStore) findUser(ctx context.Context, query string, arguments ...any) (application.LocalUser, error) {
 	var user application.LocalUser
 	var avatar sql.NullString
-	err := s.db.QueryRowContext(ctx, query, arguments...).Scan(&user.ID, &user.Name, &user.Email, &avatar, &user.CreatedAt, &user.UpdatedAt)
+	var onboardedAt sql.NullString
+	err := s.db.QueryRowContext(ctx, query, arguments...).Scan(&user.ID, &user.Name, &user.Email, &avatar, &onboardedAt, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return application.LocalUser{}, err
 	}
 	if avatar.Valid {
 		user.AvatarURL = &avatar.String
+	}
+	if onboardedAt.Valid {
+		user.OnboardedAt = &onboardedAt.String
 	}
 	user.OnboardingQuestionnaire = map[string]any{}
 	return user, nil

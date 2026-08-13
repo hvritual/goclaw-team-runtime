@@ -1,11 +1,11 @@
 # Canonical SQLite runtime cutover plan
 
-The approved execution snapshot is [plan_v2.md](plan_v2.md).
+The approved execution snapshot is [plan_v3.md](plan_v3.md).
 
 - Plan-ID: `canonical-sqlite-runtime-cutover`
-- Approved version: `2`
+- Approved version: `3`
 - Active step: `M1-S7`
-- Status: `approved; Canonical-only startup and acceptance active`
+- Status: `approved; M1-S7 live gates passed; final review and Customer acceptance active`
 - Milestone: [milestone.md](milestone.md)
 - Story map: [story-map.md](story-map.md)
 - Parity matrix: [parity-matrix.md](parity-matrix.md)

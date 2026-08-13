@@ -2,10 +2,13 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,6 +17,124 @@ import (
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 )
+
+func TestLocalAuthProjectsPersistedOnboardedAtAcrossRestart(t *testing.T) {
+	databasePath := filepath.Join(t.TempDir(), "auth.db")
+	open := func() *sql.DB {
+		db, err := sql.Open("sqlite", databasePath+"?_pragma=busy_timeout(5000)")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := MigrateSqlite(context.Background(), db); err != nil {
+			db.Close()
+			t.Fatal(err)
+		}
+		return db
+	}
+	const onboardedAt = "2026-08-14T01:02:03Z"
+	const createdAt = "2026-08-13T01:02:03Z"
+	db := open()
+	if _, err := db.Exec(`INSERT INTO auth_users(id,name,email,onboarded_at,created_at,updated_at) VALUES(?,?,?,?,?,?)`,
+		"fixture-user", "Fixture", "fixture@example.com", onboardedAt, createdAt, createdAt); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO auth_members(id,workspace_id,user_id,role,created_at) VALUES(?,?,?,?,?)`,
+		"fixture-member", "fixture-workspace", "fixture-user", "owner", createdAt); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO auth_workspace_membership_roots(workspace_id,user_id,member_id,created_at) VALUES(?,?,?,?)`,
+		"fixture-workspace", "fixture-user", "fixture-member", createdAt); err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	db.Close()
+	expectedFixture := map[string]any{
+		"id": "fixture-user", "name": "Fixture", "email": "fixture@example.com",
+		"avatar_url": nil, "onboarded_at": onboardedAt, "onboarding_questionnaire": map[string]any{},
+		"starter_content_state": nil, "language": nil, "profile_description": "", "timezone": nil,
+		"created_at": createdAt, "updated_at": createdAt,
+	}
+
+	for restart := 0; restart < 2; restart++ {
+		db = open()
+		now := time.Date(2026, 8, 14, 2, 3, 4, 0, time.UTC)
+		module, err := NewWithSqliteLocalAuth(SqlitePersistenceConfig{DB: db}, LocalAuthConfig{
+			VerificationCode: "888888", SessionTTL: time.Hour,
+			Now:   func() time.Time { return now },
+			NewID: func(context.Context) (string, error) { return fmt.Sprintf("restart-token-%d", restart), nil },
+		})
+		if err != nil {
+			db.Close()
+			t.Fatal(err)
+		}
+		server := kratoshttp.NewServer()
+		module.RegisterHTTP(server)
+		verified := authRequest(server, http.MethodPost, "/auth/verify-code", `{"email":"fixture@example.com","code":"888888"}`, nil)
+		if verified.Code != http.StatusOK {
+			db.Close()
+			t.Fatalf("restart %d verify = %d %s", restart, verified.Code, verified.Body.String())
+		}
+		var login map[string]any
+		if err := json.Unmarshal(verified.Body.Bytes(), &login); err != nil {
+			db.Close()
+			t.Fatal(err)
+		}
+		if login["token"] != fmt.Sprintf("restart-token-%d", restart) || !reflect.DeepEqual(login["user"], expectedFixture) {
+			db.Close()
+			t.Fatalf("restart %d login = %#v", restart, login)
+		}
+		me := authRequest(server, http.MethodGet, "/api/me", "", map[string]string{"Authorization": "Bearer " + fmt.Sprintf("restart-token-%d", restart)})
+		var currentUser map[string]any
+		if me.Code != http.StatusOK || json.Unmarshal(me.Body.Bytes(), &currentUser) != nil || !reflect.DeepEqual(currentUser, expectedFixture) {
+			db.Close()
+			t.Fatalf("restart %d me = %d %#v", restart, me.Code, currentUser)
+		}
+		db.Close()
+	}
+
+	db = open()
+	defer db.Close()
+	newUserNow := time.Date(2026, 8, 14, 3, 4, 5, 0, time.UTC)
+	module, err := NewWithSqliteLocalAuth(SqlitePersistenceConfig{DB: db}, LocalAuthConfig{
+		VerificationCode: "888888", SessionTTL: time.Hour,
+		Now:   func() time.Time { return newUserNow },
+		NewID: func(context.Context) (string, error) { return "new-user-token", nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := kratoshttp.NewServer()
+	module.RegisterHTTP(server)
+	newUser := authRequest(server, http.MethodPost, "/auth/verify-code", `{"email":"new@example.com","code":"888888"}`, nil)
+	if newUser.Code != http.StatusOK {
+		t.Fatalf("new user = %d %s", newUser.Code, newUser.Body.String())
+	}
+	var newLogin map[string]any
+	if err := json.Unmarshal(newUser.Body.Bytes(), &newLogin); err != nil {
+		t.Fatal(err)
+	}
+	newUserBody, ok := newLogin["user"].(map[string]any)
+	if !ok {
+		t.Fatalf("new login user = %#v", newLogin["user"])
+	}
+	newID, _ := newUserBody["id"].(string)
+	expectedNew := map[string]any{
+		"id": newID, "name": "new", "email": "new@example.com",
+		"avatar_url": nil, "onboarded_at": nil, "onboarding_questionnaire": map[string]any{},
+		"starter_content_state": nil, "language": nil, "profile_description": "", "timezone": nil,
+		"created_at": newUserNow.Format(time.RFC3339Nano), "updated_at": newUserNow.Format(time.RFC3339Nano),
+	}
+	if newLogin["token"] != "new-user-token" || newID == "" || !reflect.DeepEqual(newUserBody, expectedNew) {
+		t.Fatalf("new login = %#v", newLogin)
+	}
+	newMe := authRequest(server, http.MethodGet, "/api/me", "", map[string]string{"Authorization": "Bearer new-user-token"})
+	var newCurrent map[string]any
+	if newMe.Code != http.StatusOK || json.Unmarshal(newMe.Body.Bytes(), &newCurrent) != nil || !reflect.DeepEqual(newCurrent, expectedNew) {
+		t.Fatalf("new me = %d %#v", newMe.Code, newCurrent)
+	}
+}
 
 func TestLocalAuthHTTPJourneyAndRevocation(t *testing.T) {
 	db := openAuthTestDB(t)

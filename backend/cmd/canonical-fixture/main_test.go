@@ -3,13 +3,80 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/auth"
 	"github.com/hvritual/workspace/internal/modules/workspace"
 	_ "modernc.org/sqlite"
 )
+
+func TestCanonicalFixtureProjectsOnboardedUserAfterDatabaseRestart(t *testing.T) {
+	databasePath := filepath.Join(t.TempDir(), "canonical.db")
+	db, err := sql.Open("sqlite", databasePath+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := workspace.MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := seedFixture(context.Background(), db); err != nil || result != "created" {
+		t.Fatalf("seed = %q %v", result, err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err = sql.Open("sqlite", databasePath+"?_pragma=busy_timeout(5000)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	module, err := auth.NewWithSqliteLocalAuth(auth.SqlitePersistenceConfig{DB: db}, auth.LocalAuthConfig{
+		VerificationCode: "888888", SessionTTL: time.Hour,
+		NewID: func(context.Context) (string, error) { return "fixture-session", nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := kratoshttp.NewServer()
+	module.RegisterHTTP(server)
+	verifyRequest := httptest.NewRequest(http.MethodPost, "/auth/verify-code", strings.NewReader(`{"email":"`+fixtureEmail+`","code":"888888"}`))
+	verify := httptest.NewRecorder()
+	server.ServeHTTP(verify, verifyRequest)
+	if verify.Code != http.StatusOK {
+		t.Fatalf("verify = %d %s", verify.Code, verify.Body.String())
+	}
+	var login struct {
+		Token string `json:"token"`
+		User  struct {
+			ID          string  `json:"id"`
+			OnboardedAt *string `json:"onboarded_at"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(verify.Body.Bytes(), &login); err != nil {
+		t.Fatal(err)
+	}
+	if login.Token != "fixture-session" || login.User.ID != fixtureUserID || login.User.OnboardedAt == nil || *login.User.OnboardedAt == "" {
+		t.Fatalf("login = %#v", login)
+	}
+	meRequest := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meRequest.Header.Set("Authorization", "Bearer fixture-session")
+	me := httptest.NewRecorder()
+	server.ServeHTTP(me, meRequest)
+	if me.Code != http.StatusOK || !strings.Contains(me.Body.String(), `"id":"`+fixtureUserID+`"`) || !strings.Contains(me.Body.String(), `"onboarded_at":"`+*login.User.OnboardedAt+`"`) {
+		t.Fatalf("me = %d %s", me.Code, me.Body.String())
+	}
+}
 
 func TestSeedFixtureIsExplicitIdempotentAndNonOverwriting(t *testing.T) {
 	db := fixtureDatabase(t)
@@ -27,6 +94,10 @@ func TestSeedFixtureIsExplicitIdempotentAndNonOverwriting(t *testing.T) {
 	var metadata string
 	if err := db.QueryRow(`SELECT metadata FROM workspace_issues WHERE id=?`, fixtureIssueID).Scan(&metadata); err != nil || metadata != `{"browser_readback":"retained"}` {
 		t.Fatalf("metadata=%q err=%v", metadata, err)
+	}
+	var onboardedAt string
+	if err := db.QueryRow(`SELECT onboarded_at FROM auth_users WHERE id=?`, fixtureUserID).Scan(&onboardedAt); err != nil || onboardedAt == "" {
+		t.Fatalf("onboarded_at=%q err=%v", onboardedAt, err)
 	}
 }
 

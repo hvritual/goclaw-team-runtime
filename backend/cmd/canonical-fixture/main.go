@@ -100,7 +100,7 @@ func seedFixture(ctx context.Context, db *sql.DB) (result string, err error) {
 			query string
 			args  []any
 		}{
-			{`SELECT COUNT(*) FROM auth_users WHERE id=? AND email=?`, []any{fixtureUserID, fixtureEmail}},
+			{`SELECT COUNT(*) FROM auth_users WHERE id=? AND email=? AND onboarded_at IS NOT NULL`, []any{fixtureUserID, fixtureEmail}},
 			{`SELECT COUNT(*) FROM workspaces WHERE id=? AND slug=? AND issue_prefix='CAN'`, []any{fixtureWorkspaceID, fixtureSlug}},
 			{`SELECT COUNT(*) FROM auth_members WHERE id=? AND workspace_id=? AND user_id=? AND role='owner'`, []any{fixtureMemberID, fixtureWorkspaceID, fixtureUserID}},
 			{`SELECT COUNT(*) FROM auth_workspace_membership_roots WHERE workspace_id=? AND user_id=? AND member_id=?`, []any{fixtureWorkspaceID, fixtureUserID, fixtureMemberID}},
@@ -127,7 +127,7 @@ func seedFixture(ctx context.Context, db *sql.DB) (result string, err error) {
 		query string
 		args  []any
 	}{
-		{`INSERT INTO auth_users(id,name,email,created_at,updated_at) VALUES(?,?,?,?,?)`, []any{fixtureUserID, "Canonical Fixture", fixtureEmail, now, now}},
+		{`INSERT INTO auth_users(id,name,email,onboarded_at,created_at,updated_at) VALUES(?,?,?,?,?,?)`, []any{fixtureUserID, "Canonical Fixture", fixtureEmail, now, now, now}},
 		{`INSERT INTO workspaces(id,name,slug,settings,repos,issue_prefix,next_issue_number,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`, []any{fixtureWorkspaceID, "Canonical Fixture", fixtureSlug, `{}`, `[]`, "CAN", 2, now, now}},
 		{`INSERT INTO auth_members(id,workspace_id,user_id,role,created_at) VALUES(?,?,?,?,?)`, []any{fixtureMemberID, fixtureWorkspaceID, fixtureUserID, "owner", now}},
 		{`INSERT INTO auth_workspace_membership_roots(workspace_id,user_id,member_id,created_at) VALUES(?,?,?,?)`, []any{fixtureWorkspaceID, fixtureUserID, fixtureMemberID, now}},

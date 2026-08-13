@@ -38,6 +38,7 @@ test("canonical plan freezes ports, database, and excludes legacy server command
   assert.equal(plan.backend.grpcPort, 9000);
   assert.equal(plan.backend.database, path.join(root, "data", "multica-canonical.db"));
   assert.equal(plan.backend.cwd, path.join(root, "backend"));
+  assert.equal(plan.web.cwd, path.join(root, "apps", "web"));
   assert.equal(plan.web.command, process.execPath);
   assert.deepEqual(plan.web.args.slice(1), ["dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"]);
   assert.equal(plan.web.args[0], path.join(root, "apps", "web", "node_modules", "next", "dist", "bin", "next"));

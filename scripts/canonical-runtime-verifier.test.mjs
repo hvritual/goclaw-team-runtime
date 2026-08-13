@@ -59,7 +59,7 @@ test("listener ownership accepts descendants and rejects legacy or orphan proces
 test("process evidence rejects legacy or unexpected owners", () => {
   const backend = { pid: 10, name: "canonical-backend", command: "go", args: ["run", "./cmd/server", "-http-addr", "127.0.0.1:8000", "-grpc-addr", "127.0.0.1:9000", "-sqlite-path", "C:\\repo\\data\\multica-canonical.db", "-dev-verification-code", "888888"], cwd: "C:\\repo\\backend", creationTime: "backend-start" };
   backend.launchFingerprint = createLaunchFingerprint(backend);
-  const web = { pid: 20, name: "web", command: process.execPath, args: ["C:\\repo\\apps\\web\\node_modules\\next\\dist\\bin\\next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"], cwd: "C:\\repo", creationTime: "web-start" };
+  const web = { pid: 20, name: "web", command: process.execPath, args: ["C:\\repo\\apps\\web\\node_modules\\next\\dist\\bin\\next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3000"], cwd: "C:\\repo\\apps\\web", creationTime: "web-start" };
   web.launchFingerprint = createLaunchFingerprint(web);
   const valid = {
     mode: "canonical",

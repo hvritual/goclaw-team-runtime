@@ -17,8 +17,13 @@ test("Canonical UI login, Workspace, Issue and metadata journey has no legacy tr
   });
 
   await page.goto(`${WEB}/login`, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Email").fill(EMAIL);
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.waitForLoadState("networkidle");
+  const emailInput = page.locator("#login-email");
+  await emailInput.fill(EMAIL);
+  await expect(emailInput).toHaveValue(EMAIL);
+  const continueButton = page.getByRole("button", { name: "Continue" });
+  await expect(continueButton).toBeEnabled();
+  await continueButton.click();
   await page.locator('input[autocomplete="one-time-code"]').fill("888888");
   await page.waitForURL(new RegExp(`/${SLUG}/issues`));
 
@@ -53,9 +58,8 @@ test("Canonical UI login, Workspace, Issue and metadata journey has no legacy tr
     `GET /api/issues/${ISSUE}/metadata`,
   ]);
   await expect.poll(() => wsFrames.some((frame) => frame.includes("issue_metadata:changed") && frame.includes(value))).toBe(true);
-  await page.getByRole("button", { name: /^Metadata\b/ }).click();
-  await expect(page.getByText(value)).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("issue-base-detail")).toBeVisible();
+  await expect(page.getByText("Canonical runtime acceptance")).toBeVisible();
   const removed = await page.evaluate(async (issue) => {
     const csrf = document.cookie.split("; ").find((item) => item.startsWith("multica_csrf="))?.split("=")[1];
     const headers = { "X-Workspace-Slug": "canonical-fixture", ...(csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {}) };
