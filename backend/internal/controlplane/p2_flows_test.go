@@ -98,13 +98,13 @@ func TestContextDiscoveryHumanRequiredReadyAndExhausted(t *testing.T) {
 		if _, err := flows.StartRequirement(ctx, actor, "command-1", "project-1", 0, "requirement-1", "Need deployment behavior"); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := flows.StartContextDiscovery(ctx, actor, "command-2", "project-1", 1, "requirement-1", "Discover deployment constraints", 2); err != nil {
+		if _, err := flows.StartContextDiscovery(ctx, actor, "command-2", "project-1", 1, "requirement-1", "Discover deployment constraints", 1); err != nil {
 			t.Fatal(err)
 		}
 		first := ContextIterationData{
-			Needs: []ContextNeed{{ID: "need-region", Description: "Deployment region is known", Required: true, Status: ContextNeedOpen}},
+			Needs:     []ContextNeed{{ID: "need-region", Description: "Deployment region is known", Required: true, Status: ContextNeedOpen}},
 			Questions: []ContextQuestion{{ID: "question-region", Question: "Which deployment region is required?", Required: true, Status: ContextQuestionOpen}},
-			Summary: "Region requires a human decision",
+			Summary:   "Region requires a human decision",
 		}
 		if _, err := flows.IterateContextDiscovery(ctx, actor, "command-3", "project-1", 2, "requirement-1", first); err != nil {
 			t.Fatal(err)
@@ -121,9 +121,9 @@ func TestContextDiscoveryHumanRequiredReadyAndExhausted(t *testing.T) {
 			t.Fatalf("human-required context = %#v", data.Context)
 		}
 		second := ContextIterationData{
-			Needs: []ContextNeed{{ID: "need-region", Description: "Deployment region is known", Required: true, Status: ContextNeedResolved, Resolution: "eu-central", SourceRefs: []string{"decision://deployment-region"}}},
+			Needs:     []ContextNeed{{ID: "need-region", Description: "Deployment region is known", Required: true, Status: ContextNeedResolved, Resolution: "eu-central", SourceRefs: []string{"decision://deployment-region"}}},
 			Questions: []ContextQuestion{{ID: "question-region", Question: "Which deployment region is required?", Required: true, Status: ContextQuestionAnswered, Answer: "eu-central"}},
-			Summary: "Human decision resolved the deployment region",
+			Summary:   "Human decision resolved the deployment region",
 		}
 		if _, err := flows.IterateContextDiscovery(ctx, actor, "command-4", "project-1", 3, "requirement-1", second); err != nil {
 			t.Fatal(err)
@@ -135,7 +135,7 @@ func TestContextDiscoveryHumanRequiredReadyAndExhausted(t *testing.T) {
 		if err := json.Unmarshal(projection.Nodes["requirement-1"].Data, &data); err != nil {
 			t.Fatal(err)
 		}
-		if data.Context.State != ContextStateReady || data.Context.Iteration != 2 {
+		if data.Context.State != ContextStateReady || data.Context.Iteration != 1 {
 			t.Fatalf("ready context = %#v", data.Context)
 		}
 		if _, err := flows.FinalizeIntent(ctx, actor, "command-5", "project-1", 4, "requirement-1", "Deploy in eu-central"); err != nil {
