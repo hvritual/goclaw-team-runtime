@@ -315,3 +315,41 @@ Human approval are recorded.
   outside `server/**`, local setup documentation, `e2e/**`, and this plan
   directory. Browser, process/port, no-legacy, restart/readback and
   non-destructive rollback evidence are mandatory before milestone acceptance.
+
+## 2026-08-13 — M1-S7 hard gate discovered; plan v3 proposed
+
+- Runtime discovery proved Canonical local auth always projects
+  `onboarded_at:null`, while the installed Web Workspace layout redirects such
+  users to onboarding. The frozen Issue browser journey cannot execute.
+- This is not solved by the explicit fixture because the Canonical Auth schema
+  lacks the field and the response projection is hardcoded nil. A fixture-only
+  bypass would be fabricated evidence.
+- [plan_v3.md](plan_v3.md) proposes the smallest additive Auth migration/store
+  correction and focused tests. No Auth product path may be written until the
+  Human Customer explicitly approves v3.
+- Read-only port evidence also found pre-existing legacy `:8080` and Web
+  `:3000` listeners not owned by this run. They were not stopped. Canonical-only
+  acceptance must fail closed while either remains.
+
+## 2026-08-14 — M1-S7 v2 acceptance tooling code-ready; live gate not run
+
+- The portable selector now owns exact Web `3000`, Canonical HTTP `8000`, gRPC
+  `9000` and `data/multica-canonical.db` identities. It rejects PID reuse,
+  foreign checkout evidence, unowned or orphan `cmd/server` processes, legacy
+  listeners, malformed manifests and partial startup. Stop and rollback wait
+  for owned descendants and preserve database, WAL/SHM/journal and log hashes.
+- The explicit fixture requires an existing migrated database, is
+  transactionally non-overwriting and rejects partial, conflicting or
+  relationship-inconsistent footprints. The browser specification uses the
+  real login, Workspace list, Issue list/detail and metadata GET/PUT/DELETE
+  paths, asserts CSRF and realtime UI readback, rejects legacy traffic and
+  emits a sanitized HTTP/WebSocket trace when executed.
+- Focused selector/verifier tests pass `22/22`; the fixture Go test passes;
+  Playwright discovers one Chromium acceptance scenario; script syntax, diff
+  check and the no-`server/**` boundary pass. Independent specification and
+  code/security reviews returned PASS with no remaining P0-P2 in the v2 S7
+  tooling scope.
+- These results are code-readiness evidence only. No Canonical runtime,
+  browser journey, restart or rollback acceptance was executed because the
+  unapproved `onboarded_at` Auth correction and pre-existing unowned `:3000` /
+  `:8080` processes remain hard gates. M1-S7 and the milestone are not accepted.

@@ -1,4 +1,4 @@
-.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop bootstrap verify-ddd-tools generate generated-clean vet-ddd test-race-ddd lint-ddd
+.PHONY: help makehelp dev dev-sqlite dev-postgres setup-sqlite setup-postgres start-sqlite start-postgres stop-sqlite server server-sqlite server-postgres daemon cli multica build test migrate-up migrate-down sqlc seed clean setup start stop check worktree-env setup-main start-main stop-main check-main setup-worktree start-worktree stop-worktree check-worktree db-up db-down db-reset selfhost selfhost-build selfhost-stop bootstrap verify-ddd-tools generate generated-clean vet-ddd test-race-ddd lint-ddd runtime-select-canonical runtime-select-legacy runtime-status runtime-start runtime-stop runtime-rollback canonical-fixture canonical-runtime-verify
 
 MAIN_ENV_FILE ?= .env
 WORKTREE_ENV_FILE ?= .env.worktree
@@ -197,6 +197,30 @@ selfhost-stop: ## Stop the self-hosted Docker Compose stack
 
 # ---------- One-click commands ----------
 ##@ One-click
+
+runtime-select-canonical: ## Select the Canonical SQLite runtime without starting it
+	node scripts/runtime-selector.mjs select canonical
+
+runtime-select-legacy: ## Select the retained legacy runtime without starting it
+	node scripts/runtime-selector.mjs select legacy
+
+runtime-status: ## Show selected and running local runtime modes
+	node scripts/runtime-selector.mjs status
+
+runtime-start: ## Start the selected runtime and retain PID/log evidence
+	node scripts/runtime-selector.mjs start
+
+runtime-stop: ## Stop only processes owned by the runtime manifest
+	node scripts/runtime-selector.mjs stop
+
+runtime-rollback: ## Stop the owned runtime and restore the previous selector without deleting data or logs
+	node scripts/runtime-selector.mjs rollback
+
+canonical-fixture: ## Explicitly seed the non-overwriting Canonical acceptance fixture
+	cd backend && go run ./cmd/canonical-fixture -sqlite-path "../data/multica-canonical.db"
+
+canonical-runtime-verify: ## Verify Canonical runtime; PHASE=mutate or readback
+	node scripts/canonical-runtime-verifier.mjs $(PHASE)
 
 setup-postgres: ## Prepare the retained PostgreSQL development path
 	$(REQUIRE_ENV)
