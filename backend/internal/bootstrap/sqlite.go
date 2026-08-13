@@ -65,6 +65,8 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.Selection = selection
 	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
 	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
+	workspaceDependencies.HTTPMutationAuthorizer = authModule.AuthorizeHTTPMutation
+	workspaceDependencies.IssueMetadataEnabled = config.IssueMetadataEnabled
 	workspaceModule, err := workspace.NewWithSqliteWorkspaceChain(
 		workspace.SqlitePersistenceConfig{DB: db},
 		workspaceDependencies,
@@ -103,7 +105,10 @@ func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, mem
 }
 
 func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
-	if permission != "workspace.issue.get" && permission != "workspace.issue.list" {
+	switch permission {
+	case "workspace.issue.get", "workspace.issue.list",
+		"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete":
+	default:
 		return contract.ErrWorkspaceActorRequired
 	}
 	actor, ok := contract.WorkspaceActorFromContext(ctx)

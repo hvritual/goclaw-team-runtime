@@ -230,7 +230,7 @@ func TestIssueMetadataHTTPCompatibility(t *testing.T) {
 	forged.Header.Set("X-Workspace-Actor-ID", "member-1")
 	forged.Header.Set("X-Workspace-Slug", "acme")
 	nilIdentityServer := kratoshttp.NewServer()
-	newIssueMetadataExtension(module.IssueMetadataLocal(), nil).RegisterHTTP(nilIdentityServer)
+	newIssueMetadataExtension(module.IssueMetadataLocal(), nil, nil, nil).RegisterHTTP(nilIdentityServer)
 	forgedResponse := httptest.NewRecorder()
 	nilIdentityServer.ServeHTTP(forgedResponse, forged)
 	if forgedResponse.Code != 401 || strings.TrimSpace(forgedResponse.Body.String()) != `{"error":"user not authenticated"}` {
@@ -239,7 +239,7 @@ func TestIssueMetadataHTTPCompatibility(t *testing.T) {
 	foreignServer := kratoshttp.NewServer()
 	newIssueMetadataExtension(module.IssueMetadataLocal(), func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
 		return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "foreign-member"}, nil
-	}).RegisterHTTP(foreignServer)
+	}, nil, nil).RegisterHTTP(foreignServer)
 	foreignRequest := httptest.NewRequest(http.MethodPut, "/api/issues/"+created.Issue.Id+"/metadata/key", strings.NewReader(`{"value":true}`))
 	foreignRequest.Header.Set("X-Workspace-Slug", "acme")
 	foreign := httptest.NewRecorder()
@@ -314,6 +314,33 @@ func TestIssueMetadataHTTPCompatibility(t *testing.T) {
 	if large.Code != 400 || strings.TrimSpace(large.Body.String()) != `{"error":"metadata exceeds the 8KB size limit"}` {
 		t.Fatalf("large = %d %s", large.Code, large.Body.String())
 	}
+	oversizedBody := &countingMetadataBody{reader: strings.NewReader(`{"value":"` + strings.Repeat("x", 1<<20) + `"}`)}
+	oversizedRequest := httptest.NewRequest(http.MethodPut, "/api/issues/"+created.Issue.Id+"/metadata/limit_00", oversizedBody)
+	oversizedRequest.Header.Set("Authorization", "Bearer test-token")
+	oversizedRequest.Header.Set("X-Workspace-Slug", "acme")
+	oversized := httptest.NewRecorder()
+	server.ServeHTTP(oversized, oversizedRequest)
+	if oversized.Code != 400 || strings.TrimSpace(oversized.Body.String()) != `{"error":"metadata exceeds the 8KB size limit"}` {
+		t.Fatalf("oversized = %d %s", oversized.Code, oversized.Body.String())
+	}
+	if oversizedBody.read > 64*1024+1 {
+		t.Fatalf("oversized body read %d bytes", oversizedBody.read)
+	}
+	oversizedTrailing := request(http.MethodPut, "/api/issues/"+created.Issue.Id+"/metadata/limit_00", `{"value":true}`+strings.Repeat(" ", 1<<20)+`{"trailing":true}`, true)
+	if oversizedTrailing.Code != 400 || strings.TrimSpace(oversizedTrailing.Body.String()) != `{"error":"metadata exceeds the 8KB size limit"}` {
+		t.Fatalf("oversized trailing = %d %s", oversizedTrailing.Code, oversizedTrailing.Body.String())
+	}
+}
+
+type countingMetadataBody struct {
+	reader *strings.Reader
+	read   int
+}
+
+func (b *countingMetadataBody) Read(buffer []byte) (int, error) {
+	count, err := b.reader.Read(buffer)
+	b.read += count
+	return count, err
 }
 
 func TestIssueMetadataSameKeyLastCommitterAndRollback(t *testing.T) {

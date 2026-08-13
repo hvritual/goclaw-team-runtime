@@ -50,7 +50,9 @@ func parseConfig(arguments []string, output io.Writer) (bootstrap.Config, error)
 	flags.StringVar(&config.GRPCAddress, "grpc-addr", "127.0.0.1:9000", "gRPC listen address")
 	flags.StringVar(&config.SQLitePath, "sqlite-path", "data/multica-canonical.db", "Canonical product SQLite path")
 	verificationCode := ""
+	issueMetadataEnabled := true
 	flags.StringVar(&verificationCode, "dev-verification-code", "888888", "development-only local verification code")
+	flags.BoolVar(&issueMetadataEnabled, "issue-metadata", true, "enable Canonical Issue metadata routes")
 	config.WorkspaceDependencies = bootstrap.FailClosedWorkspaceDependencies()
 	if err := flags.Parse(arguments); err != nil {
 		return bootstrap.Config{}, err
@@ -59,6 +61,7 @@ func parseConfig(arguments []string, output io.Writer) (bootstrap.Config, error)
 		return bootstrap.Config{}, fmt.Errorf("unexpected arguments: %v", flags.Args())
 	}
 	config.LocalAuth = auth.LocalAuthConfig{VerificationCode: verificationCode, SessionTTL: 7 * 24 * time.Hour}
+	config.IssueMetadataEnabled = &issueMetadataEnabled
 	if err := config.Validate(); err != nil {
 		return bootstrap.Config{}, err
 	}

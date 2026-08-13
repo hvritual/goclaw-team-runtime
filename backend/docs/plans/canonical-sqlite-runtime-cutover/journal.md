@@ -229,3 +229,49 @@ Human approval are recorded.
   typecheck; diff check; no `server/**` diff. The broad Views test command hit
   the 120-second local command timeout, so it is not claimed; focused S4 Views
   evidence is green. Real browser/PID/network acceptance remains an S7 gate.
+
+## 2026-08-13 — M1-S4 accepted under continuous authorization; M1-S5 activated
+
+- M1-S4 commit `523b28a` passed independent specification and code/security
+  review and is accepted under the continuous M1-S3 through M1-S7 authority.
+- Active story is M1-S5. Writes are limited to accepted metadata v9 paths,
+  Canonical composition, Core metadata tests and capability-required read-only
+  projection paths. S6 and S7 remain inactive.
+
+## 2026-08-13 — M1-S5 RED/GREEN and review evidence
+
+- RED proved the real Canonical composition rejected authenticated metadata
+  requests, Cookie mutations skipped CSRF, the capability remained disabled,
+  and Workspace validation ran before authentication. Subsequent REDs proved
+  the missing rollback selector and unbounded PUT request body.
+- GREEN wires the trusted S2 session and S3 membership identity into metadata
+  GET/PUT/DELETE, preserves exact v9 envelopes and errors, hides foreign
+  Workspace/Issue resources, enforces Cookie HMAC-CSRF while exempting Bearer
+  mutations, and supports UUID plus Workspace identifier lookup.
+- Metadata persists across a file-backed runtime restart; session expiry,
+  transaction rollback, distinct-key concurrency, same-key last-committer and
+  overlap with mainline Issue updates are covered. PUT bodies are capped at 64
+  KiB before the 8 KiB metadata rule is applied.
+- `-issue-metadata=false` omits the whole metadata extension and advertises
+  `issue_metadata:false`; focused tests prove GET/PUT/DELETE all return 404.
+  The default accepted Canonical profile enables it and leaves realtime false.
+- An explicit, non-overwriting persistent browser fixture is available. Its
+  fixture creation passed, but starting the real backend/Web processes was
+  blocked by the local execution policy before either process launched.
+  Therefore browser readback, network trace and PID/port evidence are not
+  claimed and remain a hard M1-S7/milestone gate.
+- Independent specification review returned conditional pass: all executable
+  S5 contracts and rollback selection pass, with browser runtime evidence still
+  outstanding. Independent code/security review returned PASS after the body
+  cap fix, with no remaining P0-P2.
+- Fresh focused backend tests and vet, Core metadata/capability 6/6, Core and
+  Views typecheck, diff check and the no-`server/**` boundary all pass.
+
+## 2026-08-13 — M1-S5 accepted conditionally; M1-S6 activated
+
+- M1-S5 is accepted for code integration under continuous authorization, with
+  the explicitly recorded browser evidence debt above. Milestone acceptance is
+  prohibited until that evidence runs successfully in M1-S7.
+- Active story is M1-S6. Writes are limited to the frozen Canonical realtime
+  boundary/publisher, Issue/metadata post-commit integration, Core WebSocket
+  contract/sync paths and focused accepted-Issue cache tests. M1-S7 is inactive.

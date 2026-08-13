@@ -11,6 +11,7 @@ var (
 	ErrInvalidEmail = errors.New("valid email is required")
 	ErrInvalidCode  = errors.New("invalid verification code")
 	ErrInvalidToken = errors.New("invalid token")
+	ErrInvalidCSRF  = errors.New("invalid CSRF token")
 )
 
 type LocalUser struct {

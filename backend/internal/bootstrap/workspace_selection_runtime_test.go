@@ -102,7 +102,7 @@ func TestSQLiteRuntimeListsOnlyAuthenticatedWorkspaceMemberships(t *testing.T) {
 			}
 			response := httptest.NewRecorder()
 			runtime.HTTPServer().ServeHTTP(response, request)
-			if response.Code != http.StatusUnauthorized {
+			if response.Code != http.StatusNotFound {
 				t.Fatalf("workspace identity = %d %s", response.Code, response.Body.String())
 			}
 		})

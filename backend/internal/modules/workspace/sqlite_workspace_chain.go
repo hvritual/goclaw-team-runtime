@@ -124,7 +124,9 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 			return nil, fmt.Errorf("Workspace generated extension missing: %s", name)
 		}
 	}
-	module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity))
+	if dependencies.IssueMetadataEnabled == nil || *dependencies.IssueMetadataEnabled {
+		module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+	}
 	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity))
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
 		module.extensions = append(module.extensions, newWorkspaceSelectionExtension(dependencies.Selection, dependencies.HTTPUserIdentity))

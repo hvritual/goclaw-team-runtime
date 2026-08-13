@@ -14,12 +14,16 @@ import (
 )
 
 type IssueMetadataHandler struct {
-	service  contract.IssueMetadataService
-	identity contract.WorkspaceHTTPIdentityResolver
+	service      contract.IssueMetadataService
+	identity     contract.WorkspaceHTTPIdentityResolver
+	authenticate func(*http.Request) (string, error)
+	mutation     func(*http.Request) error
 }
 
-func NewIssueMetadataHandler(service contract.IssueMetadataService, identity contract.WorkspaceHTTPIdentityResolver) *IssueMetadataHandler {
-	return &IssueMetadataHandler{service: service, identity: identity}
+const maxIssueMetadataRequestBytes = 64 * 1024
+
+func NewIssueMetadataHandler(service contract.IssueMetadataService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error) *IssueMetadataHandler {
+	return &IssueMetadataHandler{service: service, identity: identity, authenticate: authenticate, mutation: mutation}
 }
 func (h *IssueMetadataHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
@@ -28,23 +32,36 @@ func (h *IssueMetadataHandler) Register(server *kratoshttp.Server) {
 	router.DELETE("/api/issues/{id}/metadata/{key}", h.delete)
 }
 func (h *IssueMetadataHandler) get(ctx kratoshttp.Context) error {
+	if h.authenticate != nil {
+		if _, err := h.authenticate(ctx.Request()); err != nil {
+			return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+		}
+	}
 	if !hasWorkspaceIdentity(ctx) {
 		return writeError(ctx, 400, "workspace_id is required")
 	}
 	requestContext, workspaceID, err := h.requestIdentity(ctx)
 	if err != nil {
-		return writeError(ctx, 401, "user not authenticated")
+		return issueReadIdentityError(ctx, err)
 	}
 	result, err := h.service.GetIssueMetadata(requestContext, contract.GetIssueMetadataRequest{WorkspaceId: workspaceID, IssueId: ctx.Vars().Get("id")})
 	return writeResult(ctx, result, err, "issue metadata operation failed")
 }
 func (h *IssueMetadataHandler) put(ctx kratoshttp.Context) error {
+	if h.authenticate != nil {
+		if _, err := h.authenticate(ctx.Request()); err != nil {
+			return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+		}
+	}
 	if !hasWorkspaceIdentity(ctx) {
 		return writeError(ctx, 400, "workspace_id is required")
 	}
 	requestContext, workspaceID, err := h.requestIdentity(ctx)
 	if err != nil {
-		return writeError(ctx, 401, "user not authenticated")
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation != nil && h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
 	}
 	key := ctx.Vars().Get("key")
 	if key == "" {
@@ -56,12 +73,18 @@ func (h *IssueMetadataHandler) put(ctx kratoshttp.Context) error {
 	var body struct {
 		Value json.RawMessage `json:"value"`
 	}
-	decoder := json.NewDecoder(ctx.Request().Body)
+	decoder := json.NewDecoder(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, maxIssueMetadataRequestBytes))
 	if err := decoder.Decode(&body); err != nil {
+		if isMetadataBodyTooLarge(err) {
+			return writeError(ctx, 400, "metadata exceeds the 8KB size limit")
+		}
 		return writeError(ctx, 400, "invalid request body")
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if isMetadataBodyTooLarge(err) {
+			return writeError(ctx, 400, "metadata exceeds the 8KB size limit")
+		}
 		return writeError(ctx, 400, "invalid request body")
 	}
 	if len(body.Value) == 0 {
@@ -82,13 +105,26 @@ func (h *IssueMetadataHandler) put(ctx kratoshttp.Context) error {
 	result, err := h.service.PutIssueMetadata(requestContext, contract.PutIssueMetadataRequest{WorkspaceId: workspaceID, IssueId: ctx.Vars().Get("id"), Key: ctx.Vars().Get("key"), ValueJson: string(body.Value)})
 	return writeResult(ctx, result, err, "failed to set metadata key")
 }
+
+func isMetadataBodyTooLarge(err error) bool {
+	var maxBytesError *http.MaxBytesError
+	return errors.As(err, &maxBytesError)
+}
 func (h *IssueMetadataHandler) delete(ctx kratoshttp.Context) error {
+	if h.authenticate != nil {
+		if _, err := h.authenticate(ctx.Request()); err != nil {
+			return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+		}
+	}
 	if !hasWorkspaceIdentity(ctx) {
 		return writeError(ctx, 400, "workspace_id is required")
 	}
 	requestContext, workspaceID, err := h.requestIdentity(ctx)
 	if err != nil {
-		return writeError(ctx, 401, "user not authenticated")
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation != nil && h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
 	}
 	key := ctx.Vars().Get("key")
 	if key == "" {
@@ -108,7 +144,10 @@ func (h *IssueMetadataHandler) requestIdentity(ctx kratoshttp.Context) (context.
 		return ctx.Request().Context(), "", contract.ErrWorkspaceActorRequired
 	}
 	identity, err := h.identity(ctx.Request())
-	if err != nil || identity.WorkspaceID == "" || identity.ActorID == "" {
+	if err != nil {
+		return ctx.Request().Context(), "", err
+	}
+	if identity.WorkspaceID == "" || identity.ActorID == "" {
 		return ctx.Request().Context(), "", contract.ErrWorkspaceActorRequired
 	}
 	return contract.WithWorkspaceActor(ctx.Request().Context(), identity.ActorType, identity.ActorID), identity.WorkspaceID, nil

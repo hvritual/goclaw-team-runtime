@@ -68,3 +68,16 @@ func (m *Module) ResolveHTTPUserID(request *http.Request) (string, error) {
 	}
 	return m.httpUserID(request)
 }
+
+// AuthorizeHTTPMutation enforces the trusted local session's mutation policy.
+func (m *Module) AuthorizeHTTPMutation(request *http.Request) error {
+	if m.httpUserID == nil {
+		return application.ErrInvalidToken
+	}
+	for _, extension := range m.extensions {
+		if local, ok := extension.(*localAuthExtension); ok {
+			return local.handler.AuthorizeMutation(request)
+		}
+	}
+	return application.ErrInvalidToken
+}

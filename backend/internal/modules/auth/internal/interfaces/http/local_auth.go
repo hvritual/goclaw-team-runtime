@@ -39,6 +39,16 @@ func (h *LocalAuthHandler) ResolveUserID(request *http.Request) (string, error) 
 	return user.ID, nil
 }
 
+// AuthorizeMutation applies the same Cookie-CSRF binding used by logout.
+// Bearer-authenticated mutations do not require a CSRF token.
+func (h *LocalAuthHandler) AuthorizeMutation(request *http.Request) error {
+	token, cookieAuth := requestToken(request)
+	if cookieAuth && !validCSRF(request, token) {
+		return application.ErrInvalidCSRF
+	}
+	return nil
+}
+
 func (h *LocalAuthHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.POST("/auth/send-code", h.sendCode)

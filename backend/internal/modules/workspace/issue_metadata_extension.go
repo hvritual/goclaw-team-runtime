@@ -1,6 +1,8 @@
 package workspace
 
 import (
+	"net/http"
+
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	httpadapter "github.com/hvritual/workspace/internal/modules/workspace/internal/interfaces/http"
@@ -17,8 +19,8 @@ type IssueMetadataExtension struct {
 	http   *httpadapter.IssueMetadataHandler
 }
 
-func newIssueMetadataExtension(service contract.IssueMetadataService, identity contract.WorkspaceHTTPIdentityResolver) *IssueMetadataExtension {
-	return &IssueMetadataExtension{local: service, server: protoadapter.NewIssueMetadataServer(service), http: httpadapter.NewIssueMetadataHandler(service, identity)}
+func newIssueMetadataExtension(service contract.IssueMetadataService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error) *IssueMetadataExtension {
+	return &IssueMetadataExtension{local: service, server: protoadapter.NewIssueMetadataServer(service), http: httpadapter.NewIssueMetadataHandler(service, identity, authenticate, mutation)}
 }
 
 func (e *IssueMetadataExtension) Local() contract.IssueMetadataService   { return e.local }

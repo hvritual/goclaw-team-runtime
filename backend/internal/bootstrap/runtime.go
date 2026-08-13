@@ -28,6 +28,7 @@ type Config struct {
 	SQLitePath            string
 	WorkspaceDependencies workspace.WorkspaceServiceDependencies
 	LocalAuth             auth.LocalAuthConfig
+	IssueMetadataEnabled  *bool
 }
 
 // Validate rejects incomplete process identity and malformed TCP addresses.
@@ -98,7 +99,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	application.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
-	registerConfigRoute(httpServer, config.Version)
+	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled))
 
 	app := kratos.New(
 		kratos.Name(config.Name),
@@ -116,7 +117,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	}, nil
 }
 
-func registerConfigRoute(server *kratoshttp.Server, version string) {
+func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled bool) {
 	server.Route("/").GET("/api/config", func(ctx kratoshttp.Context) error {
 		return ctx.JSON(http.StatusOK, map[string]any{
 			"cdn_domain": "", "allow_signup": true, "server_version": version,
@@ -129,11 +130,13 @@ func registerConfigRoute(server *kratoshttp.Server, version string) {
 				"issue_properties": false, "issue_pins": false,
 				"issue_children": false, "issue_project": false,
 				"issue_child_progress": false, "issue_acceptance": false,
-				"issue_metadata": false, "issue_realtime": false,
+				"issue_metadata": issueMetadataEnabled, "issue_realtime": false,
 			},
 		})
 	})
 }
+
+func capabilityEnabled(value *bool) bool { return value == nil || *value }
 
 func registerHealthRoutes(server *kratoshttp.Server, db *sql.DB) {
 	router := server.Route("/")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,8 @@ type WorkspaceServiceDependencies struct {
 	NewRequirementVersionID func(context.Context) (string, error)
 	Now                     func() time.Time
 	HTTPIdentity            contract.WorkspaceHTTPIdentityResolver
+	HTTPMutationAuthorizer  func(*http.Request) error
+	IssueMetadataEnabled    *bool
 	Selection               contract.WorkspaceSelectionService
 	HTTPUserIdentity        HTTPUserIDResolver
 }
