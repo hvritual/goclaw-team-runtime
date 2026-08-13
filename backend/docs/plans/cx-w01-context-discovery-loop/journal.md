@@ -30,13 +30,79 @@
 
 ### Verification status
 
-No product-code verification has been claimed yet. The current execution
-container does not have `gh`; repository writes are being performed through the
-connected GitHub application. Go verification commands must be executed if a
-usable checkout/toolchain becomes available, otherwise the exact limitation is
-to be recorded before acceptance.
+No product-code verification was claimed at this checkpoint. Repository writes
+were performed through the connected GitHub application.
 
-### Next action
+---
 
-Implement the embedded Context Pack contract and deterministic state transition
-logic in `p2_flows.go`, then update focused flow tests before advancing to S03.
+## 2026-08-13 — Completion checkpoint 002
+
+- Plan: `CX-W01-CONTEXT-DISCOVERY-001` / `v3`
+- Status: `implemented-and-verified`
+- Pull request: `#11`
+- Verified implementation commit: `311cfc262d08141d6c7317448954252bb3e54475`
+- CI run: `31664700130`
+- Canonical backend job: `94336660430`
+
+### Implemented
+
+- Embedded `ContextPackData` into the Requirement aggregate.
+- Added durable states: `discovering`, `human_required`, `ready`, `exhausted`.
+- Added typed context entities for required needs, blocking gaps, human
+  questions, provenance source references, summaries, and iteration bounds.
+- Added deterministic sufficiency evaluation; no model confidence can authorize
+  readiness.
+- Added `context.start` and `context.iterate` HTTP commands with strict JSON
+  decoding and unknown-field rejection.
+- Added the Context Ready gate to `requirement.intent`.
+- Added atomic Context invalidation when `requirement.change` reopens a material
+  intent.
+- Added maximum eight autonomous iterations with explicit exhaustion.
+- Added Human Required continuation at the autonomous iteration boundary so a
+  required human answer cannot be blocked by the budget it was asked to resolve.
+- Rejected empty/optional-only Context snapshots and `secret://` provenance
+  references.
+
+### Test coverage
+
+Focused tests cover:
+
+- Intent rejection before Context Ready.
+- Ready transition after required needs resolve.
+- Human Required transition and answer-to-Ready continuation at
+  `max_iterations=1` without incrementing the autonomous counter.
+- Exhaustion when a required need remains blocked.
+- Material intent change invalidating previously Ready context.
+- Empty Context and optional-only Context rejection.
+- Secret-shaped provenance reference rejection.
+- HTTP strict payload decoding and projection of Ready state.
+
+### Verification evidence
+
+GitHub Actions run `31664700130` passed:
+
+- `governance-policy`: success, including immutable `server/**` enforcement.
+- `canonical-backend / Deterministic canonical backend checks`: success
+  (`make check`).
+- `canonical-backend / Canonical backend race tests`: success
+  (`make test-race`).
+- Frontend aggregate jobs remained successful; this work item introduced no
+  frontend changes.
+
+An earlier CI attempt failed only `fmt-check` for
+`internal/controlplane/p2_flows_test.go`; that formatting defect was corrected
+before the verified run above.
+
+### Final boundary check
+
+- `server/**`: unchanged.
+- Auth/membership/run-leasing trust rules: unchanged.
+- No LLM provider, retriever, vector database, crawler, or connector acquisition
+  implementation was introduced; v1 remains a deterministic control-plane loop
+  over supplied context evidence/references.
+
+### Result
+
+`CX-W01-S01` through `CX-W01-S04` are complete. Context Discovery is now an
+enforced prerequisite for requirement intent finalization in the canonical
+backend control plane.
