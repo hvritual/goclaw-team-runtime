@@ -86,7 +86,7 @@ func TestHTTPCommandsProjectionAndProblems(t *testing.T) {
 	projectionRequest.Header.Set("X-Test-Actor", "owner-1")
 	projection := httptest.NewRecorder()
 	handler.ServeHTTP(projection, projectionRequest)
-	if projection.Code != http.StatusOK || !bytes.Contains(projection.Body.Bytes(), []byte("requirement-1")) || !bytes.Contains(projection.Body.Bytes(), []byte(`\"state\":\"ready\"`)) {
+	if projection.Code != http.StatusOK || !bytes.Contains(projection.Body.Bytes(), []byte("requirement-1")) || !bytes.Contains(projection.Body.Bytes(), []byte(`"state":"ready"`)) {
 		t.Fatalf("projection status=%d body=%s", projection.Code, projection.Body.String())
 	}
 
