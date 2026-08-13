@@ -49,7 +49,32 @@ func TestHTTPCommandsProjectionAndProblems(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("create status=%d body=%s", response.Code, response.Body.String())
 	}
-	intentRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"requirement.intent","command_id":"command-intent","expected_head":1,"payload":{"id":"requirement-1","text":"Deliver the API"}}`)))
+
+	earlyIntentRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"requirement.intent","command_id":"command-early-intent","expected_head":1,"payload":{"id":"requirement-1","text":"Deliver the API"}}`)))
+	earlyIntentRequest.Header.Set("X-Test-Actor", "owner-1")
+	earlyIntent := httptest.NewRecorder()
+	handler.ServeHTTP(earlyIntent, earlyIntentRequest)
+	if earlyIntent.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("early intent status=%d body=%s", earlyIntent.Code, earlyIntent.Body.String())
+	}
+
+	contextStartRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"context.start","command_id":"command-context-start","expected_head":1,"payload":{"requirement_id":"requirement-1","objective":"Resolve API delivery context","max_iterations":4}}`)))
+	contextStartRequest.Header.Set("X-Test-Actor", "owner-1")
+	contextStart := httptest.NewRecorder()
+	handler.ServeHTTP(contextStart, contextStartRequest)
+	if contextStart.Code != http.StatusCreated {
+		t.Fatalf("context start status=%d body=%s", contextStart.Code, contextStart.Body.String())
+	}
+
+	contextIterateRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"context.iterate","command_id":"command-context-iterate","expected_head":2,"payload":{"requirement_id":"requirement-1","needs":[{"id":"need-contract","description":"API contract is known","required":true,"status":"resolved","resolution":"typed command API","source_refs":["repo://backend/internal/controlplane/http.go"]}],"summary":"Required API context resolved"}}`)))
+	contextIterateRequest.Header.Set("X-Test-Actor", "owner-1")
+	contextIterate := httptest.NewRecorder()
+	handler.ServeHTTP(contextIterate, contextIterateRequest)
+	if contextIterate.Code != http.StatusCreated {
+		t.Fatalf("context iterate status=%d body=%s", contextIterate.Code, contextIterate.Body.String())
+	}
+
+	intentRequest := httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader([]byte(`{"type":"requirement.intent","command_id":"command-intent","expected_head":3,"payload":{"id":"requirement-1","text":"Deliver the API"}}`)))
 	intentRequest.Header.Set("X-Test-Actor", "owner-1")
 	intent := httptest.NewRecorder()
 	handler.ServeHTTP(intent, intentRequest)
@@ -61,7 +86,7 @@ func TestHTTPCommandsProjectionAndProblems(t *testing.T) {
 	projectionRequest.Header.Set("X-Test-Actor", "owner-1")
 	projection := httptest.NewRecorder()
 	handler.ServeHTTP(projection, projectionRequest)
-	if projection.Code != http.StatusOK || !bytes.Contains(projection.Body.Bytes(), []byte("requirement-1")) {
+	if projection.Code != http.StatusOK || !bytes.Contains(projection.Body.Bytes(), []byte("requirement-1")) || !bytes.Contains(projection.Body.Bytes(), []byte(`"state":"ready"`)) {
 		t.Fatalf("projection status=%d body=%s", projection.Code, projection.Body.String())
 	}
 
@@ -99,6 +124,19 @@ func TestHTTPCommandRejectsUnknownPayloadFields(t *testing.T) {
 	api.Handler().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader(body)))
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+
+	start := []byte(`{"type":"requirement.start","command_id":"command-2","expected_head":0,"payload":{"id":"requirement-1","text":"Need API"}}`)
+	startResponse := httptest.NewRecorder()
+	api.Handler().ServeHTTP(startResponse, httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader(start)))
+	if startResponse.Code != http.StatusCreated {
+		t.Fatalf("start status=%d body=%s", startResponse.Code, startResponse.Body.String())
+	}
+	contextBody := []byte(`{"type":"context.start","command_id":"command-3","expected_head":1,"payload":{"requirement_id":"requirement-1","objective":"Discover","unexpected":"secret"}}`)
+	contextResponse := httptest.NewRecorder()
+	api.Handler().ServeHTTP(contextResponse, httptest.NewRequest(http.MethodPost, "/v1/workspaces/workspace-1/projects/project-1/commands", bytes.NewReader(contextBody)))
+	if contextResponse.Code != http.StatusBadRequest {
+		t.Fatalf("context status=%d body=%s", contextResponse.Code, contextResponse.Body.String())
 	}
 }
 

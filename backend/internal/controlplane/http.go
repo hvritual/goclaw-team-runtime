@@ -44,15 +44,42 @@ type IDText struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
 }
+
+type ContextStartCommand struct {
+	RequirementID string `json:"requirement_id"`
+	Objective     string `json:"objective"`
+	MaxIterations int    `json:"max_iterations,omitempty"`
+}
+
+type ContextIterateCommand struct {
+	RequirementID string            `json:"requirement_id"`
+	Needs         []ContextNeed     `json:"needs"`
+	Gaps          []ContextGap      `json:"gaps,omitempty"`
+	Questions     []ContextQuestion `json:"questions,omitempty"`
+	SourceRefs    []string          `json:"source_refs,omitempty"`
+	Summary       string            `json:"summary,omitempty"`
+}
+
+func (c ContextIterateCommand) iteration() ContextIterationData {
+	return ContextIterationData{
+		Needs:      c.Needs,
+		Gaps:       c.Gaps,
+		Questions:  c.Questions,
+		SourceRefs: c.SourceRefs,
+		Summary:    c.Summary,
+	}
+}
+
 type DoneCommand struct {
 	SubjectID string   `json:"subject_id"`
 	Revision  int64    `json:"revision"`
 	Policies  []string `json:"policies"`
 }
+
 type RunCommand struct {
 	ID           string   `json:"id"`
 	WorkspaceRef string   `json:"workspace_ref"`
-	SecretRefs   []string `json:"secret_refs"`
+	SecretRefs   []string `json:"secret_refs,omitempty"`
 	MaxAttempts  int      `json:"max_attempts"`
 }
 
@@ -331,6 +358,16 @@ func (a *HTTPAPI) command(w http.ResponseWriter, request *http.Request) {
 		var value IDText
 		if err = decodeCommandPayload(command.Payload, &value); err == nil {
 			result, err = a.flows.StartRequirement(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.ID, value.Text)
+		}
+	case "context.start":
+		var value ContextStartCommand
+		if err = decodeCommandPayload(command.Payload, &value); err == nil {
+			result, err = a.flows.StartContextDiscovery(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.RequirementID, value.Objective, value.MaxIterations)
+		}
+	case "context.iterate":
+		var value ContextIterateCommand
+		if err = decodeCommandPayload(command.Payload, &value); err == nil {
+			result, err = a.flows.IterateContextDiscovery(request.Context(), actor, command.CommandID, projectID, command.ExpectedHead, value.RequirementID, value.iteration())
 		}
 	case "requirement.intent":
 		var value IDText

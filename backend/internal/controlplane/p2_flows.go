@@ -12,11 +12,82 @@ import (
 
 var RequirementReviewPolicies = []string{"review.scenario", "review.capacity", "review.risk", "review.cost"}
 
+const maxContextDiscoveryIterations = 8
+
+const (
+	ContextStateDiscovering   = "discovering"
+	ContextStateHumanRequired = "human_required"
+	ContextStateReady         = "ready"
+	ContextStateExhausted     = "exhausted"
+)
+
+const (
+	ContextNeedOpen     = "open"
+	ContextNeedResolved = "resolved"
+	ContextNeedBlocked  = "blocked"
+)
+
+const (
+	ContextGapOpen     = "open"
+	ContextGapResolved = "resolved"
+)
+
+const (
+	ContextQuestionOpen     = "open"
+	ContextQuestionAnswered = "answered"
+)
+
+type ContextNeed struct {
+	ID          string   `json:"id"`
+	Description string   `json:"description"`
+	Required    bool     `json:"required"`
+	Status      string   `json:"status"`
+	Resolution  string   `json:"resolution,omitempty"`
+	SourceRefs  []string `json:"source_refs,omitempty"`
+}
+
+type ContextGap struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Blocking    bool   `json:"blocking"`
+	Status      string `json:"status"`
+	Resolution  string `json:"resolution,omitempty"`
+}
+
+type ContextQuestion struct {
+	ID       string `json:"id"`
+	Question string `json:"question"`
+	Required bool   `json:"required"`
+	Status   string `json:"status"`
+	Answer   string `json:"answer,omitempty"`
+}
+
+type ContextPackData struct {
+	State         string            `json:"state"`
+	Objective     string            `json:"objective"`
+	Iteration     int               `json:"iteration"`
+	MaxIterations int               `json:"max_iterations"`
+	Needs         []ContextNeed     `json:"needs,omitempty"`
+	Gaps          []ContextGap      `json:"gaps,omitempty"`
+	Questions     []ContextQuestion `json:"questions,omitempty"`
+	SourceRefs    []string          `json:"source_refs,omitempty"`
+	Summary       string            `json:"summary,omitempty"`
+}
+
+type ContextIterationData struct {
+	Needs      []ContextNeed     `json:"needs"`
+	Gaps       []ContextGap      `json:"gaps,omitempty"`
+	Questions  []ContextQuestion `json:"questions,omitempty"`
+	SourceRefs []string          `json:"source_refs,omitempty"`
+	Summary    string            `json:"summary,omitempty"`
+}
+
 type RequirementData struct {
-	Request      string `json:"request"`
-	Intent       string `json:"intent,omitempty"`
-	SolutionADR  string `json:"solution_adr,omitempty"`
-	ChangeReason string `json:"change_reason,omitempty"`
+	Request      string           `json:"request"`
+	Context      *ContextPackData `json:"context,omitempty"`
+	Intent       string           `json:"intent,omitempty"`
+	SolutionADR  string           `json:"solution_adr,omitempty"`
+	ChangeReason string           `json:"change_reason,omitempty"`
 }
 
 type QualityData struct {
@@ -68,10 +139,71 @@ func (f *P2Flows) StartRequirement(ctx context.Context, actor Actor, commandID, 
 	return f.upsert(ctx, actor, commandID, projectID, head, WorkNode{ID: id, Kind: "requirement", Revision: 1, State: "clarifying", CreatorID: actor.ID}, RequirementData{Request: strings.TrimSpace(request)})
 }
 
+func (f *P2Flows) StartContextDiscovery(ctx context.Context, actor Actor, commandID, projectID string, head int64, id, objective string, maxIterations int) (AppendResult, error) {
+	objective = strings.TrimSpace(objective)
+	if objective == "" {
+		return AppendResult{}, invalid("start context discovery", "objective", "is required")
+	}
+	if maxIterations == 0 {
+		maxIterations = maxContextDiscoveryIterations
+	}
+	if maxIterations < 1 || maxIterations > maxContextDiscoveryIterations {
+		return AppendResult{}, invalid("start context discovery", "max_iterations", "must be between 1 and 8")
+	}
+	return f.updateRequirement(ctx, actor, commandID, projectID, head, id, "clarifying", func(data *RequirementData) error {
+		if data.Intent != "" || data.SolutionADR != "" {
+			return invariant("start context discovery", "intent or solution has already been finalized")
+		}
+		if data.Context != nil {
+			return conflict("start context discovery", "context discovery already exists")
+		}
+		data.Context = &ContextPackData{
+			State:         ContextStateDiscovering,
+			Objective:     objective,
+			MaxIterations: maxIterations,
+		}
+		return nil
+	})
+}
+
+func (f *P2Flows) IterateContextDiscovery(ctx context.Context, actor Actor, commandID, projectID string, head int64, id string, iteration ContextIterationData) (AppendResult, error) {
+	if err := validateContextIteration(iteration); err != nil {
+		return AppendResult{}, err
+	}
+	return f.updateRequirement(ctx, actor, commandID, projectID, head, id, "clarifying", func(data *RequirementData) error {
+		if data.Context == nil {
+			return invariant("iterate context discovery", "context discovery has not started")
+		}
+		if data.Intent != "" || data.SolutionADR != "" {
+			return invariant("iterate context discovery", "intent or solution has already been finalized")
+		}
+		if data.Context.State == ContextStateReady {
+			return invariant("iterate context discovery", "context discovery is already ready")
+		}
+		humanContinuation := data.Context.State == ContextStateHumanRequired && data.Context.Iteration >= data.Context.MaxIterations
+		if data.Context.State == ContextStateExhausted || (data.Context.Iteration >= data.Context.MaxIterations && !humanContinuation) {
+			return invariant("iterate context discovery", "context discovery iteration budget is exhausted")
+		}
+		if !humanContinuation {
+			data.Context.Iteration++
+		}
+		data.Context.Needs = cloneContextNeeds(iteration.Needs)
+		data.Context.Gaps = append([]ContextGap(nil), iteration.Gaps...)
+		data.Context.Questions = append([]ContextQuestion(nil), iteration.Questions...)
+		data.Context.SourceRefs = append([]string(nil), iteration.SourceRefs...)
+		data.Context.Summary = strings.TrimSpace(iteration.Summary)
+		data.Context.State = deriveContextState(*data.Context)
+		return nil
+	})
+}
+
 func (f *P2Flows) FinalizeIntent(ctx context.Context, actor Actor, commandID, projectID string, head int64, id, intent string) (AppendResult, error) {
 	return f.updateRequirement(ctx, actor, commandID, projectID, head, id, "solution", func(data *RequirementData) error {
 		if strings.TrimSpace(intent) == "" {
 			return invalid("finalize intent", "intent", "is required")
+		}
+		if data.Context == nil || data.Context.State != ContextStateReady {
+			return invariant("finalize intent", "context discovery must be ready")
 		}
 		data.Intent = strings.TrimSpace(intent)
 		return nil
@@ -100,8 +232,166 @@ func (f *P2Flows) ChangeIntent(ctx context.Context, actor Actor, commandID, proj
 		data.ChangeReason = strings.TrimSpace(reason)
 		data.Intent = ""
 		data.SolutionADR = ""
+		resetContextDiscovery(data.Context)
 		return nil
 	})
+}
+
+func validateContextIteration(iteration ContextIterationData) error {
+	if len(iteration.Needs) == 0 {
+		return invalid("iterate context discovery", "needs", "at least one context need is required")
+	}
+	seenNeeds := make(map[string]struct{}, len(iteration.Needs))
+	hasRequiredNeed := false
+	for index := range iteration.Needs {
+		need := &iteration.Needs[index]
+		need.Description = strings.TrimSpace(need.Description)
+		need.Resolution = strings.TrimSpace(need.Resolution)
+		if err := validateIdentifier("iterate context discovery", "need_id", need.ID); err != nil {
+			return err
+		}
+		if _, exists := seenNeeds[need.ID]; exists {
+			return invalid("iterate context discovery", "need_id", "must be unique")
+		}
+		seenNeeds[need.ID] = struct{}{}
+		if need.Description == "" {
+			return invalid("iterate context discovery", "need", "description is required")
+		}
+		if need.Status != ContextNeedOpen && need.Status != ContextNeedResolved && need.Status != ContextNeedBlocked {
+			return invalid("iterate context discovery", "need_status", "must be open, resolved, or blocked")
+		}
+		if need.Status == ContextNeedResolved && need.Resolution == "" {
+			return invalid("iterate context discovery", "need_resolution", "resolved needs require a resolution")
+		}
+		if need.Required {
+			hasRequiredNeed = true
+		}
+		if err := validateContextSourceRefs(need.SourceRefs); err != nil {
+			return err
+		}
+	}
+	if !hasRequiredNeed {
+		return invalid("iterate context discovery", "needs", "at least one required context need is required")
+	}
+
+	seenGaps := make(map[string]struct{}, len(iteration.Gaps))
+	for index := range iteration.Gaps {
+		gap := &iteration.Gaps[index]
+		gap.Description = strings.TrimSpace(gap.Description)
+		gap.Resolution = strings.TrimSpace(gap.Resolution)
+		if err := validateIdentifier("iterate context discovery", "gap_id", gap.ID); err != nil {
+			return err
+		}
+		if _, exists := seenGaps[gap.ID]; exists {
+			return invalid("iterate context discovery", "gap_id", "must be unique")
+		}
+		seenGaps[gap.ID] = struct{}{}
+		if gap.Description == "" {
+			return invalid("iterate context discovery", "gap", "description is required")
+		}
+		if gap.Status != ContextGapOpen && gap.Status != ContextGapResolved {
+			return invalid("iterate context discovery", "gap_status", "must be open or resolved")
+		}
+		if gap.Status == ContextGapResolved && gap.Resolution == "" {
+			return invalid("iterate context discovery", "gap_resolution", "resolved gaps require a resolution")
+		}
+	}
+
+	seenQuestions := make(map[string]struct{}, len(iteration.Questions))
+	for index := range iteration.Questions {
+		question := &iteration.Questions[index]
+		question.Question = strings.TrimSpace(question.Question)
+		question.Answer = strings.TrimSpace(question.Answer)
+		if err := validateIdentifier("iterate context discovery", "question_id", question.ID); err != nil {
+			return err
+		}
+		if _, exists := seenQuestions[question.ID]; exists {
+			return invalid("iterate context discovery", "question_id", "must be unique")
+		}
+		seenQuestions[question.ID] = struct{}{}
+		if question.Question == "" {
+			return invalid("iterate context discovery", "question", "question text is required")
+		}
+		if question.Status != ContextQuestionOpen && question.Status != ContextQuestionAnswered {
+			return invalid("iterate context discovery", "question_status", "must be open or answered")
+		}
+		if question.Status == ContextQuestionAnswered && question.Answer == "" {
+			return invalid("iterate context discovery", "question_answer", "answered questions require an answer")
+		}
+	}
+	return validateContextSourceRefs(iteration.SourceRefs)
+}
+
+func validateContextSourceRefs(refs []string) error {
+	for _, ref := range refs {
+		trimmed := strings.TrimSpace(ref)
+		if trimmed == "" || len(trimmed) > 512 || strings.ContainsAny(trimmed, "\r\n") || strings.HasPrefix(strings.ToLower(trimmed), "secret://") {
+			return invalid("iterate context discovery", "source_ref", "must be a non-secret provenance reference up to 512 characters")
+		}
+	}
+	return nil
+}
+
+func deriveContextState(context ContextPackData) string {
+	for _, question := range context.Questions {
+		if question.Required && question.Status != ContextQuestionAnswered {
+			return ContextStateHumanRequired
+		}
+	}
+	unresolved := false
+	for _, need := range context.Needs {
+		if need.Required && need.Status != ContextNeedResolved {
+			unresolved = true
+			break
+		}
+	}
+	if !unresolved {
+		for _, gap := range context.Gaps {
+			if gap.Blocking && gap.Status != ContextGapResolved {
+				unresolved = true
+				break
+			}
+		}
+	}
+	if !unresolved {
+		return ContextStateReady
+	}
+	if context.Iteration >= context.MaxIterations {
+		return ContextStateExhausted
+	}
+	return ContextStateDiscovering
+}
+
+func resetContextDiscovery(context *ContextPackData) {
+	if context == nil {
+		return
+	}
+	context.State = ContextStateDiscovering
+	context.Iteration = 0
+	context.Summary = ""
+	context.SourceRefs = nil
+	for index := range context.Needs {
+		context.Needs[index].Status = ContextNeedOpen
+		context.Needs[index].Resolution = ""
+		context.Needs[index].SourceRefs = nil
+	}
+	for index := range context.Gaps {
+		context.Gaps[index].Status = ContextGapOpen
+		context.Gaps[index].Resolution = ""
+	}
+	for index := range context.Questions {
+		context.Questions[index].Status = ContextQuestionOpen
+		context.Questions[index].Answer = ""
+	}
+}
+
+func cloneContextNeeds(needs []ContextNeed) []ContextNeed {
+	cloned := make([]ContextNeed, len(needs))
+	for index := range needs {
+		cloned[index] = needs[index]
+		cloned[index].SourceRefs = append([]string(nil), needs[index].SourceRefs...)
+	}
+	return cloned
 }
 
 func (f *P2Flows) CreateRequirementTask(ctx context.Context, actor Actor, nodeCommandID, edgeCommandID, projectID string, head int64, requirementID, taskID, assigneeID string) (AppendResult, error) {
