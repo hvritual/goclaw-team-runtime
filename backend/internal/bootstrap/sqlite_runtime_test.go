@@ -1,14 +1,45 @@
 package bootstrap
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/hvritual/workspace/internal/modules/auth"
 )
+
+func TestSQLiteRuntimeRegistersTrustedLocalAuthJourney(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{
+		Name: "backend-test", Version: "test",
+		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath:            filepath.Join(t.TempDir(), "auth-runtime.db"),
+		WorkspaceDependencies: FailClosedWorkspaceDependencies(),
+		LocalAuth: auth.LocalAuthConfig{
+			VerificationCode: "888888", SessionTTL: time.Hour,
+			Now:   func() time.Time { return time.Date(2026, 8, 13, 1, 2, 3, 0, time.UTC) },
+			NewID: func(context.Context) (string, error) { return "runtime-token", nil },
+		},
+	})
+	response := httptest.NewRecorder()
+	runtime.HTTPServer().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/auth/verify-code", strings.NewReader(`{"email":"owner@example.com","code":"888888"}`)))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"token":"runtime-token"`) {
+		t.Fatalf("verify = %d %s", response.Code, response.Body.String())
+	}
+	me := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	me.Header.Set("Authorization", "Bearer runtime-token")
+	meResponse := httptest.NewRecorder()
+	runtime.HTTPServer().ServeHTTP(meResponse, me)
+	if meResponse.Code != http.StatusOK || !strings.Contains(meResponse.Body.String(), `"email":"owner@example.com"`) {
+		t.Fatalf("me = %d %s", meResponse.Code, meResponse.Body.String())
+	}
+}
 
 func TestSQLiteRuntimeMigratesSharedProductDatabaseAndRetainsData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "multica-canonical.db")
@@ -112,6 +143,9 @@ func TestSQLiteRuntimeMemoryDatabaseUsesOneConnection(t *testing.T) {
 
 func newRuntimeForConfig(t *testing.T, config Config) *Runtime {
 	t.Helper()
+	if config.LocalAuth.VerificationCode == "" {
+		config.LocalAuth = testLocalAuthConfig()
+	}
 	runtime, err := NewRuntime(config, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)

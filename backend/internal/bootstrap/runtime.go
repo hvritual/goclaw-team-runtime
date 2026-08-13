@@ -15,6 +15,7 @@ import (
 	"github.com/go-kratos/kratos/v3"
 	kratosgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	"github.com/hvritual/workspace/internal/modules/auth"
 	"github.com/hvritual/workspace/internal/modules/workspace"
 )
 
@@ -26,6 +27,7 @@ type Config struct {
 	GRPCAddress           string
 	SQLitePath            string
 	WorkspaceDependencies workspace.WorkspaceServiceDependencies
+	LocalAuth             auth.LocalAuthConfig
 }
 
 // Validate rejects incomplete process identity and malformed TCP addresses.
@@ -44,6 +46,9 @@ func (c Config) Validate() error {
 	}
 	if strings.TrimSpace(c.SQLitePath) == "" {
 		return fmt.Errorf("SQLite path is required")
+	}
+	if strings.TrimSpace(c.LocalAuth.VerificationCode) == "" {
+		return fmt.Errorf("development verification code is required")
 	}
 	return nil
 }

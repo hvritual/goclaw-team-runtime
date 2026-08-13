@@ -1,0 +1,53 @@
+package auth
+
+import (
+	"context"
+	"errors"
+	"regexp"
+	"strings"
+	"time"
+
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	"github.com/google/uuid"
+	"github.com/hvritual/workspace/internal/modules/auth/internal/application"
+	persistence "github.com/hvritual/workspace/internal/modules/auth/internal/infrastructure/sqlite"
+	authhttp "github.com/hvritual/workspace/internal/modules/auth/internal/interfaces/http"
+	"google.golang.org/grpc"
+)
+
+type LocalAuthConfig struct {
+	VerificationCode string
+	SessionTTL       time.Duration
+	Now              func() time.Time
+	NewID            func(context.Context) (string, error)
+}
+
+type localAuthExtension struct{ handler *authhttp.LocalAuthHandler }
+
+var verificationCodePattern = regexp.MustCompile(`^[0-9]{6}$`)
+
+func (e *localAuthExtension) RegisterHTTP(server *kratoshttp.Server) { e.handler.Register(server) }
+func (e *localAuthExtension) RegisterGRPC(grpc.ServiceRegistrar)     {}
+
+func NewWithSqliteLocalAuth(persistenceConfig SqlitePersistenceConfig, config LocalAuthConfig) (*Module, error) {
+	config.VerificationCode = strings.TrimSpace(config.VerificationCode)
+	if !verificationCodePattern.MatchString(config.VerificationCode) {
+		return nil, errors.New("development verification code must contain exactly six digits")
+	}
+	if config.SessionTTL <= 0 {
+		config.SessionTTL = 7 * 24 * time.Hour
+	}
+	if config.Now == nil {
+		config.Now = time.Now
+	}
+	if config.NewID == nil {
+		config.NewID = func(context.Context) (string, error) { return uuid.NewString(), nil }
+	}
+	module, err := NewWithSqliteMemberServices(persistenceConfig)
+	if err != nil {
+		return nil, err
+	}
+	useCase := application.NewLocalAuthUseCase(persistence.NewLocalAuthStore(persistenceConfig.DB), strings.TrimSpace(config.VerificationCode), config.SessionTTL, config.Now, config.NewID)
+	module.extensions = append(module.extensions, &localAuthExtension{handler: authhttp.NewLocalAuthHandler(useCase)})
+	return module, nil
+}

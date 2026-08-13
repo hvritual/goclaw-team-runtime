@@ -112,3 +112,56 @@ Human approval are recorded.
   staged diff check, and server-path audit.
 - M1-S1 is `Integrated` but not yet Customer Accepted. M1-S2 remains inactive
   until Human Customer acceptance is recorded.
+
+## 2026-08-13 — M1-S1 Customer Accepted; M1-S2 activated
+
+- Human Customer accepted M1-S1 and authorized continuation to M1-S2.
+- Accepted S1 commit: `8352c84` on `codex/multica-six-domain-baseline`.
+- Active story is now M1-S2. Writes are limited to the trusted-authentication
+  paths frozen in plan v2; S3 and later stories remain inactive.
+
+## 2026-08-13 — M1-S2 RED/GREEN implementation evidence
+
+- RED: focused Auth tests failed to compile because the local-auth composition
+  and configuration did not exist; the Core boundary test proved that a
+  verify-code response missing `token` was incorrectly accepted. A runtime
+  composition RED also proved the trusted-auth routes were not registered.
+- GREEN: Canonical SQLite now owns hashed, expiring and revocable sessions.
+  The runtime implements the frozen send-code, verify-code, current-user and
+  logout routes with Bearer and HttpOnly-cookie authentication, a readable
+  HMAC-bound CSRF cookie, CSRF enforcement for cookie logout, exact empty
+  success bodies, fail-closed missing/expired identity, and explicit six-digit
+  development-only verification-code configuration.
+- Core now validates the verify-code `{token,user}` envelope with Zod and
+  rejects a missing or empty token. User IDs and raw session tokens are
+  generated independently; only token hashes are persisted.
+- Fresh passing evidence: focused Auth/bootstrap/cmd tests; full backend
+  `go test ./...`; `go vet ./...`; `go mod verify`; focused Core Auth and
+  metadata tests; Core typecheck; `git diff --check`; and an empty
+  `server/**` diff.
+- The Windows race binary exits `0xc0000139`; no race result is claimed. An
+  independent review is pending, so M1-S2 is not yet Integrated and M1-S3 is
+  inactive.
+
+## 2026-08-13 — M1-S2 review correction
+
+- Independent review identified a first-login race: concurrent verification
+  for the same new email could both observe no user and one request could fail
+  the unique-email insert with HTTP 500.
+- A 12-way concurrent RED reproduced the failure. User creation now uses
+  `INSERT ... ON CONFLICT(email) DO NOTHING` followed by an email lookup; the
+  RED passes repeatedly with one user and one distinct session per request.
+- Full backend tests, vet, module verification and the focused Auth runtime
+  tests pass after correction. Final independent re-review is pending.
+
+## 2026-08-13 — M1-S2 independently reviewed
+
+- Independent re-review result: `PASS`; no remaining P0/P1 finding.
+- Review verified the frozen HTTP contract, hashed expiration/revocation,
+  Bearer and Cookie identity, HMAC CSRF enforcement, concurrent first login,
+  runtime registration, Core response validation, scoped paths, and an empty
+  `server/**` diff.
+- M1-S2 is Integrated but not yet Customer Accepted. The current Web login
+  continues into Workspace listing, which is intentionally M1-S3; no browser
+  login journey is claimed at S2. M1-S3 remains inactive until Customer
+  acceptance.

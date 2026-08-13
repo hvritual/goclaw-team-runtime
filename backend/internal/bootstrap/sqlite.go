@@ -49,7 +49,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
 		return nil, nil, err
 	}
-	authModule, err := auth.NewWithSqliteMemberServices(auth.SqlitePersistenceConfig{DB: db})
+	authModule, err := auth.NewWithSqliteLocalAuth(auth.SqlitePersistenceConfig{DB: db}, config.LocalAuth)
 	if err != nil {
 		return nil, nil, err
 	}

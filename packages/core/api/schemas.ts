@@ -901,6 +901,11 @@ export const UserSchema = z.object({
   updated_at: z.string().default(""),
 }).loose();
 
+export const LoginResponseSchema = z.object({
+  token: z.string().min(1),
+  user: UserSchema,
+}).loose();
+
 export const EMPTY_USER: User = {
   id: "",
   name: "",

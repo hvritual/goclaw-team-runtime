@@ -74,10 +74,10 @@ func TestAuthSqliteMigrationsAreRepeatableAndOwnOnlyAuthTables(t *testing.T) {
 		t.Fatalf("second MigrateSqlite() error = %v", err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM auth_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 1 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM auth_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 2 {
 		t.Fatalf("migration count/error = %d/%v", migrationCount, err)
 	}
-	for _, table := range []string{"auth_users", "auth_members", "auth_workspace_membership_roots"} {
+	for _, table := range []string{"auth_users", "auth_members", "auth_workspace_membership_roots", "auth_sessions"} {
 		var found string
 		if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&found); err != nil {
 			t.Fatalf("table %s: %v", table, err)

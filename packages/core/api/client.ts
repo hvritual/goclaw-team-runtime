@@ -159,6 +159,7 @@ import {
   SubscribersListSchema,
   TimelineEntriesSchema,
   UserSchema,
+  LoginResponseSchema,
   CreateFeedbackResponseSchema,
   EMPTY_CREATE_FEEDBACK_RESPONSE,
   NotificationPreferenceResponseSchema,
@@ -421,10 +422,13 @@ export class ApiClient {
   }
 
   async verifyCode(email: string, code: string): Promise<LoginResponse> {
-    return this.fetch("/auth/verify-code", {
+    const raw = await this.fetch<unknown>("/auth/verify-code", {
       method: "POST",
       body: JSON.stringify({ email, code }),
     });
+    const parsed = LoginResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid authentication response");
+    return parsed.data;
   }
 
   async googleLogin(code: string, redirectUri: string): Promise<LoginResponse> {
