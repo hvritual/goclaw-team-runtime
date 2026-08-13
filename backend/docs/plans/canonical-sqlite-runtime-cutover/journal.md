@@ -275,3 +275,43 @@ Human approval are recorded.
 - Active story is M1-S6. Writes are limited to the frozen Canonical realtime
   boundary/publisher, Issue/metadata post-commit integration, Core WebSocket
   contract/sync paths and focused accepted-Issue cache tests. M1-S7 is inactive.
+
+## 2026-08-13 — M1-S6 RED/GREEN and review evidence
+
+- RED began with no Canonical `/ws` route or publisher. Review-driven REDs then
+  proved non-exact auth ACK/errors, slow-client blocking, unbounded frames,
+  over-broad event schemas, request-presence change flags, missing committed
+  delete production and incomplete dependent cleanup.
+- GREEN provides cookie-upgrade and token-first-frame authentication, exact
+  token ACK/error frames, hidden Workspace membership failures, a strict local
+  Web-origin allowlist, 64 KiB read limit, per-client bounded ordered queues,
+  write deadlines and nonblocking slow-client eviction.
+- The four frozen events are Workspace-isolated and schema-checked before Core
+  cache work. Issue create/update/delete and metadata put/delete publish only
+  after successful SQLite return; failures publish nothing. Metadata carries
+  the complete bag and delete publishes the canonical UUID.
+- Canonical Issue deletion resolves UUID/identifier, clears Todo, child Issue
+  and Requirement references in one `BEGIN IMMEDIATE` transaction, evolves
+  Requirement coverage/version/audit state, and rolls everything back on
+  failure. Concurrent double delete stress runs produce one 204, one hidden
+  404, one event and one audit version.
+- Core accepts required `member|agent` actors and exact status/priority/date/
+  datetime fields while preserving additive legacy fields. Malformed known
+  events are dropped; duplicate delivery coalesces and reconnect performs an
+  authoritative current-Workspace Issue graph refresh. No cursor/replay was
+  introduced.
+- Independent specification and code/security reviews both returned PASS with
+  no remaining P0-P2 after multiple correction rounds.
+- Fresh gates pass: full backend tests/vet/module verification; concurrent
+  runtime stress x10; Core 87 files/557 tests, typecheck and lint; focused
+  realtime 24 tests; diff check; no `server/**` diff. Windows race binaries
+  remain unable to start with environment code `0xc0000139` and are not claimed.
+
+## 2026-08-13 — M1-S6 accepted; M1-S7 activated
+
+- M1-S6 is independently accepted under the continuous M1-S3 through M1-S7
+  authorization.
+- Active story is M1-S7. Writes are limited to repository selectors/commands
+  outside `server/**`, local setup documentation, `e2e/**`, and this plan
+  directory. Browser, process/port, no-legacy, restart/readback and
+  non-destructive rollback evidence are mandatory before milestone acceptance.

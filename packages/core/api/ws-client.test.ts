@@ -22,6 +22,15 @@ class FakeWebSocket {
   send() {}
 }
 
+const canonicalIssueEvent = {
+  id: "issue-1", workspace_id: "workspace-1", number: 1, identifier: "ONE-1",
+  title: "Issue", description: null, status: "todo", priority: "none",
+  assignee_type: null, assignee_id: null, creator_type: "member", creator_id: "member-1",
+  parent_issue_id: null, project_id: null, position: 1, stage: null,
+  start_date: null, due_date: null, metadata: {}, properties: {},
+  created_at: "2026-08-13T00:00:00Z", updated_at: "2026-08-13T00:00:00Z",
+};
+
 describe("WSClient", () => {
   beforeEach(() => {
     FakeWebSocket.lastUrl = null;
@@ -114,7 +123,7 @@ describe("WSClient", () => {
     FakeWebSocket.lastInstance!.onmessage?.({
       data: JSON.stringify({
         type: "issue:updated",
-        payload: { id: "issue-1" },
+        payload: { issue: canonicalIssueEvent },
       }),
     });
 
@@ -123,7 +132,7 @@ describe("WSClient", () => {
       `{"type":"issue`,
     );
     expect(handler).toHaveBeenCalledWith(
-      { id: "issue-1" },
+      { issue: canonicalIssueEvent },
       undefined,
       undefined,
     );
@@ -168,9 +177,9 @@ describe("WSClient", () => {
 
     // A valid frame after the bad ones still dispatches normally.
     FakeWebSocket.lastInstance!.onmessage?.({
-      data: JSON.stringify({ type: "issue:updated", payload: { id: "i-1" } }),
+      data: JSON.stringify({ type: "issue:updated", payload: { issue: canonicalIssueEvent } }),
     });
-    expect(issueHandler).toHaveBeenCalledWith({ id: "i-1" }, undefined, undefined);
+    expect(issueHandler).toHaveBeenCalledWith({ issue: canonicalIssueEvent }, undefined, undefined);
     expect(anyHandler).toHaveBeenCalledTimes(1);
 
     // The drop is logged at most once per connection despite four bad frames.
@@ -192,17 +201,128 @@ describe("WSClient", () => {
     fakeWs.onmessage?.({
       data: JSON.stringify({
         type: "issue:created",
-        payload: { id: "issue-1" },
+        payload: { issue: canonicalIssueEvent },
         actor_id: "user-123",
         actor_type: "user",
       }),
     });
 
     expect(handler).toHaveBeenCalledWith(
-      { id: "issue-1" },
+      { issue: canonicalIssueEvent },
       "user-123",
       "user",
     );
+  });
+
+  it("drops malformed canonical Issue event payloads at the socket boundary", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const metadata = vi.fn();
+    const updated = vi.fn();
+    const created = vi.fn();
+    ws.on("issue_metadata:changed", metadata);
+    ws.on("issue:updated", updated);
+    ws.on("issue:created", created);
+    ws.connect();
+
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({
+        type: "issue_metadata:changed",
+        payload: { issue_id: "issue-1", metadata: { nested: { rejected: true } } },
+      }),
+    });
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:updated", payload: { issue: { title: "missing identity" } } }),
+    });
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:created", payload: { id: "legacy-bare-id" } }),
+    });
+    expect(metadata).not.toHaveBeenCalled();
+    expect(updated).not.toHaveBeenCalled();
+    expect(created).not.toHaveBeenCalled();
+  });
+
+  it("accepts additive legacy fields while requiring the canonical Issue shape", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const created = vi.fn();
+    const updated = vi.fn();
+    ws.on("issue:created", created);
+    ws.on("issue:updated", updated);
+    ws.connect();
+
+    const createdPayload = {
+      issue: { ...canonicalIssueEvent, labels: [{ id: "label-1" }], attachments: [{ id: "attachment-1" }] },
+      labels: [{ id: "label-1" }],
+      attachments: [{ id: "attachment-1" }],
+    };
+    const updatedPayload = {
+      issue: { ...canonicalIssueEvent, legacy_projection: "retained" },
+      change: { field: "status", from: "todo", to: "done" },
+      prev_issue: { ...canonicalIssueEvent, status: "todo" },
+    };
+
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:created", payload: createdPayload }),
+    });
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:updated", payload: updatedPayload }),
+    });
+
+    expect(created).toHaveBeenCalledWith(createdPayload, undefined, undefined);
+    expect(updated).toHaveBeenCalledWith(updatedPayload, undefined, undefined);
+  });
+
+  it("drops canonical Issue events with invalid known enum and date values", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const updated = vi.fn();
+    ws.on("issue:updated", updated);
+    ws.connect();
+
+    const invalidKnownFields = [
+      { status: "owned" },
+      { priority: "critical" },
+      { assignee_type: "service" },
+      { creator_type: "robot" },
+      { start_date: "2026-02-30" },
+      { due_date: "2026/08/13" },
+      { created_at: "yesterday" },
+      { updated_at: "2026-08-13" },
+    ];
+    for (const invalid of invalidKnownFields) {
+      FakeWebSocket.lastInstance!.onmessage?.({
+        data: JSON.stringify({
+          type: "issue:updated",
+          payload: { issue: { ...canonicalIssueEvent, ...invalid } },
+        }),
+      });
+    }
+
+    expect(updated).not.toHaveBeenCalled();
+  });
+
+  it("accepts agent assignees and creators in canonical Issue events", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const created = vi.fn();
+    const updated = vi.fn();
+    ws.on("issue:created", created);
+    ws.on("issue:updated", updated);
+    ws.connect();
+
+    const agentIssue = {
+      ...canonicalIssueEvent,
+      assignee_type: "agent",
+      assignee_id: "agent-1",
+      creator_type: "agent",
+      creator_id: "agent-1",
+    };
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:created", payload: { issue: agentIssue } }),
+    });
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue:updated", payload: { issue: agentIssue } }),
+    });
+
+    expect(created).toHaveBeenCalledWith({ issue: agentIssue }, undefined, undefined);
+    expect(updated).toHaveBeenCalledWith({ issue: agentIssue }, undefined, undefined);
   });
 
   // ── Reconnect backoff tests ────────────────────────────────────────

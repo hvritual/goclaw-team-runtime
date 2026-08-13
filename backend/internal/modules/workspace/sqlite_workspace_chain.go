@@ -41,6 +41,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata SQLite persistence: %w", err)
 	}
+	issueDeletion, err := persistence.NewIssueDeletionRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue deletion SQLite persistence: %w", err)
+	}
 	todos, err := persistence.NewTodoRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo SQLite persistence: %w", err)
@@ -73,16 +77,28 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo application: %w", err)
 	}
-	issueService, err := application.NewIssueUseCase(
+	baseIssueService, err := application.NewIssueUseCase(
 		issues, projects, dependencies.Authorizer, dependencies.Actors, dependencies.Assets,
 		newID(dependencies.NewIssueID), now,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue application: %w", err)
 	}
-	issueMetadataService, err := application.NewIssueMetadataUseCase(issueMetadata, dependencies.Authorizer, dependencies.Actors, now)
+	baseIssueMetadataService, err := application.NewIssueMetadataUseCase(issueMetadata, dependencies.Authorizer, dependencies.Actors, now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata application: %w", err)
+	}
+	baseIssueDeletionService, err := application.NewIssueDeletionUseCase(issueDeletion, dependencies.Authorizer)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue deletion application: %w", err)
+	}
+	var issueDeletionService contract.IssueDeletionService = baseIssueDeletionService
+	var issueService contract.IssueService = baseIssueService
+	var issueMetadataService contract.IssueMetadataService = baseIssueMetadataService
+	if dependencies.Events != nil {
+		issueService = publishingIssueService{IssueService: baseIssueService, events: dependencies.Events}
+		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
+		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
 	}
 	knowledgeService, err := application.NewKnowledgeUseCase(knowledge, dependencies.Authorizer, dependencies.Assets, newID(dependencies.NewKnowledgeID), now)
 	if err != nil {
@@ -128,6 +144,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity))
+	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
 		module.extensions = append(module.extensions, newWorkspaceSelectionExtension(dependencies.Selection, dependencies.HTTPUserIdentity))
 	}

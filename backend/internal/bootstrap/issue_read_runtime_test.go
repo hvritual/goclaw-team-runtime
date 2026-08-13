@@ -288,7 +288,7 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 func TestSQLiteRuntimeAdvertisesHonestIssueCapabilities(t *testing.T) {
 	runtime := newRuntimeForConfig(t, Config{Name: "backend-test", Version: "test", HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0", SQLitePath: filepath.Join(t.TempDir(), "config.db"), WorkspaceDependencies: FailClosedWorkspaceDependencies(), LocalAuth: auth.LocalAuthConfig{VerificationCode: "888888"}})
 	response := runtimeRequest(runtime, http.MethodGet, "/api/config", "", nil)
-	if response.Code != http.StatusOK || !containsJSON(response.Body.Bytes(), `"issue_list":true`, `"issue_base_detail":true`, `"issue_detail_pull_requests":false`, `"issue_timeline":false`, `"issue_members":false`, `"issue_metadata":true`, `"issue_realtime":false`) {
+	if response.Code != http.StatusOK || !containsJSON(response.Body.Bytes(), `"issue_list":true`, `"issue_base_detail":true`, `"issue_detail_pull_requests":false`, `"issue_timeline":false`, `"issue_members":false`, `"issue_metadata":true`, `"issue_realtime":true`) {
 		t.Fatalf("config = %d %s", response.Code, response.Body.String())
 	}
 }

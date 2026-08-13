@@ -1,4 +1,4 @@
-import type { WSMessage, WSEventType } from "../types/events";
+import { isValidCanonicalIssueEventPayload, type WSMessage, type WSEventType } from "../types/events";
 import { type Logger, noopLogger } from "../logger";
 
 type EventHandler = (payload: unknown, actorId?: string, actorType?: string) => void;
@@ -131,6 +131,10 @@ export class WSClient {
       }
       if ((msg as any).type === "auth_ack") {
         this.onAuthenticated();
+        return;
+      }
+      if (!isValidCanonicalIssueEventPayload(msg.type, msg.payload)) {
+        this.logger.warn("ws: dropping invalid canonical Issue event", msg.type);
         return;
       }
       this.logger.debug("received", msg.type);

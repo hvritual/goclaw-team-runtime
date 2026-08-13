@@ -17,6 +17,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/auth"
 	"github.com/hvritual/workspace/internal/modules/workspace"
+	canonicalrealtime "github.com/hvritual/workspace/internal/realtime"
 )
 
 // Config defines the standalone backend process identity and listen addresses.
@@ -77,6 +78,7 @@ type Runtime struct {
 	httpServer  *kratoshttp.Server
 	grpcServer  *kratosgrpc.Server
 	db          *sql.DB
+	realtime    *canonicalrealtime.Hub
 	closeOnce   sync.Once
 	closeErr    error
 }
@@ -90,13 +92,14 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		logger = slog.Default()
 	}
 
-	db, application, err := newSQLiteApplication(context.Background(), config)
+	db, application, realtimeHub, err := newSQLiteApplication(context.Background(), config)
 	if err != nil {
 		return nil, err
 	}
 	httpServer := kratoshttp.NewServer(kratoshttp.Address(config.HTTPAddress))
 	grpcServer := kratosgrpc.NewServer(kratosgrpc.Address(config.GRPCAddress))
 	application.RegisterHTTP(httpServer)
+	realtimeHub.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
 	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled))
@@ -114,6 +117,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		httpServer:  httpServer,
 		grpcServer:  grpcServer,
 		db:          db,
+		realtime:    realtimeHub,
 	}, nil
 }
 
@@ -130,7 +134,7 @@ func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadat
 				"issue_properties": false, "issue_pins": false,
 				"issue_children": false, "issue_project": false,
 				"issue_child_progress": false, "issue_acceptance": false,
-				"issue_metadata": issueMetadataEnabled, "issue_realtime": false,
+				"issue_metadata": issueMetadataEnabled, "issue_realtime": true,
 			},
 		})
 	})
@@ -170,6 +174,9 @@ func (r *Runtime) Stop() error {
 // Close releases the product database. It is safe to call more than once.
 func (r *Runtime) Close() error {
 	r.closeOnce.Do(func() {
+		if r.realtime != nil {
+			_ = r.realtime.Close()
+		}
 		if r.db != nil {
 			r.closeErr = r.db.Close()
 		}
@@ -179,6 +186,9 @@ func (r *Runtime) Close() error {
 
 // Database exposes the owned product database for composition and lifecycle tests.
 func (r *Runtime) Database() *sql.DB { return r.db }
+
+// Realtime exposes the Canonical in-memory publisher for composition tests.
+func (r *Runtime) Realtime() *canonicalrealtime.Hub { return r.realtime }
 
 // Application returns the assembled bounded contexts.
 func (r *Runtime) Application() *Application {

@@ -121,6 +121,18 @@ describe("useRealtimeSync", () => {
     expect(invalidate).toHaveBeenCalledTimes(8);
   });
 
+  it("tolerates duplicate committed events with one authoritative refresh", () => {
+    const socket = createMockWs();
+    const invalidate = vi.spyOn(qc, "invalidateQueries");
+    renderHook(() => useRealtimeSync(socket.ws, stores), { wrapper: createWrapper(qc) });
+
+    socket.emit("issue_metadata:changed");
+    socket.emit("issue_metadata:changed");
+    act(() => vi.advanceTimersByTime(75));
+
+    expect(invalidate).toHaveBeenCalledTimes(8);
+  });
+
   it("ignores events outside the retained domains", () => {
     const socket = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");

@@ -16,19 +16,28 @@ import (
 	systemmodule "github.com/hvritual/workspace/internal/modules/system"
 	"github.com/hvritual/workspace/internal/modules/workspace"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
+	canonicalrealtime "github.com/hvritual/workspace/internal/realtime"
 	_ "modernc.org/sqlite"
 )
 
-func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Application, error) {
+func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Application, *canonicalrealtime.Hub, error) {
 	path := strings.TrimSpace(config.SQLitePath)
 	if path != ":memory:" && !strings.HasPrefix(path, "file:") {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return nil, nil, fmt.Errorf("create Canonical SQLite directory: %w", err)
+			return nil, nil, nil, fmt.Errorf("create Canonical SQLite directory: %w", err)
 		}
 	}
-	db, err := sql.Open("sqlite", path)
+	dataSource := path
+	if path != ":memory:" {
+		separator := "?"
+		if strings.Contains(path, "?") {
+			separator = "&"
+		}
+		dataSource += separator + "_pragma=busy_timeout(5000)"
+	}
+	db, err := sql.Open("sqlite", dataSource)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open Canonical SQLite database: %w", err)
+		return nil, nil, nil, fmt.Errorf("open Canonical SQLite database: %w", err)
 	}
 	if path == ":memory:" {
 		db.SetMaxOpenConns(1)
@@ -42,22 +51,22 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		}
 	}()
 	if _, err := db.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
-		return nil, nil, fmt.Errorf("configure Canonical SQLite database: %w", err)
+		return nil, nil, nil, fmt.Errorf("configure Canonical SQLite database: %w", err)
 	}
 	if err := workspace.MigrateSqlite(ctx, db); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	authModule, err := auth.NewWithSqliteLocalAuth(auth.SqlitePersistenceConfig{DB: db}, config.LocalAuth)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships()}
 	selection, err := workspace.NewSqliteWorkspaceSelection(workspace.SqlitePersistenceConfig{DB: db}, memberships)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	workspaceDependencies := config.WorkspaceDependencies
 	workspaceDependencies.Authorizer = memberships
@@ -67,15 +76,17 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
 	workspaceDependencies.HTTPMutationAuthorizer = authModule.AuthorizeHTTPMutation
 	workspaceDependencies.IssueMetadataEnabled = config.IssueMetadataEnabled
+	realtimeHub := canonicalrealtime.NewHub(canonicalrealtime.IdentityResolver(workspaceDependencies.HTTPIdentity))
+	workspaceDependencies.Events = realtimeHub
 	workspaceModule, err := workspace.NewWithSqliteWorkspaceChain(
 		workspace.SqlitePersistenceConfig{DB: db},
 		workspaceDependencies,
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	failed = false
-	return db, NewApplicationWithModules(workspaceModule, authModule, space.New(), systemmodule.New()), nil
+	return db, NewApplicationWithModules(workspaceModule, authModule, space.New(), systemmodule.New()), realtimeHub, nil
 }
 
 type authMembershipAdapter struct {
@@ -106,7 +117,7 @@ func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, mem
 
 func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
 	switch permission {
-	case "workspace.issue.get", "workspace.issue.list",
+	case "workspace.issue.create", "workspace.issue.get", "workspace.issue.list", "workspace.issue.update", "workspace.issue.update_status", "workspace.issue.delete",
 		"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete":
 	default:
 		return contract.ErrWorkspaceActorRequired

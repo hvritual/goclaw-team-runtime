@@ -7,6 +7,7 @@ import type { Project } from "./project";
 import type { Label } from "./label";
 import type { Task } from "./task";
 import type { Skill } from "./skill";
+import { z } from "zod";
 
 export type WSEventType =
   | "issue:created"
@@ -59,6 +60,55 @@ export interface WSMessage<T = unknown> {
   payload: T;
   actor_id?: string;
   actor_type?: string;
+}
+
+const RealtimeIssueSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  number: z.number(),
+  identifier: z.string().min(1),
+  title: z.string(),
+  description: z.string().nullable(),
+  status: z.enum(["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"]),
+  priority: z.enum(["urgent", "high", "medium", "low", "none"]),
+  assignee_type: z.enum(["member", "agent"]).nullable(),
+  assignee_id: z.string().nullable(),
+  creator_type: z.enum(["member", "agent"]),
+  creator_id: z.string(),
+  parent_issue_id: z.string().nullable(),
+  project_id: z.string().nullable(),
+  position: z.number(),
+  stage: z.number().nullable(),
+  start_date: z.iso.date().nullable(),
+  due_date: z.iso.date().nullable(),
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+  properties: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+
+const IssueCreatedEventPayloadSchema = z.object({ issue: RealtimeIssueSchema }).passthrough();
+const IssueUpdatedEventPayloadSchema = z.object({
+  issue: RealtimeIssueSchema,
+  assignee_changed: z.boolean().optional(),
+  status_changed: z.boolean().optional(),
+  project_changed: z.boolean().optional(),
+}).passthrough();
+const IssueDeletedEventPayloadSchema = z.object({ issue_id: z.string().min(1) }).passthrough();
+const IssueMetadataChangedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+}).passthrough();
+
+/** Validates the four Canonical M1 Issue events before cache consumers run. */
+export function isValidCanonicalIssueEventPayload(type: string, payload: unknown): boolean {
+  switch (type) {
+    case "issue:created": return IssueCreatedEventPayloadSchema.safeParse(payload).success;
+    case "issue:updated": return IssueUpdatedEventPayloadSchema.safeParse(payload).success;
+    case "issue:deleted": return IssueDeletedEventPayloadSchema.safeParse(payload).success;
+    case "issue_metadata:changed": return IssueMetadataChangedEventPayloadSchema.safeParse(payload).success;
+    default: return true;
+  }
 }
 
 export interface IssueCreatedPayload {
@@ -198,4 +248,5 @@ export type WSEventPayload<E extends WSEventType> =
   E extends "issue:created" ? IssueCreatedPayload
     : E extends "issue:updated" ? IssueUpdatedPayload
       : E extends "issue:deleted" ? IssueDeletedPayload
+        : E extends "issue_metadata:changed" ? IssueMetadataChangedPayload
         : unknown;
