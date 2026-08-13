@@ -27,6 +27,18 @@ func NewLocalAuthHandler(service *application.LocalAuthUseCase) *LocalAuthHandle
 	return &LocalAuthHandler{service: service}
 }
 
+func (h *LocalAuthHandler) ResolveUserID(request *http.Request) (string, error) {
+	token, _ := requestToken(request)
+	if token == "" {
+		return "", application.ErrInvalidToken
+	}
+	user, err := h.service.Resolve(request.Context(), token)
+	if err != nil {
+		return "", err
+	}
+	return user.ID, nil
+}
+
 func (h *LocalAuthHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.POST("/auth/send-code", h.sendCode)

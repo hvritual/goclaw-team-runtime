@@ -190,6 +190,8 @@ import {
   MemberListSchema,
   InvitationSchema,
   InvitationListSchema,
+  WorkspaceListSchema,
+  EMPTY_WORKSPACE_LIST,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -1015,7 +1017,10 @@ export class ApiClient {
 
   // Workspaces
   async listWorkspaces(): Promise<Workspace[]> {
-    return this.fetch("/api/workspaces");
+    const raw = await this.fetch<unknown>("/api/workspaces");
+    return parseWithFallback<Workspace[]>(raw, WorkspaceListSchema, EMPTY_WORKSPACE_LIST, {
+      endpoint: "GET /api/workspaces",
+    });
   }
 
   async getWorkspace(id: string): Promise<Workspace> {

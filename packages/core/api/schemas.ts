@@ -22,6 +22,7 @@ import type {
   SearchProjectsResponse,
   TimelineEntry,
   User,
+  Workspace,
   WorkspacePermissionCatalog,
 } from "../types";
 import type { CreateFeedbackResponse } from "../feedback/types";
@@ -100,6 +101,26 @@ export const MemberWithUserSchema = z
   .loose();
 
 export const MemberListSchema = z.array(MemberWithUserSchema);
+
+export const WorkspaceSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: z.string(),
+  description: z.string().nullable(),
+  context: z.string().nullable(),
+  settings: z.record(z.string(), z.unknown()),
+  repos: z.array(z.object({
+    url: z.string(),
+    description: z.string().optional(),
+  }).loose()),
+  issue_prefix: z.string(),
+  avatar_url: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).loose();
+
+export const WorkspaceListSchema = z.array(WorkspaceSchema);
+export const EMPTY_WORKSPACE_LIST: Workspace[] = [];
 
 export const InvitationSchema = z
   .object({

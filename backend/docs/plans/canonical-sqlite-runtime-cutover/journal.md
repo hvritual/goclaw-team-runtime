@@ -165,3 +165,33 @@ Human approval are recorded.
   continues into Workspace listing, which is intentionally M1-S3; no browser
   login journey is claimed at S2. M1-S3 remains inactive until Customer
   acceptance.
+
+## 2026-08-13 — M1-S2 Customer Accepted; M1-S3 activated
+
+- Human Customer accepted M1-S2 and authorized continuous execution through
+  M1-S7, subject to every story's frozen scope, RED/GREEN evidence, independent
+  specification and code-quality review, and deterministic gates.
+- Accepted S2 commit: `02898eb` on `codex/multica-six-domain-baseline`.
+- Active story is now M1-S3. Writes are limited to authorized Workspace
+  selection paths frozen in plan v2; S4 and later stories remain inactive.
+
+## 2026-08-13 — M1-S3 RED/GREEN and review evidence
+
+- RED: backend tests failed because no trusted session-to-membership Workspace
+  selection seam existed; Core accepted malformed Workspace list responses.
+- GREEN: `GET /api/workspaces` now resolves the S2 session, lists only the
+  user's owner/admin/member memberships, returns the exact legacy Workspace
+  array ordered by creation time, and returns `[]` for an outsider. Trusted
+  slug/ID resolution produces the canonical Workspace ID and member actor ID;
+  missing, expired, foreign, missing-slug and ID/slug mismatch cases fail
+  closed. No by-ID Workspace endpoint was added.
+- Spec review initially found missing evidence for authorized ID/slug mismatch,
+  missing slug, direct foreign ID, route absence and exact raw fields. Focused
+  tests added all five cases; specification re-review returned `PASS`.
+- Independent code/security review returned `PASS` with no P0/P1/P2. It
+  verified session reuse, membership isolation, member actor identity,
+  parameterized SQL, stable order, NULL/JSON mapping, HTTP/Core boundaries,
+  construction and scope.
+- Fresh gates pass: full backend tests, vet and module verification; Core 86
+  files/550 tests, typecheck and lint; diff check; no `server/**` diff. M1-S3
+  is Integrated under the user's continuous S3-S7 authorization.

@@ -125,6 +125,9 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		}
 	}
 	module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity))
+	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newWorkspaceSelectionExtension(dependencies.Selection, dependencies.HTTPUserIdentity))
+	}
 	return module, nil
 }
 

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -48,6 +49,22 @@ func NewWithSqliteLocalAuth(persistenceConfig SqlitePersistenceConfig, config Lo
 		return nil, err
 	}
 	useCase := application.NewLocalAuthUseCase(persistence.NewLocalAuthStore(persistenceConfig.DB), strings.TrimSpace(config.VerificationCode), config.SessionTTL, config.Now, config.NewID)
-	module.extensions = append(module.extensions, &localAuthExtension{handler: authhttp.NewLocalAuthHandler(useCase)})
+	handler := authhttp.NewLocalAuthHandler(useCase)
+	memberships, err := persistence.NewWorkspaceMembershipStore(persistenceConfig.DB)
+	if err != nil {
+		return nil, err
+	}
+	module.memberships = memberships
+	module.httpUserID = handler.ResolveUserID
+	module.extensions = append(module.extensions, &localAuthExtension{handler: handler})
 	return module, nil
+}
+
+// ResolveHTTPUserID accepts only the S2 Bearer token or multica_auth cookie
+// and validates the session before returning the Auth user ID.
+func (m *Module) ResolveHTTPUserID(request *http.Request) (string, error) {
+	if m.httpUserID == nil {
+		return "", application.ErrInvalidToken
+	}
+	return m.httpUserID(request)
 }

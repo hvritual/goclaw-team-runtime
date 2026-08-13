@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hvritual/workspace/internal/modules/auth"
+	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
 	"github.com/hvritual/workspace/internal/modules/space"
 	systemmodule "github.com/hvritual/workspace/internal/modules/system"
 	"github.com/hvritual/workspace/internal/modules/workspace"
@@ -53,15 +54,50 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, err
 	}
+	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships()}
+	selection, err := workspace.NewSqliteWorkspaceSelection(workspace.SqlitePersistenceConfig{DB: db}, memberships)
+	if err != nil {
+		return nil, nil, err
+	}
+	workspaceDependencies := config.WorkspaceDependencies
+	workspaceDependencies.Selection = selection
+	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
+	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
 	workspaceModule, err := workspace.NewWithSqliteWorkspaceChain(
 		workspace.SqlitePersistenceConfig{DB: db},
-		config.WorkspaceDependencies,
+		workspaceDependencies,
 	)
 	if err != nil {
 		return nil, nil, err
 	}
 	failed = false
 	return db, NewApplicationWithModules(workspaceModule, authModule, space.New(), systemmodule.New()), nil
+}
+
+type authMembershipAdapter struct {
+	reader authcontract.WorkspaceMembershipReader
+}
+
+func (a authMembershipAdapter) ListForUser(ctx context.Context, userID string) ([]contract.WorkspaceMembership, error) {
+	values, err := a.reader.ListForUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]contract.WorkspaceMembership, len(values))
+	for index, value := range values {
+		result[index] = contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}
+	}
+	return result, nil
+}
+
+func (a authMembershipAdapter) FindForUserAndWorkspace(ctx context.Context, userID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
+	value, ok, err := a.reader.FindForUserAndWorkspace(ctx, userID, workspaceID)
+	return contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
+}
+
+func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, memberID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
+	value, ok, err := a.reader.FindByMemberAndWorkspace(ctx, memberID, workspaceID)
+	return contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
 }
 
 type failClosedWorkspaceBoundaries struct{}

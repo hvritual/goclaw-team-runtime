@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	kratosgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/auth/contract"
@@ -20,9 +22,11 @@ func RegisterExtension(factory platformmodule.Factory) {
 }
 
 type Module struct {
-	local      contract.Service
-	server     *protoadapter.Server
-	extensions []platformmodule.Extension
+	local       contract.Service
+	server      *protoadapter.Server
+	extensions  []platformmodule.Extension
+	memberships contract.WorkspaceMembershipReader
+	httpUserID  func(*http.Request) (string, error)
 }
 
 func New() *Module {
@@ -30,7 +34,8 @@ func New() *Module {
 	extensions := extensionRegistry.Build()
 	return &Module{local: client, server: protoadapter.New(client), extensions: extensions}
 }
-func (m *Module) Local() contract.Service { return m.local }
+func (m *Module) Local() contract.Service                                  { return m.local }
+func (m *Module) WorkspaceMemberships() contract.WorkspaceMembershipReader { return m.memberships }
 func (m *Module) RegisterHTTP(server *kratoshttp.Server) {
 	authv1.RegisterAuthServiceHTTPServer(server, m.server)
 	platformmodule.RegisterHTTP(m.extensions, server)
