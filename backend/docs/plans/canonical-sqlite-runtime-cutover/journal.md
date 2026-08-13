@@ -66,3 +66,49 @@ Human approval are recorded.
   S1 paths/tests/runtime ownership/rollback are frozen.
 - Active story is now `M1-S1`. Product writes remain limited to the S1 paths in
   plan v2; `server/**` remains forbidden.
+
+## 2026-08-13 — M1-S1 RED/GREEN implementation evidence
+
+- RED: focused bootstrap/cmd tests failed to compile because `SQLitePath`, real
+  Workspace dependencies, database ownership, readiness, and close APIs did not
+  exist.
+- GREEN: one Canonical runtime now opens one product SQLite DB, runs Workspace
+  and Auth migrations, selects their real opt-in provider graphs, registers all
+  four modules, and closes the DB idempotently. Boundary services required by
+  later stories are explicitly fail-closed rather than permissive.
+- Empty DB, migration catalogs, retained restart/readback, dependency-aware
+  readiness, liveness after dependency failure, missing-provider failure and
+  idempotent close have focused tests.
+- Fresh passing evidence: focused bootstrap/cmd/Auth/Workspace tests; full
+  backend `go test ./...`; `go vet ./...`; `go mod verify`; `git diff --check`;
+  and an empty `server/**` diff.
+- A separate live background-process probe was blocked by the local execution
+  policy before process launch; no live-process evidence is claimed for S1.
+- Independent review is pending. M1-S2 is not active until S1 review and Human
+  Customer acceptance are recorded.
+
+## 2026-08-13 — M1-S1 review corrections
+
+- Independent review found that direct `Runtime.Stop()` did not close the
+  product DB and that `:memory:` SQLite could split across multiple pooled
+  connections. RED tests reproduced both risks.
+- `Stop()` now closes the DB after stopping the app, `Close()` remains
+  idempotent, and the in-memory profile is restricted to one connection.
+  Focused bootstrap/cmd/Auth/Workspace tests pass after correction.
+- Review also confirmed that unrelated UI/local artifacts are outside S1. They
+  remain unstaged and will be excluded from the scoped commit.
+- The fail-closed Workspace boundary is intentional S1 behavior: real SQLite
+  persistence providers are required and selected, while trusted identity and
+  authorization become active only in S2/S3. Missing dependency objects still
+  fail construction; fail-closed dependencies never grant access.
+
+## 2026-08-13 — M1-S1 independently reviewed
+
+- Independent review result: `PASS`; no remaining P0/P1 finding.
+- The review verified shared DB ownership, ordered migrations, real opt-in
+  provider selection, readiness, stop/close, retained restart, fail-closed
+  boundary behavior, staged scope, and an empty `server/**` diff.
+- Final post-review gates passed: full backend tests, vet, module verification,
+  staged diff check, and server-path audit.
+- M1-S1 is `Integrated` but not yet Customer Accepted. M1-S2 remains inactive
+  until Human Customer acceptance is recorded.

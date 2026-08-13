@@ -23,12 +23,18 @@ type Application struct {
 
 // NewApplication assembles all bounded contexts without selecting persistence.
 func NewApplication() *Application {
-	return &Application{modules: []Module{
+	return NewApplicationWithModules(
 		workspace.New(),
 		auth.New(),
 		space.New(),
 		systemmodule.New(),
-	}}
+	)
+}
+
+// NewApplicationWithModules assembles an application from an explicitly
+// selected provider graph.
+func NewApplicationWithModules(modules ...Module) *Application {
+	return &Application{modules: append([]Module(nil), modules...)}
 }
 
 // Modules returns a defensive copy of the assembled module set.

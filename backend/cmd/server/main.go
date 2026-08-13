@@ -46,6 +46,8 @@ func parseConfig(arguments []string, output io.Writer) (bootstrap.Config, error)
 	flags.StringVar(&config.Version, "version", defaultVersion, "service version")
 	flags.StringVar(&config.HTTPAddress, "http-addr", "127.0.0.1:8000", "HTTP listen address")
 	flags.StringVar(&config.GRPCAddress, "grpc-addr", "127.0.0.1:9000", "gRPC listen address")
+	flags.StringVar(&config.SQLitePath, "sqlite-path", "data/multica-canonical.db", "Canonical product SQLite path")
+	config.WorkspaceDependencies = bootstrap.FailClosedWorkspaceDependencies()
 	if err := flags.Parse(arguments); err != nil {
 		return bootstrap.Config{}, err
 	}

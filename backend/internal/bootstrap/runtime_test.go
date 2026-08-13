@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 )
 
@@ -20,6 +21,7 @@ func TestConfigValidate(t *testing.T) {
 			config: Config{
 				Name: "backend", Version: "dev",
 				HTTPAddress: "127.0.0.1:8000", GRPCAddress: "127.0.0.1:9000",
+				SQLitePath: "test.db", WorkspaceDependencies: FailClosedWorkspaceDependencies(),
 			},
 		},
 		{
@@ -27,6 +29,7 @@ func TestConfigValidate(t *testing.T) {
 			config: Config{
 				Name: "backend", Version: "test",
 				HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+				SQLitePath: "test.db", WorkspaceDependencies: FailClosedWorkspaceDependencies(),
 			},
 		},
 		{
@@ -139,9 +142,11 @@ func newTestRuntime(t *testing.T) *Runtime {
 	runtime, err := NewRuntime(Config{
 		Name: "backend-test", Version: "test",
 		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath: filepath.Join(t.TempDir(), "runtime.db"), WorkspaceDependencies: FailClosedWorkspaceDependencies(),
 	}, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = runtime.Close() })
 	return runtime
 }
