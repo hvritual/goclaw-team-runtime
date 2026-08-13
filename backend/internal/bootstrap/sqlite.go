@@ -60,6 +60,8 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		return nil, nil, err
 	}
 	workspaceDependencies := config.WorkspaceDependencies
+	workspaceDependencies.Authorizer = memberships
+	workspaceDependencies.Actors = memberships
 	workspaceDependencies.Selection = selection
 	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
 	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
@@ -98,6 +100,32 @@ func (a authMembershipAdapter) FindForUserAndWorkspace(ctx context.Context, user
 func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, memberID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
 	value, ok, err := a.reader.FindByMemberAndWorkspace(ctx, memberID, workspaceID)
 	return contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
+}
+
+func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
+	if permission != "workspace.issue.get" && permission != "workspace.issue.list" {
+		return contract.ErrWorkspaceActorRequired
+	}
+	actor, ok := contract.WorkspaceActorFromContext(ctx)
+	if !ok || actor.Type != "member" {
+		return contract.ErrWorkspaceActorRequired
+	}
+	_, found, err := a.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return contract.ErrActorOutsideWorkspace
+	}
+	return nil
+}
+
+func (a authMembershipAdapter) ActorBelongsToWorkspace(ctx context.Context, workspaceID, actorType, actorID string) (bool, error) {
+	if actorType != "member" {
+		return false, nil
+	}
+	_, found, err := a.FindByMemberAndWorkspace(ctx, actorID, workspaceID)
+	return found, err
 }
 
 type failClosedWorkspaceBoundaries struct{}

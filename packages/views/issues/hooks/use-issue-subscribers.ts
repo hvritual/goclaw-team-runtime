@@ -11,11 +11,12 @@ import { issueSubscribersOptions, issueKeys } from "@multica/core/issues/queries
 import { useToggleIssueSubscriber } from "@multica/core/issues/mutations";
 import { useWSEvent, useWSReconnect } from "@multica/core/realtime";
 
-export function useIssueSubscribers(issueId: string, userId?: string) {
+export function useIssueSubscribers(issueId: string, userId?: string, enabled = true) {
   const qc = useQueryClient();
-  const { data: subscribers = [], isLoading: loading } = useQuery(
-    issueSubscribersOptions(issueId),
-  );
+  const { data: subscribers = [], isLoading: loading } = useQuery({
+    ...issueSubscribersOptions(issueId),
+    enabled,
+  });
 
   const toggleMutation = useToggleIssueSubscriber(issueId);
 

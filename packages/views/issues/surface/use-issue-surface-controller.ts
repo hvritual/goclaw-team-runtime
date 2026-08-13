@@ -15,6 +15,7 @@ import type {
   Project,
 } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { featureFlagEnabled, useConfigStore } from "@multica/core/config";
 import { ALL_STATUSES } from "@multica/core/issues/config";
 import { dateOnlyToLocalDate } from "@multica/core/issues/date";
 import type {
@@ -195,6 +196,10 @@ export function useIssueSurfaceController({
   const tableColumns = useViewStore((s) => s.tableColumns);
   const listCollapsedStatuses = useViewStore((s) => s.listCollapsedStatuses);
   const [tableSearch, setTableSearch] = useState("");
+	const configLoaded = useConfigStore((state) => state.configLoaded);
+	const featureFlags = useConfigStore((state) => state.featureFlags);
+	const labelsEnabled = configLoaded && featureFlagEnabled(featureFlags, "issue_labels", true);
+	const propertiesEnabled = configLoaded && featureFlagEnabled(featureFlags, "issue_properties", true);
 
   const allowedModes = useMemo(() => new Set<IssueSurfaceMode>(modes), [modes]);
   const fallbackMode = modes[0] ?? "list";
@@ -221,12 +226,13 @@ export function useIssueSurfaceController({
   // (archive/delete): filters keyed by a non-active definition are stripped
   // before they reach the predicates, and a sort on a non-active definition
   // degrades to manual order — matching what the header already shows.
-  const { data: workspaceProperties = [], isSuccess: catalogSettled } = useQuery(propertyListOptions(wsId));
+  const { data: workspaceProperties = [], isSuccess: catalogSettled } = useQuery({ ...propertyListOptions(wsId), enabled: propertiesEnabled });
   const activePropertyIds = useMemo(
     () => new Set(workspaceProperties.map((p) => p.id)),
     [workspaceProperties],
   );
   const effectivePropertyFilters = useMemo(() => {
+	if (!propertiesEnabled) return {};
     // While the catalog is still loading (or errored), persisted filters are
     // passed through UNCHANGED: treating a cold catalog as confirmed-empty
     // would silently drop the user's filters on first paint (clean-room
@@ -238,7 +244,7 @@ export function useIssueSurfaceController({
     );
     if (entries.length === Object.keys(propertyFilters).length) return propertyFilters;
     return Object.fromEntries(entries);
-  }, [activePropertyIds, catalogSettled, propertyFilters]);
+  }, [activePropertyIds, catalogSettled, propertiesEnabled, propertyFilters]);
 
   // Custom-property sorts and filters are served by the backend: the sort
   // param carries `property:<id>` (typed ORDER BY expression server-side)
@@ -363,7 +369,7 @@ export function useIssueSurfaceController({
           ? { project_ids: viewProjectFilters }
           : {}),
         ...(viewIncludeNoProject ? { include_no_project: true } : {}),
-        ...(labelFilters.length > 0 ? { label_ids: labelFilters } : {}),
+        ...(labelsEnabled && labelFilters.length > 0 ? { label_ids: labelFilters } : {}),
         ...(Object.keys(effectivePropertyFilters).length > 0
           ? { properties: effectivePropertyFilters }
           : {}),
@@ -384,6 +390,7 @@ export function useIssueSurfaceController({
     effectivePropertyFilters,
     includeNoAssignee,
     labelFilters,
+    labelsEnabled,
     priorityFilters,
     scope,
     showSubIssues,
@@ -401,6 +408,8 @@ export function useIssueSurfaceController({
     if (usesServerStatusSurface) facets.push({ kind: "status" });
     if (
       activeTableFacet &&
+      (activeTableFacet.kind !== "label" || labelsEnabled) &&
+      (activeTableFacet.kind !== "property" || propertiesEnabled) &&
       !facets.some(
         (facet) =>
           facet.kind === activeTableFacet.kind &&
@@ -413,7 +422,7 @@ export function useIssueSurfaceController({
     }
     // The request shape remains total while disabled.
     return facets.length > 0 ? facets : [{ kind: "status" }];
-  }, [activeTableFacet, usesServerStatusSurface]);
+  }, [activeTableFacet, labelsEnabled, propertiesEnabled, usesServerStatusSurface]);
   const tableFacetRequest = useMemo(
     () => ({
       query: tableQuerySpec,
@@ -439,9 +448,10 @@ export function useIssueSurfaceController({
   }, [usesServerFacets]);
   const requestActiveTableFacet = useCallback(
     (facet: IssueTableFacetSpec | null) => {
-      setActiveTableFacet(usesServerFacets ? facet : null);
+      const supported = facet?.kind !== "label" && facet?.kind !== "property" || (facet?.kind === "label" ? labelsEnabled : propertiesEnabled);
+      setActiveTableFacet(usesServerFacets && supported ? facet : null);
     },
-    [usesServerFacets],
+    [labelsEnabled, propertiesEnabled, usesServerFacets],
   );
   const serverStatusBranches = useIssueStatusBranches({
     wsId,
@@ -462,7 +472,7 @@ export function useIssueSurfaceController({
       };
     }
     const propertyId = propertyIdFromViewKey(effectiveGrouping);
-    if (propertyId) {
+	if (propertyId && propertiesEnabled) {
       return {
         kind: "property",
         property_id: propertyId,
@@ -473,6 +483,7 @@ export function useIssueSurfaceController({
   }, [
     effectiveGrouping,
     effectiveViewMode,
+	propertiesEnabled,
     serverStatuses,
     swimlaneGrouping,
   ]);

@@ -81,6 +81,7 @@ export function AuthInitializer({
         }
       })
       .catch(() => {
+		configStore.getState().setFeatureFlags({});
         /* config is optional — legacy file card matching degrades gracefully */
       });
 

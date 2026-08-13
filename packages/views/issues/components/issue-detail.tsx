@@ -67,8 +67,8 @@ import { PullRequestList } from "./pull-request-list";
 import { useGitHubSettings } from "@multica/core/github";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
+import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
 import { useWorkspacePaths } from "@multica/core/paths";
-import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useProposeCommentDecision } from "@multica/core/knowledge";
 import { useCompleteIssueWithAcceptance, useCreateAcceptanceConclusion } from "@multica/core/implementation-knowledge";
@@ -865,17 +865,58 @@ interface IssueDetailProps {
 // IssueDetail
 // ---------------------------------------------------------------------------
 
-export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true, layoutId = "multica_issue_detail_layout", highlightCommentId }: IssueDetailProps) {
+export function IssueDetail(props: IssueDetailProps) {
+	const configLoaded = useConfigStore((state) => state.configLoaded);
+	const timelineEnabled = useFeatureEnabled("issue_timeline", true);
+	if (!configLoaded) {
+		return <div data-testid="issue-capability-loading"><TimelineSkeleton /></div>;
+	}
+	return timelineEnabled ? <FullIssueDetail {...props} /> : <CanonicalBaseIssueDetail {...props} />;
+}
+
+function CanonicalBaseIssueDetail({ issueId }: IssueDetailProps) {
+	const wsId = useWorkspaceId();
+	const { data: issue = null, isLoading, isError } = useQuery(issueDetailOptions(wsId, issueId));
+	if (isLoading) return <div data-testid="issue-base-loading"><TimelineSkeleton /></div>;
+	if (isError) return <div role="alert">Failed to load issue</div>;
+	if (!issue) return <div data-testid="issue-base-empty">Issue not found</div>;
+	return (
+		<article data-testid="issue-base-detail" className="flex h-full min-h-0 flex-col gap-4 overflow-auto p-6">
+			<header>
+				<p className="text-xs text-muted-foreground">{issue.identifier}</p>
+				<h1 className="text-xl font-semibold">{issue.title}</h1>
+			</header>
+			{issue.description ? <p className="whitespace-pre-wrap text-sm">{issue.description}</p> : <p className="text-sm text-muted-foreground">No description</p>}
+		</article>
+	);
+}
+
+function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true, layoutId = "multica_issue_detail_layout", highlightCommentId }: IssueDetailProps) {
   const { t } = useT("issues");
   const timeAgo = useTimeAgo();
   const id = issueId;
   const backOrReplace = useBackOrReplace();
   const user = useAuthStore((s) => s.user);
   const paths = useWorkspacePaths();
+	// Legacy servers omit these additive flags, so absence keeps the full
+	// detail surface. Canonical explicitly disables deferred consumers.
+	const timelineEnabled = useFeatureEnabled("issue_timeline", true);
+	const membersEnabled = useFeatureEnabled("issue_members", true);
+	const reactionsEnabled = useFeatureEnabled("issue_reactions", true);
+	const subscribersEnabled = useFeatureEnabled("issue_subscribers", true);
+	const attachmentsEnabled = useFeatureEnabled("issue_attachments", true);
+	const labelsEnabled = useFeatureEnabled("issue_labels", true);
+	const propertiesEnabled = useFeatureEnabled("issue_properties", true);
+	const pinsEnabled = useFeatureEnabled("issue_pins", true);
+	const childrenEnabled = useFeatureEnabled("issue_children", true);
+	const projectEnabled = useFeatureEnabled("issue_project", true);
+	const childProgressEnabled = useFeatureEnabled("issue_child_progress", true);
+	const acceptanceEnabled = useFeatureEnabled("issue_acceptance", true);
+	const pullRequestsEnabled = useFeatureEnabled("issue_detail_pull_requests", true);
 
   // Issue navigation — read from TQ list cache
   const wsId = useWorkspaceId();
-  const { data: members = [] } = useQuery(memberListOptions(wsId));
+  const { data: members = [] } = useQuery({ ...memberListOptions(wsId), enabled: membersEnabled });
   // Workspace owners and admins moderate any comment authored by anyone
   // (mirrors backend `comment.go:507-512`). Computed here so per-comment
   // rendering doesn't have to re-derive it for every row.
@@ -889,7 +930,15 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
     [proposeCommentDecision],
   );
   const { data: allIssues = [] } = useQuery(issueListOptions(wsId));
-  const { getActorName } = useActorName();
+  const getActorName = useCallback(
+    (type: string, actorId: string) => {
+      if (type === "member") {
+        return members.find((member) => member.user_id === actorId)?.name ?? "Unknown";
+      }
+      return type === "system" ? "Multica" : "System";
+    },
+    [members],
+  );
   // Description autosave is deliberately NOT gated (no explicit submit; the
   // editor already strips `blob:` before serializing and binds ids on the
   // later save). It still needs the failure toast, or a failed upload just
@@ -1094,7 +1143,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
     timeline, loading: timelineLoading,
     submitComment, submitReply,
     editComment, deleteComment, toggleResolveComment, toggleReaction: handleToggleReaction,
-  } = useIssueTimeline(id, user?.id);
+  } = useIssueTimeline(id, user?.id, timelineEnabled);
 
   // Resolve / unresolve must always clear the per-session expand entry so
   // re-resolving an already-expanded thread folds it back to the bar (the
@@ -1318,23 +1367,23 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   const {
     reactions: issueReactions,
     toggleReaction: handleToggleIssueReaction,
-  } = useIssueReactions(id, user?.id);
+  } = useIssueReactions(id, user?.id, reactionsEnabled);
 
   const {
     subscribers, isSubscribed, toggleSubscribe: handleToggleSubscribe, toggleSubscriber,
-  } = useIssueSubscribers(id, user?.id);
+  } = useIssueSubscribers(id, user?.id, subscribersEnabled);
 
   // Attachments uploaded against this issue. Drives the description
   // editor's click-time fresh-sign download: NodeViews match
   // `src`/`href` against this list to resolve an attachment id before
   // calling `/api/attachments/{id}`.
-  const { data: issueAttachments } = useQuery(issueAttachmentsOptions(id));
+  const { data: issueAttachments } = useQuery({ ...issueAttachmentsOptions(id), enabled: attachmentsEnabled });
 
   // Sub-issue queries
   const parentIssueId = issue?.parent_issue_id;
   const { data: parentIssue = null } = useQuery({
     ...issueDetailOptions(wsId, parentIssueId ?? ""),
-    enabled: !!parentIssueId,
+    enabled: childrenEnabled && !!parentIssueId,
     initialData: () => allIssues.find((i) => i.id === parentIssueId),
   });
 
@@ -1343,24 +1392,24 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   const issueProjectId = issue?.project_id;
   const { data: breadcrumbProject = null } = useQuery({
     ...projectDetailOptions(wsId, issueProjectId ?? ""),
-    enabled: !!issueProjectId,
+    enabled: projectEnabled && !!issueProjectId,
   });
   const { data: childIssues = [] } = useQuery({
     ...childIssuesOptions(wsId, id),
-    enabled: !!issue,
+    enabled: childrenEnabled && !!issue,
   });
   // Parent's children — used to render the "x/y" progress next to the
   // "Sub-issue of …" breadcrumb under the title.
   const { data: parentChildIssues = [] } = useQuery({
     ...childIssuesOptions(wsId, parentIssueId ?? ""),
-    enabled: !!parentIssueId,
+    enabled: childrenEnabled && !!parentIssueId,
   });
   // Workspace-wide parent→(done/total) map; lets each sub-issue row show its
   // OWN nested progress ring without opening it. Same query the list
   // surfaces use, so it's usually already cached.
   const { data: subIssueProgress } = useQuery({
     ...childIssueProgressOptions(wsId),
-    enabled: childIssues.length > 0,
+    enabled: childProgressEnabled && childIssues.length > 0,
   });
   // User-level display preference for sub-issue rows (built-in field toggles
   // + opted-in workspace custom properties). `subIssueCustomProps` resolves
@@ -1524,7 +1573,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
 
   // Shared issue actions (mutations, pin, copy-link, modal dispatch, etc.).
   // Called before the `if (!issue)` early return so hook order stays stable.
-  const actions = useIssueActions(issue);
+  const actions = useIssueActions(issue, pinsEnabled);
   const handleUpdateField = actions.updateField;
   const handleStatusUpdate = useCallback((updates: Partial<UpdateIssueRequest>) => {
     if (updates.status === "done" && issue?.status !== "done") {
@@ -1537,13 +1586,13 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
   // Labels live in their own query (not on the issue body) — fetch the count
   // here so seeding can decide whether the "Labels" optional row should be
   // shown for an issue that already has labels attached.
-  const { data: attachedLabels = [] } = useQuery(issueLabelsOptions(wsId, id));
+  const { data: attachedLabels = [] } = useQuery({ ...issueLabelsOptions(wsId, id), enabled: labelsEnabled });
   const attachedLabelsCount = attachedLabels.length;
 
   // Custom property catalog. Includes archived definitions: an issue can
   // still carry a value written before the archive, and that row must stay
   // renderable (read-only) until someone clears it.
-  const { data: workspaceProperties = [] } = useQuery(propertyListOptions(wsId, true));
+  const { data: workspaceProperties = [] } = useQuery({ ...propertyListOptions(wsId, true), enabled: propertiesEnabled });
 
   // Sub-issue rows only surface live definitions: the display picker offers
   // non-archived properties, and chips render only ids that resolve here.
@@ -1752,15 +1801,16 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               </Button>
             ) : null}
           </PropRow>
-          <PropRow label={t(($) => $.detail.prop_assignee)}>
-            <AssigneePicker assigneeType={issue.assignee_type} assigneeId={issue.assignee_id} onUpdate={handleUpdateField} align="start" />
-          </PropRow>
-          <PropRow label={t(($) => $.detail.prop_project)}>
-            <ProjectPicker
-              projectId={issue.project_id}
-              onUpdate={handleUpdateField}
-            />
-          </PropRow>
+          {membersEnabled ? (
+            <PropRow label={t(($) => $.detail.prop_assignee)}>
+              <AssigneePicker assigneeType={issue.assignee_type} assigneeId={issue.assignee_id} onUpdate={handleUpdateField} align="start" />
+            </PropRow>
+          ) : null}
+          {projectEnabled ? (
+            <PropRow label={t(($) => $.detail.prop_project)}>
+              <ProjectPicker projectId={issue.project_id} onUpdate={handleUpdateField} />
+            </PropRow>
+          ) : null}
 
           {/* Optional props — rendered only when set on the issue OR added
               via "+ Add property" in this session. Row order follows the
@@ -1804,7 +1854,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               />
             </PropRow>
           )}
-          {visibleOptionalProps.has("labels") && (
+          {labelsEnabled && visibleOptionalProps.has("labels") && (
             <PropRow label={t(($) => $.detail.prop_labels)}>
               <LabelPicker
                 issueId={issue.id}
@@ -1969,7 +2019,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
       {/* Pull requests — hidden when the workspace disables the PR sidebar
           (or the GitHub master switch is off). Backend data is kept either
           way so re-enabling restores the section instantly. */}
-      {githubSettings.prSidebar && (
+      {pullRequestsEnabled && githubSettings.prSidebar && (
         <div>
           <button
             type="button"
@@ -2007,7 +2057,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
         </div>}
       </div>
 
-      <AcceptanceConclusionHistory issueId={id} />
+      {acceptanceEnabled ? <AcceptanceConclusionHistory issueId={id} /> : null}
 
       {/* Metadata — free-form KV bag. The values almost
           never mean anything to humans, so the trigger row matches the
@@ -2192,7 +2242,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                 <TooltipContent side="bottom">{t(($) => $.detail.archive_tooltip)}</TooltipContent>
               </Tooltip>
             )}
-            <Tooltip>
+            {pinsEnabled ? <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
@@ -2206,7 +2256,7 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
                 }
               />
               <TooltipContent side="bottom">{actions.isPinned ? t(($) => $.detail.unpin_tooltip) : t(($) => $.detail.pin_tooltip)}</TooltipContent>
-            </Tooltip>
+            </Tooltip> : null}
             <IssueActionsDropdown
               issue={issue}
               align="end"

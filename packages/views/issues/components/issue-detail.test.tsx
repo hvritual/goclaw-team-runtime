@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Issue, Label, TimelineEntry } from "@multica/core/types";
 import { I18nProvider } from "@multica/core/i18n/react";
 import { useResolvedExpandStore } from "@multica/core/issues/stores/resolved-expand-store";
+import { configStore } from "@multica/core/config";
 import {
   DEFAULT_SUB_ISSUE_ROW_PROPERTIES,
   useSubIssueDisplayStore,
@@ -23,6 +24,7 @@ const contentEditorMounts = vi.hoisted(() => ({ count: 0 }));
 // so the `useCommentDraftStore(s => s.getAttachments(key))` selector keeps a
 // stable identity. A fresh `[]` per call would loop useSyncExternalStore.
 const emptyDraftAttachments = vi.hoisted(() => [] as unknown[]);
+const mockRealtimeConsumers = vi.hoisted(() => ({ event: vi.fn(), reconnect: vi.fn() }));
 
 vi.mock("@multica/ui/hooks/use-mobile", () => ({
   useIsMobile: () => mockViewport.isMobile,
@@ -292,6 +294,7 @@ const mockApiObj = vi.hoisted(() => ({
   listAgents: vi.fn().mockResolvedValue([]),
   getProject: vi.fn(),
   listProjects: vi.fn().mockResolvedValue({ projects: [] }),
+  listIssuePullRequests: vi.fn().mockResolvedValue({ pull_requests: [] }),
 }));
 
 vi.mock("@multica/core/api", () => ({
@@ -469,8 +472,8 @@ vi.mock("@multica/core/hooks/use-file-upload", () => ({
 
 // Mock realtime
 vi.mock("@multica/core/realtime", () => ({
-  useWSEvent: vi.fn(),
-  useWSReconnect: vi.fn(),
+  useWSEvent: mockRealtimeConsumers.event,
+  useWSReconnect: mockRealtimeConsumers.reconnect,
   useWS: () => ({ subscribe: vi.fn(() => () => {}), onReconnect: vi.fn(() => () => {}) }),
   WSProvider: ({ children }: { children: React.ReactNode }) => children,
   useRealtimeSync: () => {},
@@ -638,6 +641,70 @@ describe("IssueDetail (shared)", () => {
     // Reset project mock — individual tests override per case. Default fixture
     // has project_id: null so getProject is not invoked.
     mockApiObj.getProject.mockReset();
+	configStore.getState().setFeatureFlags({});
+  });
+
+  it("renders canonical base detail without mounting deferred consumers", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: false,
+      issue_members: false,
+      issue_reactions: false,
+      issue_subscribers: false,
+      issue_attachments: false,
+      issue_labels: false,
+      issue_properties: false,
+      issue_pins: false,
+      issue_children: false,
+      issue_project: false,
+      issue_child_progress: false,
+      issue_acceptance: false,
+      issue_detail_pull_requests: false,
+    });
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("Add JWT auth to the backend")).toBeInTheDocument();
+    expect(screen.getByText("Implement authentication")).toBeInTheDocument();
+    await waitFor(() => expect(mockApiObj.getIssue).toHaveBeenCalledTimes(1));
+    expect(mockApiObj.listTimeline).not.toHaveBeenCalled();
+    expect(mockApiObj.listMembers).not.toHaveBeenCalled();
+    expect(mockApiObj.listIssueReactions).not.toHaveBeenCalled();
+    expect(mockApiObj.listIssueSubscribers).not.toHaveBeenCalled();
+    expect(mockApiObj.listAttachments).not.toHaveBeenCalled();
+    expect(mockApiObj.listChildIssues).not.toHaveBeenCalled();
+    expect(mockApiObj.getChildIssueProgress).not.toHaveBeenCalled();
+    expect(mockApiObj.listProperties).not.toHaveBeenCalled();
+    expect(mockApiObj.getProject).not.toHaveBeenCalled();
+    expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
+    expect(mockRealtimeConsumers.event).not.toHaveBeenCalled();
+    expect(mockRealtimeConsumers.reconnect).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("virtuoso-mock")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/comment/i)).not.toBeInTheDocument();
+  });
+
+  it("renders canonical base detail loading, empty, denied, and error states", async () => {
+    const flags = { issue_timeline: false, issue_detail_pull_requests: false };
+    configStore.getState().setFeatureFlags(flags);
+    mockApiObj.getIssue.mockReturnValueOnce(new Promise(() => {}));
+    const loading = renderIssueDetail();
+    expect(screen.getByTestId("issue-base-loading")).toBeInTheDocument();
+    loading.unmount();
+
+    mockApiObj.getIssue.mockResolvedValueOnce(null);
+    const empty = renderIssueDetail();
+    expect(await screen.findByTestId("issue-base-empty")).toBeInTheDocument();
+    empty.unmount();
+
+    const denied = Object.assign(new Error("denied"), { status: 403 });
+    mockApiObj.getIssue.mockRejectedValueOnce(denied);
+    const deniedView = renderIssueDetail();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issue");
+    deniedView.unmount();
+
+    mockApiObj.getIssue.mockRejectedValueOnce(new Error("offline"));
+    renderIssueDetail();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issue");
   });
 
   it("shows loading skeleton while data is loading", () => {

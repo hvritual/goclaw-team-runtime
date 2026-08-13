@@ -11,11 +11,12 @@ import { issueReactionsOptions, issueKeys } from "@multica/core/issues/queries";
 import { useToggleIssueReaction, type ToggleIssueReactionVars } from "@multica/core/issues/mutations";
 import { useWSEvent, useWSReconnect } from "@multica/core/realtime";
 
-export function useIssueReactions(issueId: string, userId?: string) {
+export function useIssueReactions(issueId: string, userId?: string, enabled = true) {
   const qc = useQueryClient();
-  const { data: serverReactions = [], isLoading: loading } = useQuery(
-    issueReactionsOptions(issueId),
-  );
+  const { data: serverReactions = [], isLoading: loading } = useQuery({
+    ...issueReactionsOptions(issueId),
+    enabled,
+  });
 
   const toggleMutation = useToggleIssueReaction(issueId);
 

@@ -195,3 +195,37 @@ Human approval are recorded.
 - Fresh gates pass: full backend tests, vet and module verification; Core 86
   files/550 tests, typecheck and lint; diff check; no `server/**` diff. M1-S3
   is Integrated under the user's continuous S3-S7 authorization.
+
+## 2026-08-13 — M1-S3 accepted under continuous authorization; M1-S4 activated
+
+- M1-S3 commit `c6c3649` is independently specification- and code-reviewed and
+  accepted under the Human Customer's continuous M1-S3 through M1-S7
+  authorization.
+- Active story is now M1-S4. Writes are limited to the Issue list/base-detail,
+  Core contract and explicit capability-gating paths frozen in plan v2; S5 and
+  later stories remain inactive.
+
+## 2026-08-13 — M1-S4 RED/GREEN and review evidence
+
+- RED began with 404s for all frozen Issue read routes and `/api/config`, and a
+  rendered detail test proved deferred consumers still issued requests.
+- GREEN provides authenticated snake_case UUID/identifier detail, GET/POST
+  list twins, server-authoritative table facets/groups/rows, exact supported
+  controller filters/scopes/sorts, stable opaque bound cursors, hierarchy and
+  exact paging envelopes, plus additive Canonical capability flags.
+- Canonical config routes the detail to a pure base component; deferred
+  timeline/comment/reaction/subscriber/attachment/member/label/property/pin/
+  child/project/progress/acceptance/pull-request consumers do not mount. Legacy
+  loaded config with absent flags retains enabled behavior.
+- Specification review found and drove corrections for deferred consumers,
+  hierarchy, unsupported inputs, paging, exact raw contracts and capability
+  evidence. Final specification review returned `PASS`.
+- Code/security review drove corrections for query-bound cursors, actor-pair
+  and no-value filters, strict bounded JSON, controller shape coverage,
+  canonical ordering, trusted `my` scope, stable Zustand selectors and sort
+  validation. Final code review returned `PASS` with no P0-P2.
+- Fresh gates pass: full backend tests/vet/module verification; Core 87
+  files/552 tests; focused Views 39/39 and Core capability 2/2; Core/Views
+  typecheck; diff check; no `server/**` diff. The broad Views test command hit
+  the 120-second local command timeout, so it is not claimed; focused S4 Views
+  evidence is green. Real browser/PID/network acceptance remains an S7 gate.

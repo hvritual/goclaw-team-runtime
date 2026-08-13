@@ -33,7 +33,7 @@ export interface UseIssueActionsResult {
  * early-returned on a missing issue. Returned handlers are safe no-ops when
  * `issue` is null.
  */
-export function useIssueActions(issue: Issue | null): UseIssueActionsResult {
+export function useIssueActions(issue: Issue | null, pinsEnabled = true): UseIssueActionsResult {
   const { t } = useT("issues");
   const wsId = useWorkspaceId();
   const paths = useWorkspacePaths();
@@ -43,7 +43,7 @@ export function useIssueActions(issue: Issue | null): UseIssueActionsResult {
 
   const { data: pinnedItems = [] } = useQuery({
     ...pinListOptions(wsId, userId ?? ""),
-    enabled: !!userId,
+    enabled: !!userId && pinsEnabled,
   });
 
   const isPinned =

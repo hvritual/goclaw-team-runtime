@@ -59,11 +59,11 @@ function commentToTimelineEntry(c: Comment): TimelineEntry {
   };
 }
 
-export function useIssueTimeline(issueId: string, userId?: string) {
+export function useIssueTimeline(issueId: string, userId?: string, enabled = true) {
   const { t } = useT("issues");
   const qc = useQueryClient();
 
-  const query = useQuery(issueTimelineOptions(issueId));
+  const query = useQuery({ ...issueTimelineOptions(issueId), enabled });
   const { data, isLoading: loading } = query;
 
   const timeline = useMemo<TimelineEntry[]>(() => data ?? [], [data]);

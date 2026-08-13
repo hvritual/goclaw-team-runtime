@@ -98,6 +98,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	application.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
+	registerConfigRoute(httpServer, config.Version)
 
 	app := kratos.New(
 		kratos.Name(config.Name),
@@ -113,6 +114,25 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		grpcServer:  grpcServer,
 		db:          db,
 	}, nil
+}
+
+func registerConfigRoute(server *kratoshttp.Server, version string) {
+	server.Route("/").GET("/api/config", func(ctx kratoshttp.Context) error {
+		return ctx.JSON(http.StatusOK, map[string]any{
+			"cdn_domain": "", "allow_signup": true, "server_version": version,
+			"feature_flags": map[string]bool{
+				"issue_list": true, "issue_base_detail": true,
+				"issue_detail_pull_requests": false,
+				"issue_timeline":             false, "issue_members": false,
+				"issue_reactions": false, "issue_subscribers": false,
+				"issue_attachments": false, "issue_labels": false,
+				"issue_properties": false, "issue_pins": false,
+				"issue_children": false, "issue_project": false,
+				"issue_child_progress": false, "issue_acceptance": false,
+				"issue_metadata": false, "issue_realtime": false,
+			},
+		})
+	})
 }
 
 func registerHealthRoutes(server *kratoshttp.Server, db *sql.DB) {
