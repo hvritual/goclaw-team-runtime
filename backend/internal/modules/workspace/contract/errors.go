@@ -12,6 +12,7 @@ var (
 	ErrWorkspaceActorRequired       = errors.New("workspace actor is required")
 	ErrInvalidIssue                 = errors.New("invalid issue")
 	ErrIssueNotFound                = errors.New("issue not found")
+	ErrInvalidIssueMetadata         = errors.New("invalid issue metadata")
 	ErrInvalidKnowledge             = errors.New("invalid knowledge")
 	ErrKnowledgeNotFound            = errors.New("knowledge not found")
 	ErrAssetOutsideWorkspace        = errors.New("asset does not belong to workspace")

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"sort"
 	"sync"
 	"testing"
@@ -54,6 +55,12 @@ func newIssueMainlineModule(t *testing.T, db *sql.DB, sequence *issueIDSequence,
 	module, err := NewWithSqliteWorkspaceChain(SqlitePersistenceConfig{DB: db}, WorkspaceServiceDependencies{
 		Authorizer: &workspaceAccessStub{}, Actors: actors, Assets: assets,
 		Skills: &skillReferenceCatalog{references: map[string]bool{}}, NewIssueID: sequence.generate, Now: now,
+		HTTPIdentity: func(request *http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			if request.Header.Get("Authorization") != "Bearer test-token" || request.Header.Get("X-Workspace-Slug") != "acme" {
+				return contract.WorkspaceHTTPIdentity{}, contract.ErrWorkspaceActorRequired
+			}
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		},
 	})
 	if err != nil {
 		t.Fatal(err)

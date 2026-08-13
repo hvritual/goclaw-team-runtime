@@ -32,6 +32,10 @@ export interface IssueReaction {
 export type IssueMetadataValue = string | number | boolean;
 export type IssueMetadata = Record<string, IssueMetadataValue>;
 
+export interface IssueMetadataResponse {
+  metadata: IssueMetadata;
+}
+
 export interface Issue {
   id: string;
   workspace_id: string;

@@ -1,8 +1,8 @@
 # Server function migration plan
 
-The approved execution plan is [plan_v8.md](plan_v8.md).
+The approved execution plan is [plan_v9.md](plan_v9.md).
 
 - Plan-ID: `server-function-migration`
-- Approved version: `8`
-- Active step: `P6-S2B1`
-- Status: `isolated sidebar implementation active; control-thread review pending`
+- Approved version: `9`
+- Active step: `P6-S2B1-V9`
+- Status: `implementation accepted; default runtime cutover and realtime publishing deferred`

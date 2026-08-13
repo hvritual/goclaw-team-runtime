@@ -62,6 +62,77 @@ service IssueService {
   }
 }
 
+service IssueMetadataService {
+  option (annotations.v1.module) = {
+    code: "workspace"
+    name: "Workspace"
+    version: "v1"
+  };
+
+  rpc GetIssueMetadata(GetIssueMetadataRequest) returns (GetIssueMetadataResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.metadata.get"
+      permission_name: "Get issue metadata"
+      resource: "workspace.issue.metadata"
+      action: "get"
+    };
+  }
+  rpc PutIssueMetadataKey(PutIssueMetadataKeyRequest) returns (PutIssueMetadataKeyResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.metadata.put"
+      permission_name: "Put issue metadata"
+      resource: "workspace.issue.metadata"
+      action: "put"
+      audit: true
+    };
+  }
+  rpc DeleteIssueMetadataKey(DeleteIssueMetadataKeyRequest) returns (DeleteIssueMetadataKeyResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.issue.metadata.delete"
+      permission_name: "Delete issue metadata"
+      resource: "workspace.issue.metadata"
+      action: "delete"
+      audit: true
+    };
+  }
+}
+
+message GetIssueMetadataRequest {
+  string workspace_id = 1;
+  string issue_id = 2;
+}
+
+message PutIssueMetadataKeyRequest {
+  string workspace_id = 1;
+  string issue_id = 2;
+  string key = 3;
+  string value_json = 4;
+}
+
+message DeleteIssueMetadataKeyRequest {
+  string workspace_id = 1;
+  string issue_id = 2;
+  string key = 3;
+}
+
+message GetIssueMetadataResponse {
+  string issue_id = 1;
+  google.protobuf.Struct metadata = 2;
+  string updated_at = 3;
+}
+
+message PutIssueMetadataKeyResponse {
+  string issue_id = 1;
+  google.protobuf.Struct metadata = 2;
+  string updated_at = 3;
+}
+
+message DeleteIssueMetadataKeyResponse {
+  string issue_id = 1;
+  google.protobuf.Struct metadata = 2;
+  string updated_at = 3;
+}
+
 message IssueAssetIDs {
   repeated string values = 1;
 }

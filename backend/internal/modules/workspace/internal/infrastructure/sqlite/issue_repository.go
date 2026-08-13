@@ -134,19 +134,19 @@ func (r *issueRepository) List(ctx context.Context, query application.IssueListQ
 }
 
 func (r *issueRepository) Update(ctx context.Context, value issueDomain.Issue) error {
-	metadata, properties, assets, err := encodeIssueJSON(value)
+	_, _, assets, err := encodeIssueJSON(value)
 	if err != nil {
 		return err
 	}
 	result, err := r.db.ExecContext(ctx, `UPDATE workspace_issues SET
 		title = ?, description = ?, status = ?, priority = ?, assignee_type = ?, assignee_id = ?,
 		parent_issue_id = ?, project_id = ?, position = ?, stage = ?, start_date = ?, due_date = ?,
-		metadata = ?, properties = ?, asset_ids = ?, updated_at = ?
+		asset_ids = ?, updated_at = ?
 		WHERE workspace_id = ? AND id = ?`,
 		value.Title, nullableString(value.Description), value.Status, value.Priority,
 		nullableString(value.AssigneeType), nullableString(value.AssigneeID), nullableString(value.ParentIssueID), nullableString(value.ProjectID),
 		value.Position, nullableInt32(value.Stage), nullableString(value.StartDate), nullableString(value.DueDate),
-		metadata, properties, assets, value.UpdatedAt.Format(time.RFC3339Nano), value.WorkspaceID, value.ID,
+		assets, value.UpdatedAt.Format(time.RFC3339Nano), value.WorkspaceID, value.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update Workspace Issue: %w", err)

@@ -37,6 +37,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue SQLite persistence: %w", err)
 	}
+	issueMetadata, err := persistence.NewIssueMetadataRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue metadata SQLite persistence: %w", err)
+	}
 	todos, err := persistence.NewTodoRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo SQLite persistence: %w", err)
@@ -75,6 +79,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue application: %w", err)
+	}
+	issueMetadataService, err := application.NewIssueMetadataUseCase(issueMetadata, dependencies.Authorizer, dependencies.Actors, now)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue metadata application: %w", err)
 	}
 	knowledgeService, err := application.NewKnowledgeUseCase(knowledge, dependencies.Authorizer, dependencies.Assets, newID(dependencies.NewKnowledgeID), now)
 	if err != nil {
@@ -116,6 +124,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 			return nil, fmt.Errorf("Workspace generated extension missing: %s", name)
 		}
 	}
+	module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity))
 	return module, nil
 }
 

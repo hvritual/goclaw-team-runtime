@@ -279,3 +279,181 @@ var IssueService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "workspace/v1/issue.proto",
 }
+
+const (
+	IssueMetadataService_GetIssueMetadata_FullMethodName       = "/workspace.v1.IssueMetadataService/GetIssueMetadata"
+	IssueMetadataService_PutIssueMetadataKey_FullMethodName    = "/workspace.v1.IssueMetadataService/PutIssueMetadataKey"
+	IssueMetadataService_DeleteIssueMetadataKey_FullMethodName = "/workspace.v1.IssueMetadataService/DeleteIssueMetadataKey"
+)
+
+// IssueMetadataServiceClient is the client API for IssueMetadataService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type IssueMetadataServiceClient interface {
+	GetIssueMetadata(ctx context.Context, in *GetIssueMetadataRequest, opts ...grpc.CallOption) (*GetIssueMetadataResponse, error)
+	PutIssueMetadataKey(ctx context.Context, in *PutIssueMetadataKeyRequest, opts ...grpc.CallOption) (*PutIssueMetadataKeyResponse, error)
+	DeleteIssueMetadataKey(ctx context.Context, in *DeleteIssueMetadataKeyRequest, opts ...grpc.CallOption) (*DeleteIssueMetadataKeyResponse, error)
+}
+
+type issueMetadataServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewIssueMetadataServiceClient(cc grpc.ClientConnInterface) IssueMetadataServiceClient {
+	return &issueMetadataServiceClient{cc}
+}
+
+func (c *issueMetadataServiceClient) GetIssueMetadata(ctx context.Context, in *GetIssueMetadataRequest, opts ...grpc.CallOption) (*GetIssueMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetIssueMetadataResponse)
+	err := c.cc.Invoke(ctx, IssueMetadataService_GetIssueMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *issueMetadataServiceClient) PutIssueMetadataKey(ctx context.Context, in *PutIssueMetadataKeyRequest, opts ...grpc.CallOption) (*PutIssueMetadataKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PutIssueMetadataKeyResponse)
+	err := c.cc.Invoke(ctx, IssueMetadataService_PutIssueMetadataKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *issueMetadataServiceClient) DeleteIssueMetadataKey(ctx context.Context, in *DeleteIssueMetadataKeyRequest, opts ...grpc.CallOption) (*DeleteIssueMetadataKeyResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteIssueMetadataKeyResponse)
+	err := c.cc.Invoke(ctx, IssueMetadataService_DeleteIssueMetadataKey_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// IssueMetadataServiceServer is the server API for IssueMetadataService service.
+// All implementations must embed UnimplementedIssueMetadataServiceServer
+// for forward compatibility.
+type IssueMetadataServiceServer interface {
+	GetIssueMetadata(context.Context, *GetIssueMetadataRequest) (*GetIssueMetadataResponse, error)
+	PutIssueMetadataKey(context.Context, *PutIssueMetadataKeyRequest) (*PutIssueMetadataKeyResponse, error)
+	DeleteIssueMetadataKey(context.Context, *DeleteIssueMetadataKeyRequest) (*DeleteIssueMetadataKeyResponse, error)
+	mustEmbedUnimplementedIssueMetadataServiceServer()
+}
+
+// UnimplementedIssueMetadataServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedIssueMetadataServiceServer struct{}
+
+func (UnimplementedIssueMetadataServiceServer) GetIssueMetadata(context.Context, *GetIssueMetadataRequest) (*GetIssueMetadataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIssueMetadata not implemented")
+}
+func (UnimplementedIssueMetadataServiceServer) PutIssueMetadataKey(context.Context, *PutIssueMetadataKeyRequest) (*PutIssueMetadataKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PutIssueMetadataKey not implemented")
+}
+func (UnimplementedIssueMetadataServiceServer) DeleteIssueMetadataKey(context.Context, *DeleteIssueMetadataKeyRequest) (*DeleteIssueMetadataKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteIssueMetadataKey not implemented")
+}
+func (UnimplementedIssueMetadataServiceServer) mustEmbedUnimplementedIssueMetadataServiceServer() {}
+func (UnimplementedIssueMetadataServiceServer) testEmbeddedByValue()                              {}
+
+// UnsafeIssueMetadataServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to IssueMetadataServiceServer will
+// result in compilation errors.
+type UnsafeIssueMetadataServiceServer interface {
+	mustEmbedUnimplementedIssueMetadataServiceServer()
+}
+
+func RegisterIssueMetadataServiceServer(s grpc.ServiceRegistrar, srv IssueMetadataServiceServer) {
+	// If the following call pancis, it indicates UnimplementedIssueMetadataServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&IssueMetadataService_ServiceDesc, srv)
+}
+
+func _IssueMetadataService_GetIssueMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIssueMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueMetadataServiceServer).GetIssueMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueMetadataService_GetIssueMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueMetadataServiceServer).GetIssueMetadata(ctx, req.(*GetIssueMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IssueMetadataService_PutIssueMetadataKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PutIssueMetadataKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueMetadataServiceServer).PutIssueMetadataKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueMetadataService_PutIssueMetadataKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueMetadataServiceServer).PutIssueMetadataKey(ctx, req.(*PutIssueMetadataKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IssueMetadataService_DeleteIssueMetadataKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteIssueMetadataKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IssueMetadataServiceServer).DeleteIssueMetadataKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IssueMetadataService_DeleteIssueMetadataKey_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IssueMetadataServiceServer).DeleteIssueMetadataKey(ctx, req.(*DeleteIssueMetadataKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// IssueMetadataService_ServiceDesc is the grpc.ServiceDesc for IssueMetadataService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var IssueMetadataService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "workspace.v1.IssueMetadataService",
+	HandlerType: (*IssueMetadataServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetIssueMetadata",
+			Handler:    _IssueMetadataService_GetIssueMetadata_Handler,
+		},
+		{
+			MethodName: "PutIssueMetadataKey",
+			Handler:    _IssueMetadataService_PutIssueMetadataKey_Handler,
+		},
+		{
+			MethodName: "DeleteIssueMetadataKey",
+			Handler:    _IssueMetadataService_DeleteIssueMetadataKey_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "workspace/v1/issue.proto",
+}

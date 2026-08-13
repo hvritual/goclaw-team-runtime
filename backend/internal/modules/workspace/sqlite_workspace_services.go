@@ -29,6 +29,7 @@ type WorkspaceServiceDependencies struct {
 	NewRequirementID        func(context.Context) (string, error)
 	NewRequirementVersionID func(context.Context) (string, error)
 	Now                     func() time.Time
+	HTTPIdentity            contract.WorkspaceHTTPIdentityResolver
 }
 
 // NewWithSqliteWorkspaceServices explicitly selects the migrated Project and

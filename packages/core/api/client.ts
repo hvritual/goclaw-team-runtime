@@ -1,5 +1,8 @@
 import type {
   Issue,
+  IssueMetadata,
+  IssueMetadataResponse,
+  IssueMetadataValue,
   CreateIssueRequest,
   MoveIssueRequest,
   UpdateIssueRequest,
@@ -100,7 +103,7 @@ import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
 import { type Logger, noopLogger } from "../logger";
 import { createRequestId } from "../utils";
-import { getCurrentSlug } from "../platform/workspace-storage";
+import { getCurrentSlug, getCurrentWsId } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
 import {
   EMPTY_KNOWLEDGE_CANDIDATE_LIST,
@@ -138,6 +141,7 @@ import {
   EMPTY_ISSUE_TABLE_ROWS_RESPONSE,
   EMPTY_LIST_ISSUES_RESPONSE,
   EMPTY_SEARCH_ISSUES_RESPONSE,
+  IssueMetadataResponseSchema,
   EMPTY_SEARCH_PROJECTS_RESPONSE,
   EMPTY_TIMELINE_ENTRIES,
   EMPTY_USER,
@@ -641,7 +645,56 @@ export class ApiClient {
   }
 
   async getIssue(id: string): Promise<Issue> {
-    return this.fetch(`/api/issues/${id}`);
+    const raw = await this.fetch<unknown>(`/api/issues/${id}`);
+    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
+      endpoint: "GET /api/issues/:id",
+    });
+    if (!issue) throw new Error("Invalid issue response");
+    return issue;
+  }
+
+  async getIssueMetadata(id: string): Promise<IssueMetadata> {
+    return this.parseIssueMetadata(
+      await this.fetch<unknown>(`/api/issues/${id}/metadata`, { headers: this.issueMetadataWorkspaceHeader() }),
+      "GET /api/issues/:id/metadata",
+    );
+  }
+
+  async putIssueMetadata(id: string, key: string, value: IssueMetadataValue): Promise<IssueMetadata> {
+    return this.parseIssueMetadata(
+      await this.fetch<unknown>(`/api/issues/${id}/metadata/${encodeURIComponent(key)}`, {
+        method: "PUT",
+        headers: this.issueMetadataWorkspaceHeader(),
+        body: JSON.stringify({ value }),
+      }),
+      "PUT /api/issues/:id/metadata/:key",
+    );
+  }
+
+  async deleteIssueMetadata(id: string, key: string): Promise<IssueMetadata> {
+    return this.parseIssueMetadata(
+      await this.fetch<unknown>(`/api/issues/${id}/metadata/${encodeURIComponent(key)}`, {
+        method: "DELETE",
+        headers: this.issueMetadataWorkspaceHeader(),
+      }),
+      "DELETE /api/issues/:id/metadata/:key",
+    );
+  }
+
+  private parseIssueMetadata(raw: unknown, endpoint: string): IssueMetadata {
+    const response = parseWithFallback<IssueMetadataResponse | null>(
+      raw,
+      IssueMetadataResponseSchema.nullable(),
+      null,
+      { endpoint },
+    );
+    if (!response) throw new Error("Invalid issue metadata response");
+    return response.metadata;
+  }
+
+  private issueMetadataWorkspaceHeader(): Record<string, string> {
+    const workspaceId = getCurrentWsId();
+    return workspaceId ? { "X-Workspace-ID": workspaceId } : {};
   }
 
   async createIssue(data: CreateIssueRequest): Promise<Issue> {

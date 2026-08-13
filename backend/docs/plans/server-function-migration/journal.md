@@ -545,3 +545,201 @@
 - Control-thread next action: wait for the sidebar result, inspect its actual
   diff against the frozen baseline, and run the P6-S2B1 acceptance gate before
   any import into the main backend.
+
+## 2026-08-13 — P6-S2B1-V9 re-frozen and approved
+
+- The user approved a staged Canonical backend migration with Issue metadata as
+  the only active vertical slice. API URLs may change when necessary; request
+  and response body content may not change.
+- Re-froze the task at commit
+  `e4b4b1c7e3d46b19fb4774f8757cad4fb4c4f1cc` on branch
+  `codex/issue-metadata-v9`; policy bundle is
+  `401b48d143b41e0715a8d4655abddfe0d8c15ff877db8620d2bbc93c6939a598`.
+- Superseded v8 with approved `plan_v9.md` because v8 excluded HTTP and
+  frontend compatibility while the confirmed task requires the full vertical
+  connection.
+- Indexed the installed GET/PUT/DELETE behavior, exact JSON shapes, validation,
+  tenant hiding, concurrency intent, events, core schema, and existing shared
+  read-only Issue detail consumer in `issue-metadata-parity-v9.md`.
+- Preserved unrelated dirty paths and confirmed no `server/**` diff.
+- Next action: add focused backend and core compatibility tests and record the
+  expected RED result before product implementation.
+
+## 2026-08-13 — P6-S2B1-V9 accepted
+
+- Completed the Issue metadata vertical slice through domain, application,
+  SQLite `BEGIN IMMEDIATE`, local, bufconn gRPC, opt-in HTTP compatibility, and
+  the shared core API client. The existing Web/Desktop Issue detail projection
+  remains the verified read-only UI; no new editing UI was introduced.
+- Preserved installed JSON contracts: PUT accepts only `{"value": primitive}`;
+  GET/PUT/DELETE return only `{"metadata": {...}}`; validation, authentication,
+  Workspace hiding, count, size, and error bodies have compatibility tests.
+- Core sends the active Workspace slug and its resolved ID while leaving bodies
+  unchanged. HTTP identity is an injected resolver: absent configuration fails
+  closed, token parsing is not duplicated, and caller-supplied actor headers are
+  not trusted.
+- Added deterministic evidence for malformed-data repair, defensive copies,
+  delete-no-op timestamps, tenant isolation, Actor checks, transaction rollback,
+  distinct-key concurrency, same-key last-committer-wins, and a real overlap
+  between stale mainline `UpdateIssue` projection and a committed metadata Put.
+- Both independent gates passed after corrections:
+  - specification review: `PASS`;
+  - code-quality review: `APPROVED` with no remaining P0-P2 findings.
+- Verification passed:
+  - `go test ./... -count=1`, `go vet ./...`, and `go mod verify` in `backend/`;
+  - focused Workspace concurrency and compatibility tests repeatedly (10-100
+    runs depending on the test);
+  - all `@multica/core` tests (84 files, 545 tests) and typecheck;
+  - Issue detail tests (37 tests) and `@multica/views` typecheck;
+  - Web/Desktop/Core/Views typecheck through explicit Turbo filters;
+  - backend policy check, `git diff --check`, generated-scope audit, and empty
+    `server/**` diff.
+- Environment/tool limitations retained as non-passing gates:
+  - Go race binaries fail to start on this Windows host with `0xc0000139` across
+    unrelated packages; no race result is claimed;
+  - root `pnpm typecheck`/`pnpm test` scripts still reference the intentionally
+    absent `@multica/mobile`, so explicit non-mobile package filters were used;
+  - the combined frontend test run reached green Core/Web/Views results and 393
+    passing Desktop tests, but Desktop `scripts/package.test.mjs` failed to parse
+    with `SyntaxError: Invalid or unexpected token`; this is outside the changed
+    paths and is not claimed passing;
+  - `buf format --diff` reports repository-wide CRLF/LF differences on unchanged
+    Proto files; target Proto structure was generated with frozen Buf and only
+    the two Issue binding files remain in the generated diff;
+  - the frozen private dddgen binary was unavailable; no dddgen-owned file or
+    reconciliation state was hand-edited.
+- Realtime publication and default-runtime cutover remain explicitly deferred.
+  The default Workspace module still exposes generated stubs; the completed
+  implementation is selected only by the opt-in SQLite Workspace composition.
+- Candidate scope contains no `server/**` change and preserves all unrelated
+  user dirty files. No commit or push was performed.
+
+## 2026-08-13 — P6-S2B1-V9 RED/GREEN implementation evidence
+
+- Revalidated branch `codex/issue-metadata-v9`, base
+  `e4b4b1c7e3d46b19fb4774f8757cad4fb4c4f1cc`, all three frozen policy
+  component hashes, dirty-tree exclusions, and the absence of a `server/**`
+  diff before product changes.
+- RED backend evidence: the focused domain test failed because
+  `ValidateMetadataKey`, `ParseMetadataValueJSON`, and `NewMetadataBag` did not
+  exist. The focused Workspace test then failed because the metadata contract,
+  local composition, and request messages did not exist.
+- RED core evidence: all three focused tests failed because `getIssue` returned
+  an unparsed body, metadata defaulted to `undefined`, and dedicated metadata
+  client methods did not exist.
+- The frozen dddgen source revision was unavailable as a local binary or cache;
+  installation from its private GitHub repository was rejected without
+  authentication. Per the control-thread decision, no dddgen-owned file or
+  `.dddgen` state was edited. Metadata contract, application, local composition,
+  and extension files are explicitly user-owned.
+- Buf v1.72.0, protoc-gen-go v1.36.11, and protoc-gen-go-grpc v1.5.1 were built
+  or selected in a temporary tool directory. Buf format/lint and protobuf/gRPC
+  generation succeeded. Ambient HTTP generator version drift rewrote unrelated
+  generated HTTP files, so every unrelated generated path was restored; the
+  candidate generated diff is limited to `workspace/v1/issue.pb.go` and
+  `workspace/v1/issue_grpc.pb.go`. Subsequent idempotence generation must use a
+  temporary output tree and compare only target Issue artifacts.
+- GREEN evidence so far: focused Issue metadata domain tests, core API tests,
+  core typecheck, and focused Workspace SQLite/local tests pass. Default
+  Workspace composition remains metadata-free; only the explicit SQLite chain
+  appends the user-owned metadata extension.
+- No canonical durable realtime publisher was found in this opt-in slice.
+  `issue_metadata:changed` publication remains a declared deferred risk and is
+  not presented as runtime-ready behavior.
+
+## 2026-08-13 — P6-S2B1-V9 specification review corrections
+
+- Added failing compatibility tests before corrections. RED showed that the
+  HTTP adapter accepted arbitrary actor headers, could not consume Core's
+  active Workspace identity, exposed internal validation text, and returned
+  prefixed limit errors instead of the frozen legacy messages.
+- Added an injected `WorkspaceHTTPIdentityResolver` capability to the opt-in
+  composition. A nil resolver fails closed; the adapter never parses bearer
+  tokens or treats a slug as a Workspace ID. Tests inject a resolver that
+  validates the Bearer and active slug, then returns canonical Workspace UUID
+  and Actor identity. Core continues sending `X-Workspace-Slug` and metadata
+  methods additionally send the mirrored `X-Workspace-ID` without changing
+  request bodies.
+- HTTP validation now preserves the frozen key/body/value order and messages,
+  accepts unknown body fields, maps count/size rule failures to exact 400 JSON,
+  and keeps DELETE keys untrimmed.
+- Added same-key last-committer coverage, failed-mutation row/timestamp rollback
+  coverage, and exact HTTP limit response coverage. Existing distinct-key
+  concurrency and mainline overlap protection remain green.
+
+## 2026-08-13 — P6-S2B1-V9 second specification review corrections
+
+- RED proved that the Delete use case trimmed a spaced key and treated it as a
+  valid key. Delete now validates and passes the exact path key; direct local
+  and HTTP tests require the frozen regex error for spaced keys.
+- Added a nil-resolver HTTP test with forged Workspace Actor headers. The
+  adapter returns exact 401 JSON and ignores the forged identity.
+- Replaced the domain-prevalidation rollback assertion with a legal mutation
+  that reaches SQLite. A temporary abort trigger rejects the metadata UPDATE;
+  the test verifies both metadata and `updated_at` remain byte-for-byte
+  unchanged, then removes the trigger.
+- Strengthened same-key concurrency proof with an external `BEGIN IMMEDIATE`
+  lock that queues two already-started real goroutines. After releasing the
+  lock, completion order is recorded and the persisted value must equal the
+  last completed commit. The focused concurrency test passes repeatedly.
+
+## 2026-08-13 — P6-S2B1-V9 quality review corrections
+
+- HTTP handlers now require Workspace identity presence, then resolve and
+  authenticate identity, and only then validate key or body. Unauthenticated
+  malformed requests return exact 401; Authorization without Workspace
+  identity returns exact 400.
+- PUT performs a second JSON decode and requires EOF. Concatenated JSON values
+  are rejected as `invalid request body`; unknown fields remain accepted.
+- Same-key concurrency now uses explicit test-only gates. Both goroutines start
+  before release; A commits and returns first, then B commits and returns, and
+  the persisted value is exactly B. No production hook was introduced.
+
+## 2026-08-13 — P6-S2B1-V9 final same-key concurrency proof
+
+- Replaced the top-level serial release test with a test-only gated repository
+  wrapping the real SQLite metadata repository. Both goroutines enter
+  `PutMetadata` before either delegate call is released. A performs and records
+  its real SQLite commit first; only then B performs and records its real
+  commit. A waits for B before returning, so the two request lifetimes overlap.
+  The asserted commit sequence is exactly `A,B` and persisted value is B.
+
+## 2026-08-13 — P6-S2B1-V9 pre-commit revalidation
+
+- Revalidated the candidate on branch `codex/issue-metadata-v9` at base
+  `e4b4b1c7e3d46b19fb4774f8757cad4fb4c4f1cc` before the scoped commit and
+  baseline merge requested by the user.
+- Fresh passing evidence: focused Workspace tests, full backend `go test
+  ./...`, `go vet ./...`, `go mod verify`, all 545 Core tests, Core typecheck,
+  the 37 Issue detail tests, Views typecheck, `git diff --check`, and an empty
+  `server/**` diff.
+- `go test -race ./...` again failed to launch test binaries across unrelated
+  packages on this Windows host with exit status `0xc0000139`; no race result
+  is claimed.
+- A combined Views test/typecheck invocation exceeded its 120-second command
+  budget without a result. The focused Issue detail suite and Views typecheck
+  were rerun separately and passed.
+- The scoped commit excludes the preserved unrelated paths named in
+  `plan_v9.md`. Independent specification and code-quality review results are
+  recorded separately before commit.
+
+## 2026-08-13 — P6-S2B1-V9 pre-commit review corrections
+
+- Independent review found that the domain value parser and SQLite historical
+  bag parser accepted a valid first JSON value with trailing malformed or
+  concatenated data. RED tests reproduced both defects; both parsers now require
+  EOF after the single JSON value, and focused plus full Workspace tests pass.
+- PUT now preserves the frozen distinction between an empty key and a
+  whitespace key. A whitespace key receives the legacy regex validation error.
+- The HTTP adapter now hides an actor outside the Workspace as `404 issue not
+  found`, rejects unsupported actor types before repository access, preserves
+  operation-specific legacy PUT/DELETE persistence errors, and has executable
+  coverage for each case.
+- The dedicated Core metadata response schema now requires the `metadata`
+  envelope instead of defaulting a missing field to an empty bag. The new RED
+  response test is green; the Issue projection keeps its separate compatibility
+  default for older Issue bodies.
+- Fresh post-correction evidence: all focused Workspace packages, full backend
+  tests, vet, module verification, all 546 Core tests, Core typecheck,
+  `git diff --check`, and an empty `server/**` diff pass. The Windows race
+  binary limitation remains unchanged and is not claimed passing.

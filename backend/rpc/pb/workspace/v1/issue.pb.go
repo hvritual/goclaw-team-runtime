@@ -23,6 +23,366 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetIssueMetadataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	IssueId       string                 `protobuf:"bytes,2,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetIssueMetadataRequest) Reset() {
+	*x = GetIssueMetadataRequest{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetIssueMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetIssueMetadataRequest) ProtoMessage() {}
+
+func (x *GetIssueMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetIssueMetadataRequest.ProtoReflect.Descriptor instead.
+func (*GetIssueMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetIssueMetadataRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *GetIssueMetadataRequest) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+type PutIssueMetadataKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	IssueId       string                 `protobuf:"bytes,2,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	ValueJson     string                 `protobuf:"bytes,4,opt,name=value_json,json=valueJson,proto3" json:"value_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutIssueMetadataKeyRequest) Reset() {
+	*x = PutIssueMetadataKeyRequest{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutIssueMetadataKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutIssueMetadataKeyRequest) ProtoMessage() {}
+
+func (x *PutIssueMetadataKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutIssueMetadataKeyRequest.ProtoReflect.Descriptor instead.
+func (*PutIssueMetadataKeyRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PutIssueMetadataKeyRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *PutIssueMetadataKeyRequest) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+func (x *PutIssueMetadataKeyRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *PutIssueMetadataKeyRequest) GetValueJson() string {
+	if x != nil {
+		return x.ValueJson
+	}
+	return ""
+}
+
+type DeleteIssueMetadataKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	IssueId       string                 `protobuf:"bytes,2,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteIssueMetadataKeyRequest) Reset() {
+	*x = DeleteIssueMetadataKeyRequest{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteIssueMetadataKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteIssueMetadataKeyRequest) ProtoMessage() {}
+
+func (x *DeleteIssueMetadataKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteIssueMetadataKeyRequest.ProtoReflect.Descriptor instead.
+func (*DeleteIssueMetadataKeyRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DeleteIssueMetadataKeyRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *DeleteIssueMetadataKeyRequest) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+func (x *DeleteIssueMetadataKeyRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type GetIssueMetadataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IssueId       string                 `protobuf:"bytes,1,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetIssueMetadataResponse) Reset() {
+	*x = GetIssueMetadataResponse{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetIssueMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetIssueMetadataResponse) ProtoMessage() {}
+
+func (x *GetIssueMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetIssueMetadataResponse.ProtoReflect.Descriptor instead.
+func (*GetIssueMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetIssueMetadataResponse) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+func (x *GetIssueMetadataResponse) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *GetIssueMetadataResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type PutIssueMetadataKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IssueId       string                 `protobuf:"bytes,1,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PutIssueMetadataKeyResponse) Reset() {
+	*x = PutIssueMetadataKeyResponse{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PutIssueMetadataKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PutIssueMetadataKeyResponse) ProtoMessage() {}
+
+func (x *PutIssueMetadataKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PutIssueMetadataKeyResponse.ProtoReflect.Descriptor instead.
+func (*PutIssueMetadataKeyResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PutIssueMetadataKeyResponse) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+func (x *PutIssueMetadataKeyResponse) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *PutIssueMetadataKeyResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+type DeleteIssueMetadataKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IssueId       string                 `protobuf:"bytes,1,opt,name=issue_id,json=issueId,proto3" json:"issue_id,omitempty"`
+	Metadata      *structpb.Struct       `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteIssueMetadataKeyResponse) Reset() {
+	*x = DeleteIssueMetadataKeyResponse{}
+	mi := &file_workspace_v1_issue_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteIssueMetadataKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteIssueMetadataKeyResponse) ProtoMessage() {}
+
+func (x *DeleteIssueMetadataKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_issue_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteIssueMetadataKeyResponse.ProtoReflect.Descriptor instead.
+func (*DeleteIssueMetadataKeyResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *DeleteIssueMetadataKeyResponse) GetIssueId() string {
+	if x != nil {
+		return x.IssueId
+	}
+	return ""
+}
+
+func (x *DeleteIssueMetadataKeyResponse) GetMetadata() *structpb.Struct {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *DeleteIssueMetadataKeyResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
 type IssueAssetIDs struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
@@ -32,7 +392,7 @@ type IssueAssetIDs struct {
 
 func (x *IssueAssetIDs) Reset() {
 	*x = IssueAssetIDs{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[0]
+	mi := &file_workspace_v1_issue_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +404,7 @@ func (x *IssueAssetIDs) String() string {
 func (*IssueAssetIDs) ProtoMessage() {}
 
 func (x *IssueAssetIDs) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[0]
+	mi := &file_workspace_v1_issue_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +417,7 @@ func (x *IssueAssetIDs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueAssetIDs.ProtoReflect.Descriptor instead.
 func (*IssueAssetIDs) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{0}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *IssueAssetIDs) GetValues() []string {
@@ -101,7 +461,7 @@ type Issue struct {
 
 func (x *Issue) Reset() {
 	*x = Issue{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[1]
+	mi := &file_workspace_v1_issue_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +473,7 @@ func (x *Issue) String() string {
 func (*Issue) ProtoMessage() {}
 
 func (x *Issue) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[1]
+	mi := &file_workspace_v1_issue_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +486,7 @@ func (x *Issue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Issue.ProtoReflect.Descriptor instead.
 func (*Issue) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{1}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Issue) GetId() string {
@@ -312,7 +672,7 @@ type CreateIssueRequest struct {
 
 func (x *CreateIssueRequest) Reset() {
 	*x = CreateIssueRequest{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[2]
+	mi := &file_workspace_v1_issue_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +684,7 @@ func (x *CreateIssueRequest) String() string {
 func (*CreateIssueRequest) ProtoMessage() {}
 
 func (x *CreateIssueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[2]
+	mi := &file_workspace_v1_issue_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +697,7 @@ func (x *CreateIssueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateIssueRequest.ProtoReflect.Descriptor instead.
 func (*CreateIssueRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{2}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateIssueRequest) GetWorkspaceId() string {
@@ -447,7 +807,7 @@ type CreateIssueResponse struct {
 
 func (x *CreateIssueResponse) Reset() {
 	*x = CreateIssueResponse{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[3]
+	mi := &file_workspace_v1_issue_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +819,7 @@ func (x *CreateIssueResponse) String() string {
 func (*CreateIssueResponse) ProtoMessage() {}
 
 func (x *CreateIssueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[3]
+	mi := &file_workspace_v1_issue_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +832,7 @@ func (x *CreateIssueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateIssueResponse.ProtoReflect.Descriptor instead.
 func (*CreateIssueResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{3}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CreateIssueResponse) GetIssue() *Issue {
@@ -493,7 +853,7 @@ type GetIssueRequest struct {
 
 func (x *GetIssueRequest) Reset() {
 	*x = GetIssueRequest{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[4]
+	mi := &file_workspace_v1_issue_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -505,7 +865,7 @@ func (x *GetIssueRequest) String() string {
 func (*GetIssueRequest) ProtoMessage() {}
 
 func (x *GetIssueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[4]
+	mi := &file_workspace_v1_issue_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -518,7 +878,7 @@ func (x *GetIssueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIssueRequest.ProtoReflect.Descriptor instead.
 func (*GetIssueRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{4}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetIssueRequest) GetWorkspaceId() string {
@@ -544,7 +904,7 @@ type GetIssueResponse struct {
 
 func (x *GetIssueResponse) Reset() {
 	*x = GetIssueResponse{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[5]
+	mi := &file_workspace_v1_issue_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +916,7 @@ func (x *GetIssueResponse) String() string {
 func (*GetIssueResponse) ProtoMessage() {}
 
 func (x *GetIssueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[5]
+	mi := &file_workspace_v1_issue_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +929,7 @@ func (x *GetIssueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIssueResponse.ProtoReflect.Descriptor instead.
 func (*GetIssueResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{5}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetIssueResponse) GetIssue() *Issue {
@@ -596,7 +956,7 @@ type ListIssuesRequest struct {
 
 func (x *ListIssuesRequest) Reset() {
 	*x = ListIssuesRequest{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[6]
+	mi := &file_workspace_v1_issue_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +968,7 @@ func (x *ListIssuesRequest) String() string {
 func (*ListIssuesRequest) ProtoMessage() {}
 
 func (x *ListIssuesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[6]
+	mi := &file_workspace_v1_issue_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +981,7 @@ func (x *ListIssuesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIssuesRequest.ProtoReflect.Descriptor instead.
 func (*ListIssuesRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{6}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListIssuesRequest) GetWorkspaceId() string {
@@ -697,7 +1057,7 @@ type ListIssuesResponse struct {
 
 func (x *ListIssuesResponse) Reset() {
 	*x = ListIssuesResponse{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[7]
+	mi := &file_workspace_v1_issue_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +1069,7 @@ func (x *ListIssuesResponse) String() string {
 func (*ListIssuesResponse) ProtoMessage() {}
 
 func (x *ListIssuesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[7]
+	mi := &file_workspace_v1_issue_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +1082,7 @@ func (x *ListIssuesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIssuesResponse.ProtoReflect.Descriptor instead.
 func (*ListIssuesResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{7}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListIssuesResponse) GetIssues() []*Issue {
@@ -765,7 +1125,7 @@ type UpdateIssueRequest struct {
 
 func (x *UpdateIssueRequest) Reset() {
 	*x = UpdateIssueRequest{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[8]
+	mi := &file_workspace_v1_issue_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -777,7 +1137,7 @@ func (x *UpdateIssueRequest) String() string {
 func (*UpdateIssueRequest) ProtoMessage() {}
 
 func (x *UpdateIssueRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[8]
+	mi := &file_workspace_v1_issue_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -790,7 +1150,7 @@ func (x *UpdateIssueRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateIssueRequest.ProtoReflect.Descriptor instead.
 func (*UpdateIssueRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{8}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateIssueRequest) GetWorkspaceId() string {
@@ -907,7 +1267,7 @@ type UpdateIssueResponse struct {
 
 func (x *UpdateIssueResponse) Reset() {
 	*x = UpdateIssueResponse{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[9]
+	mi := &file_workspace_v1_issue_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -919,7 +1279,7 @@ func (x *UpdateIssueResponse) String() string {
 func (*UpdateIssueResponse) ProtoMessage() {}
 
 func (x *UpdateIssueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[9]
+	mi := &file_workspace_v1_issue_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -932,7 +1292,7 @@ func (x *UpdateIssueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateIssueResponse.ProtoReflect.Descriptor instead.
 func (*UpdateIssueResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{9}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateIssueResponse) GetIssue() *Issue {
@@ -954,7 +1314,7 @@ type UpdateIssueStatusRequest struct {
 
 func (x *UpdateIssueStatusRequest) Reset() {
 	*x = UpdateIssueStatusRequest{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[10]
+	mi := &file_workspace_v1_issue_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1326,7 @@ func (x *UpdateIssueStatusRequest) String() string {
 func (*UpdateIssueStatusRequest) ProtoMessage() {}
 
 func (x *UpdateIssueStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[10]
+	mi := &file_workspace_v1_issue_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1339,7 @@ func (x *UpdateIssueStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateIssueStatusRequest.ProtoReflect.Descriptor instead.
 func (*UpdateIssueStatusRequest) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{10}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateIssueStatusRequest) GetWorkspaceId() string {
@@ -1012,7 +1372,7 @@ type UpdateIssueStatusResponse struct {
 
 func (x *UpdateIssueStatusResponse) Reset() {
 	*x = UpdateIssueStatusResponse{}
-	mi := &file_workspace_v1_issue_proto_msgTypes[11]
+	mi := &file_workspace_v1_issue_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1384,7 @@ func (x *UpdateIssueStatusResponse) String() string {
 func (*UpdateIssueStatusResponse) ProtoMessage() {}
 
 func (x *UpdateIssueStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_workspace_v1_issue_proto_msgTypes[11]
+	mi := &file_workspace_v1_issue_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1397,7 @@ func (x *UpdateIssueStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateIssueStatusResponse.ProtoReflect.Descriptor instead.
 func (*UpdateIssueStatusResponse) Descriptor() ([]byte, []int) {
-	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{11}
+	return file_workspace_v1_issue_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateIssueStatusResponse) GetIssue() *Issue {
@@ -1051,7 +1411,35 @@ var File_workspace_v1_issue_proto protoreflect.FileDescriptor
 
 const file_workspace_v1_issue_proto_rawDesc = "" +
 	"\n" +
-	"\x18workspace/v1/issue.proto\x12\fworkspace.v1\x1a\x1bannotations/v1/access.proto\x1a\x1cgoogle/protobuf/struct.proto\"'\n" +
+	"\x18workspace/v1/issue.proto\x12\fworkspace.v1\x1a\x1bannotations/v1/access.proto\x1a\x1cgoogle/protobuf/struct.proto\"W\n" +
+	"\x17GetIssueMetadataRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x19\n" +
+	"\bissue_id\x18\x02 \x01(\tR\aissueId\"\x8b\x01\n" +
+	"\x1aPutIssueMetadataKeyRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x19\n" +
+	"\bissue_id\x18\x02 \x01(\tR\aissueId\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x1d\n" +
+	"\n" +
+	"value_json\x18\x04 \x01(\tR\tvalueJson\"o\n" +
+	"\x1dDeleteIssueMetadataKeyRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x19\n" +
+	"\bissue_id\x18\x02 \x01(\tR\aissueId\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\"\x89\x01\n" +
+	"\x18GetIssueMetadataResponse\x12\x19\n" +
+	"\bissue_id\x18\x01 \x01(\tR\aissueId\x123\n" +
+	"\bmetadata\x18\x02 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\tR\tupdatedAt\"\x8c\x01\n" +
+	"\x1bPutIssueMetadataKeyResponse\x12\x19\n" +
+	"\bissue_id\x18\x01 \x01(\tR\aissueId\x123\n" +
+	"\bmetadata\x18\x02 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\tR\tupdatedAt\"\x8f\x01\n" +
+	"\x1eDeleteIssueMetadataKeyResponse\x12\x19\n" +
+	"\bissue_id\x18\x01 \x01(\tR\aissueId\x123\n" +
+	"\bmetadata\x18\x02 \x01(\v2\x17.google.protobuf.StructR\bmetadata\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\tR\tupdatedAt\"'\n" +
 	"\rIssueAssetIDs\x12\x16\n" +
 	"\x06values\x18\x01 \x03(\tR\x06values\"\x85\a\n" +
 	"\x05Issue\x12\x0e\n" +
@@ -1208,6 +1596,14 @@ const file_workspace_v1_issue_proto_rawDesc = "" +
 	"\x16workspace.issue.update\x12\fUpdate issue\x1a\x0fworkspace.issue\"\x06update@\x01\x12\xc0\x01\n" +
 	"\x11UpdateIssueStatus\x12&.workspace.v1.UpdateIssueStatusRequest\x1a'.workspace.v1.UpdateIssueStatusResponse\"Z\xd2\xf3\x18V\n" +
 	"\x1dworkspace.issue.update_status\x12\x13Update issue status\x1a\x0fworkspace.issue\"\rupdate_status@\x01\x1a\x1e\xca\xf3\x18\x1a\n" +
+	"\tworkspace\x12\tWorkspace\x1a\x02v12\x8f\x05\n" +
+	"\x14IssueMetadataService\x12\xb8\x01\n" +
+	"\x10GetIssueMetadata\x12%.workspace.v1.GetIssueMetadataRequest\x1a&.workspace.v1.GetIssueMetadataResponse\"U\xd2\xf3\x18Q\n" +
+	"\x1cworkspace.issue.metadata.get\x12\x12Get issue metadata\x1a\x18workspace.issue.metadata\"\x03get\x12\xc3\x01\n" +
+	"\x13PutIssueMetadataKey\x12(.workspace.v1.PutIssueMetadataKeyRequest\x1a).workspace.v1.PutIssueMetadataKeyResponse\"W\xd2\xf3\x18S\n" +
+	"\x1cworkspace.issue.metadata.put\x12\x12Put issue metadata\x1a\x18workspace.issue.metadata\"\x03put@\x01\x12\xd5\x01\n" +
+	"\x16DeleteIssueMetadataKey\x12+.workspace.v1.DeleteIssueMetadataKeyRequest\x1a,.workspace.v1.DeleteIssueMetadataKeyResponse\"`\xd2\xf3\x18\\\n" +
+	"\x1fworkspace.issue.metadata.delete\x12\x15Delete issue metadata\x1a\x18workspace.issue.metadata\"\x06delete@\x01\x1a\x1e\xca\xf3\x18\x1a\n" +
 	"\tworkspace\x12\tWorkspace\x1a\x02v1B?Z=github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1b\x06proto3"
 
 var (
@@ -1222,46 +1618,61 @@ func file_workspace_v1_issue_proto_rawDescGZIP() []byte {
 	return file_workspace_v1_issue_proto_rawDescData
 }
 
-var file_workspace_v1_issue_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_workspace_v1_issue_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_workspace_v1_issue_proto_goTypes = []any{
-	(*IssueAssetIDs)(nil),             // 0: workspace.v1.IssueAssetIDs
-	(*Issue)(nil),                     // 1: workspace.v1.Issue
-	(*CreateIssueRequest)(nil),        // 2: workspace.v1.CreateIssueRequest
-	(*CreateIssueResponse)(nil),       // 3: workspace.v1.CreateIssueResponse
-	(*GetIssueRequest)(nil),           // 4: workspace.v1.GetIssueRequest
-	(*GetIssueResponse)(nil),          // 5: workspace.v1.GetIssueResponse
-	(*ListIssuesRequest)(nil),         // 6: workspace.v1.ListIssuesRequest
-	(*ListIssuesResponse)(nil),        // 7: workspace.v1.ListIssuesResponse
-	(*UpdateIssueRequest)(nil),        // 8: workspace.v1.UpdateIssueRequest
-	(*UpdateIssueResponse)(nil),       // 9: workspace.v1.UpdateIssueResponse
-	(*UpdateIssueStatusRequest)(nil),  // 10: workspace.v1.UpdateIssueStatusRequest
-	(*UpdateIssueStatusResponse)(nil), // 11: workspace.v1.UpdateIssueStatusResponse
-	(*structpb.Struct)(nil),           // 12: google.protobuf.Struct
+	(*GetIssueMetadataRequest)(nil),        // 0: workspace.v1.GetIssueMetadataRequest
+	(*PutIssueMetadataKeyRequest)(nil),     // 1: workspace.v1.PutIssueMetadataKeyRequest
+	(*DeleteIssueMetadataKeyRequest)(nil),  // 2: workspace.v1.DeleteIssueMetadataKeyRequest
+	(*GetIssueMetadataResponse)(nil),       // 3: workspace.v1.GetIssueMetadataResponse
+	(*PutIssueMetadataKeyResponse)(nil),    // 4: workspace.v1.PutIssueMetadataKeyResponse
+	(*DeleteIssueMetadataKeyResponse)(nil), // 5: workspace.v1.DeleteIssueMetadataKeyResponse
+	(*IssueAssetIDs)(nil),                  // 6: workspace.v1.IssueAssetIDs
+	(*Issue)(nil),                          // 7: workspace.v1.Issue
+	(*CreateIssueRequest)(nil),             // 8: workspace.v1.CreateIssueRequest
+	(*CreateIssueResponse)(nil),            // 9: workspace.v1.CreateIssueResponse
+	(*GetIssueRequest)(nil),                // 10: workspace.v1.GetIssueRequest
+	(*GetIssueResponse)(nil),               // 11: workspace.v1.GetIssueResponse
+	(*ListIssuesRequest)(nil),              // 12: workspace.v1.ListIssuesRequest
+	(*ListIssuesResponse)(nil),             // 13: workspace.v1.ListIssuesResponse
+	(*UpdateIssueRequest)(nil),             // 14: workspace.v1.UpdateIssueRequest
+	(*UpdateIssueResponse)(nil),            // 15: workspace.v1.UpdateIssueResponse
+	(*UpdateIssueStatusRequest)(nil),       // 16: workspace.v1.UpdateIssueStatusRequest
+	(*UpdateIssueStatusResponse)(nil),      // 17: workspace.v1.UpdateIssueStatusResponse
+	(*structpb.Struct)(nil),                // 18: google.protobuf.Struct
 }
 var file_workspace_v1_issue_proto_depIdxs = []int32{
-	12, // 0: workspace.v1.Issue.metadata:type_name -> google.protobuf.Struct
-	12, // 1: workspace.v1.Issue.properties:type_name -> google.protobuf.Struct
-	1,  // 2: workspace.v1.CreateIssueResponse.issue:type_name -> workspace.v1.Issue
-	1,  // 3: workspace.v1.GetIssueResponse.issue:type_name -> workspace.v1.Issue
-	1,  // 4: workspace.v1.ListIssuesResponse.issues:type_name -> workspace.v1.Issue
-	0,  // 5: workspace.v1.UpdateIssueRequest.asset_ids:type_name -> workspace.v1.IssueAssetIDs
-	1,  // 6: workspace.v1.UpdateIssueResponse.issue:type_name -> workspace.v1.Issue
-	1,  // 7: workspace.v1.UpdateIssueStatusResponse.issue:type_name -> workspace.v1.Issue
-	2,  // 8: workspace.v1.IssueService.CreateIssue:input_type -> workspace.v1.CreateIssueRequest
-	4,  // 9: workspace.v1.IssueService.GetIssue:input_type -> workspace.v1.GetIssueRequest
-	6,  // 10: workspace.v1.IssueService.ListIssues:input_type -> workspace.v1.ListIssuesRequest
-	8,  // 11: workspace.v1.IssueService.UpdateIssue:input_type -> workspace.v1.UpdateIssueRequest
-	10, // 12: workspace.v1.IssueService.UpdateIssueStatus:input_type -> workspace.v1.UpdateIssueStatusRequest
-	3,  // 13: workspace.v1.IssueService.CreateIssue:output_type -> workspace.v1.CreateIssueResponse
-	5,  // 14: workspace.v1.IssueService.GetIssue:output_type -> workspace.v1.GetIssueResponse
-	7,  // 15: workspace.v1.IssueService.ListIssues:output_type -> workspace.v1.ListIssuesResponse
-	9,  // 16: workspace.v1.IssueService.UpdateIssue:output_type -> workspace.v1.UpdateIssueResponse
-	11, // 17: workspace.v1.IssueService.UpdateIssueStatus:output_type -> workspace.v1.UpdateIssueStatusResponse
-	13, // [13:18] is the sub-list for method output_type
-	8,  // [8:13] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 0: workspace.v1.GetIssueMetadataResponse.metadata:type_name -> google.protobuf.Struct
+	18, // 1: workspace.v1.PutIssueMetadataKeyResponse.metadata:type_name -> google.protobuf.Struct
+	18, // 2: workspace.v1.DeleteIssueMetadataKeyResponse.metadata:type_name -> google.protobuf.Struct
+	18, // 3: workspace.v1.Issue.metadata:type_name -> google.protobuf.Struct
+	18, // 4: workspace.v1.Issue.properties:type_name -> google.protobuf.Struct
+	7,  // 5: workspace.v1.CreateIssueResponse.issue:type_name -> workspace.v1.Issue
+	7,  // 6: workspace.v1.GetIssueResponse.issue:type_name -> workspace.v1.Issue
+	7,  // 7: workspace.v1.ListIssuesResponse.issues:type_name -> workspace.v1.Issue
+	6,  // 8: workspace.v1.UpdateIssueRequest.asset_ids:type_name -> workspace.v1.IssueAssetIDs
+	7,  // 9: workspace.v1.UpdateIssueResponse.issue:type_name -> workspace.v1.Issue
+	7,  // 10: workspace.v1.UpdateIssueStatusResponse.issue:type_name -> workspace.v1.Issue
+	8,  // 11: workspace.v1.IssueService.CreateIssue:input_type -> workspace.v1.CreateIssueRequest
+	10, // 12: workspace.v1.IssueService.GetIssue:input_type -> workspace.v1.GetIssueRequest
+	12, // 13: workspace.v1.IssueService.ListIssues:input_type -> workspace.v1.ListIssuesRequest
+	14, // 14: workspace.v1.IssueService.UpdateIssue:input_type -> workspace.v1.UpdateIssueRequest
+	16, // 15: workspace.v1.IssueService.UpdateIssueStatus:input_type -> workspace.v1.UpdateIssueStatusRequest
+	0,  // 16: workspace.v1.IssueMetadataService.GetIssueMetadata:input_type -> workspace.v1.GetIssueMetadataRequest
+	1,  // 17: workspace.v1.IssueMetadataService.PutIssueMetadataKey:input_type -> workspace.v1.PutIssueMetadataKeyRequest
+	2,  // 18: workspace.v1.IssueMetadataService.DeleteIssueMetadataKey:input_type -> workspace.v1.DeleteIssueMetadataKeyRequest
+	9,  // 19: workspace.v1.IssueService.CreateIssue:output_type -> workspace.v1.CreateIssueResponse
+	11, // 20: workspace.v1.IssueService.GetIssue:output_type -> workspace.v1.GetIssueResponse
+	13, // 21: workspace.v1.IssueService.ListIssues:output_type -> workspace.v1.ListIssuesResponse
+	15, // 22: workspace.v1.IssueService.UpdateIssue:output_type -> workspace.v1.UpdateIssueResponse
+	17, // 23: workspace.v1.IssueService.UpdateIssueStatus:output_type -> workspace.v1.UpdateIssueStatusResponse
+	3,  // 24: workspace.v1.IssueMetadataService.GetIssueMetadata:output_type -> workspace.v1.GetIssueMetadataResponse
+	4,  // 25: workspace.v1.IssueMetadataService.PutIssueMetadataKey:output_type -> workspace.v1.PutIssueMetadataKeyResponse
+	5,  // 26: workspace.v1.IssueMetadataService.DeleteIssueMetadataKey:output_type -> workspace.v1.DeleteIssueMetadataKeyResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_workspace_v1_issue_proto_init() }
@@ -1269,19 +1680,19 @@ func file_workspace_v1_issue_proto_init() {
 	if File_workspace_v1_issue_proto != nil {
 		return
 	}
-	file_workspace_v1_issue_proto_msgTypes[1].OneofWrappers = []any{}
-	file_workspace_v1_issue_proto_msgTypes[2].OneofWrappers = []any{}
-	file_workspace_v1_issue_proto_msgTypes[6].OneofWrappers = []any{}
+	file_workspace_v1_issue_proto_msgTypes[7].OneofWrappers = []any{}
 	file_workspace_v1_issue_proto_msgTypes[8].OneofWrappers = []any{}
+	file_workspace_v1_issue_proto_msgTypes[12].OneofWrappers = []any{}
+	file_workspace_v1_issue_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_workspace_v1_issue_proto_rawDesc), len(file_workspace_v1_issue_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   18,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   2,
 		},
 		GoTypes:           file_workspace_v1_issue_proto_goTypes,
 		DependencyIndexes: file_workspace_v1_issue_proto_depIdxs,

@@ -570,7 +570,11 @@ export const CommentSchema = z.object({
 export const CommentsListSchema = z.array(CommentSchema);
 
 
-const IssueMetadataSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({});
+export const IssueMetadataSchema = z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).default({});
+
+export const IssueMetadataResponseSchema = z.object({
+	metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+}).loose();
 
 export const IssueSchema = z.object({
   id: z.string(),

@@ -2,8 +2,12 @@ package contract
 
 import (
 	"context"
+	"net/http"
 	"strings"
 )
+
+type WorkspaceHTTPIdentity struct{ WorkspaceID, ActorType, ActorID string }
+type WorkspaceHTTPIdentityResolver func(*http.Request) (WorkspaceHTTPIdentity, error)
 
 type workspaceActorContextKey struct{}
 
