@@ -418,3 +418,32 @@ Human approval are recorded.
   formatter with `exit was unexpected at this time`; the underlying changed-Go
   format check is clean. Windows race binaries remain the recorded
   `0xc0000139` environment limitation.
+
+## 2026-08-14 — clean-candidate browser rerun; M1-S7 technical acceptance
+
+- The scoped candidate was committed as
+  `7700a193525626771d75ae50a425d0bf50542638`, explicitly excluding the
+  preserved native-Input change, its local test and all other unrelated local
+  artifacts. An isolated detached worktree at that exact commit confirmed the
+  candidate still used the retained Base UI Input implementation.
+- From that clean candidate, a fresh Canonical database was migrated, the
+  explicit fixture was prepared, and the frozen installed-Chrome journey
+  passed in `33.7s`. The retained sanitized trace is
+  `.local-runtime/m1-s7-20260814/clean-candidate-network-trace.json`: `106`
+  HTTP requests from the Web origin on `127.0.0.1:3000`, UI login, Workspace
+  selection, Issue list/detail, metadata GET/PUT/GET/DELETE, `2`
+  `issue_metadata:changed` events, and zero HTTP/WebSocket traffic on port
+  `8080`.
+- The previously successful dirty-worktree trace remains rejected and is not
+  acceptance evidence. The isolated rerun is the authoritative browser proof.
+  The temporary worktree registration was removed, the runtime was stopped,
+  ports `3000/8000/8080/9000` were verified quiescent, and tracked/untracked
+  `server/**` remained empty. The main worktree retains only the user's
+  pre-existing unrelated dirty paths.
+- Independent post-live specification review returned `SPEC ACCEPT/PASS` and
+  independent code/security review returned `CODE PASS/APPROVED`, with no
+  remaining P0-P2. Together with the retained restart/readback and exact
+  rollback hashes, M1-S7 technical acceptance is complete.
+- Human Customer milestone acceptance has not been inferred from approval to
+  continue testing. `Milestone Accepted` remains pending an explicit final
+  acceptance statement.

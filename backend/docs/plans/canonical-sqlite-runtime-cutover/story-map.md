@@ -4,7 +4,8 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7`.
+- Current story: `M1-S7` (technical acceptance passed; Human Customer
+  acceptance pending).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
