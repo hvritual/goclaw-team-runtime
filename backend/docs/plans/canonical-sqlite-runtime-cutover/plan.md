@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v7.md](plan_v7.md).
 
 - Plan-ID: `canonical-sqlite-runtime-cutover`
 - Approved version: `7`
-- Active step: `M1-S7-C4-INTEGRATE`
-- Status: `approved; core update/move candidate green; clean-candidate browser integration active`
+- Active step: `M1-S7-C5-RED`
+- Status: `approved; C4 technically accepted; hierarchy/batch RED active`
 - Milestone: [milestone.md](milestone.md)
 - Story map: [story-map.md](story-map.md)
 - Parity matrix: [parity-matrix.md](parity-matrix.md)

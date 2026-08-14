@@ -752,3 +752,32 @@ Human approval are recorded.
   unrelated Input/local artifact paths. `M1-S7-C4-INTEGRATE` now requires the
   exact committed clean-candidate browser edit/move proof before story
   promotion.
+
+## 2026-08-14 — M1-S7-C4 clean-candidate browser technical acceptance
+
+- The exact committed candidate was `e27ca1639ad359a1ee29cc17f1efe25b6d9e3578`.
+  Before its runtime was started, the unrelated tracked Input change and its
+  untracked controlled-input test were recorded by SHA-256 and removed through
+  a path-scoped temporary stash. Two stat-dirty View paths were independently
+  confirmed byte-for-byte equal to HEAD, so the compiled product tree matched
+  the committed candidate.
+- The runtime selector owned Web `3000`, Canonical HTTP `8000` and gRPC `9000`;
+  legacy `8080` remained closed. Browser automation could claim the user's
+  existing in-app tab but the browser URL policy rejected all localhost page
+  inspection and navigation. The policy was not bypassed. The Human Customer
+  completed the requested visible refresh, edit and move in that clean runtime.
+- Post-action evidence shows the retained Issue
+  `f532fa94-761c-456b-bcbd-d7c0ceaca2e4` persisted a candidate-runtime
+  `updated_at` of `2026-08-14T13:53:05.6470281Z` with status `backlog`. The Web
+  log contains no new `/api/issues/:id/move` 404 in the action window; the only
+  move 404 entries predate the candidate restart. This evidence is paired with
+  the deterministic C4 HTTP/SQLite/event tests rather than presented as a
+  standalone network trace.
+- The selector stopped cleanly and all four fixed ports were closed. The exact
+  path-scoped stash was restored and both user-file hashes matched their
+  pre-run values: Input `6D5609B20D2D518DC9DDEF3956184BAA869CEB755468D912C5C153C4E2578B39`
+  and its test `A74337C720C978583C38AF10BD44D7AB3A3CEF48BF7EB273FC3AE498EE9F21B9`.
+  `server/**` remained untouched.
+- `M1-S7-C4` is technically accepted. This is story promotion evidence, not
+  final milestone Customer acceptance. The one active story advances to
+  `M1-S7-C5-RED` for hierarchy and batch operations.

@@ -4,7 +4,7 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C4` (core update/move candidate green; clean-candidate browser integration active).
+- Current story: `M1-S7-C5` (hierarchy and batch RED active after C4 technical acceptance).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
