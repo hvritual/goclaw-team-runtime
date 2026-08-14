@@ -936,3 +936,13 @@ Human approval are recorded.
   browser evidence, so it is technically accepted. The active step is
   `M1-S7-C7-ACCEPT`; Human Customer acceptance is still required before any C8
   attachment product write begins.
+
+## 2026-08-15 — M1-S7-C7 Customer Accepted; C8 activated
+
+- The Human Customer explicitly replied `验收通过` after the C7 deterministic
+  and clean-candidate browser evidence was presented.
+- `M1-S7-C7` is Customer Accepted. The sole active step advances to
+  `M1-S7-C8-RED` under approved plan v7.
+- This acceptance does not mark the milestone complete: C8 attachment gates
+  and C9 final clean-candidate/rollback acceptance remain required before
+  `Milestone Accepted`.

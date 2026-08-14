@@ -93,3 +93,8 @@ Plan v4 adds the post-acceptance correction `M1-S7-C1` for a real new user:
 first-Workspace creation and onboarding completion are now part of the same
 accepted local journey. Its deterministic and installed-Chrome gates pass;
 Human Customer acceptance remains required before `Milestone Accepted`.
+
+On 2026-08-15 the Human Customer accepted `M1-S7-C7` after its deterministic
+and clean-candidate browser evidence. Plan v7 therefore advances to
+`M1-S7-C8`; attachment and final C9 cutover gates still remain before
+`Milestone Accepted`.
