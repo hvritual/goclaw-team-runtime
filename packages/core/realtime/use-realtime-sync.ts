@@ -40,6 +40,13 @@ export function useRealtimeSync(
       if (!workspaceId) return;
       void qc.invalidateQueries({ queryKey: workspaceKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: issueKeys.all(workspaceId) });
+      // These detail caches intentionally do not carry a workspace id. They
+      // therefore sit outside `issueKeys.all(workspaceId)` and must be
+      // invalidated explicitly after a missed-event window or socket swap.
+      void qc.invalidateQueries({ queryKey: issueKeys.timelineAll() });
+      void qc.invalidateQueries({ queryKey: issueKeys.reactionsAll() });
+      void qc.invalidateQueries({ queryKey: issueKeys.subscribersAll() });
+      void qc.invalidateQueries({ queryKey: issueKeys.attachmentsAll() });
       void qc.invalidateQueries({ queryKey: projectKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: taskKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: workspaceKeys.skills(workspaceId) });

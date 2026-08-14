@@ -97,6 +97,8 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 	}
 	assertRealtimeEvent(t, ownerSocket, "issue:created", `"identifier":"ONE-1"`)
 	assertRealtimeEvent(t, cookieSocket, "issue:created", `"identifier":"ONE-1"`)
+	assertRealtimeEvent(t, ownerSocket, "activity:created", `"action":"created"`)
+	assertRealtimeEvent(t, cookieSocket, "activity:created", `"action":"created"`)
 	_ = cookieSocket.Close()
 	assertNoRealtimeEvent(t, foreignSocket)
 
@@ -105,6 +107,7 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRealtimeEvent(t, ownerSocket, "issue:updated", `"title":"Updated after commit"`)
+	assertRealtimeEvent(t, ownerSocket, "activity:created", `"action":"title_changed"`)
 	if _, err := module.IssueLocal().UpdateIssueStatus(ctx, contract.UpdateIssueStatusRequest{WorkspaceId: "workspace-one", IssueId: created.Issue.Id, Status: "todo"}); err != nil {
 		t.Fatal(err)
 	}
@@ -113,6 +116,7 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRealtimeEvent(t, ownerSocket, "issue:updated", `"status_changed":true`)
+	assertRealtimeEvent(t, ownerSocket, "activity:created", `"action":"status_changed"`)
 
 	if _, err := module.IssueMetadataLocal().PutIssueMetadata(ctx, contract.PutIssueMetadataRequest{WorkspaceId: "workspace-one", IssueId: created.Issue.Id, Key: "complete", ValueJson: `true`}); err != nil {
 		t.Fatal(err)
@@ -131,6 +135,7 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRealtimeEvent(t, ownerSocket, "issue:created", `"id":"`+failedDeleteIssue.Issue.Id+`"`)
+	assertRealtimeEvent(t, ownerSocket, "activity:created", `"action":"created"`)
 	for _, statement := range []struct {
 		query string
 		args  []any
@@ -257,6 +262,7 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertRealtimeEvent(t, ownerSocket, "issue:created", `"id":"`+concurrentIssue.Issue.Id+`"`)
+	assertRealtimeEvent(t, ownerSocket, "activity:created", `"action":"created"`)
 	if _, err := runtime.Database().Exec(`INSERT INTO workspace_requirements(id,workspace_id,project_id,title,current_version,approval_status,coverage_status,issue_ids,created_at,updated_at) VALUES('requirement-concurrent','workspace-one','project-success','Concurrent requirement',1,'draft','covered',?,'2026-08-13T00:00:00Z','2026-08-13T00:00:00Z')`, `["`+concurrentIssue.Issue.Id+`"]`); err != nil {
 		t.Fatal(err)
 	}

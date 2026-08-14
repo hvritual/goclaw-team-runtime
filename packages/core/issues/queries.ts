@@ -848,10 +848,7 @@ export function issueTimelineOptions(issueId: string) {
 export function issueReactionsOptions(issueId: string) {
   return queryOptions({
     queryKey: issueKeys.reactions(issueId),
-    queryFn: async () => {
-      const issue = await api.getIssue(issueId);
-      return issue.reactions ?? [];
-    },
+    queryFn: () => api.listIssueReactions(issueId),
   });
 }
 

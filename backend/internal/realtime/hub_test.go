@@ -32,20 +32,21 @@ func TestHubEvictsSaturatedClientWithoutBlockingHealthyOrderedDelivery(t *testin
 	slow.outbound <- []byte(`{"prefill":1}`)
 	slow.outbound <- []byte(`{"prefill":2}`)
 	healthyWriter := newRecordingWriter()
-	healthy := newClient(healthyWriter, 8)
+	healthy := newClient(healthyWriter, 32)
 	go healthy.writePump()
 	t.Cleanup(healthy.close)
 	hub.add("workspace-one", slow)
 	hub.add("workspace-one", healthy)
 
+	events := []string{"issue:created", "issue:updated", "issue_metadata:changed", "issue:deleted", "comment:created", "comment:updated", "comment:deleted", "comment:resolved", "comment:unresolved", "reaction:added", "reaction:removed", "issue_reaction:added", "issue_reaction:removed", "subscriber:added", "subscriber:removed", "activity:created"}
 	started := time.Now()
-	for _, eventType := range []string{"issue:created", "issue:updated", "issue_metadata:changed", "issue:deleted"} {
+	for _, eventType := range events {
 		hub.Publish("workspace-one", eventType, map[string]any{"sequence": eventType}, "member-one", "member")
 	}
 	if time.Since(started) > 100*time.Millisecond {
 		t.Fatal("publish blocked on saturated client")
 	}
-	for range 4 {
+	for range len(events) {
 		select {
 		case <-healthyWriter.notify:
 		case <-time.After(time.Second):
@@ -54,7 +55,7 @@ func TestHubEvictsSaturatedClientWithoutBlockingHealthyOrderedDelivery(t *testin
 	}
 	healthyWriter.mu.Lock()
 	defer healthyWriter.mu.Unlock()
-	for index, eventType := range []string{"issue:created", "issue:updated", "issue_metadata:changed", "issue:deleted"} {
+	for index, eventType := range events {
 		if !containsFrame(healthyWriter.frames[index], `"type":"`+eventType+`"`) {
 			t.Fatalf("frame[%d]=%s", index, healthyWriter.frames[index])
 		}
@@ -74,7 +75,7 @@ func TestHubRejectsEventsOutsideCanonicalM1Set(t *testing.T) {
 	go client.writePump()
 	t.Cleanup(client.close)
 	hub.add("workspace-one", client)
-	hub.Publish("workspace-one", "comment:created", map[string]any{"unexpected": true}, "", "")
+	hub.Publish("workspace-one", "task:created", map[string]any{"unexpected": true}, "", "")
 	select {
 	case <-writer.notify:
 		t.Fatal("unsupported event was published")

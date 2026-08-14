@@ -83,7 +83,7 @@ describe("useRealtimeSync", () => {
     expect(invalidate).not.toHaveBeenCalled();
   });
 
-  it("refreshes the six-domain workspace caches when the socket is replaced", () => {
+  it("refreshes workspace and per-issue detail caches when the socket is replaced", () => {
     const first = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");
     const { rerender } = renderHook(
@@ -104,6 +104,10 @@ describe("useRealtimeSync", () => {
     expect(keys).toContainEqual(["projects", "ws-1"]);
     expect(keys).toContainEqual(["tasks", "ws-1"]);
     expect(keys).toContainEqual(["workspaces", "ws-1", "skills"]);
+    expect(keys).toContainEqual(["issues", "timeline"]);
+    expect(keys).toContainEqual(["issues", "reactions"]);
+    expect(keys).toContainEqual(["issues", "subscribers"]);
+    expect(keys).toContainEqual(["issues", "attachments"]);
   });
 
   it("debounces retained-domain events into one workspace refresh", () => {
@@ -118,7 +122,7 @@ describe("useRealtimeSync", () => {
     expect(invalidate).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(75));
-    expect(invalidate).toHaveBeenCalledTimes(8);
+    expect(invalidate).toHaveBeenCalledTimes(12);
   });
 
   it("tolerates duplicate committed events with one authoritative refresh", () => {
@@ -130,7 +134,7 @@ describe("useRealtimeSync", () => {
     socket.emit("issue_metadata:changed");
     act(() => vi.advanceTimersByTime(75));
 
-    expect(invalidate).toHaveBeenCalledTimes(8);
+    expect(invalidate).toHaveBeenCalledTimes(12);
   });
 
   it("ignores events outside the retained domains", () => {
@@ -153,6 +157,6 @@ describe("useRealtimeSync", () => {
     });
 
     socket.reconnect();
-    expect(invalidate).toHaveBeenCalledTimes(8);
+    expect(invalidate).toHaveBeenCalledTimes(12);
   });
 });

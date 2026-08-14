@@ -27,6 +27,7 @@ type WorkspaceServiceDependencies struct {
 	NewProjectID            func(context.Context) (string, error)
 	NewTodoID               func(context.Context) (string, error)
 	NewIssueID              func(context.Context) (string, error)
+	NewIssueCollaborationID func(context.Context) (string, error)
 	NewKnowledgeID          func(context.Context) (string, error)
 	NewRequirementID        func(context.Context) (string, error)
 	NewRequirementVersionID func(context.Context) (string, error)

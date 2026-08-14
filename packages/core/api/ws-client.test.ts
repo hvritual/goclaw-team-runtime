@@ -325,6 +325,52 @@ describe("WSClient", () => {
     expect(updated).toHaveBeenCalledWith({ issue: agentIssue }, undefined, undefined);
   });
 
+  it("validates collaboration event payloads before dispatch while retaining additive fields", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const timestamp = "2026-08-14T01:02:03Z";
+    const comment = {
+      id: "comment-1", issue_id: "issue-1", author_type: "member", author_id: "user-1",
+      content: "Decision", type: "comment", parent_id: null, reactions: [], attachments: [],
+      created_at: timestamp, updated_at: timestamp, resolved_at: null,
+      resolved_by_type: null, resolved_by_id: null, retained_extension: true,
+    };
+    const validFrames = [
+      ["comment:created", { comment }],
+      ["comment:updated", { comment }],
+      ["comment:resolved", { comment: { ...comment, resolved_at: timestamp, resolved_by_type: "member", resolved_by_id: "user-1" } }],
+      ["comment:unresolved", { comment }],
+      ["comment:deleted", { comment_id: "comment-1", issue_id: "issue-1" }],
+      ["reaction:added", { reaction: { id: "reaction-1", comment_id: "comment-1", actor_type: "member", actor_id: "user-1", emoji: "x", created_at: timestamp }, issue_id: "issue-1" }],
+      ["reaction:removed", { comment_id: "comment-1", issue_id: "issue-1", emoji: "x", actor_type: "member", actor_id: "user-1" }],
+      ["issue_reaction:added", { reaction: { id: "issue-reaction-1", issue_id: "issue-1", actor_type: "agent", actor_id: "agent-1", emoji: "x", created_at: timestamp }, issue_id: "issue-1" }],
+      ["issue_reaction:removed", { issue_id: "issue-1", emoji: "x", actor_type: "agent", actor_id: "agent-1" }],
+      ["subscriber:added", { issue_id: "issue-1", user_type: "member", user_id: "user-1", reason: "manual" }],
+      ["subscriber:removed", { issue_id: "issue-1", user_type: "member", user_id: "user-1" }],
+      ["activity:created", { issue_id: "issue-1", entry: { type: "activity", id: "activity-1", actor_type: "member", actor_id: "user-1", action: "status_changed", details: { from: "todo", to: "done" }, created_at: timestamp } }],
+    ] as const;
+    const handlers = new Map(validFrames.map(([type]) => [type, vi.fn()]));
+    for (const [type, handler] of handlers) ws.on(type, handler);
+    ws.connect();
+    for (const [type, payload] of validFrames) {
+      FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type, payload }) });
+      expect(handlers.get(type)).toHaveBeenCalledWith(payload, undefined, undefined);
+    }
+
+    const invalidFrames = [
+      ["comment:created", { comment: { ...comment, author_type: "service" } }],
+      ["comment:deleted", { comment_id: "comment-1" }],
+      ["reaction:added", { reaction: { id: "reaction-1" }, issue_id: "issue-1" }],
+      ["subscriber:added", { issue_id: "issue-1", user_type: "agent", user_id: "agent-1", reason: "manual" }],
+      ["activity:created", { issue_id: "issue-1", entry: { type: "activity", id: "activity-1" } }],
+    ] as const;
+    for (const [type, payload] of invalidFrames) {
+      const handler = handlers.get(type)!;
+      handler.mockClear();
+      FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type, payload }) });
+      expect(handler).not.toHaveBeenCalled();
+    }
+  });
+
   // ── Reconnect backoff tests ────────────────────────────────────────
 
   describe("reconnect backoff", () => {

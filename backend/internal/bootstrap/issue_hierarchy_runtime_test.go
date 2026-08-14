@@ -400,7 +400,11 @@ func TestSQLiteRuntimeRollsBackIssueBatchesAndPublishesOnlyCommittedEvents(t *te
 	successUpdate := runtimeRequest(runtime, http.MethodPost, "/api/issues/batch-update", `{"issue_ids":["`+updateOne.ID+`","`+updateTwo.Identifier+`"],"updates":{"priority":"urgent","status":"in_progress"}}`, headers)
 	assertRuntimeResponse(t, successUpdate.Code, successUpdate.Body.String(), http.StatusOK, `{"updated":2}`)
 	assertRealtimeEvent(t, successSocket, "issue:updated", `"id":"`+updateOne.ID+`"`)
+	assertRealtimeEvent(t, successSocket, "activity:created", `"action":"status_changed"`)
+	assertRealtimeEvent(t, successSocket, "activity:created", `"action":"priority_changed"`)
 	assertRealtimeEvent(t, successSocket, "issue:updated", `"id":"`+updateTwo.ID+`"`)
+	assertRealtimeEvent(t, successSocket, "activity:created", `"action":"status_changed"`)
+	assertRealtimeEvent(t, successSocket, "activity:created", `"action":"priority_changed"`)
 	_ = successSocket.Close()
 
 	deleteOne := create("Delete one", nil)

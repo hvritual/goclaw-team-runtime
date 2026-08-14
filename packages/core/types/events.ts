@@ -100,13 +100,99 @@ const IssueMetadataChangedEventPayloadSchema = z.object({
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 }).passthrough();
 
-/** Validates the four Canonical M1 Issue events before cache consumers run. */
+const RealtimeReactionSchema = z.object({
+  id: z.string().min(1),
+  comment_id: z.string().min(1),
+  actor_type: z.enum(["member", "agent"]),
+  actor_id: z.string().min(1),
+  emoji: z.string().min(1),
+  created_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+const RealtimeIssueReactionSchema = RealtimeReactionSchema.omit({ comment_id: true }).extend({
+  issue_id: z.string().min(1),
+}).passthrough();
+const RealtimeCommentSchema = z.object({
+  id: z.string().min(1),
+  issue_id: z.string().min(1),
+  author_type: z.enum(["member", "agent", "system"]),
+  author_id: z.string().min(1),
+  content: z.string(),
+  type: z.enum(["comment", "status_change", "progress_update", "system"]),
+  parent_id: z.string().nullable(),
+  reactions: z.array(RealtimeReactionSchema),
+  attachments: z.array(z.object({ id: z.string().min(1) }).passthrough()),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+  resolved_at: z.iso.datetime({ offset: true }).nullable(),
+  resolved_by_type: z.enum(["member", "agent"]).nullable(),
+  resolved_by_id: z.string().nullable(),
+}).passthrough();
+const RealtimeActivitySchema = z.object({
+  type: z.literal("activity"),
+  id: z.string().min(1),
+  actor_type: z.enum(["member", "agent", "system"]),
+  actor_id: z.string().min(1),
+  action: z.string().min(1),
+  details: z.record(z.string(), z.unknown()),
+  created_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+const CommentEventPayloadSchema = z.object({ comment: RealtimeCommentSchema }).passthrough();
+const CommentDeletedEventPayloadSchema = z.object({
+  comment_id: z.string().min(1),
+  issue_id: z.string().min(1),
+}).passthrough();
+const ReactionAddedEventPayloadSchema = z.object({
+  reaction: RealtimeReactionSchema,
+  issue_id: z.string().min(1),
+}).passthrough();
+const ReactionRemovedEventPayloadSchema = z.object({
+  comment_id: z.string().min(1),
+  issue_id: z.string().min(1),
+  emoji: z.string().min(1),
+  actor_type: z.enum(["member", "agent"]),
+  actor_id: z.string().min(1),
+}).passthrough();
+const IssueReactionAddedEventPayloadSchema = z.object({
+  reaction: RealtimeIssueReactionSchema,
+  issue_id: z.string().min(1),
+}).passthrough();
+const IssueReactionRemovedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  emoji: z.string().min(1),
+  actor_type: z.enum(["member", "agent"]),
+  actor_id: z.string().min(1),
+}).passthrough();
+const SubscriberAddedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  user_type: z.literal("member"),
+  user_id: z.string().min(1),
+  reason: z.enum(["creator", "assignee", "commenter", "mentioned", "manual"]),
+}).passthrough();
+const SubscriberRemovedEventPayloadSchema = SubscriberAddedEventPayloadSchema.omit({ reason: true }).passthrough();
+const ActivityCreatedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  entry: RealtimeActivitySchema,
+}).passthrough();
+
+/** Validates Canonical Issue and collaboration events before cache consumers run. */
 export function isValidCanonicalIssueEventPayload(type: string, payload: unknown): boolean {
   switch (type) {
     case "issue:created": return IssueCreatedEventPayloadSchema.safeParse(payload).success;
     case "issue:updated": return IssueUpdatedEventPayloadSchema.safeParse(payload).success;
     case "issue:deleted": return IssueDeletedEventPayloadSchema.safeParse(payload).success;
     case "issue_metadata:changed": return IssueMetadataChangedEventPayloadSchema.safeParse(payload).success;
+    case "comment:created":
+    case "comment:updated":
+    case "comment:resolved":
+    case "comment:unresolved": return CommentEventPayloadSchema.safeParse(payload).success;
+    case "comment:deleted": return CommentDeletedEventPayloadSchema.safeParse(payload).success;
+    case "reaction:added": return ReactionAddedEventPayloadSchema.safeParse(payload).success;
+    case "reaction:removed": return ReactionRemovedEventPayloadSchema.safeParse(payload).success;
+    case "issue_reaction:added": return IssueReactionAddedEventPayloadSchema.safeParse(payload).success;
+    case "issue_reaction:removed": return IssueReactionRemovedEventPayloadSchema.safeParse(payload).success;
+    case "subscriber:added": return SubscriberAddedEventPayloadSchema.safeParse(payload).success;
+    case "subscriber:removed": return SubscriberRemovedEventPayloadSchema.safeParse(payload).success;
+    case "activity:created": return ActivityCreatedEventPayloadSchema.safeParse(payload).success;
     default: return true;
   }
 }

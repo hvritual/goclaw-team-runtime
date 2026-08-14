@@ -687,6 +687,43 @@ describe("IssueDetail (shared)", () => {
     expect(screen.queryByPlaceholderText(/comment/i)).not.toBeInTheDocument();
   });
 
+  it("mounts the accepted collaboration surface without deferred detail consumers", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: false,
+      issue_labels: false,
+      issue_properties: false,
+      issue_pins: false,
+      issue_children: false,
+      issue_batch: false,
+      issue_project: false,
+      issue_child_progress: false,
+      issue_acceptance: false,
+      issue_detail_pull_requests: false,
+    });
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("Started working on this")).toBeInTheDocument();
+    expect(screen.getByTestId("comment-composer-shell")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockApiObj.listTimeline).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listIssueReactions).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listIssueSubscribers).toHaveBeenCalledWith(mockIssue.id);
+    });
+
+    expect(mockApiObj.listAttachments).not.toHaveBeenCalled();
+    expect(mockApiObj.listChildIssues).not.toHaveBeenCalled();
+    expect(mockApiObj.getChildIssueProgress).not.toHaveBeenCalled();
+    expect(mockApiObj.listProperties).not.toHaveBeenCalled();
+    expect(mockApiObj.getProject).not.toHaveBeenCalled();
+    expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
+  });
+
   it("does not mount inline batch controls while the runtime capability is disabled", async () => {
     configStore.getState().setFeatureFlags({
       issue_timeline: true,
@@ -729,12 +766,12 @@ describe("IssueDetail (shared)", () => {
     const denied = Object.assign(new Error("denied"), { status: 403 });
     mockApiObj.getIssue.mockRejectedValueOnce(denied);
     const deniedView = renderIssueDetail();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issue");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issues.");
     deniedView.unmount();
 
     mockApiObj.getIssue.mockRejectedValueOnce(new Error("offline"));
     renderIssueDetail();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issue");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Failed to load issues.");
   });
 
   it("shows loading skeleton while data is loading", () => {

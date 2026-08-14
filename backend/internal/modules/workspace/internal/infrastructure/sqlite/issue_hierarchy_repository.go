@@ -243,6 +243,9 @@ func clearBatchIssueDependents(ctx context.Context, connection *sql.Conn, worksp
 	if _, err := connection.ExecContext(ctx, `DELETE FROM workspace_pins WHERE workspace_id=? AND item_type='issue' AND item_id IN (`+idPlaceholders+`)`, idArguments...); err != nil {
 		return fmt.Errorf("clear Workspace batch Issue pins: %w", err)
 	}
+	if err := clearIssueCollaborationDependents(ctx, connection, workspaceID, issueIDs); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -129,8 +129,8 @@ func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadat
 			"feature_flags": map[string]bool{
 				"issue_list": true, "issue_base_detail": true,
 				"issue_detail_pull_requests": false,
-				"issue_timeline":             false, "issue_members": false,
-				"issue_reactions": false, "issue_subscribers": false,
+				"issue_timeline":             true, "issue_members": true,
+				"issue_reactions": true, "issue_subscribers": true,
 				"issue_attachments": false, "issue_labels": false,
 				"issue_properties": false, "issue_pins": false,
 				"issue_children": true, "issue_project": false,

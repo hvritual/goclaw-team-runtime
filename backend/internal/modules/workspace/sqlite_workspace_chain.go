@@ -65,6 +65,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Project surface SQLite persistence: %w", err)
 	}
+	issueCollaborationRepository, err := persistence.NewIssueCollaborationRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Issue collaboration SQLite persistence: %w", err)
+	}
 	newID := func(generator func(context.Context) (string, error)) application.ProjectIDGenerator {
 		if generator == nil {
 			return func(context.Context) (string, error) { return uuid.NewString(), nil }
@@ -78,6 +82,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	projectSurface, err := application.NewProjectSurfaceUseCase(projectSurfaceRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewProjectID), now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Project surface application: %w", err)
+	}
+	baseIssueCollaborationService, err := application.NewIssueCollaborationUseCase(issueCollaborationRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewIssueCollaborationID), now)
+	if err != nil {
+		return nil, fmt.Errorf("configure Issue collaboration application: %w", err)
 	}
 
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now)
@@ -102,8 +110,13 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	var issueDeletionService contract.IssueDeletionService = baseIssueDeletionService
 	var issueService contract.IssueMutationService = baseIssueService
 	var issueMetadataService contract.IssueMetadataService = baseIssueMetadataService
+	var issueCollaborationService contract.IssueCollaborationService = baseIssueCollaborationService
+	var issueActivities contract.IssueActivityRecorder = baseIssueCollaborationService
 	if dependencies.Events != nil {
-		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, events: dependencies.Events}
+		publishingCollaboration := publishingIssueCollaborationService{IssueCollaborationService: baseIssueCollaborationService, activities: baseIssueCollaborationService, events: dependencies.Events}
+		issueCollaborationService = publishingCollaboration
+		issueActivities = publishingCollaboration
+		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, activities: issueActivities, events: dependencies.Events}
 		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
 		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
 	}
@@ -153,6 +166,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer, dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newIssueCollaborationExtension(issueCollaborationService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {

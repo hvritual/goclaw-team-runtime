@@ -875,18 +875,19 @@ export function IssueDetail(props: IssueDetailProps) {
 }
 
 function CanonicalBaseIssueDetail({ issueId }: IssueDetailProps) {
+	const { t } = useT("issues");
 	const wsId = useWorkspaceId();
 	const { data: issue = null, isLoading, isError } = useQuery(issueDetailOptions(wsId, issueId));
 	if (isLoading) return <div data-testid="issue-base-loading"><TimelineSkeleton /></div>;
-	if (isError) return <div role="alert">Failed to load issue</div>;
-	if (!issue) return <div data-testid="issue-base-empty">Issue not found</div>;
+	if (isError) return <div role="alert">{t(($) => $.table.load_failed)}</div>;
+	if (!issue) return <div data-testid="issue-base-empty">{t(($) => $.detail.not_found)}</div>;
 	return (
 		<article data-testid="issue-base-detail" className="flex h-full min-h-0 flex-col gap-4 overflow-auto p-6">
 			<header>
 				<p className="text-xs text-muted-foreground">{issue.identifier}</p>
 				<h1 className="text-xl font-semibold">{issue.title}</h1>
 			</header>
-			{issue.description ? <p className="whitespace-pre-wrap text-sm">{issue.description}</p> : <p className="text-sm text-muted-foreground">No description</p>}
+			{issue.description ? <p className="whitespace-pre-wrap text-sm">{issue.description}</p> : <p className="text-sm text-muted-foreground">{t(($) => $.detail.desc_placeholder)}</p>}
 		</article>
 	);
 }

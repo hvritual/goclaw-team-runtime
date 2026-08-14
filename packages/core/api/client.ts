@@ -135,6 +135,7 @@ import {
   BatchUpdateIssuesResponseSchema,
   ChildIssuesResponseSchema,
   ChildIssueProgressResponseSchema,
+  CommentSchema,
   CommentsListSchema,
   EMPTY_APP_CONFIG,
   EMPTY_ATTACHMENT,
@@ -145,10 +146,11 @@ import {
   EMPTY_LIST_ISSUES_RESPONSE,
   EMPTY_SEARCH_ISSUES_RESPONSE,
   IssueMetadataResponseSchema,
+  IssueReactionSchema,
+  IssueReactionsListSchema,
   EMPTY_SEARCH_PROJECTS_RESPONSE,
   EMPTY_LIST_PROJECTS_RESPONSE,
   EMPTY_PINS,
-  EMPTY_TIMELINE_ENTRIES,
   EMPTY_USER,
   AppConfigSchema,
   type AppConfigResponse,
@@ -165,6 +167,8 @@ import {
   ProjectSchema,
   PinSchema,
   PinsSchema,
+  ReactionSchema,
+  SubscribedResponseSchema,
   SubscribersListSchema,
   TimelineEntriesSchema,
   UserSchema,
@@ -868,9 +872,9 @@ export class ApiClient {
   // Comments
   async listComments(issueId: string): Promise<Comment[]> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/comments`);
-    return parseWithFallback(raw, CommentsListSchema, [], {
-      endpoint: "GET /api/issues/:id/comments",
-    });
+    const parsed = CommentsListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comments response");
+    return parsed.data;
   }
 
   async createComment(
@@ -880,7 +884,7 @@ export class ApiClient {
     parentId?: string,
     attachmentIds?: string[],
   ): Promise<Comment> {
-    return this.fetch(`/api/issues/${issueId}/comments`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/comments`, {
       method: "POST",
       body: JSON.stringify({
         content,
@@ -889,25 +893,31 @@ export class ApiClient {
         ...(attachmentIds?.length ? { attachment_ids: attachmentIds } : {}),
       }),
     });
+    const parsed = CommentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment response");
+    return parsed.data;
   }
 
   async listTimeline(issueId: string): Promise<TimelineEntry[]> {
     const raw = await this.fetch<unknown>(
       `/api/issues/${issueId}/timeline`,
     );
-    return parseWithFallback(raw, TimelineEntriesSchema, EMPTY_TIMELINE_ENTRIES, {
-      endpoint: "GET /api/issues/:id/timeline",
-    });
+    const parsed = TimelineEntriesSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid timeline response");
+    return parsed.data;
   }
 
   async updateComment(commentId: string, content: string, attachmentIds?: string[]): Promise<Comment> {
-    return this.fetch(`/api/comments/${commentId}`, {
+    const raw = await this.fetch<unknown>(`/api/comments/${commentId}`, {
       method: "PUT",
       body: JSON.stringify({
         content,
         attachment_ids: attachmentIds,
       }),
     });
+    const parsed = CommentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment response");
+    return parsed.data;
   }
 
   async deleteComment(commentId: string): Promise<void> {
@@ -917,33 +927,37 @@ export class ApiClient {
   async proposeCommentDecision(
     commentId: string,
   ): Promise<CommentKnowledgeProposalResponse> {
-    const fallback: CommentKnowledgeProposalResponse = {
-      queued: false,
-      evidenceId: null,
-      sourceRevision: "",
-    };
     const raw = await this.fetch<unknown>(
       `/api/comments/${encodeURIComponent(commentId)}/knowledge-proposals`,
       { method: "POST" },
     );
-    return parseWithFallback(raw, commentKnowledgeProposalResponseSchema, fallback, {
-      endpoint: "POST /api/comments/:id/knowledge-proposals",
-    });
+    const parsed = commentKnowledgeProposalResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment knowledge proposal response");
+    return parsed.data;
   }
 
   async resolveComment(commentId: string): Promise<Comment> {
-    return this.fetch(`/api/comments/${commentId}/resolve`, { method: "POST" });
+    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/resolve`, { method: "POST" });
+    const parsed = CommentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment response");
+    return parsed.data;
   }
 
   async unresolveComment(commentId: string): Promise<Comment> {
-    return this.fetch(`/api/comments/${commentId}/resolve`, { method: "DELETE" });
+    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/resolve`, { method: "DELETE" });
+    const parsed = CommentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment response");
+    return parsed.data;
   }
 
   async addReaction(commentId: string, emoji: string): Promise<Reaction> {
-    return this.fetch(`/api/comments/${commentId}/reactions`, {
+    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/reactions`, {
       method: "POST",
       body: JSON.stringify({ emoji }),
     });
+    const parsed = ReactionSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid comment reaction response");
+    return parsed.data;
   }
 
   async removeReaction(commentId: string, emoji: string): Promise<void> {
@@ -954,10 +968,13 @@ export class ApiClient {
   }
 
   async addIssueReaction(issueId: string, emoji: string): Promise<IssueReaction> {
-    return this.fetch(`/api/issues/${issueId}/reactions`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/reactions`, {
       method: "POST",
       body: JSON.stringify({ emoji }),
     });
+    const parsed = IssueReactionSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue reaction response");
+    return parsed.data;
   }
 
   async removeIssueReaction(issueId: string, emoji: string): Promise<void> {
@@ -967,32 +984,43 @@ export class ApiClient {
     });
   }
 
+  async listIssueReactions(issueId: string): Promise<IssueReaction[]> {
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/reactions`);
+    const parsed = IssueReactionsListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue reactions response");
+    return parsed.data;
+  }
+
   // Subscribers
   async listIssueSubscribers(issueId: string): Promise<IssueSubscriber[]> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/subscribers`);
-    return parseWithFallback(raw, SubscribersListSchema, [], {
-      endpoint: "GET /api/issues/:id/subscribers",
-    });
+    const parsed = SubscribersListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid subscribers response");
+    return parsed.data;
   }
 
   async subscribeToIssue(issueId: string, userId?: string, userType?: string): Promise<void> {
     const body: Record<string, string> = {};
     if (userId) body.user_id = userId;
     if (userType) body.user_type = userType;
-    await this.fetch(`/api/issues/${issueId}/subscribe`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/subscribe`, {
       method: "POST",
       body: JSON.stringify(body),
     });
+    const parsed = SubscribedResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid subscription response");
   }
 
   async unsubscribeFromIssue(issueId: string, userId?: string, userType?: string): Promise<void> {
     const body: Record<string, string> = {};
     if (userId) body.user_id = userId;
     if (userType) body.user_type = userType;
-    await this.fetch(`/api/issues/${issueId}/unsubscribe`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/unsubscribe`, {
       method: "POST",
       body: JSON.stringify(body),
     });
+    const parsed = SubscribedResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid subscription response");
   }
 
 
