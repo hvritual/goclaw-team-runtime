@@ -59,6 +59,9 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
 		return nil, nil, nil, err
 	}
+	if err := normalizeRetainedIssueMemberActors(ctx, db); err != nil {
+		return nil, nil, nil, err
+	}
 	authModule, err := auth.NewWithSqliteLocalAuth(auth.SqlitePersistenceConfig{DB: db}, config.LocalAuth)
 	if err != nil {
 		return nil, nil, nil, err
@@ -92,6 +95,45 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	return db, NewApplicationWithModules(workspaceModule, authModule, space.New(), systemmodule.New()), realtimeHub, nil
 }
 
+func normalizeRetainedIssueMemberActors(ctx context.Context, db *sql.DB) (err error) {
+	connection, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire retained Issue actor normalization connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err := connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return fmt.Errorf("configure retained Issue actor normalization lock wait: %w", err)
+	}
+	if _, err := connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return fmt.Errorf("begin retained Issue actor normalization: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	for _, statement := range []string{
+		`UPDATE workspace_issues AS issue
+		 SET creator_id = (SELECT member.user_id FROM auth_members AS member WHERE member.id = issue.creator_id AND member.workspace_id = issue.workspace_id)
+		 WHERE issue.creator_type = 'member'
+		   AND EXISTS (SELECT 1 FROM auth_members AS member WHERE member.id = issue.creator_id AND member.workspace_id = issue.workspace_id)`,
+		`UPDATE workspace_issues AS issue
+		 SET assignee_id = (SELECT member.user_id FROM auth_members AS member WHERE member.id = issue.assignee_id AND member.workspace_id = issue.workspace_id)
+		 WHERE issue.assignee_type = 'member'
+		   AND EXISTS (SELECT 1 FROM auth_members AS member WHERE member.id = issue.assignee_id AND member.workspace_id = issue.workspace_id)`,
+	} {
+		if _, err := connection.ExecContext(ctx, statement); err != nil {
+			return fmt.Errorf("normalize retained Issue member actors: %w", err)
+		}
+	}
+	if _, err := connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return fmt.Errorf("commit retained Issue actor normalization: %w", err)
+	}
+	committed = true
+	return nil
+}
+
 type authMembershipAdapter struct {
 	reader authcontract.WorkspaceMembershipReader
 }
@@ -103,19 +145,19 @@ func (a authMembershipAdapter) ListForUser(ctx context.Context, userID string) (
 	}
 	result := make([]contract.WorkspaceMembership, len(values))
 	for index, value := range values {
-		result[index] = contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}
+		result[index] = contract.WorkspaceMembership{MemberID: value.MemberID, UserID: value.UserID, WorkspaceID: value.WorkspaceID, Role: value.Role}
 	}
 	return result, nil
 }
 
 func (a authMembershipAdapter) FindForUserAndWorkspace(ctx context.Context, userID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
 	value, ok, err := a.reader.FindForUserAndWorkspace(ctx, userID, workspaceID)
-	return contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
+	return contract.WorkspaceMembership{MemberID: value.MemberID, UserID: value.UserID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
 }
 
 func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, memberID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
 	value, ok, err := a.reader.FindByMemberAndWorkspace(ctx, memberID, workspaceID)
-	return contract.WorkspaceMembership{MemberID: value.MemberID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
+	return contract.WorkspaceMembership{MemberID: value.MemberID, UserID: value.UserID, WorkspaceID: value.WorkspaceID, Role: value.Role}, ok, err
 }
 
 func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
@@ -131,9 +173,15 @@ func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspace
 	if !ok || actor.Type != "member" {
 		return contract.ErrWorkspaceActorRequired
 	}
-	membership, found, err := a.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
+	membership, found, err := a.FindForUserAndWorkspace(ctx, actor.ID, workspaceID)
 	if err != nil {
 		return err
+	}
+	if !found {
+		membership, found, err = a.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
+		if err != nil {
+			return err
+		}
 	}
 	if !found {
 		return contract.ErrActorOutsideWorkspace
@@ -148,7 +196,10 @@ func (a authMembershipAdapter) ActorBelongsToWorkspace(ctx context.Context, work
 	if actorType != "member" {
 		return false, nil
 	}
-	_, found, err := a.FindByMemberAndWorkspace(ctx, actorID, workspaceID)
+	_, found, err := a.FindForUserAndWorkspace(ctx, actorID, workspaceID)
+	if err == nil && !found {
+		_, found, err = a.FindByMemberAndWorkspace(ctx, actorID, workspaceID)
+	}
 	return found, err
 }
 

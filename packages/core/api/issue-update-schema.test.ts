@@ -41,6 +41,19 @@ describe("issue update API boundary", () => {
     );
   });
 
+  it("rejects a malformed move response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ id: "issue-1", position: "between" }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.moveIssue("issue-1", {
+      before_id: null,
+      after_id: null,
+    })).rejects.toThrow("Invalid issue move response");
+  });
+
   it("serializes acceptance input only at the HTTP boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       JSON.stringify(VALID_ISSUE),

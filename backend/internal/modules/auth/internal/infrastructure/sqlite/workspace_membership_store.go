@@ -23,7 +23,7 @@ func (s *WorkspaceMembershipStore) ListForUser(ctx context.Context, userID strin
 	if strings.TrimSpace(userID) == "" {
 		return []contract.WorkspaceMembership{}, nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, workspace_id, role FROM auth_members WHERE user_id = ?`, strings.TrimSpace(userID))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, user_id, workspace_id, role FROM auth_members WHERE user_id = ?`, strings.TrimSpace(userID))
 	if err != nil {
 		return nil, fmt.Errorf("list user workspace memberships: %w", err)
 	}
@@ -31,7 +31,7 @@ func (s *WorkspaceMembershipStore) ListForUser(ctx context.Context, userID strin
 	values := make([]contract.WorkspaceMembership, 0)
 	for rows.Next() {
 		var value contract.WorkspaceMembership
-		if err := rows.Scan(&value.MemberID, &value.WorkspaceID, &value.Role); err != nil {
+		if err := rows.Scan(&value.MemberID, &value.UserID, &value.WorkspaceID, &value.Role); err != nil {
 			return nil, fmt.Errorf("scan user workspace membership: %w", err)
 		}
 		values = append(values, value)
@@ -43,16 +43,16 @@ func (s *WorkspaceMembershipStore) ListForUser(ctx context.Context, userID strin
 }
 
 func (s *WorkspaceMembershipStore) FindForUserAndWorkspace(ctx context.Context, userID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
-	return s.find(ctx, `SELECT id, workspace_id, role FROM auth_members WHERE user_id = ? AND workspace_id = ?`, strings.TrimSpace(userID), strings.TrimSpace(workspaceID))
+	return s.find(ctx, `SELECT id, user_id, workspace_id, role FROM auth_members WHERE user_id = ? AND workspace_id = ?`, strings.TrimSpace(userID), strings.TrimSpace(workspaceID))
 }
 
 func (s *WorkspaceMembershipStore) FindByMemberAndWorkspace(ctx context.Context, memberID, workspaceID string) (contract.WorkspaceMembership, bool, error) {
-	return s.find(ctx, `SELECT id, workspace_id, role FROM auth_members WHERE id = ? AND workspace_id = ?`, strings.TrimSpace(memberID), strings.TrimSpace(workspaceID))
+	return s.find(ctx, `SELECT id, user_id, workspace_id, role FROM auth_members WHERE id = ? AND workspace_id = ?`, strings.TrimSpace(memberID), strings.TrimSpace(workspaceID))
 }
 
 func (s *WorkspaceMembershipStore) find(ctx context.Context, query string, arguments ...any) (contract.WorkspaceMembership, bool, error) {
 	var value contract.WorkspaceMembership
-	err := s.db.QueryRowContext(ctx, query, arguments...).Scan(&value.MemberID, &value.WorkspaceID, &value.Role)
+	err := s.db.QueryRowContext(ctx, query, arguments...).Scan(&value.MemberID, &value.UserID, &value.WorkspaceID, &value.Role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return contract.WorkspaceMembership{}, false, nil
 	}

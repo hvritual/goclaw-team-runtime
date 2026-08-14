@@ -100,10 +100,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		return nil, fmt.Errorf("configure Workspace Issue deletion application: %w", err)
 	}
 	var issueDeletionService contract.IssueDeletionService = baseIssueDeletionService
-	var issueService contract.IssueService = baseIssueService
+	var issueService contract.IssueMutationService = baseIssueService
 	var issueMetadataService contract.IssueMetadataService = baseIssueMetadataService
 	if dependencies.Events != nil {
-		issueService = publishingIssueService{IssueService: baseIssueService, events: dependencies.Events}
+		issueService = publishingIssueService{IssueMutationService: baseIssueService, events: dependencies.Events}
 		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
 		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
 	}

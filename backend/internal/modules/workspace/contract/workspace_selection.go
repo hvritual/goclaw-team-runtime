@@ -4,6 +4,7 @@ import "context"
 
 type WorkspaceMembership struct {
 	MemberID    string
+	UserID      string
 	WorkspaceID string
 	Role        string
 }

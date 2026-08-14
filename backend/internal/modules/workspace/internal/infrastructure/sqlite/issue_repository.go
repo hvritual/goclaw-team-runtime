@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strings"
 	"time"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
@@ -159,6 +161,152 @@ func (r *issueRepository) Update(ctx context.Context, value issueDomain.Issue) e
 		return application.ErrIssueRecordNotFound
 	}
 	return nil
+}
+
+func (r *issueRepository) Move(ctx context.Context, command application.IssueMoveCommand) (updated issueDomain.Issue, err error) {
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("acquire Issue move connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err := connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("configure Issue move lock wait: %w", err)
+	}
+	if _, err := connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("begin immediate Issue move: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+
+	current, err := scanIssue(connection.QueryRowContext(ctx, `SELECT `+issueColumns+`
+		FROM workspace_issues WHERE workspace_id = ? AND (id = ? OR identifier = ?)`, command.WorkspaceID, command.IssueID, command.IssueID))
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	if command.BeforeID != nil && *command.BeforeID == current.ID || command.AfterID != nil && *command.AfterID == current.ID {
+		return issueDomain.Issue{}, fmt.Errorf("%w: move anchor cannot be the moved Issue", application.ErrIssueMoveConflict)
+	}
+	if command.BeforeID != nil && command.AfterID != nil && *command.BeforeID == *command.AfterID {
+		return issueDomain.Issue{}, fmt.Errorf("%w: move anchors must be distinct", application.ErrIssueMoveConflict)
+	}
+	before, err := issueAnchorPosition(ctx, connection, command.WorkspaceID, command.BeforeID)
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	after, err := issueAnchorPosition(ctx, connection, command.WorkspaceID, command.AfterID)
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	position, err := canonicalIssueMovePosition(current.Position, before, after)
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	command.Patch.Position = &position
+	updated, err = current.Apply(command.Patch, command.Now)
+	if err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("%w: %v", application.ErrIssueMoveInvalid, err)
+	}
+	if updated.ParentIssueID != nil {
+		cycle, cycleErr := wouldCreateParentCycleOnConnection(ctx, connection, command.WorkspaceID, updated.ID, *updated.ParentIssueID)
+		if cycleErr != nil {
+			return issueDomain.Issue{}, cycleErr
+		}
+		if cycle {
+			return issueDomain.Issue{}, fmt.Errorf("%w: circular parent relationship", application.ErrIssueMoveInvalid)
+		}
+	}
+	_, _, assets, err := encodeIssueJSON(updated)
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	result, err := connection.ExecContext(ctx, `UPDATE workspace_issues SET
+		status=?, assignee_type=?, assignee_id=?, parent_issue_id=?, project_id=?, position=?, asset_ids=?, updated_at=?
+		WHERE workspace_id=? AND id=?`,
+		updated.Status, nullableString(updated.AssigneeType), nullableString(updated.AssigneeID), nullableString(updated.ParentIssueID), nullableString(updated.ProjectID),
+		updated.Position, assets, updated.UpdatedAt.Format(time.RFC3339Nano), updated.WorkspaceID, updated.ID,
+	)
+	if err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("update moved Workspace Issue: %w", err)
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil {
+		return issueDomain.Issue{}, fmt.Errorf("inspect moved Workspace Issue: %w", rowsErr)
+	} else if rows != 1 {
+		return issueDomain.Issue{}, application.ErrIssueRecordNotFound
+	}
+	if _, err := connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("commit Workspace Issue move: %w", err)
+	}
+	committed = true
+	return updated, nil
+}
+
+func issueAnchorPosition(ctx context.Context, connection *sql.Conn, workspaceID string, issueID *string) (*float64, error) {
+	if issueID == nil {
+		return nil, nil
+	}
+	trimmed := strings.TrimSpace(*issueID)
+	if trimmed == "" {
+		return nil, fmt.Errorf("%w: move anchor id is required", application.ErrIssueMoveConflict)
+	}
+	var position float64
+	if err := connection.QueryRowContext(ctx, `SELECT position FROM workspace_issues WHERE workspace_id=? AND id=?`, workspaceID, trimmed).Scan(&position); errors.Is(err, sql.ErrNoRows) {
+		return nil, application.ErrIssueMoveAnchorNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("resolve Workspace Issue move anchor: %w", err)
+	}
+	return &position, nil
+}
+
+func canonicalIssueMovePosition(current float64, before, after *float64) (float64, error) {
+	var position float64
+	switch {
+	case before != nil && after != nil:
+		if !(*before < *after) {
+			return 0, fmt.Errorf("%w: move anchors are stale or out of order", application.ErrIssueMoveConflict)
+		}
+		position = *before + (*after-*before)/2
+		if !(position > *before && position < *after) {
+			return 0, fmt.Errorf("%w: move anchors are too close", application.ErrIssueMoveConflict)
+		}
+	case before != nil:
+		position = *before + 1
+	case after != nil:
+		position = *after - 1
+	default:
+		position = current
+	}
+	if math.IsInf(position, 0) || math.IsNaN(position) {
+		return 0, fmt.Errorf("%w: move position is out of range", application.ErrIssueMoveConflict)
+	}
+	return position, nil
+}
+
+func wouldCreateParentCycleOnConnection(ctx context.Context, connection *sql.Conn, workspaceID, issueID, parentID string) (bool, error) {
+	seen := map[string]struct{}{}
+	for cursor := parentID; cursor != ""; {
+		if cursor == issueID {
+			return true, nil
+		}
+		if _, duplicate := seen[cursor]; duplicate {
+			return true, nil
+		}
+		seen[cursor] = struct{}{}
+		var next sql.NullString
+		if err := connection.QueryRowContext(ctx, `SELECT parent_issue_id FROM workspace_issues WHERE workspace_id=? AND id=?`, workspaceID, cursor).Scan(&next); errors.Is(err, sql.ErrNoRows) {
+			return false, application.ErrIssueRecordNotFound
+		} else if err != nil {
+			return false, fmt.Errorf("walk Workspace Issue move parents: %w", err)
+		}
+		if !next.Valid {
+			return false, nil
+		}
+		cursor = next.String
+	}
+	return false, nil
 }
 
 func (r *issueRepository) WouldCreateParentCycle(ctx context.Context, workspaceID, issueID, parentID string) (bool, error) {

@@ -17,7 +17,7 @@ Classifications: `Exact`, `Compatible`, `SemanticallyEquivalent`, `Improved`,
 | `PAR-ISSUE-01` | List Issues used by current page | table APIs plus list/query dependency | Issue SQLite + HTTP | Exact | body/schema/cursor/browser | Target frozen; pending S4 |
 | `PAR-ISSUE-02` | Load Issue by UUID or identifier | base detail; foreign hidden | scoped resolver | Exact | HTTP/SQLite isolation | Target frozen; pending S4 |
 | `PAR-ISSUE-03` | Full local Issue detail | installed detail controls and fan-out | real local routes; only external VCS remains gated | Exact/Compatible | config/view/network trace | Plan v7 approved; C4-C9 pending |
-| `PAR-ISSUE-04` | Update and relative move | current Core PUT/move contracts and retained behavior | atomic Canonical update/move with public actor IDs | Exact | HTTP/SQLite/event/browser | Plan v7 approved; pending C4 |
+| `PAR-ISSUE-04` | Update and relative move | current Core PUT/move contracts and retained behavior | atomic Canonical update/move with public actor IDs | Exact | HTTP/SQLite/event/browser | C4 deterministic candidate green; clean browser integration active |
 | `PAR-ISSUE-05` | Hierarchy and batch operations | current children/progress/batch contracts | cycle-safe transactional Canonical operations | Exact | hierarchy/concurrency/browser | Plan v7 approved; pending C5 |
 | `PAR-COLLAB-01` | Timeline and comment lifecycle | current Core schemas plus retained handlers | Canonical activity/comment persistence | Exact/Compatible | HTTP/order/restart/browser | Plan v7 approved; pending C6 |
 | `PAR-COLLAB-02` | Comment and Issue reactions | current Core schemas plus retained handlers | idempotent actor-scoped reactions | Exact | HTTP/concurrency/realtime | Plan v7 approved; pending C6 |

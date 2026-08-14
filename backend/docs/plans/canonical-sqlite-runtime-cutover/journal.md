@@ -718,3 +718,37 @@ Human approval are recorded.
 - Preserved unrelated paths remain `packages/ui/components/ui/input.tsx`,
   `packages/views/auth/input-controlled.test.tsx`, `.local-runtime/`,
   `docs/code-to-product/`, and `ui/`. `server/**` remains permanently read-only.
+
+## 2026-08-14 — M1-S7-C4 RED/GREEN deterministic candidate
+
+- Runtime RED first proved a newly created Issue exposed the private Auth
+  membership-row ID instead of the public `user_id`. The focused request then
+  proved `PUT /api/issues/:id` and `POST /api/issues/:id/move` both returned
+  404. Core RED separately proved `moveIssue` accepted a malformed response.
+- GREEN extends the Auth membership projection with its public user ID while
+  preserving private membership IDs for authorization compatibility. New HTTP
+  Issue creators persist public member actor IDs, and a startup-owned
+  `BEGIN IMMEDIATE` compatibility transaction normalizes retained member
+  creator/assignee references only when they match an Auth membership in the
+  same Workspace.
+- The trusted Issue HTTP adapter now owns strict bounded update and move
+  bodies, authentication-before-Workspace ordering, Cookie-CSRF enforcement,
+  target-first hidden 404 behavior, nullable field clears and complete
+  snake_case Issue responses. Core move responses are validated with the same
+  exact Issue schema as update responses.
+- Relative move never accepts a caller-authored canonical position. SQLite
+  re-reads the moved Issue and Workspace-scoped anchors, computes the relative
+  position and applies the allowed patch inside one `BEGIN IMMEDIATE`
+  transaction. Empty, missing, self, duplicate, stale and foreign/missing
+  anchors fail without a write. A trigger-forced failure rolls back status and
+  position and emits no event; a successful commit emits one complete
+  `issue:updated` event.
+- Runtime tests cover public actor projection, retained upgrade, update/readback,
+  strict request/auth/CSRF cases, move edge cases, post-commit event ordering,
+  rollback, ten repeated concurrent same-Issue moves and restart persistence.
+  Backend `go test ./... -count=1`, `go vet ./...` and `go mod verify` pass.
+  Core passes 88 files / 565 tests plus typecheck and lint.
+- Candidate paths contain no `server/**` change and exclude the preserved
+  unrelated Input/local artifact paths. `M1-S7-C4-INTEGRATE` now requires the
+  exact committed clean-candidate browser edit/move proof before story
+  promotion.

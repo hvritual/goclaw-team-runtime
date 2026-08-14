@@ -42,6 +42,18 @@ func (s *issueRepositoryStub) Update(_ context.Context, value issueDomain.Issue)
 	s.value = value
 	return s.err
 }
+func (s *issueRepositoryStub) Move(_ context.Context, command IssueMoveCommand) (issueDomain.Issue, error) {
+	s.updates++
+	if s.err != nil {
+		return issueDomain.Issue{}, s.err
+	}
+	updated, err := s.value.Apply(command.Patch, command.Now)
+	if err != nil {
+		return issueDomain.Issue{}, err
+	}
+	s.value = updated
+	return updated, nil
+}
 func (s *issueRepositoryStub) WouldCreateParentCycle(context.Context, string, string, string) (bool, error) {
 	return s.cycle, s.err
 }

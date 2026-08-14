@@ -800,10 +800,15 @@ export class ApiClient {
   }
 
   async moveIssue(id: string, data: MoveIssueRequest): Promise<Issue> {
-    return this.fetch(`/api/issues/${id}/move`, {
+    const raw = await this.fetch<unknown>(`/api/issues/${id}/move`, {
       method: "POST",
       body: JSON.stringify(data),
     });
+    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
+      endpoint: "POST /api/issues/:id/move",
+    });
+    if (!issue) throw new Error("Invalid issue move response");
+    return issue;
   }
 
   async listChildIssues(id: string): Promise<{ issues: Issue[] }> {

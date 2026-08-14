@@ -17,10 +17,11 @@ import (
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
+	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 )
 
 type IssueReadHandler struct {
-	service       contract.IssueService
+	service       contract.IssueMutationService
 	identity      contract.WorkspaceHTTPIdentityResolver
 	authenticate  func(*http.Request) (string, error)
 	mutation      func(*http.Request) error
@@ -29,7 +30,7 @@ type IssueReadHandler struct {
 
 var errUnsupportedIssueQuery = errors.New("unsupported issue query")
 
-func NewIssueReadHandler(service contract.IssueService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled bool) *IssueReadHandler {
+func NewIssueReadHandler(service contract.IssueMutationService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled bool) *IssueReadHandler {
 	return &IssueReadHandler{service: service, identity: identity, authenticate: authenticate, mutation: mutation, createEnabled: createEnabled}
 }
 
@@ -44,6 +45,8 @@ func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 	router.POST("/api/issues/table/groups", h.groups)
 	router.POST("/api/issues/table/rows", h.rows)
 	router.GET("/api/issues/{id}", h.get)
+	router.PUT("/api/issues/{id}", h.update)
+	router.POST("/api/issues/{id}/move", h.move)
 }
 
 type createIssueHTTPRequest struct {
@@ -61,6 +64,50 @@ type createIssueHTTPRequest struct {
 	DueDate       *string  `json:"due_date"`
 	AttachmentIDs []string `json:"attachment_ids"`
 	LabelIDs      []string `json:"label_ids"`
+}
+
+type updateIssueHTTPRequest struct {
+	Title         *string                      `json:"title"`
+	Description   *string                      `json:"description"`
+	Status        *string                      `json:"status"`
+	Priority      *string                      `json:"priority"`
+	AssigneeType  contract.NullableStringPatch `json:"assignee_type"`
+	AssigneeID    contract.NullableStringPatch `json:"assignee_id"`
+	ParentIssueID contract.NullableStringPatch `json:"parent_issue_id"`
+	ProjectID     contract.NullableStringPatch `json:"project_id"`
+	Position      *float64                     `json:"position"`
+	Stage         nullableInt32Patch           `json:"stage"`
+	StartDate     contract.NullableStringPatch `json:"start_date"`
+	DueDate       contract.NullableStringPatch `json:"due_date"`
+}
+
+type nullableInt32Patch struct {
+	Set   bool
+	Value *int32
+}
+
+type moveIssueHTTPRequest struct {
+	Status        *string                      `json:"status"`
+	AssigneeType  contract.NullableStringPatch `json:"assignee_type"`
+	AssigneeID    contract.NullableStringPatch `json:"assignee_id"`
+	ParentIssueID contract.NullableStringPatch `json:"parent_issue_id"`
+	ProjectID     contract.NullableStringPatch `json:"project_id"`
+	BeforeID      contract.NullableStringPatch `json:"before_id"`
+	AfterID       contract.NullableStringPatch `json:"after_id"`
+}
+
+func (p *nullableInt32Patch) UnmarshalJSON(data []byte) error {
+	p.Set = true
+	if string(data) == "null" {
+		p.Value = nil
+		return nil
+	}
+	var value int32
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	p.Value = &value
+	return nil
 }
 
 func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
@@ -103,6 +150,140 @@ func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
 		return writeError(ctx, http.StatusInternalServerError, "failed to create issue")
 	}
 	return ctx.JSON(http.StatusCreated, toPublicIssue(*result.Issue))
+}
+
+func (h *IssueReadHandler) update(ctx kratoshttp.Context) error {
+	if h.authenticate == nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if _, err := h.authenticate(ctx.Request()); err != nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if !hasWorkspaceIdentity(ctx) {
+		return writeError(ctx, http.StatusBadRequest, "workspace is required")
+	}
+	requestContext, workspaceID, err := h.requestIdentity(ctx)
+	if err != nil {
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	issueID := ctx.Vars().Get("id")
+	if _, err := h.service.GetIssue(requestContext, contract.GetIssueRequest{WorkspaceId: workspaceID, IssueId: issueID}); err != nil {
+		return h.writeIssueMutation(ctx, contract.UpdateIssueResponse{}, err, "update")
+	}
+	var request updateIssueHTTPRequest
+	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid request body")
+	}
+	result, err := h.service.UpdateIssue(requestContext, contract.UpdateIssueRequest{
+		WorkspaceId: workspaceID, IssueId: issueID,
+		Title: request.Title, Description: request.Description, Status: request.Status, Priority: request.Priority,
+		AssigneeType: nullableStringUpdate(request.AssigneeType), AssigneeId: nullableStringUpdate(request.AssigneeID),
+		ParentIssueId: nullableStringUpdate(request.ParentIssueID), ProjectId: nullableStringUpdate(request.ProjectID),
+		Position: request.Position, Stage: nullableStageUpdate(request.Stage),
+		StartDate: nullableStringUpdate(request.StartDate), DueDate: nullableStringUpdate(request.DueDate),
+	})
+	return h.writeIssueMutation(ctx, result, err, "update")
+}
+
+func (h *IssueReadHandler) move(ctx kratoshttp.Context) error {
+	if h.authenticate == nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if _, err := h.authenticate(ctx.Request()); err != nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if !hasWorkspaceIdentity(ctx) {
+		return writeError(ctx, http.StatusBadRequest, "workspace is required")
+	}
+	requestContext, workspaceID, err := h.requestIdentity(ctx)
+	if err != nil {
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	issueID := ctx.Vars().Get("id")
+	if _, err := h.service.GetIssue(requestContext, contract.GetIssueRequest{WorkspaceId: workspaceID, IssueId: issueID}); err != nil {
+		return h.writeMoveIssue(ctx, contract.MoveIssueResponse{}, err)
+	}
+	var request moveIssueHTTPRequest
+	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid request body")
+	}
+	if !request.BeforeID.Set || !request.AfterID.Set {
+		return writeError(ctx, http.StatusBadRequest, "before_id and after_id are required")
+	}
+	if invalidMoveAnchor(request.BeforeID.Value) || invalidMoveAnchor(request.AfterID.Value) {
+		return writeError(ctx, http.StatusBadRequest, "invalid move anchor")
+	}
+	result, err := h.service.MoveIssue(requestContext, contract.MoveIssueRequest{
+		WorkspaceID: workspaceID, IssueID: issueID, Status: request.Status,
+		AssigneeType: nullableStringUpdate(request.AssigneeType), AssigneeID: nullableStringUpdate(request.AssigneeID),
+		ParentIssueID: nullableStringUpdate(request.ParentIssueID), ProjectID: nullableStringUpdate(request.ProjectID),
+		BeforeID: request.BeforeID.Value, AfterID: request.AfterID.Value,
+	})
+	return h.writeMoveIssue(ctx, result, err)
+}
+
+func invalidMoveAnchor(value *string) bool {
+	return value != nil && strings.TrimSpace(*value) == ""
+}
+
+func (h *IssueReadHandler) writeMoveIssue(ctx kratoshttp.Context, result contract.MoveIssueResponse, err error) error {
+	if errors.Is(err, application.ErrIssueMoveInvalid) || errors.Is(err, contract.ErrInvalidIssue) {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue move")
+	}
+	if errors.Is(err, application.ErrIssueMoveAnchorNotFound) {
+		return writeError(ctx, http.StatusBadRequest, "move anchor not found in this workspace")
+	}
+	if errors.Is(err, application.ErrIssueMoveConflict) {
+		return writeError(ctx, http.StatusConflict, err.Error())
+	}
+	if errors.Is(err, contract.ErrIssueNotFound) || errors.Is(err, contract.ErrProjectNotFound) || errors.Is(err, contract.ErrActorOutsideWorkspace) || errors.Is(err, contract.ErrWorkspaceNotFound) {
+		return writeError(ctx, http.StatusNotFound, "issue not found")
+	}
+	if err != nil || result.Issue == nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to move issue")
+	}
+	return ctx.JSON(http.StatusOK, toPublicIssue(*result.Issue))
+}
+
+func nullableStringUpdate(value contract.NullableStringPatch) *string {
+	if !value.Set {
+		return nil
+	}
+	if value.Value == nil {
+		empty := ""
+		return &empty
+	}
+	return value.Value
+}
+
+func nullableStageUpdate(value nullableInt32Patch) *int32 {
+	if !value.Set {
+		return nil
+	}
+	if value.Value == nil {
+		cleared := int32(0)
+		return &cleared
+	}
+	return value.Value
+}
+
+func (h *IssueReadHandler) writeIssueMutation(ctx kratoshttp.Context, result contract.UpdateIssueResponse, err error, operation string) error {
+	if errors.Is(err, contract.ErrInvalidIssue) {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue request")
+	}
+	if errors.Is(err, contract.ErrIssueNotFound) || errors.Is(err, contract.ErrProjectNotFound) || errors.Is(err, contract.ErrActorOutsideWorkspace) || errors.Is(err, contract.ErrWorkspaceNotFound) || errors.Is(err, contract.ErrAssetOutsideWorkspace) {
+		return writeError(ctx, http.StatusNotFound, "issue not found")
+	}
+	if err != nil || result.Issue == nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to "+operation+" issue")
+	}
+	return ctx.JSON(http.StatusOK, toPublicIssue(*result.Issue))
 }
 
 type publicIssue struct {

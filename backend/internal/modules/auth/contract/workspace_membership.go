@@ -6,6 +6,7 @@ import "context"
 // exposing Auth persistence.
 type WorkspaceMembership struct {
 	MemberID    string
+	UserID      string
 	WorkspaceID string
 	Role        string
 }

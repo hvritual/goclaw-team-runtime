@@ -7,12 +7,12 @@ import (
 )
 
 type publishingIssueService struct {
-	contract.IssueService
+	contract.IssueMutationService
 	events contract.WorkspaceEventPublisher
 }
 
 func (s publishingIssueService) CreateIssue(ctx context.Context, request contract.CreateIssueRequest) (contract.CreateIssueResponse, error) {
-	response, err := s.IssueService.CreateIssue(ctx, request)
+	response, err := s.IssueMutationService.CreateIssue(ctx, request)
 	if err == nil && response.Issue != nil {
 		actorID, actorType := realtimeActor(ctx)
 		s.events.Publish(request.WorkspaceId, "issue:created", map[string]any{"issue": realtimeIssue(response.Issue)}, actorID, actorType)
@@ -21,11 +21,11 @@ func (s publishingIssueService) CreateIssue(ctx context.Context, request contrac
 }
 
 func (s publishingIssueService) UpdateIssue(ctx context.Context, request contract.UpdateIssueRequest) (contract.UpdateIssueResponse, error) {
-	before, beforeErr := s.IssueService.GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: request.WorkspaceId, IssueId: request.IssueId})
+	before, beforeErr := s.IssueMutationService.GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: request.WorkspaceId, IssueId: request.IssueId})
 	if beforeErr != nil {
 		return contract.UpdateIssueResponse{}, beforeErr
 	}
-	response, err := s.IssueService.UpdateIssue(ctx, request)
+	response, err := s.IssueMutationService.UpdateIssue(ctx, request)
 	if err == nil && response.Issue != nil {
 		actorID, actorType := realtimeActor(ctx)
 		s.events.Publish(request.WorkspaceId, "issue:updated", map[string]any{
@@ -39,14 +39,32 @@ func (s publishingIssueService) UpdateIssue(ctx context.Context, request contrac
 }
 
 func (s publishingIssueService) UpdateIssueStatus(ctx context.Context, request contract.UpdateIssueStatusRequest) (contract.UpdateIssueStatusResponse, error) {
-	before, beforeErr := s.IssueService.GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: request.WorkspaceId, IssueId: request.IssueId})
+	before, beforeErr := s.IssueMutationService.GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: request.WorkspaceId, IssueId: request.IssueId})
 	if beforeErr != nil {
 		return contract.UpdateIssueStatusResponse{}, beforeErr
 	}
-	response, err := s.IssueService.UpdateIssueStatus(ctx, request)
+	response, err := s.IssueMutationService.UpdateIssueStatus(ctx, request)
 	if err == nil && response.Issue != nil {
 		actorID, actorType := realtimeActor(ctx)
 		s.events.Publish(request.WorkspaceId, "issue:updated", map[string]any{"issue": realtimeIssue(response.Issue), "status_changed": before.Issue != nil && before.Issue.Status != response.Issue.Status}, actorID, actorType)
+	}
+	return response, err
+}
+
+func (s publishingIssueService) MoveIssue(ctx context.Context, request contract.MoveIssueRequest) (contract.MoveIssueResponse, error) {
+	before, beforeErr := s.IssueMutationService.GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: request.WorkspaceID, IssueId: request.IssueID})
+	if beforeErr != nil {
+		return contract.MoveIssueResponse{}, beforeErr
+	}
+	response, err := s.IssueMutationService.MoveIssue(ctx, request)
+	if err == nil && response.Issue != nil {
+		actorID, actorType := realtimeActor(ctx)
+		s.events.Publish(request.WorkspaceID, "issue:updated", map[string]any{
+			"issue":            realtimeIssue(response.Issue),
+			"assignee_changed": before.Issue != nil && (pointerValue(before.Issue.AssigneeType) != pointerValue(response.Issue.AssigneeType) || pointerValue(before.Issue.AssigneeId) != pointerValue(response.Issue.AssigneeId)),
+			"status_changed":   before.Issue != nil && before.Issue.Status != response.Issue.Status,
+			"project_changed":  before.Issue != nil && pointerValue(before.Issue.ProjectId) != pointerValue(response.Issue.ProjectId),
+		}, actorID, actorType)
 	}
 	return response, err
 }

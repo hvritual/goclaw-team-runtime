@@ -49,6 +49,10 @@ func (r *issueRepositoryCounter) Update(context.Context, issueDomain.Issue) erro
 	r.calls++
 	return nil
 }
+func (r *issueRepositoryCounter) Move(context.Context, IssueMoveCommand) (issueDomain.Issue, error) {
+	r.calls++
+	return issueDomain.Issue{}, nil
+}
 func (r *issueRepositoryCounter) WouldCreateParentCycle(context.Context, string, string, string) (bool, error) {
 	r.calls++
 	return false, nil

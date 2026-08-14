@@ -38,8 +38,24 @@ type IssueRepository interface {
 	Create(context.Context, issueDomain.Issue) (issueDomain.Issue, error)
 	List(context.Context, IssueListQuery) ([]issueDomain.Issue, error)
 	Update(context.Context, issueDomain.Issue) error
+	Move(context.Context, IssueMoveCommand) (issueDomain.Issue, error)
 	WouldCreateParentCycle(context.Context, string, string, string) (bool, error)
 }
+
+type IssueMoveCommand struct {
+	WorkspaceID string
+	IssueID     string
+	BeforeID    *string
+	AfterID     *string
+	Patch       issueDomain.Patch
+	Now         time.Time
+}
+
+var (
+	ErrIssueMoveAnchorNotFound = errors.New("issue move anchor not found")
+	ErrIssueMoveConflict       = errors.New("issue move anchors conflict")
+	ErrIssueMoveInvalid        = errors.New("invalid issue move")
+)
 
 type IssueUseCase struct {
 	repository IssueRepository
@@ -170,6 +186,62 @@ func (s *IssueUseCase) UpdateIssueStatus(ctx context.Context, request contract.U
 		return contract.UpdateIssueStatusResponse{}, err
 	}
 	return contract.UpdateIssueStatusResponse{Issue: updated.Issue}, nil
+}
+
+func (s *IssueUseCase) MoveIssue(ctx context.Context, request contract.MoveIssueRequest) (contract.MoveIssueResponse, error) {
+	workspaceID, issueID, err := validateIssueIdentity(request.WorkspaceID, request.IssueID)
+	if err != nil {
+		return contract.MoveIssueResponse{}, err
+	}
+	if err := s.authorizer.AuthorizeWorkspace(ctx, workspaceID, PermissionIssueUpdate); err != nil {
+		return contract.MoveIssueResponse{}, err
+	}
+	current, err := s.findIssue(ctx, workspaceID, issueID)
+	if err != nil {
+		return contract.MoveIssueResponse{}, err
+	}
+	patch := issueDomain.Patch{
+		Status:       request.Status,
+		AssigneeType: issueStringChange(request.AssigneeType), AssigneeID: issueStringChange(request.AssigneeID),
+		ParentIssueID: issueStringChange(request.ParentIssueID), ProjectID: issueStringChange(request.ProjectID),
+	}
+	if request.ProjectID != nil {
+		if err := s.validateProject(ctx, workspaceID, patch.ProjectID.Value); err != nil {
+			return contract.MoveIssueResponse{}, err
+		}
+	}
+	if request.ParentIssueID != nil && patch.ParentIssueID.Value != nil {
+		parentID, canonicalErr := s.canonicalParent(ctx, workspaceID, patch.ParentIssueID.Value)
+		if canonicalErr != nil {
+			return contract.MoveIssueResponse{}, canonicalErr
+		}
+		patch.ParentIssueID.Value = parentID
+	}
+	if request.AssigneeType != nil || request.AssigneeID != nil {
+		candidateType, candidateID := current.AssigneeType, current.AssigneeID
+		if patch.AssigneeType.Set {
+			candidateType = patch.AssigneeType.Value
+		}
+		if patch.AssigneeID.Set {
+			candidateID = patch.AssigneeID.Value
+		}
+		if err := s.validateActorPair(ctx, workspaceID, candidateType, candidateID); err != nil {
+			return contract.MoveIssueResponse{}, err
+		}
+	}
+	updated, err := s.repository.Move(ctx, IssueMoveCommand{
+		WorkspaceID: workspaceID, IssueID: issueID,
+		BeforeID: cleanOptionalString(request.BeforeID), AfterID: cleanOptionalString(request.AfterID),
+		Patch: patch, Now: s.now(),
+	})
+	if errors.Is(err, ErrIssueRecordNotFound) {
+		return contract.MoveIssueResponse{}, contract.ErrIssueNotFound
+	}
+	if err != nil {
+		return contract.MoveIssueResponse{}, err
+	}
+	result := issueToContract(updated)
+	return contract.MoveIssueResponse{Issue: &result}, nil
 }
 
 func (s *IssueUseCase) updateIssue(ctx context.Context, request contract.UpdateIssueRequest, permission string) (contract.UpdateIssueResponse, error) {

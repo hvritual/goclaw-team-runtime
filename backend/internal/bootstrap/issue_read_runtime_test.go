@@ -38,9 +38,9 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 			('member-one','workspace-one','` + userOne + `','member','2026-08-13T00:00:00Z'),
 			('member-two','workspace-two','` + userTwo + `','member','2026-08-13T00:00:00Z')`,
 		`INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,description,status,priority,creator_type,creator_id,position,metadata,properties,asset_ids,created_at,updated_at) VALUES
-			('issue-one','workspace-one',1,'ONE-1','First issue','Base detail','todo','high','member','member-one',1,'{}','{}','[]','2026-08-13T00:00:01Z','2026-08-13T00:00:01Z'),
-			('issue-two','workspace-one',2,'ONE-2','Second issue',NULL,'done','low','member','member-one',2,'{}','{}','[]','2026-08-13T00:00:02Z','2026-08-13T00:00:02Z'),
-			('issue-foreign','workspace-two',1,'TWO-1','Foreign issue',NULL,'todo','none','member','member-two',1,'{}','{}','[]','2026-08-13T00:00:03Z','2026-08-13T00:00:03Z')`,
+			('issue-one','workspace-one',1,'ONE-1','First issue','Base detail','todo','high','member','` + userOne + `',1,'{}','{}','[]','2026-08-13T00:00:01Z','2026-08-13T00:00:01Z'),
+			('issue-two','workspace-one',2,'ONE-2','Second issue',NULL,'done','low','member','` + userOne + `',2,'{}','{}','[]','2026-08-13T00:00:02Z','2026-08-13T00:00:02Z'),
+			('issue-foreign','workspace-two',1,'TWO-1','Foreign issue',NULL,'todo','none','member','` + userTwo + `',1,'{}','{}','[]','2026-08-13T00:00:03Z','2026-08-13T00:00:03Z')`,
 	} {
 		if _, err := runtime.Database().Exec(statement); err != nil {
 			t.Fatal(err)
@@ -123,7 +123,7 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 	}
 
 	if _, err := runtime.Database().Exec(`INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,parent_issue_id,position,metadata,properties,asset_ids,created_at,updated_at) VALUES
-		('issue-child','workspace-one',3,'ONE-3','Child issue','done','none','member','member-one','issue-one',3,'{}','{}','[]','2026-08-13T00:00:04Z','2026-08-13T00:00:04Z')`); err != nil {
+		('issue-child','workspace-one',3,'ONE-3','Child issue','done','none','member','` + userOne + `','issue-one',3,'{}','{}','[]','2026-08-13T00:00:04Z','2026-08-13T00:00:04Z')`); err != nil {
 		t.Fatal(err)
 	}
 	rootRows := runtimeRequest(runtime, http.MethodPost, "/api/issues/table/rows", `{"query":{"scope":{"kind":"workspace"},"filters":{},"sort":{"field":"position","direction":"asc"}},"group":{"kind":"status"},"group_key":"status:todo","hierarchy":{"enabled":true},"parent_id":null}`, headers)
@@ -138,7 +138,7 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 	if childRows.Code != http.StatusOK || !containsJSON(childRows.Body.Bytes(), `"identifier":"ONE-3"`, `"branch_total":1`, `"total":0`) {
 		t.Fatalf("child rows = %d %s", childRows.Code, childRows.Body.String())
 	}
-	actorFilter := runtimeRequest(runtime, http.MethodPost, "/api/issues/table/rows", `{"query":{"scope":{"kind":"workspace"},"filters":{"assignees":[{"type":"member","id":"member-one"}]},"sort":{"field":"position","direction":"asc"}},"group":{"kind":"none"},"group_key":null,"hierarchy":{"enabled":false},"parent_id":null}`, headers)
+	actorFilter := runtimeRequest(runtime, http.MethodPost, "/api/issues/table/rows", `{"query":{"scope":{"kind":"workspace"},"filters":{"assignees":[{"type":"member","id":"`+userOne+`"}]},"sort":{"field":"position","direction":"asc"}},"group":{"kind":"none"},"group_key":null,"hierarchy":{"enabled":false},"parent_id":null}`, headers)
 	if actorFilter.Code != http.StatusOK {
 		t.Fatalf("actor filter = %d %s", actorFilter.Code, actorFilter.Body.String())
 	}
@@ -147,8 +147,8 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 		t.Fatalf("unsupported list filter = %d %s", unsupportedList.Code, unsupportedList.Body.String())
 	}
 	for _, shape := range []struct{ name, body string }{
-		{"assignee-filter", `{"query":{"scope":{"kind":"workspace"},"filters":{"assignees":[{"type":"member","id":"member-one"}],"include_no_assignee":true},"sort":{"field":"status","direction":"asc"}},"group":{"kind":"none"},"hierarchy":{"enabled":false}}`},
-		{"creator-filter", `{"query":{"scope":{"kind":"workspace"},"filters":{"creators":[{"type":"member","id":"member-one"}]},"sort":{"field":"priority","direction":"asc"}},"group":{"kind":"none"},"hierarchy":{"enabled":false}}`},
+		{"assignee-filter", `{"query":{"scope":{"kind":"workspace"},"filters":{"assignees":[{"type":"member","id":"` + userOne + `"}],"include_no_assignee":true},"sort":{"field":"status","direction":"asc"}},"group":{"kind":"none"},"hierarchy":{"enabled":false}}`},
+		{"creator-filter", `{"query":{"scope":{"kind":"workspace"},"filters":{"creators":[{"type":"member","id":"` + userOne + `"}]},"sort":{"field":"priority","direction":"asc"}},"group":{"kind":"none"},"hierarchy":{"enabled":false}}`},
 		{"project-date-filter", `{"query":{"scope":{"kind":"workspace"},"filters":{"project_ids":["project-one"],"include_no_project":true,"date":{"field":"created_at","start":"2026-08-12","end":"2026-08-14"}},"sort":{"field":"start_date","direction":"asc"}},"group":{"kind":"none"},"hierarchy":{"enabled":false}}`},
 	} {
 		response := runtimeRequest(runtime, http.MethodPost, "/api/issues/table/rows", shape.body, headers)
@@ -220,13 +220,13 @@ func TestSQLiteRuntimeServesAuthorizedIssueReadSlice(t *testing.T) {
 		t.Fatalf("limit = %d %s", limit.Code, limit.Body.String())
 	}
 
-	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET assignee_type='member',assignee_id='actor-shared' WHERE id='issue-one'; UPDATE workspace_issues SET assignee_type='agent',assignee_id='agent-one',creator_type='agent',creator_id='agent-creator' WHERE id='issue-two'; INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,assignee_type,assignee_id,creator_type,creator_id,position,metadata,properties,asset_ids,created_at,updated_at) VALUES ('issue-cross','workspace-one',4,'ONE-4','Cross pair','todo','none','member','agent-one','member','member-one',4,'{}','{}','[]','2026-08-13T00:00:05Z','2026-08-13T00:00:05Z')`); err != nil {
+	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET assignee_type='member',assignee_id='actor-shared' WHERE id='issue-one'; UPDATE workspace_issues SET assignee_type='agent',assignee_id='agent-one',creator_type='agent',creator_id='agent-creator' WHERE id='issue-two'; INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,assignee_type,assignee_id,creator_type,creator_id,position,metadata,properties,asset_ids,created_at,updated_at) VALUES ('issue-cross','workspace-one',4,'ONE-4','Cross pair','todo','none','member','agent-one','member','` + userOne + `',4,'{}','{}','[]','2026-08-13T00:00:05Z','2026-08-13T00:00:05Z')`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET creator_type='member',creator_id='actor-shared' WHERE id='issue-cross'`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET assignee_type='member',assignee_id='member-one' WHERE id='issue-child'`); err != nil {
+	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET assignee_type='member',assignee_id=? WHERE id='issue-child'`, userOne); err != nil {
 		t.Fatal(err)
 	}
 	for _, scope := range []struct{ name, body, id string }{

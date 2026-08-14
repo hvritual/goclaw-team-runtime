@@ -62,6 +62,6 @@ func NewTrustedHTTPIdentityResolver(identity HTTPUserIDResolver, selection contr
 		if err != nil {
 			return contract.WorkspaceHTTPIdentity{}, err
 		}
-		return contract.WorkspaceHTTPIdentity{WorkspaceID: workspaceID, ActorType: "member", ActorID: membership.MemberID}, nil
+		return contract.WorkspaceHTTPIdentity{WorkspaceID: workspaceID, ActorType: "member", ActorID: membership.UserID}, nil
 	}
 }
