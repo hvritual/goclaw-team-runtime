@@ -499,3 +499,25 @@ Human approval are recorded.
   The preserved unrelated `packages/ui` Input change and local artifacts are
   excluded from the correction candidate. Clean-candidate browser rerun and
   final Human Customer acceptance remain the final promotion gates.
+
+## 2026-08-14 — M1-S7-C1 clean-candidate technical acceptance
+
+- The correction was committed as
+  `4edc940a3797456bc696b72e6e6c4756bd0e15a4`. Its 25-path scope contains only
+  plan/evidence, Canonical Auth/Workspace/bootstrap code and tests, Core API
+  parsing/tests, and the existing Canonical E2E. It contains no `server/**`,
+  `packages/ui/**` or unrelated local artifact.
+- The two preserved user Input paths were hashed, temporarily isolated from
+  the working tree, and the runtime was restarted from exact HEAD. Installed
+  Chrome passed the new-user flow again in `21.6s`: UI login, onboarding,
+  201 Workspace creation, 200 completion, Workspace Issue route and reload.
+  The user paths were then restored and remain outside the candidate.
+- Independent read-only review returned conditional SPEC/CODE PASS with no
+  P0/P1. The only retained P2 is the pre-existing onboarding prefix preview:
+  UI displays a four-character slug-derived hint while persisted compatibility
+  remains the legacy three-letter name-derived value. It does not affect the
+  created Workspace, routing or onboarding completion and is outside v4's
+  narrow API correction.
+- `M1-S7-C1` is technically integrated. Per milestone policy, approval to
+  execute plan v4 is not treated as final Customer acceptance; the
+  `Milestone Accepted` label remains pending an explicit Human statement.
