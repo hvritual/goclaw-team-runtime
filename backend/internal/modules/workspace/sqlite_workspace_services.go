@@ -36,6 +36,7 @@ type WorkspaceServiceDependencies struct {
 	IssueMetadataEnabled    *bool
 	Events                  contract.WorkspaceEventPublisher
 	Selection               contract.WorkspaceSelectionService
+	WorkspaceMemberships    contract.WorkspaceMembershipReader
 	HTTPUserIdentity        HTTPUserIDResolver
 	WorkspaceOwnerWriter    authcontract.SQLiteWorkspaceOwnerWriter
 	NewWorkspaceID          func(context.Context) (string, error)

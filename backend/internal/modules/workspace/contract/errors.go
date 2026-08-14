@@ -10,6 +10,7 @@ var (
 	ErrInvalidTodo                  = errors.New("invalid todo")
 	ErrTodoNotFound                 = errors.New("todo not found")
 	ErrWorkspaceActorRequired       = errors.New("workspace actor is required")
+	ErrWorkspacePermissionDenied    = errors.New("insufficient workspace role")
 	ErrInvalidIssue                 = errors.New("invalid issue")
 	ErrIssueNotFound                = errors.New("issue not found")
 	ErrInvalidIssueMetadata         = errors.New("invalid issue metadata")

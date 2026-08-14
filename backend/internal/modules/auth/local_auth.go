@@ -26,10 +26,16 @@ type LocalAuthConfig struct {
 
 type localAuthExtension struct{ handler *authhttp.LocalAuthHandler }
 
+type memberHTTPListExtension struct{ handler *authhttp.MemberListHandler }
+
 var verificationCodePattern = regexp.MustCompile(`^[0-9]{6}$`)
 
 func (e *localAuthExtension) RegisterHTTP(server *kratoshttp.Server) { e.handler.Register(server) }
 func (e *localAuthExtension) RegisterGRPC(grpc.ServiceRegistrar)     {}
+func (e *memberHTTPListExtension) RegisterHTTP(server *kratoshttp.Server) {
+	e.handler.Register(server)
+}
+func (e *memberHTTPListExtension) RegisterGRPC(grpc.ServiceRegistrar) {}
 
 func NewWithSqliteLocalAuth(persistenceConfig SqlitePersistenceConfig, config LocalAuthConfig) (*Module, error) {
 	config.VerificationCode = strings.TrimSpace(config.VerificationCode)
@@ -58,6 +64,7 @@ func NewWithSqliteLocalAuth(persistenceConfig SqlitePersistenceConfig, config Lo
 	module.memberships = memberships
 	module.httpUserID = handler.ResolveUserID
 	module.extensions = append(module.extensions, &localAuthExtension{handler: handler})
+	module.extensions = append(module.extensions, &memberHTTPListExtension{handler: authhttp.NewMemberListHandler(module.MemberLocal(), handler.ResolveUserID)})
 	return module, nil
 }
 

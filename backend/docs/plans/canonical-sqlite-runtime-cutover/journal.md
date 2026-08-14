@@ -521,3 +521,54 @@ Human approval are recorded.
 - `M1-S7-C1` is technically integrated. Per milestone policy, approval to
   execute plan v4 is not treated as final Customer acceptance; the
   `Milestone Accepted` label remains pending an explicit Human statement.
+
+## 2026-08-14 — Projects page 404 reproduced; plan v5 approved
+
+- The installed `/drcoffee/projects` page returned 200, but Web runtime logs
+  proved three normal requests returned 404: `GET /api/projects?`,
+  `GET /api/workspaces/{id}/members`, and `GET /api/pins`. Repeated React Query
+  retries produced the reported `API error: 404 Not Found` toast.
+- The Human Customer approved plan v5. Active strict-XP story is `M1-S7-C2`:
+  implement the visible Project CRUD, exact member list and real per-user
+  Project/Issue pins rather than hiding missing behavior behind empty shims.
+- Browser plugin initialization failed before tab acquisition with
+  `Cannot redefine property: process`; the already-established repository
+  Playwright/runtime-log fallback is used for RED/GREEN browser evidence.
+
+## 2026-08-14 — M1-S7-C2 RED/GREEN technical candidate
+
+- RED runtime evidence tied the visible toast to three absent Canonical routes:
+  `GET /api/projects`, `GET /api/workspaces/{id}/members`, and
+  `GET /api/pins`. Focused runtime tests first failed with 404 before any
+  Project-surface implementation existed.
+- GREEN adds authenticated, Workspace-scoped Project list/get/create/update/
+  delete, the exact member projection, and persistent per-user Project/Issue
+  pin list/create/delete. SQLite writes use explicit transactions, strict
+  tenant predicates, dependent-pin cleanup, bounded strict JSON decoding,
+  Cookie-CSRF enforcement, and restart-safe migrations. Project delete keeps
+  the retained owner/admin rule; missing or foreign targets remain hidden 404.
+- Compatibility review corrected the UI lead identity to `user_id`, preserves
+  fractional pin positions, maps nullable description/icon/lead/date fields to
+  the retained response shape, narrows duplicate conflicts, and proves failed
+  owner/deletion operations roll back. Concurrent duplicate pin creation is
+  deterministic: one 201, one 409, and one retained row.
+- Unsupported resource, retrospective, requirement and control sub-surfaces
+  are disabled by explicit Canonical capability flags. Pin reorder remains the
+  plan-v5 deferred operation and is not exercised by the accepted Projects-page
+  journey.
+- Installed Chrome passed the real Projects journey in the active development
+  tree: authenticated Projects/member/pin reads returned 200, visible Project
+  creation and detail navigation succeeded, pin creation returned 201, cleanup
+  delete returned 204, and no 404 toast appeared. This run is GREEN evidence;
+  the isolated exact-commit rerun remains the promotion proof.
+- Backend `go test ./...`, `go vet ./...`, and `go mod verify` pass. Core passes
+  88 files / 564 tests plus typecheck/lint; Views and Web typecheck pass;
+  Project-focused View tests pass 4/4; selector/verifier tests pass 22/22.
+  Views full test has four unrelated baseline failures in locale plural-key and
+  RichContent import-boundary guards; none of those files are in this candidate.
+- Candidate scope excludes `server/**`, the user's existing
+  `packages/ui/components/ui/input.tsx` and
+  `packages/views/auth/input-controlled.test.tsx` changes, and local artifact
+  directories. Independent final review and an exact clean-candidate Chrome
+  rerun remain required before technical promotion. Human Customer acceptance
+  is not inferred from approval to execute plan v5.

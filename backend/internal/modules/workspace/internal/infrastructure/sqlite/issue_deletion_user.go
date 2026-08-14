@@ -54,6 +54,9 @@ func (r *issueDeletionRepository) Delete(ctx context.Context, workspaceID, issue
 	if err = clearRequirementIssueReferences(ctx, connection, workspaceID, resolvedID, resolvedIdentifier); err != nil {
 		return "", fmt.Errorf("clear Workspace Requirement Issue references: %w", err)
 	}
+	if _, err = connection.ExecContext(ctx, `DELETE FROM workspace_pins WHERE workspace_id=? AND item_type='issue' AND item_id=?`, workspaceID, resolvedID); err != nil {
+		return "", fmt.Errorf("clear Workspace Issue pins: %w", err)
+	}
 	result, err := connection.ExecContext(ctx, `DELETE FROM workspace_issues WHERE workspace_id=? AND id=?`, workspaceID, resolvedID)
 	if err != nil {
 		return "", fmt.Errorf("delete Workspace Issue: %w", err)

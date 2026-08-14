@@ -72,6 +72,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.Authorizer = memberships
 	workspaceDependencies.Actors = memberships
 	workspaceDependencies.Selection = selection
+	workspaceDependencies.WorkspaceMemberships = memberships
 	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
 	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
 	workspaceDependencies.HTTPMutationAuthorizer = authModule.AuthorizeHTTPMutation
@@ -119,7 +120,9 @@ func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, mem
 func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
 	switch permission {
 	case "workspace.issue.create", "workspace.issue.get", "workspace.issue.list", "workspace.issue.update", "workspace.issue.update_status", "workspace.issue.delete",
-		"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete":
+		"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete",
+		"workspace.project.create", "workspace.project.get", "workspace.project.list", "workspace.project.search", "workspace.project.update", "workspace.project.delete",
+		"workspace.pin.list", "workspace.pin.create", "workspace.pin.delete":
 	default:
 		return contract.ErrWorkspaceActorRequired
 	}
@@ -127,12 +130,15 @@ func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspace
 	if !ok || actor.Type != "member" {
 		return contract.ErrWorkspaceActorRequired
 	}
-	_, found, err := a.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
+	membership, found, err := a.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
 	if err != nil {
 		return err
 	}
 	if !found {
 		return contract.ErrActorOutsideWorkspace
+	}
+	if permission == "workspace.project.delete" && membership.Role != "owner" && membership.Role != "admin" {
+		return contract.ErrWorkspacePermissionDenied
 	}
 	return nil
 }

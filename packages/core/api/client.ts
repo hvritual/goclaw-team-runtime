@@ -143,6 +143,8 @@ import {
   EMPTY_SEARCH_ISSUES_RESPONSE,
   IssueMetadataResponseSchema,
   EMPTY_SEARCH_PROJECTS_RESPONSE,
+  EMPTY_LIST_PROJECTS_RESPONSE,
+  EMPTY_PINS,
   EMPTY_TIMELINE_ENTRIES,
   EMPTY_USER,
   AppConfigSchema,
@@ -156,6 +158,10 @@ import {
   CreateIssueResponseSchema,
   SearchIssuesResponseSchema,
   SearchProjectsResponseSchema,
+  ListProjectsResponseSchema,
+  ProjectSchema,
+  PinSchema,
+  PinsSchema,
   SubscribersListSchema,
   TimelineEntriesSchema,
   UserSchema,
@@ -1359,25 +1365,37 @@ export class ApiClient {
   async listProjects(params?: { status?: string }): Promise<ListProjectsResponse> {
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
-    return this.fetch(`/api/projects?${search}`);
+    const raw = await this.fetch<unknown>(`/api/projects?${search}`);
+    return parseWithFallback(raw, ListProjectsResponseSchema, EMPTY_LIST_PROJECTS_RESPONSE, {
+      endpoint: "GET /api/projects",
+    });
   }
 
   async getProject(id: string): Promise<Project> {
-    return this.fetch(`/api/projects/${id}`);
+    const raw = await this.fetch<unknown>(`/api/projects/${id}`);
+    const parsed = ProjectSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid project response");
+    return parsed.data;
   }
 
   async createProject(data: CreateProjectRequest): Promise<Project> {
-    return this.fetch("/api/projects", {
+    const raw = await this.fetch<unknown>("/api/projects", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    const parsed = ProjectSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid project response");
+    return parsed.data;
   }
 
   async updateProject(id: string, data: UpdateProjectRequest): Promise<Project> {
-    return this.fetch(`/api/projects/${id}`, {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
+    const parsed = ProjectSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid project response");
+    return parsed.data;
   }
 
   async listProjectRetrospectives(id: string): Promise<ProjectRetrospectiveListResponse> {
@@ -1859,14 +1877,18 @@ export class ApiClient {
 
   // Pins
   async listPins(): Promise<PinnedItem[]> {
-    return this.fetch("/api/pins");
+    const raw = await this.fetch<unknown>("/api/pins");
+    return parseWithFallback(raw, PinsSchema, EMPTY_PINS, { endpoint: "GET /api/pins" });
   }
 
   async createPin(data: CreatePinRequest): Promise<PinnedItem> {
-    return this.fetch("/api/pins", {
+    const raw = await this.fetch<unknown>("/api/pins", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    const parsed = PinSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid pin response");
+    return parsed.data;
   }
 
   async deletePin(itemType: PinnedItemType, itemId: string): Promise<void> {

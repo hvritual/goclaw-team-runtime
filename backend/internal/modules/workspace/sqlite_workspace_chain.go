@@ -61,7 +61,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Setting SQLite persistence: %w", err)
 	}
-
+	projectSurfaceRepository, err := persistence.NewProjectSurfaceRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Project surface SQLite persistence: %w", err)
+	}
 	newID := func(generator func(context.Context) (string, error)) application.ProjectIDGenerator {
 		if generator == nil {
 			return func(context.Context) (string, error) { return uuid.NewString(), nil }
@@ -71,6 +74,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	now := application.Clock(dependencies.Now)
 	if now == nil {
 		now = time.Now
+	}
+	projectSurface, err := application.NewProjectSurfaceUseCase(projectSurfaceRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewProjectID), now)
+	if err != nil {
+		return nil, fmt.Errorf("configure Project surface application: %w", err)
 	}
 
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now)
@@ -145,6 +152,9 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	}
 	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+	}
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
 		var creator contract.WorkspaceCreationService
 		if dependencies.WorkspaceOwnerWriter != nil && dependencies.HTTPMutationAuthorizer != nil {

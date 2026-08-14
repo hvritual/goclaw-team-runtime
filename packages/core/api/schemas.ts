@@ -20,6 +20,8 @@ import type {
   ResourceLabelsResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
+  ListProjectsResponse,
+  PinnedItem,
   TimelineEntry,
   User,
   Workspace,
@@ -674,26 +676,23 @@ export const EMPTY_SEARCH_ISSUES_RESPONSE: SearchIssuesResponse = {
   total: 0,
 };
 
-const ProjectSchema = z.object({
+export const ProjectSchema = z.object({
   id: z.string(),
   workspace_id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   icon: z.string().nullable(),
-  status: z.string(),
-  priority: z.string(),
-  lead_type: z.string().nullable(),
+  status: z.enum(["planned", "in_progress", "paused", "completed", "cancelled"]),
+  priority: z.enum(["urgent", "high", "medium", "low", "none"]),
+  lead_type: z.literal("member").nullable(),
   lead_id: z.string().nullable(),
-  // .default(null) so a project from an older backend (frontend deploys before
-  // backend) that omits these keys parses to null instead of failing the whole
-  // object — which would degrade a search/list batch to the empty fallback.
-  start_date: z.string().nullable().default(null),
-  due_date: z.string().nullable().default(null),
+  start_date: z.string().nullable(),
+  due_date: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
-  issue_count: z.number().default(0),
-  done_count: z.number().default(0),
-  resource_count: z.number().default(0),
+  issue_count: z.number().int().nonnegative(),
+  done_count: z.number().int().nonnegative(),
+  resource_count: z.number().int().nonnegative(),
 }).loose();
 
 const SearchProjectResultSchema = ProjectSchema.extend({
@@ -921,6 +920,29 @@ export const UserSchema = z.object({
   created_at: z.string().default(""),
   updated_at: z.string().default(""),
 }).loose();
+
+export const ListProjectsResponseSchema = z.object({
+  projects: z.array(ProjectSchema),
+  total: z.number().int().nonnegative(),
+}).loose();
+
+export const EMPTY_LIST_PROJECTS_RESPONSE: ListProjectsResponse = {
+  projects: [],
+  total: 0,
+};
+
+export const PinSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  user_id: z.string().min(1),
+  item_type: z.enum(["issue", "project"]),
+  item_id: z.string().min(1),
+  position: z.number().nonnegative(),
+  created_at: z.string().min(1),
+}).loose();
+
+export const PinsSchema = z.array(PinSchema);
+export const EMPTY_PINS: PinnedItem[] = [];
 
 export const OnboardingCompletionResponseSchema = z.object({
   id: z.string().min(1),

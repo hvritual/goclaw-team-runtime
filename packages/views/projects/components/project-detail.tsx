@@ -4,6 +4,7 @@ import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { BookOpen, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, ShieldCheck, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { featureFlagEnabled, useConfigStore } from "@multica/core/config";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
 import { toast } from "sonner";
@@ -102,6 +103,12 @@ function PropRow({
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const { t } = useT("projects");
+	const configLoaded = useConfigStore((state) => state.configLoaded);
+	const featureFlags = useConfigStore((state) => state.featureFlags);
+	const projectResourcesEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_resources", false);
+	const projectRetrospectivesEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_retrospectives", false);
+	const projectRequirementsEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_requirements", false);
+	const projectControlEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_control", false);
   const statusLabels = useProjectStatusLabels();
   const priorityLabels = useProjectPriorityLabels();
   const wsId = useWorkspaceId();
@@ -439,8 +446,8 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </div>
 
       {/* Resources */}
-      <ProjectResourcesSection projectId={projectId} />
-      <ProjectRetrospectiveHistory projectId={projectId} />
+      {projectResourcesEnabled && <ProjectResourcesSection projectId={projectId} />}
+      {projectRetrospectivesEnabled && <ProjectRetrospectiveHistory projectId={projectId} />}
     </div>
   );
 
@@ -454,14 +461,14 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             leaf={<span className="truncate font-medium text-foreground">{project.title}</span>}
             actions={
               <>
-              <Button
+              {projectControlEnabled && <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`${wsPaths.projectDetail(projectId)}/control`)}
               >
                 <ShieldCheck data-icon="inline-start" />
                 {t(($) => $.team_control.entry)}
-              </Button>
+              </Button>}
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -494,10 +501,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                     <Link2 className="h-3.5 w-3.5" />
                     {t(($) => $.detail.copy_link)}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setRetrospectiveOpen(true)}>
+                  {projectRetrospectivesEnabled && <DropdownMenuItem onClick={() => setRetrospectiveOpen(true)}>
                     <BookOpen className="h-3.5 w-3.5" />
                     {t(($) => $.implementation_knowledge.record_action)}
-                  </DropdownMenuItem>
+                  </DropdownMenuItem>}
                   {isWorkspaceAdmin && (
                     <>
                       <DropdownMenuSeparator />
@@ -533,9 +540,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
           <div className="flex items-center gap-1 border-b px-4 pt-2">
             <Button variant={detailView === "work_items" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("work_items")}>{t(($) => $.detail.work_items)}</Button>
-            <Button variant={detailView === "requirements" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("requirements")}>{t(($) => $.detail.requirements)}</Button>
+            {projectRequirementsEnabled && <Button variant={detailView === "requirements" ? "secondary" : "ghost"} size="sm" onClick={() => setDetailView("requirements")}>{t(($) => $.detail.requirements)}</Button>}
           </div>
-          {detailView === "work_items" ? (
+          {detailView === "work_items" || !projectRequirementsEnabled ? (
             <IssueSurface scope={issueScope} modes={["board", "list", "table", "swimlane", "gantt"]} />
           ) : (
             <ProjectRequirementBaseline projectId={projectId} canApprove={isWorkspaceAdmin || isProjectLead} />
@@ -589,7 +596,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </AlertDialogContent>
         </AlertDialog>
       )}
-      <ProjectRetrospectiveDialog
+      {projectRetrospectivesEnabled && <ProjectRetrospectiveDialog
         open={retrospectiveOpen}
         onOpenChange={setRetrospectiveOpen}
         pending={createRetrospective.isPending}
@@ -600,7 +607,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           },
           onError: (error) => toast.error(error instanceof Error && error.message ? error.message : t(($) => $.implementation_knowledge.failed)),
         })}
-      />
+      />}
     </>
   );
 }

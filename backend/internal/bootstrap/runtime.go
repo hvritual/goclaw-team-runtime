@@ -135,6 +135,8 @@ func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadat
 				"issue_children": false, "issue_project": false,
 				"issue_child_progress": false, "issue_acceptance": false,
 				"issue_metadata": issueMetadataEnabled, "issue_realtime": true,
+				"project_resources":      false,
+				"project_retrospectives": false, "project_requirements": false, "project_control": false,
 			},
 		})
 	})

@@ -33,6 +33,7 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import { useActorName } from "@multica/core/workspace/hooks";
+import { featureFlagEnabled, useConfigStore } from "@multica/core/config";
 import type { ProjectStatus, ProjectPriority } from "@multica/core/types";
 import { cn } from "@multica/ui/lib/utils";
 import { toast } from "sonner";
@@ -96,6 +97,9 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const { getActorName } = useActorName();
   const projectStatusLabels = useProjectStatusLabels();
   const projectPriorityLabels = useProjectPriorityLabels();
+  const configLoaded = useConfigStore((state) => state.configLoaded);
+  const featureFlags = useConfigStore((state) => state.featureFlags);
+  const projectResourcesEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_resources", false);
 
   const draft = useProjectDraftStore((s) => s.draft);
   const setDraft = useProjectDraftStore((s) => s.setDraft);
@@ -158,7 +162,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const handleSubmit = async () => {
     if (!title.trim() || submitting) return;
     const resources =
-      selectedRepos.length > 0
+      projectResourcesEnabled && selectedRepos.length > 0
         ? selectedRepos.map((url) => ({
         resource_type: "github_repo" as const,
         resource_ref: { url },
@@ -449,7 +453,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
             />
           )}
 
-          <Popover
+          {projectResourcesEnabled && <Popover
             open={repoPopoverOpen}
             onOpenChange={(v) => {
               setRepoPopoverOpen(v);
@@ -571,7 +575,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
                   )}
                 </>
             </PopoverContent>
-          </Popover>
+          </Popover>}
 
           {/* Overflow — always the last child so it stays at the end of the
               wrap flow. Only rendered while a date is still collapsible; when

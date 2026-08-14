@@ -1,5 +1,5 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithI18n } from "../test/i18n";
@@ -8,6 +8,16 @@ const longRepoUrl =
   "https://github.com/multica-ai/a-very-long-repository-name-that-needs-a-tooltip";
 const apiRepoUrl = "https://github.com/multica-ai/api";
 const webRepoUrl = "https://github.com/multica-ai/web";
+const configState = vi.hoisted(() => ({ projectResourcesEnabled: true }));
+
+vi.mock("@multica/core/config", () => ({
+  useConfigStore: (selector: (state: unknown) => unknown) => selector({
+    configLoaded: true,
+    featureFlags: { project_resources: configState.projectResourcesEnabled },
+  }),
+  featureFlagEnabled: (flags: Record<string, boolean>, key: string, fallback: boolean) =>
+    flags[key] ?? fallback,
+}));
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: () => ({ data: [] }),
@@ -174,6 +184,8 @@ vi.mock("sonner", () => ({
 import { CreateProjectModal } from "./create-project";
 
 describe("CreateProjectModal", () => {
+  afterEach(() => { configState.projectResourcesEnabled = true; });
+
   it("exposes full repository URLs in the repository picker", () => {
     render(<CreateProjectModal onClose={vi.fn()} />);
 
@@ -221,5 +233,13 @@ describe("CreateProjectModal", () => {
     await user.type(repoSearchInput, "no-match");
 
     expect(screen.getByText("No repositories match your search.")).toBeInTheDocument();
+  });
+
+  it("hides repository controls when the runtime cannot create project resources", () => {
+    configState.projectResourcesEnabled = false;
+    const view = renderWithI18n(<CreateProjectModal onClose={vi.fn()} />);
+
+    expect(view.queryByRole("textbox", { name: "Search repositories..." })).not.toBeInTheDocument();
+    expect(view.queryByText("Repositories")).not.toBeInTheDocument();
   });
 });

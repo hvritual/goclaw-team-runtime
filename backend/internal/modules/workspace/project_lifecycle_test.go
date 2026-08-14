@@ -87,6 +87,11 @@ func TestSqliteProjectUpdateAndDeleteOwnInternalCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = db.Exec(`INSERT INTO workspace_pins(id,workspace_id,user_id,item_type,item_id,position,created_at)
+		VALUES ('pin-delete','workspace-1','user-1','project','p-delete',1,'2026-08-03T01:00:00Z')`)
+	if err != nil {
+		t.Fatal(err)
+	}
 	seedWorkspaceIssue(t, db, "issue-delete", "workspace-1", "WSP-10", "p-delete")
 	_, err = db.Exec(`INSERT INTO workspace_requirements(
 		id, workspace_id, project_id, title, current_version, approval_status, coverage_status, issue_ids, created_at, updated_at
@@ -118,6 +123,7 @@ func TestSqliteProjectUpdateAndDeleteOwnInternalCleanup(t *testing.T) {
 		`SELECT COUNT(*) FROM workspace_project_actor_relations WHERE project_id = 'p-delete'`,
 		`SELECT COUNT(*) FROM workspace_requirements WHERE project_id = 'p-delete'`,
 		`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id = 'requirement-delete'`,
+		`SELECT COUNT(*) FROM workspace_pins WHERE id = 'pin-delete'`,
 	} {
 		var count int
 		if err := db.QueryRow(query).Scan(&count); err != nil || count != 0 {

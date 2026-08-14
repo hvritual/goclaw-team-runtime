@@ -63,12 +63,13 @@ func newWorkspaceChainTestModule(t *testing.T, db *sql.DB, actors *workspaceActo
 	versionIDs := &chainIDSequence{values: []string{"requirement-version-1", "requirement-version-2", "requirement-version-grpc"}}
 	todoIDs := &chainIDSequence{values: []string{"todo-1", "todo-2", "todo-grpc"}}
 	module, err := NewWithSqliteWorkspaceChain(SqlitePersistenceConfig{DB: db}, WorkspaceServiceDependencies{
-		Authorizer:   &workspaceAccessStub{},
-		Actors:       actors,
-		Assets:       assets,
-		Skills:       skills,
-		NewProjectID: func(context.Context) (string, error) { return "project-1", nil },
-		NewTodoID:    todoIDs.next,
+		Authorizer:           &workspaceAccessStub{},
+		Actors:               actors,
+		WorkspaceMemberships: selectionMemberships{},
+		Assets:               assets,
+		Skills:               skills,
+		NewProjectID:         func(context.Context) (string, error) { return "project-1", nil },
+		NewTodoID:            todoIDs.next,
 		NewKnowledgeID: func(context.Context) (string, error) {
 			return "knowledge-1", nil
 		},
@@ -106,10 +107,11 @@ func TestNewWithSqliteWorkspaceChainRequiresBoundaryDependencies(t *testing.T) {
 		name string
 		deps WorkspaceServiceDependencies
 	}{
-		{name: "authorizer", deps: WorkspaceServiceDependencies{Actors: actors, Assets: assets, Skills: skills}},
-		{name: "actors", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Assets: assets, Skills: skills}},
-		{name: "assets", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Actors: actors, Skills: skills}},
-		{name: "skills", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Actors: actors, Assets: assets}},
+		{name: "authorizer", deps: WorkspaceServiceDependencies{Actors: actors, Assets: assets, Skills: skills, WorkspaceMemberships: selectionMemberships{}}},
+		{name: "actors", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Assets: assets, Skills: skills, WorkspaceMemberships: selectionMemberships{}}},
+		{name: "assets", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Actors: actors, Skills: skills, WorkspaceMemberships: selectionMemberships{}}},
+		{name: "skills", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Actors: actors, Assets: assets, WorkspaceMemberships: selectionMemberships{}}},
+		{name: "workspace memberships", deps: WorkspaceServiceDependencies{Authorizer: authorizer, Actors: actors, Assets: assets, Skills: skills}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -178,6 +178,7 @@ func (r *projectRepository) DeleteWithDependents(ctx context.Context, workspaceI
 		args  []any
 	}{
 		{`DELETE FROM workspace_project_actor_relations WHERE workspace_id = ? AND project_id = ?`, []any{workspaceID, projectID}},
+		{`DELETE FROM workspace_pins WHERE workspace_id = ? AND item_type = 'project' AND item_id = ?`, []any{workspaceID, projectID}},
 		{`UPDATE workspace_todos SET project_id = NULL, updated_at = ? WHERE workspace_id = ? AND project_id = ?`, []any{timestamp, workspaceID, projectID}},
 		{`UPDATE workspace_issues SET project_id = NULL, updated_at = ? WHERE workspace_id = ? AND project_id = ?`, []any{timestamp, workspaceID, projectID}},
 		{`DELETE FROM workspace_requirement_versions WHERE requirement_id IN (

@@ -131,3 +131,64 @@ test("Canonical UI login, Workspace, Issue and metadata journey has no legacy tr
   await writeFile(tracePath, `${JSON.stringify(traceArtifact, null, 2)}\n`);
   await testInfo.attach("canonical-network-trace", { path: tracePath, contentType: "application/json" });
 });
+
+test("Canonical Projects page loads and its visible actions do not request missing routes", async ({ page }, testInfo) => {
+  const responses: Array<{ method: string; path: string; status: number }> = [];
+  page.on("response", (response) => {
+    const request = response.request();
+    const url = new URL(response.url());
+    if (url.origin === WEB) responses.push({ method: request.method(), path: url.pathname, status: response.status() });
+  });
+
+  const login = await page.request.post(`${WEB}/auth/verify-code`, {
+    data: { email: EMAIL, code: "888888" },
+  });
+  expect(login.status()).toBe(200);
+	const csrfCookie = (await page.context().cookies(WEB)).find((cookie) => cookie.name === "multica_csrf");
+	const apiHeaders = { "X-Workspace-Slug": SLUG, ...(csrfCookie ? { "X-CSRF-Token": csrfCookie.value } : {}) };
+	const previousProjects = await page.request.get(`${WEB}/api/projects`, { headers: apiHeaders });
+	if (previousProjects.ok()) {
+		const body = await previousProjects.json() as { projects?: Array<{ id: string; title: string }> };
+		for (const project of body.projects ?? []) {
+			if (project.title.startsWith("Browser Project ")) {
+				await page.request.delete(`${WEB}/api/projects/${project.id}`, { headers: apiHeaders });
+			}
+		}
+	}
+
+  await page.goto(`${WEB}/${SLUG}/projects`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect.poll(() => responses.some((entry) => entry.method === "GET" && entry.path === "/api/projects" && entry.status === 200)).toBe(true);
+  await expect.poll(() => responses.some((entry) => entry.method === "GET" && /\/api\/workspaces\/[^/]+\/members/.test(entry.path) && entry.status === 200)).toBe(true);
+  await expect.poll(() => responses.some((entry) => entry.method === "GET" && entry.path === "/api/pins" && entry.status === 200)).toBe(true);
+
+  const title = `Browser Project ${Date.now()}`;
+  await page.getByRole("button", { name: /New project|Create your first project/ }).first().click();
+  await page.getByRole("textbox", { name: "Project title" }).fill(title);
+  await page.getByRole("button", { name: "Create Project" }).click();
+  await page.waitForURL(new RegExp(`/${SLUG}/projects/[^/]+$`));
+  await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+  await expect(page.getByTitle("Pin to sidebar")).toBeVisible();
+  await page.getByTitle("Pin to sidebar").click();
+  await expect.poll(() => responses.some((entry) => entry.method === "POST" && entry.path === "/api/pins" && entry.status === 201)).toBe(true);
+  await expect(page.getByText("API error: 404 Not Found")).toHaveCount(0);
+
+  const projectID = new URL(page.url()).pathname.split("/").at(-1)!;
+  const cleanupStatus = await page.evaluate(async ({ slug, projectID }) => {
+    const csrf = document.cookie.split("; ").find((item) => item.startsWith("multica_csrf="))?.split("=")[1];
+    const response = await fetch(`/api/projects/${projectID}`, {
+      method: "DELETE",
+      headers: { "X-Workspace-Slug": slug, ...(csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {}) },
+    });
+    return response.status;
+  }, { slug: SLUG, projectID });
+  expect(cleanupStatus).toBe(204);
+
+  const projectSurface404s = responses.filter((entry) => entry.status === 404 && (
+    entry.path.startsWith("/api/projects") || entry.path === "/api/pins" || /\/api\/workspaces\/[^/]+\/members/.test(entry.path)
+  ));
+  expect(projectSurface404s).toEqual([]);
+  const tracePath = testInfo.outputPath("canonical-projects-network-trace.json");
+  await writeFile(tracePath, `${JSON.stringify({ title, responses }, null, 2)}\n`);
+  await testInfo.attach("canonical-projects-network-trace", { path: tracePath, contentType: "application/json" });
+});
