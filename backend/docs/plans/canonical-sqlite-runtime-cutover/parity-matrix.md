@@ -16,7 +16,17 @@ Classifications: `Exact`, `Compatible`, `SemanticallyEquivalent`, `Improved`,
 | `PAR-WS-03` | Resolve membership and role | member/agent; fail closed | Auth/Workspace adapter | SemanticallyEquivalent | table-driven auth tests | Target frozen; pending S3 |
 | `PAR-ISSUE-01` | List Issues used by current page | table APIs plus list/query dependency | Issue SQLite + HTTP | Exact | body/schema/cursor/browser | Target frozen; pending S4 |
 | `PAR-ISSUE-02` | Load Issue by UUID or identifier | base detail; foreign hidden | scoped resolver | Exact | HTTP/SQLite isolation | Target frozen; pending S4 |
-| `PAR-ISSUE-03` | Honest base detail | installed deferred fan-out | explicit capability gates; no fake empty | Improved | config/view/network trace | Target frozen; pending S4 |
+| `PAR-ISSUE-03` | Full local Issue detail | installed detail controls and fan-out | real local routes; only external VCS remains gated | Exact/Compatible | config/view/network trace | Plan v7 approved; C4-C9 pending |
+| `PAR-ISSUE-04` | Update and relative move | current Core PUT/move contracts and retained behavior | atomic Canonical update/move with public actor IDs | Exact | HTTP/SQLite/event/browser | Plan v7 approved; pending C4 |
+| `PAR-ISSUE-05` | Hierarchy and batch operations | current children/progress/batch contracts | cycle-safe transactional Canonical operations | Exact | hierarchy/concurrency/browser | Plan v7 approved; pending C5 |
+| `PAR-COLLAB-01` | Timeline and comment lifecycle | current Core schemas plus retained handlers | Canonical activity/comment persistence | Exact/Compatible | HTTP/order/restart/browser | Plan v7 approved; pending C6 |
+| `PAR-COLLAB-02` | Comment and Issue reactions | current Core schemas plus retained handlers | idempotent actor-scoped reactions | Exact | HTTP/concurrency/realtime | Plan v7 approved; pending C6 |
+| `PAR-COLLAB-03` | Subscribers | current list/subscribe/unsubscribe contract | member-scoped Canonical subscriptions | Exact | HTTP/realtime/restart | Plan v7 approved; pending C6 |
+| `PAR-LABEL-01` | Label catalog and Issue associations | current Core/View contract plus retained handlers | Workspace-owned definitions and atomic links | Exact | schema/isolation/realtime | Plan v7 approved; pending C7 |
+| `PAR-PROP-01` | Property catalog and Issue values | current typed property contract | validated definitions and atomic complete bag | Exact | type matrix/concurrency/realtime | Plan v7 approved; pending C7 |
+| `PAR-ACCEPT-01` | Acceptance conclusions | current detail contract plus SQLite-local evidence | append-only Canonical conclusions | Exact/Compatible | state/restart/browser | Plan v7 approved; pending C7 |
+| `PAR-ASSET-01` | Upload and bind local attachment | current multipart/Core contract plus retained evidence | Space-owned metadata/files and Workspace refs | Compatible | size/security/rollback/browser | Plan v7 approved; pending C8 |
+| `PAR-ASSET-02` | List/preview/download/delete attachment | current Core/View contract | authorized Canonical local file lifecycle | Compatible | content/MIME/hash/restart | Plan v7 approved; pending C8 |
 | `PAR-META-01` | Get complete metadata bag | accepted v9 commit `e20114c` | v9 in real runtime | Exact | v9 + restart/browser | Contract integrated; pending S5 |
 | `PAR-META-02` | Put one primitive metadata value | exact body/envelope | v9 in real runtime | Exact | v9 + browser | Contract integrated; pending S5 |
 | `PAR-META-03` | Delete one metadata key | v9 status/error/absent | v9 in real runtime | Exact | v9 + browser | Contract integrated; pending S5 |
@@ -31,10 +41,12 @@ Classifications: `Exact`, `Compatible`, `SemanticallyEquivalent`, `Improved`,
 
 ## Explicitly deferred parity
 
-The following capabilities are outside M1 unless S0 proves the accepted journey
-cannot operate without them: comments, reactions, subscribers, attachments,
-labels, custom properties, inbox, agents, skills, knowledge, requirements,
-tasks, administration, production PostgreSQL, desktop packaging, and mobile.
+After plan v7, the remaining explicit deferrals are external GitHub/VCS
+integration, inbox, agents, skills browsing/administration, requirements,
+tasks, general administration, production PostgreSQL, desktop packaging and
+mobile. Comment knowledge proposals are included only through the accepted
+local evidence/candidate boundary; they do not authorize a new external agent
+runtime.
 
 Deferred endpoints must not return fabricated success. They remain visibly
 unsupported or on an explicitly retained legacy route outside the Canonical-

@@ -4,7 +4,7 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C3` (Project-detail Issue create correction; technical acceptance complete, Customer review pending).
+- Current story: `M1-S7-C4` (local full Issue-detail expansion; core update/move RED active).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -17,7 +17,7 @@
 | Start locally | Freeze ports, DB path, process ownership, rollback | `M1-S1`, `M1-S7` | Production deployment |
 | Authenticate | Freeze login/session/current-user contract | `M1-S2` | Invitations, password recovery, SSO |
 | Enter Workspace | Freeze slug/ID/member/role behavior | `M1-S3`, `M1-S7-C1` | Workspace administration |
-| Work with Issues | Freeze actual list/detail calls and fields | `M1-S4` | Owned objects and advanced projections |
+| Work with Issues | Freeze actual list/detail calls and fields | `M1-S4`, `M1-S7-C3` | `M1-S7-C4` through `C9`: full local detail |
 | Inspect metadata | Reuse accepted v9 body contract | `M1-S5` | New editing UI |
 | Observe changes | Freeze handshake/event/cache behavior | `M1-S6` | Complete domain event parity |
 | Cut over safely | Freeze proof and rollback procedure | `M1-S7` | Legacy retirement |
@@ -140,6 +140,28 @@ and rollback preserves both data sets.
 - Risk: high; process ownership and data transition
 - Rollback: stop Canonical processes and restore previous selector without data
   deletion
+
+### M1-S7-C4 through C9 — Full local Issue detail
+
+**As a Workspace member**, I want every local control mounted by the current
+Issue detail page to use Canonical persistence and realtime so that moving an
+Issue and opening/editing its detail never produces a missing request or a
+title-only placeholder.
+
+The approved sequence is deliberately split while retaining one final product
+journey: C4 core update/move and public actor identity; C5 hierarchy/batch; C6
+timeline/comments/reactions/subscribers; C7 labels/properties/acceptance; C8
+attachments; C9 complete capability cutover and clean-candidate acceptance.
+
+- Dependency: technically accepted `M1-S7-C3` and approved plan v7
+- Size: extra large; strict single-story execution is mandatory
+- Risk: high; multi-owner transactions, public/private actor identity, files,
+  realtime and retained-data migration
+- Demonstration: the current full detail page performs every approved local
+  interaction, reloads/restarts with retained state and produces no missing
+  route or legacy-network call
+- Rollback: disable only the unaccepted story capability and preserve every
+  SQLite/file/log artifact
 
 ## Promotion record
 

@@ -688,3 +688,33 @@ Human approval are recorded.
   approved v6 scope. The broader milestone and this correction still require
   an explicit Human Customer acceptance statement; approval to execute plan
   v6 is not interpreted as that final acceptance.
+
+## 2026-08-14 — local full Issue detail selected; plan v7 approved
+
+- New browser evidence on `/drcoffee/issues` records
+  `POST /api/issues/f532fa94-761c-456b-bcbd-d7c0ceaca2e4/move` returning 404
+  during a visible Issue move. Opening that Issue renders only identifier,
+  title and `No description` because the current `IssueDetail` replaces the
+  full component whenever Canonical advertises `issue_timeline=false`.
+- Read-only branch analysis proves `origin/agent/tc-w01-team-control-001` is an
+  ancestor of the current HEAD, so its Canonical Issue core is already present.
+  The separate root `teamcontrol` model has different project-governance
+  fields/statuses and is not the Multica API. It remains behavior evidence for
+  authorization, transitions, assignments, Artifacts and correlations.
+- Current frontend inventory identifies the approved local detail families:
+  core update/move, hierarchy/batch, timeline/comments, comment and Issue
+  reactions, subscribers, labels, custom properties, acceptance conclusions,
+  attachments, member/project/pin projections and their realtime cache paths.
+  Canonical currently lacks the majority of those HTTP/storage boundaries;
+  Space Asset is still a generated stub.
+- The Human Customer first selected `全量详情`, then explicitly approved
+  `批准本地全量 plan v7`. External GitHub/VCS ingestion remains capability-off;
+  all approved local families must become real rather than fabricated empty
+  success.
+- `plan_v7.md` is the immutable approved snapshot at base
+  `9ab58a5204d083a757b205d512fcaa2c98c26331`. Strict XP keeps one active story;
+  `M1-S7-C4-RED` is active. Product writes remain blocked until its failing
+  acceptance tests prove the update/move and public member-actor defects.
+- Preserved unrelated paths remain `packages/ui/components/ui/input.tsx`,
+  `packages/views/auth/input-controlled.test.tsx`, `.local-runtime/`,
+  `docs/code-to-product/`, and `ui/`. `server/**` remains permanently read-only.

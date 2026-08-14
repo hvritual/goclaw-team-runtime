@@ -18,8 +18,10 @@ the legacy server.
 
 ## Delivery boundary
 
-This is a thin compatible replacement milestone, not full product parity. It
-includes only capabilities proven necessary by the journey frozen in `M1-S0`.
+The original release was a thin compatible replacement. Approved plan v7
+extends the local Issue journey to the complete installed local detail surface
+while still excluding external VCS/GitHub integrations and unrelated product
+areas.
 All backend product implementation belongs under `backend/**`; `server/**`
 remains read-only evidence.
 
@@ -46,6 +48,12 @@ the shared Core API client with explicit compatibility tests.
 | 5 | `M1-S5` | Metadata read/write/delete works end to end | v9 parity and frontend tests pass |
 | 6 | `M1-S6` | Committed changes refresh the correct client cache | Realtime ordering/reconnect tests pass |
 | 7 | `M1-S7` | Canonical-only local startup is accepted | Cutover, rollback, review, customer acceptance |
+| 8 | `M1-S7-C4` | Issue update/move and actor identity work | Atomic move, HTTP, event and browser gates |
+| 9 | `M1-S7-C5` | Hierarchy and batch interactions work | Cycle/isolation/concurrency/restart gates |
+| 10 | `M1-S7-C6` | Timeline collaboration works | Comment/reaction/subscriber/realtime gates |
+| 11 | `M1-S7-C7` | Labels/properties/acceptance work | Catalog, atomic bag and conclusion gates |
+| 12 | `M1-S7-C8` | Local attachments work | File security, binding, restart and hash gates |
+| 13 | `M1-S7-C9` | Full local Issue detail is accepted | Zero-missing-route browser and rollback gates |
 
 Only one story may be active. Promotion changes `plan.md` and, when any frozen
 contract changes, requires a new immutable `plan_vN.md`.
@@ -57,6 +65,9 @@ contract changes, requires a new immutable `plan_vN.md`.
 - No legacy server process is needed for the accepted journey.
 - Login, Workspace selection, Issue list/detail, and Issue metadata operations
   pass through Canonical code and real SQLite persistence.
+- Plan-v7 Issue update/move, hierarchy/batch, collaboration, labels,
+  properties, acceptance and local attachments pass through Canonical code,
+  real SQLite and the owned local asset directory.
 - Body compatibility, authorization, tenant isolation, transactionality, and
   minimum realtime behavior are executable and green.
 - Empty database, retained database, restart, and rollback evidence exist.
