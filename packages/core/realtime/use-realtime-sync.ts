@@ -11,6 +11,7 @@ import { taskKeys } from "../tasks/queries";
 import { labelKeys } from "../labels/queries";
 import { propertyKeys } from "../properties/queries";
 import { pinKeys } from "../pins/queries";
+import { implementationKnowledgeKeys } from "../implementation-knowledge/queries";
 import { workspaceKeys } from "../workspace/queries";
 import { getCurrentWsId } from "../platform/workspace-storage";
 
@@ -52,6 +53,7 @@ export function useRealtimeSync(
       void qc.invalidateQueries({ queryKey: workspaceKeys.skills(workspaceId) });
       void qc.invalidateQueries({ queryKey: labelKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: propertyKeys.all(workspaceId) });
+      void qc.invalidateQueries({ queryKey: implementationKnowledgeKeys.all(workspaceId) });
       const userId = stores.authStore.getState().user?.id;
       if (userId) {
         void qc.invalidateQueries({ queryKey: pinKeys.all(workspaceId, userId) });

@@ -4,7 +4,7 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C7` (labels/properties/acceptance RED active after C6 technical and manual acceptance).
+- Current story: `M1-S7-C7` (labels/properties/acceptance GREEN proven; integration and browser review active).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.

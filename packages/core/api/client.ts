@@ -116,7 +116,6 @@ import {
   commentKnowledgeProposalResponseSchema,
 } from "../knowledge/schema";
 import {
-  EMPTY_ACCEPTANCE_CONCLUSION_LIST,
   EMPTY_RETROSPECTIVE_LIST,
   acceptanceConclusionListSchema,
   acceptanceConclusionSchema,
@@ -177,19 +176,15 @@ import {
   EMPTY_CREATE_FEEDBACK_RESPONSE,
   NotificationPreferenceResponseSchema,
   EMPTY_NOTIFICATION_PREFERENCE_RESPONSE,
-  LabelSchema,
+  CatalogLabelSchema,
   ListLabelsResponseSchema,
-  IssuePropertySchema,
+  CatalogIssuePropertySchema,
   ListPropertiesResponseSchema,
   IssuePropertiesResponseSchema,
-  EMPTY_ISSUE_PROPERTY,
   EMPTY_LIST_PROPERTIES_RESPONSE,
-  EMPTY_ISSUE_PROPERTIES_RESPONSE,
   EMPTY_ISSUE_PULL_REQUESTS_RESPONSE,
   IssuePullRequestsResponseSchema,
   ResourceLabelsResponseSchema,
-  EMPTY_LABEL,
-  EMPTY_LIST_LABELS_RESPONSE,
   EMPTY_RESOURCE_LABELS_RESPONSE,
   GitHubConnectResponseSchema,
   ListGitHubInstallationsResponseSchema,
@@ -782,9 +777,9 @@ export class ApiClient {
 
   async listIssueAcceptanceConclusions(id: string): Promise<AcceptanceConclusionListResponse> {
     const raw = await this.fetch<unknown>(`/api/issues/${id}/acceptance-conclusions`);
-    return parseWithFallback(raw, acceptanceConclusionListSchema, EMPTY_ACCEPTANCE_CONCLUSION_LIST, {
-      endpoint: "GET /api/issues/:id/acceptance-conclusions",
-    });
+    const parsed = acceptanceConclusionListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid acceptance conclusion list response");
+    return parsed.data;
   }
 
   async createIssueAcceptanceConclusion(
@@ -1760,16 +1755,16 @@ export class ApiClient {
   // Labels
   async listLabels(resourceType: LabelResourceType = "issue"): Promise<ListLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/labels?resource_type=${resourceType}`);
-    return parseWithFallback(raw, ListLabelsResponseSchema, EMPTY_LIST_LABELS_RESPONSE, {
-      endpoint: "GET /api/labels",
-    });
+    const parsed = ListLabelsResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid label list response");
+    return parsed.data;
   }
 
   async getLabel(id: string): Promise<Label> {
     const raw = await this.fetch<unknown>(`/api/labels/${id}`);
-    return parseWithFallback(raw, LabelSchema, EMPTY_LABEL, {
-      endpoint: "GET /api/labels/{id}",
-    });
+    const parsed = CatalogLabelSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid label response");
+    return parsed.data;
   }
 
   async createLabel(data: CreateLabelRequest): Promise<Label> {
@@ -1777,9 +1772,9 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return parseWithFallback(raw, LabelSchema, EMPTY_LABEL, {
-      endpoint: "POST /api/labels",
-    });
+    const parsed = CatalogLabelSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid label response");
+    return parsed.data;
   }
 
   async updateLabel(id: string, data: UpdateLabelRequest): Promise<Label> {
@@ -1787,9 +1782,9 @@ export class ApiClient {
       method: "PUT",
       body: JSON.stringify(data),
     });
-    return parseWithFallback(raw, LabelSchema, EMPTY_LABEL, {
-      endpoint: "PUT /api/labels/{id}",
-    });
+    const parsed = CatalogLabelSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid label response");
+    return parsed.data;
   }
 
   async deleteLabel(id: string): Promise<void> {
@@ -1813,9 +1808,9 @@ export class ApiClient {
       }
       throw error;
     }
-    return parseWithFallback(raw, ListPropertiesResponseSchema, EMPTY_LIST_PROPERTIES_RESPONSE, {
-      endpoint: "GET /api/properties",
-    });
+    const parsed = ListPropertiesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid property list response");
+    return parsed.data;
   }
 
   async createProperty(data: CreatePropertyRequest): Promise<IssueProperty> {
@@ -1823,9 +1818,9 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return parseWithFallback(raw, IssuePropertySchema, EMPTY_ISSUE_PROPERTY, {
-      endpoint: "POST /api/properties",
-    });
+    const parsed = CatalogIssuePropertySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid property response");
+    return parsed.data;
   }
 
   async updateProperty(id: string, data: UpdatePropertyRequest): Promise<IssueProperty> {
@@ -1833,9 +1828,9 @@ export class ApiClient {
       method: "PATCH",
       body: JSON.stringify(data),
     });
-    return parseWithFallback(raw, IssuePropertySchema, EMPTY_ISSUE_PROPERTY, {
-      endpoint: "PATCH /api/properties/{id}",
-    });
+    const parsed = CatalogIssuePropertySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid property response");
+    return parsed.data;
   }
 
   async setIssueProperty(issueId: string, propertyId: string, value: IssuePropertyValue): Promise<IssuePropertiesResponse> {
@@ -1843,25 +1838,25 @@ export class ApiClient {
       method: "PUT",
       body: JSON.stringify({ value }),
     });
-    return parseWithFallback(raw, IssuePropertiesResponseSchema, EMPTY_ISSUE_PROPERTIES_RESPONSE, {
-      endpoint: "PUT /api/issues/{id}/properties/{propertyId}",
-    });
+    const parsed = IssuePropertiesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue properties response");
+    return parsed.data;
   }
 
   async unsetIssueProperty(issueId: string, propertyId: string): Promise<IssuePropertiesResponse> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/properties/${propertyId}`, {
       method: "DELETE",
     });
-    return parseWithFallback(raw, IssuePropertiesResponseSchema, EMPTY_ISSUE_PROPERTIES_RESPONSE, {
-      endpoint: "DELETE /api/issues/{id}/properties/{propertyId}",
-    });
+    const parsed = IssuePropertiesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue properties response");
+    return parsed.data;
   }
 
   async listLabelsForIssue(issueId: string): Promise<IssueLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/labels`);
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "GET /api/issues/{id}/labels",
-    });
+    const parsed = ResourceLabelsResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue labels response");
+    return parsed.data;
   }
 
   async attachLabel(issueId: string, labelId: string): Promise<IssueLabelsResponse> {
@@ -1869,18 +1864,18 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify({ label_id: labelId }),
     });
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "POST /api/issues/{id}/labels",
-    });
+    const parsed = ResourceLabelsResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue labels response");
+    return parsed.data;
   }
 
   async detachLabel(issueId: string, labelId: string): Promise<IssueLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/labels/${labelId}`, {
       method: "DELETE",
     });
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "DELETE /api/issues/{id}/labels/{labelId}",
-    });
+    const parsed = ResourceLabelsResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Issue labels response");
+    return parsed.data;
   }
 
   async listLabelsForResource(

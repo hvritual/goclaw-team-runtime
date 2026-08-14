@@ -285,7 +285,9 @@ const mockApiObj = vi.hoisted(() => ({
   getAgentTaskSnapshot: vi.fn().mockResolvedValue([]),
   // The sub-issues header chip reads this narrowed to the parent issue.
   getWorkspaceWorkingAgents: vi.fn().mockResolvedValue([]),
+  listLabelsForIssue: vi.fn().mockResolvedValue({ labels: [] }),
   listProperties: vi.fn().mockResolvedValue({ properties: [], total: 0 }),
+  listIssueAcceptanceConclusions: vi.fn().mockResolvedValue({ acceptanceConclusions: [], total: 0 }),
   listIssues: vi.fn().mockResolvedValue({ issues: [], total: 0 }),
   uploadFile: vi.fn(),
   listIssueReactions: vi.fn().mockResolvedValue([]),
@@ -637,7 +639,9 @@ describe("IssueDetail (shared)", () => {
     mockApiObj.listIssueSubscribers.mockResolvedValue([]);
     mockApiObj.listChildIssues.mockResolvedValue({ issues: [] });
     mockApiObj.getChildIssueProgress.mockResolvedValue({ progress: [] });
+    mockApiObj.listLabelsForIssue.mockResolvedValue({ labels: [] });
     mockApiObj.listProperties.mockResolvedValue({ properties: [], total: 0 });
+    mockApiObj.listIssueAcceptanceConclusions.mockResolvedValue({ acceptanceConclusions: [], total: 0 });
     mockApiObj.listIssues.mockResolvedValue({ issues: [], total: 0 });
     mockApiObj.listMembers.mockResolvedValue([
       { user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" },
@@ -721,6 +725,67 @@ describe("IssueDetail (shared)", () => {
     expect(mockApiObj.getChildIssueProgress).not.toHaveBeenCalled();
     expect(mockApiObj.listProperties).not.toHaveBeenCalled();
     expect(mockApiObj.getProject).not.toHaveBeenCalled();
+    expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
+  });
+
+  it("mounts accepted catalog consumers while keeping attachment and pull-request consumers disabled", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: false,
+      issue_labels: true,
+      issue_properties: true,
+      issue_pins: false,
+      issue_children: false,
+      issue_batch: false,
+      issue_project: false,
+      issue_child_progress: false,
+      issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+    mockApiObj.getIssue.mockResolvedValue({
+      ...mockIssue,
+      properties: { "property-risk": 3.5 },
+    });
+    mockApiObj.listLabelsForIssue.mockResolvedValue({
+      labels: [{
+        id: "label-catalog", workspace_id: "ws-1", resource_type: "issue",
+        name: "Catalog label", description: "", color: "#112233", usage_count: 1,
+        created_at: "2026-08-15T00:00:00Z", updated_at: "2026-08-15T00:00:00Z",
+      }],
+    });
+    mockApiObj.listProperties.mockResolvedValue({
+      properties: [{
+        id: "property-risk", workspace_id: "ws-1", name: "Risk score", type: "number",
+        description: "", icon: "hash", config: { options: [] }, position: 0,
+        archived: false, archived_at: null, usage_count: 1,
+        created_at: "2026-08-15T00:00:00Z", updated_at: "2026-08-15T00:00:00Z",
+      }],
+      total: 1,
+    });
+    mockApiObj.listIssueAcceptanceConclusions.mockResolvedValue({
+      acceptanceConclusions: [{
+        id: "conclusion-1", workspaceId: "ws-1", issueId: "issue-1",
+        result: "accepted", rationale: "Catalog acceptance retained", evidenceRefs: [],
+        actorId: "user-1", createdAt: "2026-08-15T00:00:00Z", updatedAt: "2026-08-15T00:00:00Z",
+      }],
+      total: 1,
+    });
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("Catalog label")).toBeInTheDocument();
+    expect(await screen.findByText("Risk score")).toBeInTheDocument();
+    expect(await screen.findByText("Catalog acceptance retained")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockApiObj.listLabelsForIssue).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listProperties).toHaveBeenCalledWith(true);
+      expect(mockApiObj.listIssueAcceptanceConclusions).toHaveBeenCalledWith(mockIssue.id);
+    });
+    expect(mockApiObj.listAttachments).not.toHaveBeenCalled();
     expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
   });
 

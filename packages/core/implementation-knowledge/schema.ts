@@ -7,15 +7,15 @@ import type {
 } from "../types";
 
 export const acceptanceConclusionSchema = z.object({
-  id: z.string(),
-  workspace_id: z.string(),
-  issue_id: z.string(),
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  issue_id: z.string().min(1),
   result: z.enum(["accepted", "conditional", "rejected"]),
-  rationale: z.string(),
-  evidence_refs: z.array(z.string()).default([]),
-  actor_id: z.string(),
-  created_at: z.string(),
-  updated_at: z.string(),
+  rationale: z.string().min(1),
+  evidence_refs: z.array(z.string()),
+  actor_id: z.string().min(1),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
 }).loose().transform((value) => ({
   id: value.id,
   workspaceId: value.workspace_id,
@@ -29,8 +29,8 @@ export const acceptanceConclusionSchema = z.object({
 })) as z.ZodType<AcceptanceConclusion>;
 
 export const acceptanceConclusionListSchema = z.object({
-  acceptance_conclusions: z.array(acceptanceConclusionSchema).default([]),
-  total: z.number().default(0),
+  acceptance_conclusions: z.array(acceptanceConclusionSchema),
+  total: z.number(),
 }).loose().transform((value) => ({
   acceptanceConclusions: value.acceptance_conclusions,
   total: value.total,

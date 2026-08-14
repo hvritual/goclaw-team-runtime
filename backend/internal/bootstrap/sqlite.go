@@ -168,6 +168,9 @@ func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspace
 		"workspace.issue.comment.get", "workspace.issue.comment.list", "workspace.issue.comment.create", "workspace.issue.comment.update", "workspace.issue.comment.delete", "workspace.issue.comment.resolve", "workspace.issue.comment.knowledge", "workspace.issue.comment.react",
 		"workspace.issue.reaction.list", "workspace.issue.reaction.put", "workspace.issue.reaction.delete",
 		"workspace.issue.subscriber.list", "workspace.issue.subscriber.put", "workspace.issue.subscriber.delete",
+		"workspace.issue.label.list", "workspace.issue.label.write",
+		"workspace.issue.property.list", "workspace.issue.property.write",
+		"workspace.issue.acceptance.list", "workspace.issue.acceptance.write",
 		"workspace.project.create", "workspace.project.get", "workspace.project.list", "workspace.project.search", "workspace.project.update", "workspace.project.delete",
 		"workspace.pin.list", "workspace.pin.create", "workspace.pin.delete":
 	default:

@@ -371,6 +371,67 @@ describe("WSClient", () => {
     }
   });
 
+  it("validates label and property event payloads before catalog cache consumers run", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const timestamp = "2026-08-15T01:02:03Z";
+    const label = {
+      id: "label-1", workspace_id: "workspace-1", resource_type: "issue",
+      name: "Priority", description: "", color: "#112233", usage_count: 1,
+      created_at: timestamp, updated_at: timestamp, retained_extension: true,
+    };
+    const property = {
+      id: "property-1", workspace_id: "workspace-1", name: "Estimate", type: "number",
+      description: "", icon: "hash", config: { options: [] }, position: 0,
+      archived: false, archived_at: null, usage_count: 1,
+      created_at: timestamp, updated_at: timestamp, retained_extension: true,
+    };
+    const validFrames = [
+      ["label:created", { label }],
+      ["label:updated", { label }],
+      ["label:deleted", { label_id: "label-1" }],
+      ["issue_labels:changed", { issue_id: "issue-1", labels: [label] }],
+      ["property:created", { property }],
+      ["property:updated", { property }],
+      ["issue_properties:changed", { issue_id: "issue-1", properties: { "property-1": 2.5 } }],
+    ] as const;
+    const handlers = new Map(validFrames.map(([type]) => [type, vi.fn()]));
+    for (const [type, handler] of handlers) ws.on(type, handler);
+    ws.connect();
+
+    for (const [type, payload] of validFrames) {
+      FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type, payload }) });
+      expect(handlers.get(type)).toHaveBeenCalledWith(payload, undefined, undefined);
+    }
+
+    const legacySkillUpdate = { label_id: "label-skill", resource_type: "skill" };
+    const labelUpdatedHandler = handlers.get("label:updated")!;
+    labelUpdatedHandler.mockClear();
+    FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type: "label:updated", payload: legacySkillUpdate }) });
+    expect(labelUpdatedHandler).toHaveBeenCalledWith(legacySkillUpdate, undefined, undefined);
+
+    const legacyPropertyUpdate = { property: { ...property, config: {} } };
+    const propertyUpdatedHandler = handlers.get("property:updated")!;
+    propertyUpdatedHandler.mockClear();
+    FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type: "property:updated", payload: legacyPropertyUpdate }) });
+    expect(propertyUpdatedHandler).toHaveBeenCalledWith(legacyPropertyUpdate, undefined, undefined);
+
+    const invalidFrames = [
+      ["label:created", { label: { ...label, id: 42 } }],
+      ["label:updated", { label: { ...label, color: null } }],
+      ["label:deleted", { label_id: "" }],
+      ["issue_labels:changed", { issue_id: "issue-1", labels: [{ id: "label-1" }] }],
+      ["property:created", { property: { ...property, type: null } }],
+      ["property:updated", { property: { ...property, config: { options: [{ id: 1 }] } } }],
+      ["issue_properties:changed", { issue_id: "issue-1", properties: { "property-1": { nested: true } } }],
+    ] as const;
+    for (const [type, payload] of invalidFrames) {
+      const handler = handlers.get(type)!;
+      handler.mockClear();
+      FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type, payload }) });
+      expect(handler).not.toHaveBeenCalled();
+    }
+  });
+
   // ── Reconnect backoff tests ────────────────────────────────────────
 
   describe("reconnect backoff", () => {

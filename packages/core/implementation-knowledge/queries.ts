@@ -2,10 +2,11 @@ import { queryOptions } from "@tanstack/react-query";
 import { api } from "../api";
 
 export const implementationKnowledgeKeys = {
+	all: (workspaceId: string) => ["implementation-knowledge", workspaceId] as const,
   acceptanceConclusions: (workspaceId: string, issueId: string) =>
-    ["implementation-knowledge", workspaceId, "issues", issueId, "acceptance-conclusions"] as const,
+    [...implementationKnowledgeKeys.all(workspaceId), "issues", issueId, "acceptance-conclusions"] as const,
   retrospectives: (workspaceId: string, projectId: string) =>
-    ["implementation-knowledge", workspaceId, "projects", projectId, "retrospectives"] as const,
+    [...implementationKnowledgeKeys.all(workspaceId), "projects", projectId, "retrospectives"] as const,
 };
 
 export function acceptanceConclusionListOptions(workspaceId: string, issueId: string) {

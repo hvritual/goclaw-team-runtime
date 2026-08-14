@@ -850,3 +850,59 @@ Human approval are recorded.
   records C6 manual acceptance paired with deterministic HTTP/SQLite/event/
   restart evidence; it is not final milestone acceptance. The sole active
   story advances to `M1-S7-C7-RED`.
+
+## 2026-08-15 — M1-S7-C7 labels/properties/acceptance RED
+
+- A real Canonical Runtime test creates an authenticated owner, Workspace and
+  Issue, then exercises the exact mounted detail dependencies. `GET
+  /api/labels?resource_type=issue`, `GET /api/issues/:id/labels`, `GET
+  /api/properties` and `GET /api/issues/:id/acceptance-conclusions` each return
+  the router's `404 page not found`. `/api/config` simultaneously advertises
+  `issue_labels=false`, `issue_properties=false` and `issue_acceptance=false`.
+- A focused Core boundary test supplies structurally malformed 200 responses.
+  `listLabels()` silently resolves to `{labels:[], total:0}` instead of
+  rejecting the malformed success, proving the existing compatibility fallback
+  cannot serve as the accepted Canonical contract.
+- Commands: `go test ./internal/bootstrap -run
+  TestSQLiteRuntimeServesIssueCatalogRoutes -count=1 -v` and `pnpm --filter
+  @multica/core exec vitest run api/issue-catalog-schema.test.ts`. Both fail at
+  the intended missing-contract assertions, not because of compilation or the
+  environment. The active step advances to `M1-S7-C7-GREEN`.
+
+## 2026-08-15 — M1-S7-C7 labels/properties/acceptance GREEN
+
+- Additive Workspace migration `000007` owns Issue label definitions and
+  assignments, property definitions and typed Issue bags, acceptance
+  conclusions and acceptance-knowledge captures. Catalog mutations use a
+  per-connection `BEGIN IMMEDIATE`, Workspace predicates, readback before
+  commit and rollback on every failed write. Issue deletion and label deletion
+  clean dependent rows transactionally.
+- The real Runtime now serves label catalog CRUD, attach/detach complete bags,
+  property catalog list/create/read/update, typed set/unset complete bags, and
+  acceptance list/create plus atomic completion/capture. Authentication runs
+  before Workspace resolution; Cookie mutations require the accepted CSRF
+  proof, Bearer mutations do not; malformed, unknown, trailing and oversized
+  JSON is rejected before persistence.
+- Runtime acceptance covers exact empty/success/error envelopes, missing and
+  expired identity, slug/ID mismatch, same-user cross-Workspace hiding, member
+  property administration denial, every supported property type, option-use
+  conflicts, archive semantics, the 20-active limit, case-insensitive
+  uniqueness, ID-constraint classification, malformed historical bag repair,
+  rollback, dependent cleanup, restart readback and repeated concurrent
+  writers. A live WebSocket proves catalog and complete-bag events publish only
+  after commit; a trigger-forced failure retains the old value and emits no
+  event.
+- Core now rejects malformed or default-synthesized Canonical catalog success
+  bodies, validates known realtime label/property fields before consumers, and
+  refreshes acceptance knowledge with the authoritative reconnect invalidation
+  set. The full enabled-capability IssueDetail test renders label, property and
+  acceptance evidence while disabled attachment and PR consumers remain
+  unmounted.
+- Deterministic evidence is green: Go full tests, `go vet ./...`, `go mod
+  verify`; Core 90 files/580 tests plus typecheck/lint; IssueDetail 42/42;
+  Views and Web typecheck; selector/verifier 22/22; C7 concurrent writers pass
+  20 repeated runs. One initial all-at-once Windows gate invocation caused two
+  fixture-login 500s under host resource contention; the exact pair then
+  passed 20 repeated runs and the required sequential full backend run passed.
+  Browser evidence and Human Customer acceptance remain pending, so the active
+  step advances only to `M1-S7-C7-INTEGRATE`.

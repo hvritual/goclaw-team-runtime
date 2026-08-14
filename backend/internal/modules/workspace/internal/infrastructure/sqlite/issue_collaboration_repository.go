@@ -578,6 +578,9 @@ func clearIssueCollaborationDependents(ctx context.Context, connection *sql.Conn
 		`DELETE FROM workspace_issue_reactions WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
 		`DELETE FROM workspace_issue_subscribers WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
 		`DELETE FROM workspace_issue_activities WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
+		`DELETE FROM workspace_issue_label_assignments WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
+		`DELETE FROM workspace_acceptance_knowledge_proposals WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
+		`DELETE FROM workspace_issue_acceptance_conclusions WHERE workspace_id=? AND issue_id IN (` + placeholders + `)`,
 	} {
 		statementArguments := append([]any(nil), arguments...)
 		if strings.Contains(statement, commentSubquery) {

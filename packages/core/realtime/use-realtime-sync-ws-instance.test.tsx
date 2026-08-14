@@ -108,6 +108,7 @@ describe("useRealtimeSync", () => {
     expect(keys).toContainEqual(["issues", "reactions"]);
     expect(keys).toContainEqual(["issues", "subscribers"]);
     expect(keys).toContainEqual(["issues", "attachments"]);
+    expect(keys).toContainEqual(["implementation-knowledge", "ws-1"]);
   });
 
   it("debounces retained-domain events into one workspace refresh", () => {
@@ -122,7 +123,7 @@ describe("useRealtimeSync", () => {
     expect(invalidate).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(75));
-    expect(invalidate).toHaveBeenCalledTimes(12);
+    expect(invalidate).toHaveBeenCalledTimes(13);
   });
 
   it("tolerates duplicate committed events with one authoritative refresh", () => {
@@ -134,7 +135,7 @@ describe("useRealtimeSync", () => {
     socket.emit("issue_metadata:changed");
     act(() => vi.advanceTimersByTime(75));
 
-    expect(invalidate).toHaveBeenCalledTimes(12);
+    expect(invalidate).toHaveBeenCalledTimes(13);
   });
 
   it("ignores events outside the retained domains", () => {
@@ -157,6 +158,6 @@ describe("useRealtimeSync", () => {
     });
 
     socket.reconnect();
-    expect(invalidate).toHaveBeenCalledTimes(12);
+    expect(invalidate).toHaveBeenCalledTimes(13);
   });
 });

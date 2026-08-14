@@ -69,6 +69,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Issue collaboration SQLite persistence: %w", err)
 	}
+	issueCatalogRepository, err := persistence.NewIssueCatalogRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Issue catalog SQLite persistence: %w", err)
+	}
 	newID := func(generator func(context.Context) (string, error)) application.ProjectIDGenerator {
 		if generator == nil {
 			return func(context.Context) (string, error) { return uuid.NewString(), nil }
@@ -86,6 +90,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	baseIssueCollaborationService, err := application.NewIssueCollaborationUseCase(issueCollaborationRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewIssueCollaborationID), now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Issue collaboration application: %w", err)
+	}
+	baseIssueCatalogService, err := application.NewIssueCatalogUseCase(issueCatalogRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewIssueCollaborationID), now)
+	if err != nil {
+		return nil, fmt.Errorf("configure Issue catalog application: %w", err)
 	}
 
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now)
@@ -111,6 +119,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	var issueService contract.IssueMutationService = baseIssueService
 	var issueMetadataService contract.IssueMetadataService = baseIssueMetadataService
 	var issueCollaborationService contract.IssueCollaborationService = baseIssueCollaborationService
+	var issueCatalogService contract.IssueCatalogService = baseIssueCatalogService
 	var issueActivities contract.IssueActivityRecorder = baseIssueCollaborationService
 	if dependencies.Events != nil {
 		publishingCollaboration := publishingIssueCollaborationService{IssueCollaborationService: baseIssueCollaborationService, activities: baseIssueCollaborationService, events: dependencies.Events}
@@ -119,6 +128,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, activities: issueActivities, events: dependencies.Events}
 		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
 		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
+		issueCatalogService = publishingIssueCatalogService{IssueCatalogService: baseIssueCatalogService, events: dependencies.Events}
 	}
 	knowledgeService, err := application.NewKnowledgeUseCase(knowledge, dependencies.Authorizer, dependencies.Assets, newID(dependencies.NewKnowledgeID), now)
 	if err != nil {
@@ -163,10 +173,11 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if dependencies.IssueMetadataEnabled == nil || *dependencies.IssueMetadataEnabled {
 		module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
-	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer, dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled))
+	module.extensions = append(module.extensions, newIssueReadExtension(issueService, issueCatalogService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer, dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
 		module.extensions = append(module.extensions, newIssueCollaborationExtension(issueCollaborationService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+		module.extensions = append(module.extensions, newIssueCatalogExtension(issueCatalogService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {

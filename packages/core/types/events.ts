@@ -100,6 +100,57 @@ const IssueMetadataChangedEventPayloadSchema = z.object({
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
 }).passthrough();
 
+const RealtimeLabelSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  resource_type: z.enum(["issue", "skill"]),
+  name: z.string().min(1),
+  description: z.string(),
+  color: z.string().min(1),
+  usage_count: z.number().int().nonnegative(),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+const RealtimePropertyOptionSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  color: z.string().min(1),
+}).passthrough();
+const RealtimeIssuePropertySchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  name: z.string().min(1),
+  type: z.enum(["text", "number", "select", "multi_select", "date", "checkbox", "url"]),
+  description: z.string(),
+  icon: z.string(),
+  config: z.object({ options: z.array(RealtimePropertyOptionSchema).optional() }).passthrough(),
+  position: z.number(),
+  archived: z.boolean(),
+  archived_at: z.iso.datetime({ offset: true }).nullable(),
+  usage_count: z.number().int().nonnegative(),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+const RealtimeIssuePropertyValuesSchema = z.record(
+  z.string(),
+  z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+);
+const LabelChangedEventPayloadSchema = z.object({ label: RealtimeLabelSchema }).passthrough();
+const LegacySkillLabelUpdatedEventPayloadSchema = z.object({
+  label_id: z.string().min(1),
+  resource_type: z.literal("skill"),
+}).passthrough();
+const LabelDeletedEventPayloadSchema = z.object({ label_id: z.string().min(1) }).passthrough();
+const IssueLabelsChangedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  labels: z.array(RealtimeLabelSchema),
+}).passthrough();
+const PropertyChangedEventPayloadSchema = z.object({ property: RealtimeIssuePropertySchema }).passthrough();
+const IssuePropertiesChangedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  properties: RealtimeIssuePropertyValuesSchema,
+}).passthrough();
+
 const RealtimeReactionSchema = z.object({
   id: z.string().min(1),
   comment_id: z.string().min(1),
@@ -181,6 +232,16 @@ export function isValidCanonicalIssueEventPayload(type: string, payload: unknown
     case "issue:updated": return IssueUpdatedEventPayloadSchema.safeParse(payload).success;
     case "issue:deleted": return IssueDeletedEventPayloadSchema.safeParse(payload).success;
     case "issue_metadata:changed": return IssueMetadataChangedEventPayloadSchema.safeParse(payload).success;
+    case "label:created": return LabelChangedEventPayloadSchema.safeParse(payload).success;
+    case "label:updated": return z.union([
+      LabelChangedEventPayloadSchema,
+      LegacySkillLabelUpdatedEventPayloadSchema,
+    ]).safeParse(payload).success;
+    case "label:deleted": return LabelDeletedEventPayloadSchema.safeParse(payload).success;
+    case "issue_labels:changed": return IssueLabelsChangedEventPayloadSchema.safeParse(payload).success;
+    case "property:created":
+    case "property:updated": return PropertyChangedEventPayloadSchema.safeParse(payload).success;
+    case "issue_properties:changed": return IssuePropertiesChangedEventPayloadSchema.safeParse(payload).success;
     case "comment:created":
     case "comment:updated":
     case "comment:resolved":
@@ -223,6 +284,12 @@ export interface IssuePropertiesChangedPayload {
 }
 export interface PropertyChangedPayload {
   property: IssueProperty;
+}
+export interface LabelChangedPayload {
+  label: Label;
+}
+export interface LabelDeletedPayload {
+  label_id: string;
 }
 
 export interface CommentCreatedPayload {
@@ -335,4 +402,9 @@ export type WSEventPayload<E extends WSEventType> =
     : E extends "issue:updated" ? IssueUpdatedPayload
       : E extends "issue:deleted" ? IssueDeletedPayload
         : E extends "issue_metadata:changed" ? IssueMetadataChangedPayload
-        : unknown;
+          : E extends "issue_labels:changed" ? IssueLabelsChangedPayload
+            : E extends "issue_properties:changed" ? IssuePropertiesChangedPayload
+              : E extends "label:created" | "label:updated" ? LabelChangedPayload
+                : E extends "label:deleted" ? LabelDeletedPayload
+                  : E extends "property:created" | "property:updated" ? PropertyChangedPayload
+                    : unknown;

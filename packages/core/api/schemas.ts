@@ -252,7 +252,7 @@ export const EMPTY_ISSUE_PULL_REQUESTS_RESPONSE: { pull_requests: GitHubPullRequ
 export const LabelSchema = z.object({
   id: z.string(),
   workspace_id: z.string(),
-  resource_type: z.string().optional().default("issue"),
+  resource_type: z.enum(["issue", "skill"]).optional().catch("issue").default("issue"),
   name: z.string(),
   description: z.string().optional().default(""),
   color: z.string(),
@@ -273,9 +273,24 @@ export const EMPTY_LABEL: Label = {
   updated_at: "",
 };
 
+// Canonical catalog endpoints always return the complete known Label shape.
+// Keep additive fields loose, but never coerce an invalid known field or
+// synthesize a missing field at this transport boundary.
+export const CatalogLabelSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  resource_type: z.enum(["issue", "skill"]),
+  name: z.string().min(1),
+  description: z.string(),
+  color: z.string().regex(/^#[0-9a-f]{6}$/),
+  usage_count: z.number().int().nonnegative(),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).loose();
+
 export const ListLabelsResponseSchema = z.object({
-  labels: z.array(LabelSchema).default([]),
-  total: z.number().default(0),
+  labels: z.array(CatalogLabelSchema),
+  total: z.number(),
 }).loose();
 
 export const EMPTY_LIST_LABELS_RESPONSE: ListLabelsResponse = {
@@ -284,7 +299,7 @@ export const EMPTY_LIST_LABELS_RESPONSE: ListLabelsResponse = {
 };
 
 export const ResourceLabelsResponseSchema = z.object({
-  labels: z.array(LabelSchema).default([]),
+  labels: z.array(CatalogLabelSchema),
 }).loose();
 
 export const EMPTY_RESOURCE_LABELS_RESPONSE: ResourceLabelsResponse = {
@@ -330,9 +345,31 @@ export const EMPTY_ISSUE_PROPERTY: IssueProperty = {
   updated_at: "",
 };
 
+export const CatalogIssuePropertySchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  name: z.string().min(1),
+  type: z.enum(["text", "number", "select", "multi_select", "date", "checkbox", "url"]),
+  description: z.string(),
+  icon: z.string(),
+  config: z.object({
+    options: z.array(z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      color: z.string().regex(/^#[0-9a-f]{6}$/),
+    }).loose()).optional(),
+  }).loose(),
+  position: z.number().nonnegative(),
+  archived: z.boolean(),
+  archived_at: z.iso.datetime({ offset: true }).nullable(),
+  usage_count: z.number().int().nonnegative(),
+  created_at: z.iso.datetime({ offset: true }),
+  updated_at: z.iso.datetime({ offset: true }),
+}).loose();
+
 export const ListPropertiesResponseSchema = z.object({
-  properties: z.array(IssuePropertySchema).default([]),
-  total: z.number().default(0),
+  properties: z.array(CatalogIssuePropertySchema),
+  total: z.number(),
 }).loose();
 
 export const EMPTY_LIST_PROPERTIES_RESPONSE: ListPropertiesResponse = {
@@ -363,7 +400,10 @@ export const IssuePropertyValuesSchema = z.preprocess(
 );
 
 export const IssuePropertiesResponseSchema = z.object({
-  properties: IssuePropertyValuesSchema,
+  properties: z.record(
+    z.string(),
+    z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]),
+  ),
 }).loose();
 
 export const EMPTY_ISSUE_PROPERTIES_RESPONSE: IssuePropertiesResponse = {
