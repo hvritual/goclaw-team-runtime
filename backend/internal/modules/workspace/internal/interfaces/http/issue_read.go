@@ -20,24 +20,89 @@ import (
 )
 
 type IssueReadHandler struct {
-	service  contract.IssueService
-	identity contract.WorkspaceHTTPIdentityResolver
+	service       contract.IssueService
+	identity      contract.WorkspaceHTTPIdentityResolver
+	authenticate  func(*http.Request) (string, error)
+	mutation      func(*http.Request) error
+	createEnabled bool
 }
 
 var errUnsupportedIssueQuery = errors.New("unsupported issue query")
 
-func NewIssueReadHandler(service contract.IssueService, identity contract.WorkspaceHTTPIdentityResolver) *IssueReadHandler {
-	return &IssueReadHandler{service: service, identity: identity}
+func NewIssueReadHandler(service contract.IssueService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled bool) *IssueReadHandler {
+	return &IssueReadHandler{service: service, identity: identity, authenticate: authenticate, mutation: mutation, createEnabled: createEnabled}
 }
 
 func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.GET("/api/issues", h.list)
+	if h.createEnabled {
+		router.POST("/api/issues", h.create)
+	}
 	router.POST("/api/issues/query", h.query)
 	router.POST("/api/issues/table/facets", h.facets)
 	router.POST("/api/issues/table/groups", h.groups)
 	router.POST("/api/issues/table/rows", h.rows)
 	router.GET("/api/issues/{id}", h.get)
+}
+
+type createIssueHTTPRequest struct {
+	Title         string   `json:"title"`
+	Description   *string  `json:"description"`
+	Status        string   `json:"status"`
+	Priority      string   `json:"priority"`
+	AssigneeType  *string  `json:"assignee_type"`
+	AssigneeID    *string  `json:"assignee_id"`
+	ParentIssueID *string  `json:"parent_issue_id"`
+	ProjectID     *string  `json:"project_id"`
+	Position      float64  `json:"position"`
+	Stage         *int32   `json:"stage"`
+	StartDate     *string  `json:"start_date"`
+	DueDate       *string  `json:"due_date"`
+	AttachmentIDs []string `json:"attachment_ids"`
+	LabelIDs      []string `json:"label_ids"`
+}
+
+func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
+	if h.authenticate == nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if _, err := h.authenticate(ctx.Request()); err != nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if !hasWorkspaceIdentity(ctx) {
+		return writeError(ctx, http.StatusBadRequest, "workspace is required")
+	}
+	requestContext, workspaceID, err := h.requestIdentity(ctx)
+	if err != nil {
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	var request createIssueHTTPRequest
+	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid request body")
+	}
+	if len(request.AttachmentIDs) != 0 || len(request.LabelIDs) != 0 {
+		return writeError(ctx, http.StatusBadRequest, "unsupported issue create field")
+	}
+	result, err := h.service.CreateIssue(requestContext, contract.CreateIssueRequest{
+		WorkspaceId: workspaceID, Title: request.Title, Description: request.Description,
+		Status: request.Status, Priority: request.Priority, AssigneeType: request.AssigneeType,
+		AssigneeId: request.AssigneeID, ParentIssueId: request.ParentIssueID, ProjectId: request.ProjectID,
+		Position: request.Position, Stage: request.Stage, StartDate: request.StartDate, DueDate: request.DueDate,
+	})
+	if errors.Is(err, contract.ErrInvalidIssue) {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue request")
+	}
+	if errors.Is(err, contract.ErrIssueNotFound) || errors.Is(err, contract.ErrProjectNotFound) || errors.Is(err, contract.ErrActorOutsideWorkspace) || errors.Is(err, contract.ErrWorkspaceNotFound) {
+		return writeError(ctx, http.StatusNotFound, "issue not found")
+	}
+	if err != nil || result.Issue == nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to create issue")
+	}
+	return ctx.JSON(http.StatusCreated, toPublicIssue(*result.Issue))
 }
 
 type publicIssue struct {

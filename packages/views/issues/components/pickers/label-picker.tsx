@@ -6,6 +6,7 @@ import { Tag, Plus, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Label } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useFeatureEnabled } from "@multica/core/config";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
   labelListOptions,
@@ -16,11 +17,7 @@ import {
 } from "@multica/core/labels";
 import { LabelChip } from "../../../labels/label-chip";
 import { useNavigation } from "../../../navigation";
-import {
-  PropertyPicker,
-  PickerItem,
-  PickerEmpty,
-} from "./property-picker";
+import { PropertyPicker, PickerItem, PickerEmpty } from "./property-picker";
 import { useT } from "../../../i18n";
 
 interface LabelPickerProps {
@@ -55,8 +52,16 @@ interface LabelPickerProps {
  * and a color can still be changed afterwards from the Manage dialog.
  */
 const INLINE_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6",
-  "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#64748b",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#22c55e",
+  "#14b8a6",
+  "#3b82f6",
+  "#6366f1",
+  "#a855f7",
+  "#ec4899",
+  "#64748b",
 ] as const;
 
 function pickInlineColor(name: string): string {
@@ -117,10 +122,17 @@ export function LabelPicker({
   const isDraft = issueId === undefined;
 
   const wsId = useWorkspaceId();
-  const { data: allLabels = [] } = useQuery(labelListOptions(wsId));
+  const labelsEnabled = useFeatureEnabled("issue_labels", false);
+  const { data: allLabels = [] } = useQuery({
+    ...labelListOptions(wsId),
+    enabled: labelsEnabled,
+  });
   // `issueLabelsOptions` disables itself for an empty id, so the draft path
   // never fires the by-issue read.
-  const { data: attachedLabels = [] } = useQuery(issueLabelsOptions(wsId, issueId ?? ""));
+  const { data: attachedLabels = [] } = useQuery({
+    ...issueLabelsOptions(wsId, issueId ?? ""),
+    enabled: labelsEnabled && !!issueId,
+  });
 
   // Hooks must run unconditionally; in draft mode the empty id is never used
   // because toggle/create route through onSelectedIdsChange instead.
@@ -140,12 +152,14 @@ export function LabelPicker({
 
   const selectedIdSet = useMemo(
     () => new Set(selectedLabels.map((l) => l.id)),
-    [selectedLabels],
+    [selectedLabels]
   );
 
   const query = filter.trim();
   const queryLower = query.toLowerCase();
-  const filtered = allLabels.filter((l) => l.name.toLowerCase().includes(queryLower));
+  const filtered = allLabels.filter((l) =>
+    l.name.toLowerCase().includes(queryLower)
+  );
   const exactMatch = allLabels.some((l) => l.name.toLowerCase() === queryLower);
   const canCreate = query.length > 0 && !exactMatch && !create.isPending;
 
@@ -162,7 +176,7 @@ export function LabelPicker({
       onSelectedIdsChange?.(
         selectedIdSet.has(labelId)
           ? selectedIds.filter((id) => id !== labelId)
-          : [...selectedIds, labelId],
+          : [...selectedIds, labelId]
       );
     } else if (selectedIdSet.has(labelId)) {
       detach.mutate(labelId);
@@ -187,12 +201,16 @@ export function LabelPicker({
           setFilter("");
         },
         onError: (err: unknown) => {
-          toast.error(err instanceof Error ? err.message : t(($) => $.pickers.label.create_failed));
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : t(($) => $.pickers.label.create_failed)
+          );
         },
         onSettled: () => {
           creatingRef.current = false;
         },
-      },
+      }
     );
   };
 
@@ -240,7 +258,9 @@ export function LabelPicker({
           ) : (
             <>
               <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-muted-foreground">{t(($) => $.pickers.label.trigger_label)}</span>
+              <span className="text-muted-foreground">
+                {t(($) => $.pickers.label.trigger_label)}
+              </span>
             </>
           )
         }
@@ -279,7 +299,8 @@ export function LabelPicker({
           <PickerItem selected={false} onClick={createAndAttach}>
             <Plus className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">
-              {t(($) => $.pickers.label.create_action)} <span className="font-medium">&ldquo;{query}&rdquo;</span>
+              {t(($) => $.pickers.label.create_action)}{" "}
+              <span className="font-medium">&ldquo;{query}&rdquo;</span>
             </span>
             <span
               className="ml-auto inline-block h-3 w-3 shrink-0 rounded-full"

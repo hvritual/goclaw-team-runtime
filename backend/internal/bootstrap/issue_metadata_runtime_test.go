@@ -131,6 +131,25 @@ func TestSQLiteRuntimeCanDisableIssueMetadataCapabilityAndRoutes(t *testing.T) {
 	}
 }
 
+func TestSQLiteRuntimeCanDisableIssueCreateCapabilityAndRoute(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{
+		Name: "backend-test", Version: "test",
+		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath:            filepath.Join(t.TempDir(), "issue-create-disabled.db"),
+		WorkspaceDependencies: FailClosedWorkspaceDependencies(),
+		LocalAuth:             auth.LocalAuthConfig{VerificationCode: "888888"},
+		IssueCreateEnabled:    boolPointer(false),
+	})
+	capabilities := runtimeRequest(runtime, http.MethodGet, "/api/config", "", nil)
+	if capabilities.Code != http.StatusOK || !strings.Contains(capabilities.Body.String(), `"issue_create":false`) {
+		t.Fatalf("disabled capability = %d %s", capabilities.Code, capabilities.Body.String())
+	}
+	response := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"disabled"}`, nil)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("disabled create route = %d %s", response.Code, response.Body.String())
+	}
+}
+
 // TestPrepareIssueMetadataBrowserFixture prepares an explicitly requested,
 // persistent SQLite fixture for real-listener browser acceptance. It is skipped
 // during normal test runs and refuses to overwrite an existing file.

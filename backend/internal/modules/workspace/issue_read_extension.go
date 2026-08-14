@@ -1,6 +1,8 @@
 package workspace
 
 import (
+	"net/http"
+
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	httpadapter "github.com/hvritual/workspace/internal/modules/workspace/internal/interfaces/http"
@@ -9,8 +11,8 @@ import (
 
 type IssueReadExtension struct{ handler *httpadapter.IssueReadHandler }
 
-func newIssueReadExtension(service contract.IssueService, identity contract.WorkspaceHTTPIdentityResolver) *IssueReadExtension {
-	return &IssueReadExtension{handler: httpadapter.NewIssueReadHandler(service, identity)}
+func newIssueReadExtension(service contract.IssueService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled bool) *IssueReadExtension {
+	return &IssueReadExtension{handler: httpadapter.NewIssueReadHandler(service, identity, authenticate, mutation, createEnabled)}
 }
 
 func (e *IssueReadExtension) RegisterHTTP(server *kratoshttp.Server) { e.handler.Register(server) }

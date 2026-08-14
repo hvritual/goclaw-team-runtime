@@ -30,6 +30,7 @@ type Config struct {
 	WorkspaceDependencies workspace.WorkspaceServiceDependencies
 	LocalAuth             auth.LocalAuthConfig
 	IssueMetadataEnabled  *bool
+	IssueCreateEnabled    *bool
 }
 
 // Validate rejects incomplete process identity and malformed TCP addresses.
@@ -102,7 +103,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	realtimeHub.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
-	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled))
+	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled))
 
 	app := kratos.New(
 		kratos.Name(config.Name),
@@ -121,7 +122,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	}, nil
 }
 
-func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled bool) {
+func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled bool) {
 	server.Route("/").GET("/api/config", func(ctx kratoshttp.Context) error {
 		return ctx.JSON(http.StatusOK, map[string]any{
 			"cdn_domain": "", "allow_signup": true, "server_version": version,
@@ -135,6 +136,7 @@ func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadat
 				"issue_children": false, "issue_project": false,
 				"issue_child_progress": false, "issue_acceptance": false,
 				"issue_metadata": issueMetadataEnabled, "issue_realtime": true,
+				"issue_create":           issueCreateEnabled,
 				"project_resources":      false,
 				"project_retrospectives": false, "project_requirements": false, "project_control": false,
 			},

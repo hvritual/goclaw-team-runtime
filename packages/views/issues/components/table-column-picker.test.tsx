@@ -67,7 +67,7 @@ function renderPicker() {
     <TableColumnPicker
       properties={[environmentProperty]}
       trigger={<button type="button">Add column</button>}
-    />,
+    />
   );
 }
 
@@ -93,6 +93,25 @@ describe("TableColumnPicker", () => {
     await user.click(screen.getByRole("button", { name: "Add column" }));
     await user.click(screen.getByRole("menuitem", { name: "Environment" }));
 
-    expect(toggleTableColumn).toHaveBeenCalledWith("property:property-environment");
+    expect(toggleTableColumn).toHaveBeenCalledWith(
+      "property:property-environment"
+    );
+  });
+
+  it("hides the labels column when the Canonical capability is disabled", () => {
+    renderWithI18n(
+      <TableColumnPicker
+        properties={[]}
+        labelsEnabled={false}
+        trigger={<button type="button">Add column</button>}
+      />
+    );
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Labels" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Status" })
+    ).toBeInTheDocument();
   });
 });

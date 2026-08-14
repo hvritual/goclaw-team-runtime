@@ -150,7 +150,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if dependencies.IssueMetadataEnabled == nil || *dependencies.IssueMetadataEnabled {
 		module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
-	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity))
+	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer, dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))

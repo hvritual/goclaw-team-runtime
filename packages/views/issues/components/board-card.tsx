@@ -5,9 +5,15 @@ import { AppLink } from "../../navigation";
 import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
 import type { AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Issue, IssueProperty, Project, UpdateIssueRequest } from "@multica/core/types";
+import type {
+  Issue,
+  IssueProperty,
+  Project,
+  UpdateIssueRequest,
+} from "@multica/core/types";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useFeatureEnabled } from "@multica/core/config";
 import { propertyListOptions } from "@multica/core/properties";
 import { CustomPropertyValueDisplay } from "./pickers/custom-property-picker";
 import { formatDateOnly, isPastDateOnly } from "@multica/core/issues/date";
@@ -19,7 +25,12 @@ import { useActorName } from "@multica/core/workspace/hooks";
 import { useTimeAgo } from "../../i18n";
 import { ProjectIcon } from "../../projects/components/project-icon";
 import { PriorityIcon } from "./priority-icon";
-import { PriorityPicker, AssigneePicker, StartDatePicker, DueDatePicker } from "./pickers";
+import {
+  PriorityPicker,
+  AssigneePicker,
+  StartDatePicker,
+  DueDatePicker,
+} from "./pickers";
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { ProgressRing } from "./progress-ring";
 import type { ChildProgress } from "./list-row";
@@ -44,13 +55,24 @@ function descriptionPreview(markdown: string): string {
 }
 
 /** Stops event from bubbling to Link/drag handlers */
-function PickerWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
+function PickerWrapper({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const stop = (e: React.SyntheticEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };
   return (
-    <div onClick={stop} onMouseDown={stop} onPointerDown={stop} className={className}>
+    <div
+      onClick={stop}
+      onMouseDown={stop}
+      onPointerDown={stop}
+      className={className}
+    >
       {children}
     </div>
   );
@@ -72,12 +94,18 @@ export const BoardCardContent = memo(function BoardCardContent({
   const storeProperties = useViewStore((s) => s.cardProperties);
   const cardPropertyIds = useViewStore((s) => s.cardPropertyIds);
   const cardWsId = useWorkspaceId();
-  const { data: workspaceProperties = [] } = useQuery(propertyListOptions(cardWsId));
+  const propertiesEnabled = useFeatureEnabled("issue_properties", false);
+  const { data: workspaceProperties = [] } = useQuery({
+    ...propertyListOptions(cardWsId),
+    enabled: propertiesEnabled,
+  });
   // Custom properties toggled on in Display options, in toggle order, only
   // when this issue actually carries a value.
   const cardCustomProperties = cardPropertyIds
     .map((id) => workspaceProperties.find((p) => p.id === id))
-    .filter((p): p is IssueProperty => !!p && issue.properties?.[p.id] !== undefined);
+    .filter(
+      (p): p is IssueProperty => !!p && issue.properties?.[p.id] !== undefined
+    );
   const labels = issue.labels ?? [];
 
   const surfaceActions = useIssueSurfaceActionsOptional();
@@ -87,7 +115,7 @@ export const BoardCardContent = memo(function BoardCardContent({
         errorMessage: t(($) => $.card.update_failed),
       });
     },
-    [issue.id, surfaceActions, t],
+    [issue.id, surfaceActions, t]
   );
   const canEdit = editable && !!surfaceActions;
 
@@ -101,7 +129,8 @@ export const BoardCardContent = memo(function BoardCardContent({
   const showChildProgress = storeProperties.childProgress && childProgress;
   const showLabels = storeProperties.labels && labels.length > 0;
 
-  const showAssigneeName = showAssigneeSection && hasAssignee && !showStartDate && !showDueDate;
+  const showAssigneeName =
+    showAssigneeSection && hasAssignee && !showStartDate && !showDueDate;
   const showUpdatedHint = showAssigneeName && !showChildProgress;
   const { getActorName } = useActorName();
   const assigneeName =
@@ -128,7 +157,10 @@ export const BoardCardContent = memo(function BoardCardContent({
         />
       </PickerWrapper>
     ) : (
-      <span aria-label={priorityLabel} className="inline-flex items-center justify-center">
+      <span
+        aria-label={priorityLabel}
+        className="inline-flex items-center justify-center"
+      >
         <PriorityIcon priority={issue.priority} />
       </span>
     )
@@ -150,11 +182,15 @@ export const BoardCardContent = memo(function BoardCardContent({
         className="shrink-0"
       />
       {assigneeName && (
-        <span className="min-w-0 truncate text-xs text-foreground">{assigneeName}</span>
+        <span className="min-w-0 truncate text-xs text-foreground">
+          {assigneeName}
+        </span>
       )}
     </span>
   ) : (
-    <span className="text-xs text-muted-foreground">{t(($) => $.pickers.assignee.trigger_unassigned)}</span>
+    <span className="text-xs text-muted-foreground">
+      {t(($) => $.pickers.assignee.trigger_unassigned)}
+    </span>
   );
 
   const assigneeNode = showAssigneeSection ? (
@@ -172,8 +208,10 @@ export const BoardCardContent = memo(function BoardCardContent({
     )
   ) : null;
 
-  const showMetaRow = showAssigneeSection || showStartDate || showDueDate || showChildProgress;
-  const showRightMeta = !!showStartDate || !!showDueDate || !!showChildProgress || showUpdatedHint;
+  const showMetaRow =
+    showAssigneeSection || showStartDate || showDueDate || showChildProgress;
+  const showRightMeta =
+    !!showStartDate || !!showDueDate || !!showChildProgress || showUpdatedHint;
 
   return (
     <div className="rounded-lg border-[0.5px] border-surface-border bg-surface py-3 px-2.5 shadow-[var(--surface-shadow)] transition-colors group-hover/card:border-foreground/15 group-hover/card:bg-surface-hover group-data-[popup-open]/card:border-foreground/15 group-data-[popup-open]/card:bg-surface-hover">
@@ -181,7 +219,9 @@ export const BoardCardContent = memo(function BoardCardContent({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {priorityIconNode}
-          <p className="text-xs text-muted-foreground truncate">{issue.identifier}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {issue.identifier}
+          </p>
         </div>
       </div>
 
@@ -190,15 +230,16 @@ export const BoardCardContent = memo(function BoardCardContent({
         {issue.title}
       </p>
 
-      {showDescription && (() => {
-        const preview = descriptionPreview(issue.description!);
-        if (!preview) return null;
-        return (
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-            {preview}
-          </p>
-        );
-      })()}
+      {showDescription &&
+        (() => {
+          const preview = descriptionPreview(issue.description!);
+          if (!preview) return null;
+          return (
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
+              {preview}
+            </p>
+          );
+        })()}
 
       {/* Chip row: project + labels + custom property values */}
       {(showProject || showLabels || cardCustomProperties.length > 0) && (
@@ -209,16 +250,21 @@ export const BoardCardContent = memo(function BoardCardContent({
               <span className="truncate">{project!.title}</span>
             </span>
           )}
-          {showLabels && labels.map((label) => (
-            <LabelChip key={label.id} label={label} />
-          ))}
+          {showLabels &&
+            labels.map((label) => <LabelChip key={label.id} label={label} />)}
           {cardCustomProperties.map((property) => (
             <span
               key={property.id}
               className="inline-flex max-w-[160px] items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
             >
-              <PropertyIcon property={property} className="size-3 text-[11px]" />
-              <CustomPropertyValueDisplay property={property} value={issue.properties?.[property.id]} />
+              <PropertyIcon
+                property={property}
+                className="size-3 text-[11px]"
+              />
+              <CustomPropertyValueDisplay
+                property={property}
+                value={issue.properties?.[property.id]}
+              />
             </span>
           ))}
         </div>
@@ -228,14 +274,12 @@ export const BoardCardContent = memo(function BoardCardContent({
       {showMetaRow && (
         <div className="mt-2 flex items-center justify-between gap-2">
           {showAssigneeSection && (
-            <div className="min-w-0 flex-1">
-              {assigneeNode}
-            </div>
+            <div className="min-w-0 flex-1">{assigneeNode}</div>
           )}
           {showRightMeta && (
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {showStartDate && (
-                canEdit ? (
+              {showStartDate &&
+                (canEdit ? (
                   <PickerWrapper className="shrink-0">
                     <StartDatePicker
                       startDate={issue.start_date}
@@ -253,10 +297,9 @@ export const BoardCardContent = memo(function BoardCardContent({
                     <CalendarClock className="size-3" />
                     {formatDate(issue.start_date!)}
                   </span>
-                )
-              )}
-              {showDueDate && (
-                canEdit ? (
+                ))}
+              {showDueDate &&
+                (canEdit ? (
                   <PickerWrapper className="shrink-0">
                     <DueDatePicker
                       dueDate={issue.due_date}
@@ -286,11 +329,14 @@ export const BoardCardContent = memo(function BoardCardContent({
                     <CalendarDays className="size-3" />
                     {formatDate(issue.due_date!)}
                   </span>
-                )
-              )}
+                ))}
               {showChildProgress && (
                 <div className="inline-flex shrink-0 items-center gap-1">
-                  <ProgressRing done={childProgress!.done} total={childProgress!.total} size={14} />
+                  <ProgressRing
+                    done={childProgress!.done}
+                    total={childProgress!.total}
+                    size={14}
+                  />
                   <span className="text-[11px] text-muted-foreground tabular-nums font-medium">
                     {childProgress!.done}/{childProgress!.total}
                   </span>
@@ -298,7 +344,9 @@ export const BoardCardContent = memo(function BoardCardContent({
               )}
               {showUpdatedHint && (
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {t(($) => $.card.updated_ago, { time: timeAgo(issue.updated_at) })}
+                  {t(($) => $.card.updated_ago, {
+                    time: timeAgo(issue.updated_at),
+                  })}
                 </span>
               )}
             </div>
@@ -357,7 +405,9 @@ export const DraggableBoardCard = memo(function DraggableBoardCard({
       >
         <AppLink
           href={p.issueDetail(issue.id)}
-          className={`group block transition-colors ${isDragging ? "pointer-events-none" : ""}`}
+          className={`group block transition-colors ${
+            isDragging ? "pointer-events-none" : ""
+          }`}
         >
           <BoardCardContent
             issue={issue}

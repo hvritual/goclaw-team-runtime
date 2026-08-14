@@ -599,3 +599,63 @@ Human approval are recorded.
   verification at `http://127.0.0.1:3000/drcoffee/projects`. Approval to execute
   is not treated as final acceptance. The milestone remains pending an explicit
   Human Customer acceptance statement.
+
+## 2026-08-14 — Project-detail Issue surface 404 reproduced; plan v6 proposed
+
+- Human browser evidence identified a new toast on
+  `/drcoffee/projects/0631ebaf-d1e0-42bd-a03b-1da3f8110dd5`. Current Web logs
+  prove the detail route itself is 200 while its embedded Issue surface sends
+  `GET /api/properties` and `GET /api/issues/child-progress`, both 404.
+- Opening the visible Issue-create UI then sends
+  `GET /api/labels?resource_type=issue` (404), and submitting it sends
+  `POST /api/issues` (404). The latter is the user-visible failed action; the
+  existing Canonical Issue use case/repository/realtime publisher is present,
+  but no trusted HTTP create route is registered.
+- Runtime config already advertises labels, properties, child progress and
+  attachments as false. Static inspection found unconditional queries in the
+  shared Issue surface and create modal, so this is both a missing HTTP create
+  boundary and incomplete capability enforcement—not a Project CRUD
+  regression and not a case for fabricated empty responses.
+- `plan_v6.md` proposes narrow story `M1-S7-C3`: implement exact Issue create
+  over the existing transactional service, gate every disabled auxiliary
+  request/control, and rerun the Project-detail/create journey. Product code
+  remains unchanged pending explicit Human approval. `server/**` remains zero.
+
+## 2026-08-14 — plan v6 approved; M1-S7-C3 RED active
+
+- The Human Customer explicitly approved `plan_v6.md`. The approved active
+  story is `M1-S7-C3`, beginning at `M1-S7-C3-RED`.
+- Product writes are now authorized only inside the plan-v6 boundary: the
+  trusted Issue-create HTTP adapter, disabled-capability query/control gates,
+  focused runtime/Core/View/E2E tests, verifier capability matrix and this
+  plan directory. `server/**` and the preserved unrelated Input/local paths
+  remain excluded.
+
+## 2026-08-14 — M1-S7-C3 RED/GREEN technical candidate
+
+- RED was executable at both boundaries: the focused runtime test received
+  `POST /api/issues` 404, and installed Chrome opened the visible Project Issue
+  composer but never observed a 201 response. The pre-fix Web trace also
+  contained 404s for Property, child-progress and Label reads.
+- GREEN adds a trusted, Workspace-scoped Issue-create HTTP route over the
+  existing SQLite use case and realtime publisher. Bearer and Cookie-CSRF,
+  missing/expired identity, missing Workspace, hidden Project lookup, strict
+  unknown/trailing/oversized JSON, unsupported Label/attachment input, exact
+  public Issue response and disabled route/capability behavior are covered by
+  focused runtime tests.
+- Shared Issue surfaces now honor false Label, Property, child-progress and
+  attachment capabilities before mounting queries or controls. Independent
+  review caught and closed a misplaced Status/Label gate plus the persisted
+  Table Label column/picker path. A focused View test proves Labels are absent
+  while Status remains available.
+- Installed Chrome passed the active-tree Project detail -> visible Issue
+  create -> realtime `issue:created` -> reload journey with no monitored 404.
+  The exact clean-candidate rerun remains the promotion proof. The existing
+  false `issue_children` parent/sub-issue workflow remains outside plan v6 and
+  is not part of the accepted title-first create journey.
+- Backend full tests, vet and module verification pass; Core 88 files / 564
+  tests and typecheck pass; focused Views 46/46 and typecheck pass; selector
+  and verifier 22/22 pass. Views full lint still reports three pre-existing
+  i18n literal errors in `issue-detail.tsx`; no v6 changed-file lint error
+  remains. Candidate scope excludes `server/**` and the preserved unrelated
+  Input/local artifact paths.

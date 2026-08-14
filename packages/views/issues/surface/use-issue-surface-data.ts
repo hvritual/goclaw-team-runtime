@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import {
-  useQuery,
-  type QueryKey,
-} from "@tanstack/react-query";
+import { useQuery, type QueryKey } from "@tanstack/react-query";
 import type { Issue, IssueAssigneeGroup, Project } from "@multica/core/types";
 import { ALL_STATUSES } from "@multica/core/issues/config";
 import { projectListOptions } from "@multica/core/projects/queries";
@@ -117,6 +114,7 @@ export function useIssueSurfaceData({
   propertyFilters,
   showSubIssues,
   loadProjects,
+  loadChildProgress,
 }: {
   wsId: string;
   queryPlan: IssueSurfaceQueryPlan;
@@ -141,6 +139,7 @@ export function useIssueSurfaceData({
   propertyFilters: Record<string, string[]>;
   showSubIssues: boolean;
   loadProjects: boolean;
+  loadChildProgress: boolean;
 }): IssueSurfaceData {
   const assigneeGroupFilter = useMemo<AssigneeGroupedIssuesFilter>(
     () => ({
@@ -164,14 +163,14 @@ export function useIssueSurfaceData({
       projectFilters,
       queryPlan.groupedScopeFilter,
       statusFilters,
-    ],
+    ]
   );
 
   const activeAssigneeGroupsOptions = issueSurfaceAssigneeGroupsOptions(
     wsId,
     queryPlan,
     assigneeGroupFilter,
-    sort,
+    sort
   );
 
   const statusIssuesQuery = useQuery({
@@ -197,8 +196,8 @@ export function useIssueSurfaceData({
       : serverGroupBranches.enabled
       ? serverGroupBranches.issues
       : usesAssigneeBoard
-      ? (assigneeGroupsQuery.data?.groups.flatMap((group) => group.issues) ?? [])
-      : (statusIssuesQuery.data ?? EMPTY_ISSUES);
+      ? assigneeGroupsQuery.data?.groups.flatMap((group) => group.issues) ?? []
+      : statusIssuesQuery.data ?? EMPTY_ISSUES;
   }, [
     assigneeGroupsQuery.data?.groups,
     serverStatusBranches.enabled,
@@ -218,8 +217,8 @@ export function useIssueSurfaceData({
   const surfaceIssues = usesGantt
     ? ganttIssues
     : usesTable
-      ? EMPTY_ISSUES
-      : bucketedIssues;
+    ? EMPTY_ISSUES
+    : bucketedIssues;
 
   const baseFilterState = useMemo<IssueFilterState>(
     () => ({
@@ -245,7 +244,7 @@ export function useIssueSurfaceData({
       propertyFilters,
       showSubIssues,
       statusFilters,
-    ],
+    ]
   );
 
   const issues = useMemo(
@@ -253,11 +252,7 @@ export function useIssueSurfaceData({
       serverStatusBranches.enabled
         ? surfaceIssues
         : applyIssueFilters(surfaceIssues, baseFilterState),
-    [
-      baseFilterState,
-      serverStatusBranches.enabled,
-      surfaceIssues,
-    ],
+    [baseFilterState, serverStatusBranches.enabled, surfaceIssues]
   );
 
   const statuslessFilterState = useMemo<IssueFilterState>(
@@ -265,26 +260,21 @@ export function useIssueSurfaceData({
       ...baseFilterState,
       statusFilters: [],
     }),
-    [baseFilterState],
+    [baseFilterState]
   );
 
   const swimlaneIssues = useMemo(
-    () =>
-      applyIssueFilters(surfaceIssues, statuslessFilterState),
-    [statuslessFilterState, surfaceIssues],
+    () => applyIssueFilters(surfaceIssues, statuslessFilterState),
+    [statuslessFilterState, surfaceIssues]
   );
 
   const filteredGanttIssues = useMemo(
     () =>
       ganttCanvasRows(
         applyIssueFilters(ganttIssues, baseFilterState),
-        ganttShowCompleted,
+        ganttShowCompleted
       ),
-    [
-      baseFilterState,
-      ganttIssues,
-      ganttShowCompleted,
-    ],
+    [baseFilterState, ganttIssues, ganttShowCompleted]
   );
 
   // The assignee-grouped board renders straight from `groups`, bypassing the
@@ -296,35 +286,28 @@ export function useIssueSurfaceData({
         showSubIssues,
         propertyFilters,
       }),
-    [
-      assigneeGroupsQuery.data?.groups,
-      propertyFilters,
-      showSubIssues,
-    ],
+    [assigneeGroupsQuery.data?.groups, propertyFilters, showSubIssues]
   );
 
-  const {
-    data: childProgressData,
-    refetch: refetchChildProgress,
-  } = useQuery(childIssueProgressOptions(wsId));
+  const { data: childProgressData, refetch: refetchChildProgress } = useQuery({
+    ...childIssueProgressOptions(wsId),
+    enabled: loadChildProgress,
+  });
   const childProgressMap = childProgressData ?? EMPTY_CHILD_PROGRESS;
-  const {
-    data: projectData,
-    refetch: refetchProjects,
-  } = useQuery({
+  const { data: projectData, refetch: refetchProjects } = useQuery({
     ...projectListOptions(wsId),
     enabled: loadProjects,
   });
   const projects = projectData ?? EMPTY_PROJECTS;
   const projectMap = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
-    [projects],
+    [projects]
   );
   const resolveTableExportLookups = useCallback(
     async (needs: { projects: boolean; childProgress: boolean }) => {
       const [projectResult, progressResult] = await Promise.all([
         needs.projects ? refetchProjects() : Promise.resolve(null),
-        needs.childProgress
+        needs.childProgress && loadChildProgress
           ? refetchChildProgress()
           : Promise.resolve(null),
       ]);
@@ -333,23 +316,24 @@ export function useIssueSurfaceData({
       if (needs.projects && !projectResult?.data) {
         throw new Error("Failed to load project data for export");
       }
-      if (needs.childProgress && !progressResult?.data) {
+      if (needs.childProgress && loadChildProgress && !progressResult?.data) {
         throw new Error("Failed to load child progress for export");
       }
       const resolvedProjects = projectResult?.data ?? projects;
       return {
         projectMap: new Map(
-          resolvedProjects.map((project) => [project.id, project]),
+          resolvedProjects.map((project) => [project.id, project])
         ),
         childProgressMap: progressResult?.data ?? childProgressMap,
       };
     },
     [
       childProgressMap,
+      loadChildProgress,
       projects,
       refetchChildProgress,
       refetchProjects,
-    ],
+    ]
   );
 
   const visibleStatuses = useMemo<IssueStatus[]>(() => {
@@ -367,7 +351,7 @@ export function useIssueSurfaceData({
   // rest of the statuses.
   const hiddenStatuses = useMemo<IssueStatus[]>(
     () => ALL_STATUSES.filter((s) => !visibleStatuses.includes(s)),
-    [visibleStatuses],
+    [visibleStatuses]
   );
 
   const activeFilters = useMemo(
@@ -392,20 +376,20 @@ export function useIssueSurfaceData({
       priorityFilters,
       projectFilters,
       showSubIssues,
-    ],
+    ]
   );
 
   const isLoading = serverGroupBranches.enabled
     ? serverGroupBranches.isLoading
     : usesAssigneeBoard
-      ? assigneeGroupsQuery.isLoading
-      : usesGantt
-      ? ganttIssuesQuery.isLoading
-      : usesTable
-        ? false
-        : serverStatusBranches.enabled
-          ? serverStatusBranches.isLoading
-          : statusIssuesQuery.isLoading;
+    ? assigneeGroupsQuery.isLoading
+    : usesGantt
+    ? ganttIssuesQuery.isLoading
+    : usesTable
+    ? false
+    : serverStatusBranches.enabled
+    ? serverStatusBranches.isLoading
+    : statusIssuesQuery.isLoading;
 
   // Placeholder-backed revalidation of the ACTIVE query only. First loads are
   // isLoading (no previous data to place-hold); gantt has no placeholder
@@ -413,14 +397,14 @@ export function useIssueSurfaceData({
   const isRefreshing = serverGroupBranches.enabled
     ? serverGroupBranches.isRefreshing
     : usesAssigneeBoard
-      ? assigneeGroupsQuery.isPlaceholderData
-      : usesGantt
-      ? false
-      : usesTable
-        ? false
-        : serverStatusBranches.enabled
-          ? serverStatusBranches.isRefreshing
-          : statusIssuesQuery.isPlaceholderData;
+    ? assigneeGroupsQuery.isPlaceholderData
+    : usesGantt
+    ? false
+    : usesTable
+    ? false
+    : serverStatusBranches.enabled
+    ? serverStatusBranches.isRefreshing
+    : statusIssuesQuery.isPlaceholderData;
 
   return {
     surfaceIssues,
@@ -459,11 +443,9 @@ export function useIssueSurfaceData({
       !usesGantt &&
       !usesTable &&
       (serverStatusBranches.enabled
-        ? serverStatusBranches.isTotalKnown &&
-          serverStatusBranches.total === 0
+        ? serverStatusBranches.isTotalKnown && serverStatusBranches.total === 0
         : serverGroupBranches.enabled
-          ? !serverGroupBranches.isError &&
-            serverGroupBranches.total === 0
+        ? !serverGroupBranches.isError && serverGroupBranches.total === 0
         : surfaceIssues.length === 0),
   };
 }

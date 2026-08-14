@@ -48,13 +48,11 @@ import {
 } from "@multica/ui/components/ui/popover";
 import { Calendar } from "@multica/ui/components/ui/calendar";
 import { Switch } from "@multica/ui/components/ui/switch";
-import {
-  ALL_STATUSES,
-  PRIORITY_ORDER,
-} from "@multica/core/issues/config";
+import { ALL_STATUSES, PRIORITY_ORDER } from "@multica/core/issues/config";
 import { StatusIcon, PriorityIcon } from ".";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useFeatureEnabled } from "@multica/core/config";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { labelListOptions } from "@multica/core/labels/queries";
@@ -84,17 +82,44 @@ import {
   type TableGrouping,
   type ViewMode,
 } from "@multica/core/issues/stores/view-store";
-import { useViewStore, useViewStoreApi } from "@multica/core/issues/stores/view-store-context";
-import { addDaysDateOnly, dateOnlyToLocalDate, formatDateOnly, toDateOnly, todayDateOnly } from "@multica/core/issues/date";
+import {
+  useViewStore,
+  useViewStoreApi,
+} from "@multica/core/issues/stores/view-store-context";
+import {
+  addDaysDateOnly,
+  dateOnlyToLocalDate,
+  formatDateOnly,
+  toDateOnly,
+  todayDateOnly,
+} from "@multica/core/issues/date";
 import {
   useIssuesScopeStore,
   type IssuesScope,
 } from "@multica/core/issues/stores/issues-scope-store";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@multica/ui/components/ui/tooltip";
 import { useT } from "../../i18n";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { FILTER_ITEM_CLASS, HoverCheck } from "../../common/hover-check";
 import { TableColumnPicker } from "./table-view";
+
+export function visibleCardPropertyOptions({
+  labelsEnabled,
+  childProgressEnabled,
+}: {
+  labelsEnabled: boolean;
+  childProgressEnabled: boolean;
+}) {
+  return CARD_PROPERTY_OPTIONS.filter(
+    (option) =>
+      (option.key !== "labels" || labelsEnabled) &&
+      (option.key !== "childProgress" || childProgressEnabled)
+  );
+}
 
 type LocalDateRange = {
   from: Date | undefined;
@@ -132,14 +157,19 @@ function getActiveFilterCount(state: {
 }
 
 function shortDateLabel(dateOnly: string) {
-  return formatDateOnly(dateOnly, { month: "short", day: "numeric" }) || dateOnly;
+  return (
+    formatDateOnly(dateOnly, { month: "short", day: "numeric" }) || dateOnly
+  );
 }
 
 function normalizeDateRange(from: Date, to: Date) {
-  return from <= to ? [from, to] as const : [to, from] as const;
+  return from <= to ? ([from, to] as const) : ([to, from] as const);
 }
 
-const DATE_FIELD_LABEL_KEY: Record<IssueDateField, "date_field_created" | "date_field_updated"> = {
+const DATE_FIELD_LABEL_KEY: Record<
+  IssueDateField,
+  "date_field_created" | "date_field_updated"
+> = {
   created_at: "date_field_created",
   updated_at: "date_field_updated",
 };
@@ -150,7 +180,7 @@ const NO_COUNT_ISSUES: Issue[] = [];
 
 function useIssueCounts(
   allIssues: Issue[],
-  serverFacets?: IssueTableFacetsResponse,
+  serverFacets?: IssueTableFacetsResponse
 ) {
   return useMemo(() => {
     const status = new Map<string, number>();
@@ -171,20 +201,20 @@ function useIssueCounts(
           facet.kind === "status"
             ? status
             : facet.kind === "priority"
-              ? priority
-              : facet.kind === "assignee"
-                ? assignee
-                : facet.kind === "creator"
-                  ? creator
-                  : facet.kind === "project"
-                    ? project
-                    : facet.kind === "label"
-                      ? label
-                      : null;
+            ? priority
+            : facet.kind === "assignee"
+            ? assignee
+            : facet.kind === "creator"
+            ? creator
+            : facet.kind === "project"
+            ? project
+            : facet.kind === "label"
+            ? label
+            : null;
         if (facet.kind === "property" && facet.property_id) {
           property.set(
             facet.property_id,
-            new Map(facet.values.map((value) => [value.key, value.count])),
+            new Map(facet.values.map((value) => [value.key, value.count]))
           );
           continue;
         }
@@ -198,7 +228,17 @@ function useIssueCounts(
           }
         }
       }
-      return { status, priority, assignee, creator, noAssignee, project, noProject, label, property };
+      return {
+        status,
+        priority,
+        assignee,
+        creator,
+        noAssignee,
+        project,
+        noProject,
+        label,
+        property,
+      };
     }
 
     for (const issue of allIssues) {
@@ -227,15 +267,17 @@ function useIssueCounts(
         }
       }
 
-      for (const [propertyId, value] of Object.entries(issue.properties ?? {})) {
+      for (const [propertyId, value] of Object.entries(
+        issue.properties ?? {}
+      )) {
         const optionKeys =
           typeof value === "string"
             ? [value]
             : Array.isArray(value)
-              ? value
-              : typeof value === "boolean"
-                ? [String(value)]
-                : [];
+            ? value
+            : typeof value === "boolean"
+            ? [String(value)]
+            : [];
         if (optionKeys.length === 0) continue;
         let perOption = property.get(propertyId);
         if (!perOption) {
@@ -248,7 +290,17 @@ function useIssueCounts(
       }
     }
 
-    return { status, priority, assignee, creator, noAssignee, project, noProject, label, property };
+    return {
+      status,
+      priority,
+      assignee,
+      creator,
+      noAssignee,
+      project,
+      noProject,
+      label,
+      property,
+    };
   }, [allIssues, serverFacets]);
 }
 
@@ -284,8 +336,8 @@ function ActorSubContent({
   const wsId = useWorkspaceId();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const query = search.trim().toLowerCase();
-  const filteredMembers = members.filter((m) =>
-    m.name.toLowerCase().includes(query) || matchesPinyin(m.name, query),
+  const filteredMembers = members.filter(
+    (m) => m.name.toLowerCase().includes(query) || matchesPinyin(m.name, query)
   );
   const isSelected = (type: "member", id: string) =>
     selected.some((f) => f.type === type && f.id === id);
@@ -305,7 +357,9 @@ function ActorSubContent({
 
       <div className="max-h-64 overflow-y-auto p-1">
         {showNoAssignee &&
-          (!query || "no assignee".includes(query) || "unassigned".includes(query)) && (
+          (!query ||
+            "no assignee".includes(query) ||
+            "unassigned".includes(query)) && (
             <DropdownMenuCheckboxItem
               checked={includeNoAssignee ?? false}
               onCheckedChange={() => onToggleNoAssignee?.()}
@@ -324,7 +378,9 @@ function ActorSubContent({
 
         {filteredMembers.length > 0 && (
           <DropdownMenuGroup>
-            <DropdownMenuLabel>{t(($) => $.filters.members_group)}</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              {t(($) => $.filters.members_group)}
+            </DropdownMenuLabel>
             {filteredMembers.map((m) => {
               const checked = isSelected("member", m.user_id);
               const count = counts.get(`member:${m.user_id}`) ?? 0;
@@ -338,7 +394,11 @@ function ActorSubContent({
                   className={FILTER_ITEM_CLASS}
                 >
                   <HoverCheck checked={checked} />
-                  <ActorAvatar actorType="member" actorId={m.user_id} size="sm" />
+                  <ActorAvatar
+                    actorType="member"
+                    actorId={m.user_id}
+                    size="sm"
+                  />
                   <span className="truncate">{m.name}</span>
                   {count > 0 && (
                     <span className="ml-auto text-xs text-muted-foreground">
@@ -350,7 +410,6 @@ function ActorSubContent({
             })}
           </DropdownMenuGroup>
         )}
-
 
         {filteredMembers.length === 0 && search && (
           <div className="px-2 py-3 text-center text-sm text-muted-foreground">
@@ -387,7 +446,7 @@ function ProjectSubContent({
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
   const query = search.trim().toLowerCase();
   const filtered = projects.filter((p) =>
-    p.title.toLowerCase().includes(query),
+    p.title.toLowerCase().includes(query)
   );
 
   return (
@@ -404,7 +463,9 @@ function ProjectSubContent({
       </div>
 
       <div className="max-h-64 overflow-y-auto p-1">
-        {(!query || "no project".includes(query) || "unassigned".includes(query)) && (
+        {(!query ||
+          "no project".includes(query) ||
+          "unassigned".includes(query)) && (
           <DropdownMenuCheckboxItem
             checked={includeNoProject}
             onCheckedChange={() => onToggleNoProject()}
@@ -469,7 +530,11 @@ function LabelSubContent({
   const { t } = useT("issues");
   const [search, setSearch] = useState("");
   const wsId = useWorkspaceId();
-  const { data: labels = [] } = useQuery(labelListOptions(wsId));
+  const labelsEnabled = useFeatureEnabled("issue_labels", false);
+  const { data: labels = [] } = useQuery({
+    ...labelListOptions(wsId),
+    enabled: labelsEnabled,
+  });
   const query = search.trim().toLowerCase();
   const filtered = labels.filter((l) => l.name.toLowerCase().includes(query));
 
@@ -510,7 +575,9 @@ function LabelSubContent({
 
         {filtered.length === 0 && (
           <div className="px-2 py-3 text-center text-sm text-muted-foreground">
-            {search ? t(($) => $.filters.no_results) : t(($) => $.filters.no_labels)}
+            {search
+              ? t(($) => $.filters.no_results)
+              : t(($) => $.filters.no_labels)}
           </div>
         )}
       </div>
@@ -538,8 +605,16 @@ function PropertyFilterOptions({
   const options =
     property.type === "checkbox"
       ? [
-          { id: "true", name: t(($) => $.pickers.custom_property.true_label), color: undefined },
-          { id: "false", name: t(($) => $.pickers.custom_property.false_label), color: undefined },
+          {
+            id: "true",
+            name: t(($) => $.pickers.custom_property.true_label),
+            color: undefined,
+          },
+          {
+            id: "false",
+            name: t(($) => $.pickers.custom_property.false_label),
+            color: undefined,
+          },
         ]
       : (property.config.options ?? []).map((option) => ({
           id: option.id,
@@ -591,7 +666,9 @@ function DateSubContent({
   onChange: (filter: IssueDateFilter | null) => void;
 }) {
   const { t } = useT("issues");
-  const [field, setField] = useState<IssueDateField>(value?.field ?? "created_at");
+  const [field, setField] = useState<IssueDateField>(
+    value?.field ?? "created_at"
+  );
   const [range, setRange] = useState<LocalDateRange | undefined>(() => {
     if (!value) return undefined;
     const from = dateOnlyToLocalDate(value.from);
@@ -626,7 +703,10 @@ function DateSubContent({
     <>
       <DropdownMenuGroup>
         <DropdownMenuLabel>{t(($) => $.filters.date_field)}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={field} onValueChange={(next) => setFieldValue(next as IssueDateField)}>
+        <DropdownMenuRadioGroup
+          value={field}
+          onValueChange={(next) => setFieldValue(next as IssueDateField)}
+        >
           {(["created_at", "updated_at"] as const).map((option) => (
             <DropdownMenuRadioItem key={option} value={option}>
               {t(($) => $.filters[DATE_FIELD_LABEL_KEY[option]])}
@@ -659,7 +739,11 @@ function DateSubContent({
               </Button>
             }
           />
-          <PopoverContent align="start" side="right" className="w-auto gap-0 p-0">
+          <PopoverContent
+            align="start"
+            side="right"
+            className="w-auto gap-0 p-0"
+          >
             <Calendar
               mode="range"
               selected={range}
@@ -750,7 +834,10 @@ export function IssuesHeader({
     all: "all_label",
     members: "members_label",
   };
-  const SCOPE_DESC_KEY: Record<IssuesScope, "all_description" | "members_description"> = {
+  const SCOPE_DESC_KEY: Record<
+    IssuesScope,
+    "all_description" | "members_description"
+  > = {
     all: "all_description",
     members: "members_description",
   };
@@ -780,7 +867,9 @@ export function IssuesHeader({
                   </Button>
                 }
               />
-              <TooltipContent side="bottom">{t(($) => $.scope[SCOPE_DESC_KEY[s]])}</TooltipContent>
+              <TooltipContent side="bottom">
+                {t(($) => $.scope[SCOPE_DESC_KEY[s]])}
+              </TooltipContent>
             </Tooltip>
           ))}
         </div>
@@ -799,7 +888,10 @@ export function IssuesHeader({
             }
           />
           <DropdownMenuContent align="start" className="w-auto">
-            <DropdownMenuRadioGroup value={scope} onValueChange={(value) => setScope(value as IssuesScope)}>
+            <DropdownMenuRadioGroup
+              value={scope}
+              onValueChange={(value) => setScope(value as IssuesScope)}
+            >
               {SCOPE_VALUES.map((s) => (
                 <DropdownMenuRadioItem key={s} value={s}>
                   {t(($) => $.scope[SCOPE_LABEL_KEY[s]])}
@@ -878,39 +970,51 @@ export function IssueDisplayControls({
   const showSubIssues = useViewStore((s) => s.showSubIssues);
   const act = useViewStoreApi().getState();
   const headerWsId = useWorkspaceId();
+  const propertiesEnabled = useFeatureEnabled("issue_properties", false);
+  const labelsEnabled = useFeatureEnabled("issue_labels", false);
+  const childProgressEnabled = useFeatureEnabled("issue_child_progress", false);
   // Active custom-property catalog: drives the filter sections, dynamic
   // sort/grouping options, and the card-property toggles below.
-  const { data: workspaceProperties = [] } = useQuery(propertyListOptions(headerWsId));
+  const { data: workspaceProperties = [] } = useQuery({
+    ...propertyListOptions(headerWsId),
+    enabled: propertiesEnabled,
+  });
   const propertyById = useMemo(
     () => new Map(workspaceProperties.map((p) => [p.id, p])),
-    [workspaceProperties],
+    [workspaceProperties]
   );
   const filterableProperties = useMemo(
     () =>
-      workspaceProperties.filter((p) =>
-        p.type === "select" || p.type === "multi_select" || p.type === "checkbox",
+      workspaceProperties.filter(
+        (p) =>
+          p.type === "select" ||
+          p.type === "multi_select" ||
+          p.type === "checkbox"
       ),
-    [workspaceProperties],
+    [workspaceProperties]
   );
   const sortableProperties = useMemo(
-    () => workspaceProperties.filter((p) => p.type === "number" || p.type === "date"),
-    [workspaceProperties],
+    () =>
+      workspaceProperties.filter(
+        (p) => p.type === "number" || p.type === "date"
+      ),
+    [workspaceProperties]
   );
   const groupableProperties = useMemo(
     () => workspaceProperties.filter((p) => p.type === "select"),
-    [workspaceProperties],
+    [workspaceProperties]
   );
   const tableGroupableProperties = useMemo(
     () =>
       workspaceProperties.filter((p) =>
-        ["select", "checkbox"].includes(p.type),
+        ["select", "checkbox"].includes(p.type)
       ),
-    [workspaceProperties],
+    [workspaceProperties]
   );
 
   const counts = useIssueCounts(
     facetCountsExact ? scopedIssues : NO_COUNT_ISSUES,
-    tableFacetCounts,
+    tableFacetCounts
   );
   const showDateFilter = !!onDateFilterChange;
 
@@ -920,7 +1024,9 @@ export function IssueDisplayControls({
   const effectivePropertyFilters = useMemo(() => {
     const activeIds = new Set(filterableProperties.map((p) => p.id));
     return Object.fromEntries(
-      Object.entries(propertyFilters).filter(([id, selected]) => selected.length > 0 && activeIds.has(id)),
+      Object.entries(propertyFilters).filter(
+        ([id, selected]) => selected.length > 0 && activeIds.has(id)
+      )
     );
   }, [filterableProperties, propertyFilters]);
 
@@ -938,7 +1044,17 @@ export function IssueDisplayControls({
   });
   const hasActiveFilters = activeFilterCount > 0;
 
-  const SORT_LABEL_KEY: Record<typeof SORT_OPTIONS[number]["value"], "sort_manual" | "sort_status" | "sort_priority" | "sort_start_date" | "sort_due_date" | "sort_created" | "sort_updated" | "sort_title"> = {
+  const SORT_LABEL_KEY: Record<
+    (typeof SORT_OPTIONS)[number]["value"],
+    | "sort_manual"
+    | "sort_status"
+    | "sort_priority"
+    | "sort_start_date"
+    | "sort_due_date"
+    | "sort_created"
+    | "sort_updated"
+    | "sort_title"
+  > = {
     position: "sort_manual",
     status: "sort_status",
     priority: "sort_priority",
@@ -948,16 +1064,32 @@ export function IssueDisplayControls({
     updated_at: "sort_updated",
     title: "sort_title",
   };
-  const GROUPING_LABEL_KEY: Record<typeof GROUPING_OPTIONS[number]["value"], "group_status" | "group_assignee"> = {
+  const GROUPING_LABEL_KEY: Record<
+    (typeof GROUPING_OPTIONS)[number]["value"],
+    "group_status" | "group_assignee"
+  > = {
     status: "group_status",
     assignee: "group_assignee",
   };
-  const SWIMLANE_GROUPING_LABEL_KEY: Record<SwimlaneGrouping, "group_parent" | "group_project" | "group_assignee"> = {
+  const SWIMLANE_GROUPING_LABEL_KEY: Record<
+    SwimlaneGrouping,
+    "group_parent" | "group_project" | "group_assignee"
+  > = {
     parent: "group_parent",
     project: "group_project",
     assignee: "group_assignee",
   };
-  const CARD_PROPERTY_LABEL_KEY: Record<typeof CARD_PROPERTY_OPTIONS[number]["key"], "card_priority" | "card_description" | "card_assignee" | "card_start_date" | "card_due_date" | "card_project" | "card_labels" | "card_child_progress"> = {
+  const CARD_PROPERTY_LABEL_KEY: Record<
+    (typeof CARD_PROPERTY_OPTIONS)[number]["key"],
+    | "card_priority"
+    | "card_description"
+    | "card_assignee"
+    | "card_start_date"
+    | "card_due_date"
+    | "card_project"
+    | "card_labels"
+    | "card_child_progress"
+  > = {
     priority: "card_priority",
     description: "card_description",
     assignee: "card_assignee",
@@ -967,13 +1099,16 @@ export function IssueDisplayControls({
     labels: "card_labels",
     childProgress: "card_child_progress",
   };
-  const dateFilterLabel = showDateFilter && dateFilter
-    ? `${t(($) => $.filters[DATE_FIELD_LABEL_KEY[dateFilter.field]])}: ${
-        dateFilter.from === dateFilter.to
-          ? shortDateLabel(dateFilter.from)
-          : `${shortDateLabel(dateFilter.from)} - ${shortDateLabel(dateFilter.to)}`
-      }`
-    : null;
+  const dateFilterLabel =
+    showDateFilter && dateFilter
+      ? `${t(($) => $.filters[DATE_FIELD_LABEL_KEY[dateFilter.field]])}: ${
+          dateFilter.from === dateFilter.to
+            ? shortDateLabel(dateFilter.from)
+            : `${shortDateLabel(dateFilter.from)} - ${shortDateLabel(
+                dateFilter.to
+              )}`
+        }`
+      : null;
   const sortPropertyId = propertyIdFromViewKey(sortBy);
   const groupingPropertyId = propertyIdFromViewKey(grouping);
   const tableGroupingPropertyId = propertyIdFromViewKey(tableGrouping);
@@ -982,11 +1117,21 @@ export function IssueDisplayControls({
   // manual/status default label.
   const sortLabel = sortPropertyId
     ? propertyById.get(sortPropertyId)?.name ?? t(($) => $.display.sort_manual)
-    : t(($) => $.display[SORT_LABEL_KEY[sortBy as keyof typeof SORT_LABEL_KEY]]);
+    : t(
+        ($) => $.display[SORT_LABEL_KEY[sortBy as keyof typeof SORT_LABEL_KEY]]
+      );
   const groupingLabel = groupingPropertyId
-    ? propertyById.get(groupingPropertyId)?.name ?? t(($) => $.display.group_status)
-    : t(($) => $.display[GROUPING_LABEL_KEY[grouping as keyof typeof GROUPING_LABEL_KEY]]);
-  const swimlaneGroupingLabel = t(($) => $.display[SWIMLANE_GROUPING_LABEL_KEY[swimlaneGrouping]]);
+    ? propertyById.get(groupingPropertyId)?.name ??
+      t(($) => $.display.group_status)
+    : t(
+        ($) =>
+          $.display[
+            GROUPING_LABEL_KEY[grouping as keyof typeof GROUPING_LABEL_KEY]
+          ]
+      );
+  const swimlaneGroupingLabel = t(
+    ($) => $.display[SWIMLANE_GROUPING_LABEL_KEY[swimlaneGrouping]]
+  );
   const effectiveTableGrouping =
     tableGroupingPropertyId && !propertyById.has(tableGroupingPropertyId)
       ? "none"
@@ -995,231 +1140,251 @@ export function IssueDisplayControls({
     ? propertyById.get(tableGroupingPropertyId)?.name ??
       t(($) => $.table.group_none)
     : effectiveTableGrouping === "status"
-      ? t(($) => $.table.columns.status)
-      : effectiveTableGrouping === "assignee"
-        ? t(($) => $.table.columns.assignee)
-        : t(($) => $.table.group_none);
-  const controlButtonClass = "h-8 w-8 gap-1 px-0 text-muted-foreground md:h-7 md:w-auto md:px-2.5";
+    ? t(($) => $.table.columns.status)
+    : effectiveTableGrouping === "assignee"
+    ? t(($) => $.table.columns.assignee)
+    : t(($) => $.table.group_none);
+  const controlButtonClass =
+    "h-8 w-8 gap-1 px-0 text-muted-foreground md:h-7 md:w-auto md:px-2.5";
 
   return (
     <div className="flex shrink-0 items-center gap-1">
-        {/* Filter */}
-        <DropdownMenu
-          onOpenChange={(open) => {
-            if (!open) onTableFacetChange?.(null);
-          }}
-        >
-          <Tooltip>
-            <DropdownMenuTrigger
-              render={
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant={hasActiveFilters ? "default" : "outline"}
-                      size="sm"
-                      className={
-                        hasActiveFilters
-                          ? "h-8 w-8 gap-1 bg-brand px-0 text-white hover:bg-brand/90 md:h-7 md:w-auto md:px-2.5"
-                          : controlButtonClass
-                      }
-                    >
-                      <Filter className="size-3.5" />
-                      <span className="hidden md:inline">
-                        {hasActiveFilters
-                          ? t(($) => $.filters.active_count, { count: activeFilterCount })
-                          : t(($) => $.filters.tooltip)}
-                      </span>
-                      {hasActiveFilters && (
-                        <span className="tabular-nums md:hidden">{activeFilterCount}</span>
-                      )}
-                    </Button>
-                  }
-                />
-              }
-            />
-            <TooltipContent side="bottom">{t(($) => $.filters.tooltip)}</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end" className="w-auto">
-            {/* Status */}
-            <DropdownMenuSub
-              onOpenChange={(open) =>
-                onTableFacetChange?.(open ? { kind: "status" } : null)
-              }
-            >
-              <DropdownMenuSubTrigger>
-                <CircleDot className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_status)}</span>
-                {statusFilters.length > 0 && (
-                  <span className="text-xs text-primary font-medium">
-                    {statusFilters.length}
-                  </span>
-                )}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-auto min-w-48">
-                {ALL_STATUSES.map((s) => {
-                  const checked = statusFilters.includes(s);
-                  const count = counts.status.get(s) ?? 0;
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={s}
-                      checked={checked}
-                      onCheckedChange={() => act.toggleStatusFilter(s)}
-                      className={FILTER_ITEM_CLASS}
-                    >
-                      <HoverCheck checked={checked} />
-                      <StatusIcon status={s} className="h-3.5 w-3.5" />
-                      {t(($) => $.status[s])}
-                      {count > 0 && (
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {t(($) => $.filters.issue_count, { count })}
-                        </span>
-                      )}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            {/* Priority */}
-            <DropdownMenuSub
-              onOpenChange={(open) =>
-                onTableFacetChange?.(open ? { kind: "priority" } : null)
-              }
-            >
-              <DropdownMenuSubTrigger>
-                <SignalHigh className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_priority)}</span>
-                {priorityFilters.length > 0 && (
-                  <span className="text-xs text-primary font-medium">
-                    {priorityFilters.length}
-                  </span>
-                )}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-auto min-w-44">
-                {PRIORITY_ORDER.map((p) => {
-                  const checked = priorityFilters.includes(p);
-                  const count = counts.priority.get(p) ?? 0;
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={p}
-                      checked={checked}
-                      onCheckedChange={() => act.togglePriorityFilter(p)}
-                      className={FILTER_ITEM_CLASS}
-                    >
-                      <HoverCheck checked={checked} />
-                      <PriorityIcon priority={p} />
-                      {t(($) => $.priority[p])}
-                      {count > 0 && (
-                        <span className="ml-auto text-xs text-muted-foreground">
-                          {t(($) => $.filters.issue_count, { count })}
-                        </span>
-                      )}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-
-            {showDateFilter && onDateFilterChange && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <CalendarDays className="size-3.5" />
-                  <span className="flex-1">{t(($) => $.filters.section_date)}</span>
-                  {dateFilterLabel && (
-                    <span className="max-w-36 truncate text-xs text-primary font-medium">
-                      {dateFilterLabel}
+      {/* Filter */}
+      <DropdownMenu
+        onOpenChange={(open) => {
+          if (!open) onTableFacetChange?.(null);
+        }}
+      >
+        <Tooltip>
+          <DropdownMenuTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant={hasActiveFilters ? "default" : "outline"}
+                    size="sm"
+                    className={
+                      hasActiveFilters
+                        ? "h-8 w-8 gap-1 bg-brand px-0 text-white hover:bg-brand/90 md:h-7 md:w-auto md:px-2.5"
+                        : controlButtonClass
+                    }
+                  >
+                    <Filter className="size-3.5" />
+                    <span className="hidden md:inline">
+                      {hasActiveFilters
+                        ? t(($) => $.filters.active_count, {
+                            count: activeFilterCount,
+                          })
+                        : t(($) => $.filters.tooltip)}
                     </span>
-                  )}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56">
-                  <DateSubContent
-                    value={dateFilter}
-                    onChange={onDateFilterChange}
-                  />
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            )}
+                    {hasActiveFilters && (
+                      <span className="tabular-nums md:hidden">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </Button>
+                }
+              />
+            }
+          />
+          <TooltipContent side="bottom">
+            {t(($) => $.filters.tooltip)}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="w-auto">
+          {/* Status */}
+          <DropdownMenuSub
+            onOpenChange={(open) =>
+              onTableFacetChange?.(open ? { kind: "status" } : null)
+            }
+          >
+            <DropdownMenuSubTrigger>
+              <CircleDot className="size-3.5" />
+              <span className="flex-1">
+                {t(($) => $.filters.section_status)}
+              </span>
+              {statusFilters.length > 0 && (
+                <span className="text-xs text-primary font-medium">
+                  {statusFilters.length}
+                </span>
+              )}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-auto min-w-48">
+              {ALL_STATUSES.map((s) => {
+                const checked = statusFilters.includes(s);
+                const count = counts.status.get(s) ?? 0;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={s}
+                    checked={checked}
+                    onCheckedChange={() => act.toggleStatusFilter(s)}
+                    className={FILTER_ITEM_CLASS}
+                  >
+                    <HoverCheck checked={checked} />
+                    <StatusIcon status={s} className="h-3.5 w-3.5" />
+                    {t(($) => $.status[s])}
+                    {count > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {t(($) => $.filters.issue_count, { count })}
+                      </span>
+                    )}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
-            {/* Assignee */}
-            <DropdownMenuSub
-              onOpenChange={(open) =>
-                onTableFacetChange?.(open ? { kind: "assignee" } : null)
-              }
-            >
+          {/* Priority */}
+          <DropdownMenuSub
+            onOpenChange={(open) =>
+              onTableFacetChange?.(open ? { kind: "priority" } : null)
+            }
+          >
+            <DropdownMenuSubTrigger>
+              <SignalHigh className="size-3.5" />
+              <span className="flex-1">
+                {t(($) => $.filters.section_priority)}
+              </span>
+              {priorityFilters.length > 0 && (
+                <span className="text-xs text-primary font-medium">
+                  {priorityFilters.length}
+                </span>
+              )}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-auto min-w-44">
+              {PRIORITY_ORDER.map((p) => {
+                const checked = priorityFilters.includes(p);
+                const count = counts.priority.get(p) ?? 0;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={p}
+                    checked={checked}
+                    onCheckedChange={() => act.togglePriorityFilter(p)}
+                    className={FILTER_ITEM_CLASS}
+                  >
+                    <HoverCheck checked={checked} />
+                    <PriorityIcon priority={p} />
+                    {t(($) => $.priority[p])}
+                    {count > 0 && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {t(($) => $.filters.issue_count, { count })}
+                      </span>
+                    )}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          {showDateFilter && onDateFilterChange && (
+            <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <User className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_assignee)}</span>
-                {(assigneeFilters.length > 0 || includeNoAssignee) && (
-                  <span className="text-xs text-primary font-medium">
-                    {assigneeFilters.length + (includeNoAssignee ? 1 : 0)}
+                <CalendarDays className="size-3.5" />
+                <span className="flex-1">
+                  {t(($) => $.filters.section_date)}
+                </span>
+                {dateFilterLabel && (
+                  <span className="max-w-36 truncate text-xs text-primary font-medium">
+                    {dateFilterLabel}
                   </span>
                 )}
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-auto min-w-52 p-0">
-                <ActorSubContent
-                  counts={counts.assignee}
-                  selected={assigneeFilters}
-                  onToggle={act.toggleAssigneeFilter}
-                  showNoAssignee
-                  includeNoAssignee={includeNoAssignee}
-                  onToggleNoAssignee={act.toggleNoAssignee}
-                  noAssigneeCount={counts.noAssignee}
+              <DropdownMenuSubContent className="w-56">
+                <DateSubContent
+                  value={dateFilter}
+                  onChange={onDateFilterChange}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+          )}
 
-            {/* Creator */}
-            <DropdownMenuSub
-              onOpenChange={(open) =>
-                onTableFacetChange?.(open ? { kind: "creator" } : null)
-              }
-            >
-              <DropdownMenuSubTrigger>
-                <UserPen className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_creator)}</span>
-                {creatorFilters.length > 0 && (
-                  <span className="text-xs text-primary font-medium">
-                    {creatorFilters.length}
-                  </span>
-                )}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-auto min-w-52 p-0">
-                <ActorSubContent
-                  counts={counts.creator}
-                  selected={creatorFilters}
-                  onToggle={act.toggleCreatorFilter}
-                />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+          {/* Assignee */}
+          <DropdownMenuSub
+            onOpenChange={(open) =>
+              onTableFacetChange?.(open ? { kind: "assignee" } : null)
+            }
+          >
+            <DropdownMenuSubTrigger>
+              <User className="size-3.5" />
+              <span className="flex-1">
+                {t(($) => $.filters.section_assignee)}
+              </span>
+              {(assigneeFilters.length > 0 || includeNoAssignee) && (
+                <span className="text-xs text-primary font-medium">
+                  {assigneeFilters.length + (includeNoAssignee ? 1 : 0)}
+                </span>
+              )}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-auto min-w-52 p-0">
+              <ActorSubContent
+                counts={counts.assignee}
+                selected={assigneeFilters}
+                onToggle={act.toggleAssigneeFilter}
+                showNoAssignee
+                includeNoAssignee={includeNoAssignee}
+                onToggleNoAssignee={act.toggleNoAssignee}
+                noAssigneeCount={counts.noAssignee}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
-            {/* Project */}
-            <DropdownMenuSub
-              onOpenChange={(open) =>
-                onTableFacetChange?.(open ? { kind: "project" } : null)
-              }
-            >
-              <DropdownMenuSubTrigger>
-                <FolderKanban className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_project)}</span>
-                {(projectFilters.length > 0 || includeNoProject) && (
-                  <span className="text-xs text-primary font-medium">
-                    {projectFilters.length + (includeNoProject ? 1 : 0)}
-                  </span>
-                )}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-auto min-w-52 p-0">
-                <ProjectSubContent
-                  counts={counts.project}
-                  selected={projectFilters}
-                  onToggle={act.toggleProjectFilter}
-                  includeNoProject={includeNoProject}
-                  onToggleNoProject={act.toggleNoProject}
-                  noProjectCount={counts.noProject}
-                />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
+          {/* Creator */}
+          <DropdownMenuSub
+            onOpenChange={(open) =>
+              onTableFacetChange?.(open ? { kind: "creator" } : null)
+            }
+          >
+            <DropdownMenuSubTrigger>
+              <UserPen className="size-3.5" />
+              <span className="flex-1">
+                {t(($) => $.filters.section_creator)}
+              </span>
+              {creatorFilters.length > 0 && (
+                <span className="text-xs text-primary font-medium">
+                  {creatorFilters.length}
+                </span>
+              )}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-auto min-w-52 p-0">
+              <ActorSubContent
+                counts={counts.creator}
+                selected={creatorFilters}
+                onToggle={act.toggleCreatorFilter}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
-            {/* Label */}
+          {/* Project */}
+          <DropdownMenuSub
+            onOpenChange={(open) =>
+              onTableFacetChange?.(open ? { kind: "project" } : null)
+            }
+          >
+            <DropdownMenuSubTrigger>
+              <FolderKanban className="size-3.5" />
+              <span className="flex-1">
+                {t(($) => $.filters.section_project)}
+              </span>
+              {(projectFilters.length > 0 || includeNoProject) && (
+                <span className="text-xs text-primary font-medium">
+                  {projectFilters.length + (includeNoProject ? 1 : 0)}
+                </span>
+              )}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-auto min-w-52 p-0">
+              <ProjectSubContent
+                counts={counts.project}
+                selected={projectFilters}
+                onToggle={act.toggleProjectFilter}
+                includeNoProject={includeNoProject}
+                onToggleNoProject={act.toggleNoProject}
+                noProjectCount={counts.noProject}
+              />
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          {/* Label */}
+          {labelsEnabled && (
             <DropdownMenuSub
               onOpenChange={(open) =>
                 onTableFacetChange?.(open ? { kind: "label" } : null)
@@ -1227,7 +1392,9 @@ export function IssueDisplayControls({
             >
               <DropdownMenuSubTrigger>
                 <Tag className="size-3.5" />
-                <span className="flex-1">{t(($) => $.filters.section_label)}</span>
+                <span className="flex-1">
+                  {t(($) => $.filters.section_label)}
+                </span>
                 {labelFilters.length > 0 && (
                   <span className="text-xs text-primary font-medium">
                     {labelFilters.length}
@@ -1242,471 +1409,531 @@ export function IssueDisplayControls({
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+          )}
 
-            {/* Custom properties — one sub per filterable definition */}
-            {filterableProperties.length > 0 && <DropdownMenuSeparator />}
-            {filterableProperties.map((property) => {
-              const selected = propertyFilters[property.id] ?? [];
-              return (
-                <DropdownMenuSub
-                  key={property.id}
-                  onOpenChange={(open) =>
-                    onTableFacetChange?.(
-                      open
-                        ? { kind: "property", property_id: property.id }
-                        : null,
-                    )
-                  }
-                >
-                  <DropdownMenuSubTrigger>
-                    {property.icon ? (
-                      <PropertyIcon property={property} className="size-3.5 text-xs" />
-                    ) : (
-                      <SlidersHorizontal className="size-3.5" />
-                    )}
-                    <span className="flex-1 truncate">{property.name}</span>
-                    {selected.length > 0 && (
-                      <span className="text-xs text-primary font-medium">
-                        {selected.length}
-                      </span>
-                    )}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-auto min-w-44 p-1">
-                    <PropertyFilterOptions
-                      property={property}
-                      counts={counts.property.get(property.id)}
-                      selected={selected}
-                      onToggle={(optionId) => act.togglePropertyFilter(property.id, optionId)}
-                    />
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              );
-            })}
-
-            {/* Reset */}
-            {hasActiveFilters && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    act.clearFilters();
-                    onDateFilterChange?.(null);
-                  }}
-                >
-                  {t(($) => $.filters.reset)}
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {hasActiveFilters && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t(($) => $.filters.reset)}
-                  onClick={() => {
-                    act.clearFilters();
-                    onDateFilterChange?.(null);
-                  }}
-                  className="hidden text-muted-foreground md:inline-flex"
-                >
-                  <X className="size-3.5" />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">
-              {t(($) => $.filters.reset)}
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {viewMode === "table" && (
-          <DropdownMenu
-            open={tableGroupMenuOpen}
-            onOpenChange={setTableGroupMenuOpen}
-          >
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={controlButtonClass}
-                >
-                  <Rows3 className="size-3.5" />
-                  <span className="hidden md:inline">
-                    {effectiveTableGrouping === "none"
-                      ? t(($) => $.table.group_label)
-                      : t(($) => $.table.group_active, {
-                          group: tableGroupingLabel,
-                        })}
-                  </span>
-                  <ChevronDown className="size-3 text-muted-foreground" />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-auto min-w-48">
-              <DropdownMenuRadioGroup
-                value={effectiveTableGrouping}
-                onValueChange={(value) => {
-                  act.setTableGrouping(value as TableGrouping);
-                  setTableGroupMenuOpen(false);
-                }}
+          {/* Custom properties — one sub per filterable definition */}
+          {filterableProperties.length > 0 && <DropdownMenuSeparator />}
+          {filterableProperties.map((property) => {
+            const selected = propertyFilters[property.id] ?? [];
+            return (
+              <DropdownMenuSub
+                key={property.id}
+                onOpenChange={(open) =>
+                  onTableFacetChange?.(
+                    open ? { kind: "property", property_id: property.id } : null
+                  )
+                }
               >
-                <DropdownMenuRadioItem value="none">
-                  {t(($) => $.table.group_none)}
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="status">
-                  {t(($) => $.table.columns.status)}
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="assignee">
-                  {t(($) => $.table.columns.assignee)}
-                </DropdownMenuRadioItem>
-                {tableGroupableProperties.map((property) => (
-                  <DropdownMenuRadioItem
-                    key={property.id}
-                    value={`property:${property.id}`}
-                  >
+                <DropdownMenuSubTrigger>
+                  {property.icon ? (
                     <PropertyIcon
                       property={property}
                       className="size-3.5 text-xs"
                     />
-                    <span>{property.name}</span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+                  ) : (
+                    <SlidersHorizontal className="size-3.5" />
+                  )}
+                  <span className="flex-1 truncate">{property.name}</span>
+                  {selected.length > 0 && (
+                    <span className="text-xs text-primary font-medium">
+                      {selected.length}
+                    </span>
+                  )}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-auto min-w-44 p-1">
+                  <PropertyFilterOptions
+                    property={property}
+                    counts={counts.property.get(property.id)}
+                    selected={selected}
+                    onToggle={(optionId) =>
+                      act.togglePropertyFilter(property.id, optionId)
+                    }
+                  />
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            );
+          })}
 
-        {viewMode === "table" && (
-          <TableColumnPicker
-            properties={workspaceProperties}
-            trigger={
+          {/* Reset */}
+          {hasActiveFilters && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  act.clearFilters();
+                  onDateFilterChange?.(null);
+                }}
+              >
+                {t(($) => $.filters.reset)}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      {hasActiveFilters && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t(($) => $.filters.reset)}
+                onClick={() => {
+                  act.clearFilters();
+                  onDateFilterChange?.(null);
+                }}
+                className="hidden text-muted-foreground md:inline-flex"
+              >
+                <X className="size-3.5" />
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom">
+            {t(($) => $.filters.reset)}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {viewMode === "table" && (
+        <DropdownMenu
+          open={tableGroupMenuOpen}
+          onOpenChange={setTableGroupMenuOpen}
+        >
+          <DropdownMenuTrigger
+            render={
               <Button
                 variant="outline"
                 size="sm"
                 className={controlButtonClass}
               >
-                <Columns3 className="size-3.5" />
+                <Rows3 className="size-3.5" />
                 <span className="hidden md:inline">
-                  {t(($) => $.table.columns.section)}
+                  {effectiveTableGrouping === "none"
+                    ? t(($) => $.table.group_label)
+                    : t(($) => $.table.group_active, {
+                        group: tableGroupingLabel,
+                      })}
                 </span>
                 <ChevronDown className="size-3 text-muted-foreground" />
               </Button>
             }
           />
-        )}
-
-        {/* Display settings */}
-        <Popover>
-          <Tooltip>
-            <PopoverTrigger
-              render={
-                <TooltipTrigger
-                  render={
-                    <Button variant="outline" size="sm" className={controlButtonClass}>
-                      <SlidersHorizontal className="size-3.5" />
-                      <span className="hidden md:inline">{t(($) => $.display.button)}</span>
-                    </Button>
-                  }
-                />
-              }
-            />
-            <TooltipContent side="bottom">{t(($) => $.display.tooltip)}</TooltipContent>
-          </Tooltip>
-          <PopoverContent align="end" className="w-64 p-0">
-            {viewMode === "board" && (
-              <div className="border-b px-3 py-2.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t(($) => $.display.grouping_section)}
-                </span>
-                <div className="mt-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs"
-                        >
-                          {groupingLabel}
-                          <ChevronDown className="size-3 text-muted-foreground" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="start" className="w-auto">
-                      <DropdownMenuRadioGroup value={grouping} onValueChange={(v) => act.setGrouping(v as IssueGrouping)}>
-                        {GROUPING_OPTIONS.map((opt) => (
-                          <DropdownMenuRadioItem key={opt.value} value={opt.value}>
-                            {t(($) => $.display[GROUPING_LABEL_KEY[opt.value]])}
-                          </DropdownMenuRadioItem>
-                        ))}
-                        {groupableProperties.map((property) => (
-                          <DropdownMenuRadioItem key={property.id} value={`property:${property.id}`}>
-                            <PropertyIcon property={property} className="size-3.5 text-xs" />
-                            <span>{property.name}</span>
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            )}
-            {viewMode === "swimlane" && (
-              <div className="border-b px-3 py-2.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t(($) => $.display.grouping_section)}
-                </span>
-                <div className="mt-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs"
-                        >
-                          {swimlaneGroupingLabel}
-                          <ChevronDown className="size-3 text-muted-foreground" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent align="start" className="w-auto">
-                      <DropdownMenuRadioGroup
-                        value={swimlaneGrouping}
-                        onValueChange={(v) => act.setSwimlaneGrouping(v as SwimlaneGrouping)}
-                      >
-                        {SWIMLANE_GROUPINGS.map((value) => (
-                          <DropdownMenuRadioItem key={value} value={value}>
-                            {t(($) => $.display[SWIMLANE_GROUPING_LABEL_KEY[value]])}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            )}
-
-            {viewMode === "table" && (
-              <div className="border-b px-3 py-2.5">
-                <label className="flex cursor-pointer items-center justify-between gap-3">
-                  <span className="min-w-0">
-                    <span className="block text-sm">
-                      {t(($) => $.table.hierarchy)}
-                    </span>
-                    <span className="block text-xs text-muted-foreground">
-                      {t(($) => $.table.hierarchy_description)}
-                    </span>
-                  </span>
-                  <Switch
-                    size="sm"
-                    checked={tableHierarchy}
-                    onCheckedChange={() => act.toggleTableHierarchy()}
+          <DropdownMenuContent align="end" className="w-auto min-w-48">
+            <DropdownMenuRadioGroup
+              value={effectiveTableGrouping}
+              onValueChange={(value) => {
+                act.setTableGrouping(value as TableGrouping);
+                setTableGroupMenuOpen(false);
+              }}
+            >
+              <DropdownMenuRadioItem value="none">
+                {t(($) => $.table.group_none)}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="status">
+                {t(($) => $.table.columns.status)}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="assignee">
+                {t(($) => $.table.columns.assignee)}
+              </DropdownMenuRadioItem>
+              {tableGroupableProperties.map((property) => (
+                <DropdownMenuRadioItem
+                  key={property.id}
+                  value={`property:${property.id}`}
+                >
+                  <PropertyIcon
+                    property={property}
+                    className="size-3.5 text-xs"
                   />
-                </label>
-              </div>
-            )}
+                  <span>{property.name}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
+      {viewMode === "table" && (
+        <TableColumnPicker
+          properties={workspaceProperties}
+          labelsEnabled={labelsEnabled}
+          trigger={
+            <Button variant="outline" size="sm" className={controlButtonClass}>
+              <Columns3 className="size-3.5" />
+              <span className="hidden md:inline">
+                {t(($) => $.table.columns.section)}
+              </span>
+              <ChevronDown className="size-3 text-muted-foreground" />
+            </Button>
+          }
+        />
+      )}
+
+      {/* Display settings */}
+      <Popover>
+        <Tooltip>
+          <PopoverTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={controlButtonClass}
+                  >
+                    <SlidersHorizontal className="size-3.5" />
+                    <span className="hidden md:inline">
+                      {t(($) => $.display.button)}
+                    </span>
+                  </Button>
+                }
+              />
+            }
+          />
+          <TooltipContent side="bottom">
+            {t(($) => $.display.tooltip)}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent align="end" className="w-64 p-0">
+          {viewMode === "board" && (
             <div className="border-b px-3 py-2.5">
               <span className="text-xs font-medium text-muted-foreground">
-                {t(($) => $.display.ordering_section)}
+                {t(($) => $.display.grouping_section)}
               </span>
-              <div className="mt-2 flex items-center gap-1.5">
+              <div className="mt-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1 justify-between text-xs"
+                        className="w-full justify-between text-xs"
                       >
-                        {sortLabel}
+                        {groupingLabel}
                         <ChevronDown className="size-3 text-muted-foreground" />
                       </Button>
                     }
                   />
                   <DropdownMenuContent align="start" className="w-auto">
-                    <DropdownMenuRadioGroup value={sortBy} onValueChange={(v) => act.setSortBy(v as SortField)}>
-                      {SORT_OPTIONS.map((opt) => (
-                        <DropdownMenuRadioItem key={opt.value} value={opt.value}>
-                          {t(($) => $.display[SORT_LABEL_KEY[opt.value as keyof typeof SORT_LABEL_KEY]])}
+                    <DropdownMenuRadioGroup
+                      value={grouping}
+                      onValueChange={(v) => act.setGrouping(v as IssueGrouping)}
+                    >
+                      {GROUPING_OPTIONS.map((opt) => (
+                        <DropdownMenuRadioItem
+                          key={opt.value}
+                          value={opt.value}
+                        >
+                          {t(($) => $.display[GROUPING_LABEL_KEY[opt.value]])}
                         </DropdownMenuRadioItem>
                       ))}
-                      {sortableProperties.map((property) => (
-                        <DropdownMenuRadioItem key={property.id} value={`property:${property.id}`}>
-                          <PropertyIcon property={property} className="size-3.5 text-xs" />
+                      {groupableProperties.map((property) => (
+                        <DropdownMenuRadioItem
+                          key={property.id}
+                          value={`property:${property.id}`}
+                        >
+                          <PropertyIcon
+                            property={property}
+                            className="size-3.5 text-xs"
+                          />
                           <span>{property.name}</span>
                         </DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {sortBy !== "position" && (
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={() =>
-                      act.setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-                    }
-                    title={sortDirection === "asc" ? t(($) => $.display.ascending_title) : t(($) => $.display.descending_title)}
-                  >
-                    {sortDirection === "asc" ? (
-                      <ArrowUp className="size-3.5" />
-                    ) : (
-                      <ArrowDown className="size-3.5" />
-                    )}
-                  </Button>
-                )}
               </div>
             </div>
-
-            <label className="flex cursor-pointer items-center justify-between border-b px-3 py-2.5">
-              <span className="text-sm">{t(($) => $.display.show_sub_issues)}</span>
-              <Switch
-                size="sm"
-                checked={showSubIssues}
-                onCheckedChange={() => act.toggleShowSubIssues()}
-              />
-            </label>
-
-            {viewMode !== "table" && (
-              <div className="px-3 py-2.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {t(($) => $.display.card_properties_section)}
-                </span>
-                <div className="mt-2 space-y-2">
-                  {CARD_PROPERTY_OPTIONS.map((opt) => (
-                    <label
-                      key={opt.key}
-                      className="flex cursor-pointer items-center justify-between"
-                    >
-                      <span className="text-sm">{t(($) => $.display[CARD_PROPERTY_LABEL_KEY[opt.key]])}</span>
-                      <Switch
+          )}
+          {viewMode === "swimlane" && (
+            <div className="border-b px-3 py-2.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t(($) => $.display.grouping_section)}
+              </span>
+              <div className="mt-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
                         size="sm"
-                        checked={cardProperties[opt.key]}
-                        onCheckedChange={() => act.toggleCardProperty(opt.key)}
-                      />
-                    </label>
-                  ))}
-                  {workspaceProperties.map((property) => (
-                    <label
-                      key={property.id}
-                      className="flex cursor-pointer items-center justify-between"
+                        className="w-full justify-between text-xs"
+                      >
+                        {swimlaneGroupingLabel}
+                        <ChevronDown className="size-3 text-muted-foreground" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="start" className="w-auto">
+                    <DropdownMenuRadioGroup
+                      value={swimlaneGrouping}
+                      onValueChange={(v) =>
+                        act.setSwimlaneGrouping(v as SwimlaneGrouping)
+                      }
                     >
-                      <span className="flex min-w-0 items-center gap-1.5 truncate text-sm">
+                      {SWIMLANE_GROUPINGS.map((value) => (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                          {t(
+                            ($) => $.display[SWIMLANE_GROUPING_LABEL_KEY[value]]
+                          )}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          )}
+
+          {viewMode === "table" && (
+            <div className="border-b px-3 py-2.5">
+              <label className="flex cursor-pointer items-center justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm">
+                    {t(($) => $.table.hierarchy)}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    {t(($) => $.table.hierarchy_description)}
+                  </span>
+                </span>
+                <Switch
+                  size="sm"
+                  checked={tableHierarchy}
+                  onCheckedChange={() => act.toggleTableHierarchy()}
+                />
+              </label>
+            </div>
+          )}
+
+          <div className="border-b px-3 py-2.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              {t(($) => $.display.ordering_section)}
+            </span>
+            <div className="mt-2 flex items-center gap-1.5">
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 justify-between text-xs"
+                    >
+                      {sortLabel}
+                      <ChevronDown className="size-3 text-muted-foreground" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="start" className="w-auto">
+                  <DropdownMenuRadioGroup
+                    value={sortBy}
+                    onValueChange={(v) => act.setSortBy(v as SortField)}
+                  >
+                    {SORT_OPTIONS.map((opt) => (
+                      <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                        {t(
+                          ($) =>
+                            $.display[
+                              SORT_LABEL_KEY[
+                                opt.value as keyof typeof SORT_LABEL_KEY
+                              ]
+                            ]
+                        )}
+                      </DropdownMenuRadioItem>
+                    ))}
+                    {sortableProperties.map((property) => (
+                      <DropdownMenuRadioItem
+                        key={property.id}
+                        value={`property:${property.id}`}
+                      >
                         <PropertyIcon
                           property={property}
                           className="size-3.5 text-xs"
                         />
-                        <span className="truncate">{property.name}</span>
-                      </span>
-                      <Switch
-                        size="sm"
-                        checked={cardPropertyIds.includes(property.id)}
-                        onCheckedChange={() => act.toggleCardPropertyId(property.id)}
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
+                        <span>{property.name}</span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {sortBy !== "position" && (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() =>
+                    act.setSortDirection(
+                      sortDirection === "asc" ? "desc" : "asc"
+                    )
+                  }
+                  title={
+                    sortDirection === "asc"
+                      ? t(($) => $.display.ascending_title)
+                      : t(($) => $.display.descending_title)
+                  }
+                >
+                  {sortDirection === "asc" ? (
+                    <ArrowUp className="size-3.5" />
+                  ) : (
+                    <ArrowDown className="size-3.5" />
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
 
-        {/* View toggle. If a store has `viewMode === "gantt"` persisted but
+          <label className="flex cursor-pointer items-center justify-between border-b px-3 py-2.5">
+            <span className="text-sm">
+              {t(($) => $.display.show_sub_issues)}
+            </span>
+            <Switch
+              size="sm"
+              checked={showSubIssues}
+              onCheckedChange={() => act.toggleShowSubIssues()}
+            />
+          </label>
+
+          {viewMode !== "table" && (
+            <div className="px-3 py-2.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                {t(($) => $.display.card_properties_section)}
+              </span>
+              <div className="mt-2 space-y-2">
+                {visibleCardPropertyOptions({
+                  labelsEnabled,
+                  childProgressEnabled,
+                }).map((opt) => (
+                  <label
+                    key={opt.key}
+                    className="flex cursor-pointer items-center justify-between"
+                  >
+                    <span className="text-sm">
+                      {t(($) => $.display[CARD_PROPERTY_LABEL_KEY[opt.key]])}
+                    </span>
+                    <Switch
+                      size="sm"
+                      checked={cardProperties[opt.key]}
+                      onCheckedChange={() => act.toggleCardProperty(opt.key)}
+                    />
+                  </label>
+                ))}
+                {workspaceProperties.map((property) => (
+                  <label
+                    key={property.id}
+                    className="flex cursor-pointer items-center justify-between"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5 truncate text-sm">
+                      <PropertyIcon
+                        property={property}
+                        className="size-3.5 text-xs"
+                      />
+                      <span className="truncate">{property.name}</span>
+                    </span>
+                    <Switch
+                      size="sm"
+                      checked={cardPropertyIds.includes(property.id)}
+                      onCheckedChange={() =>
+                        act.toggleCardPropertyId(property.id)
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {/* View toggle. If a store has `viewMode === "gantt"` persisted but
             this surface doesn't render Gantt, fall back to "list" so the
             trigger icon matches what's actually on screen. */}
-        {!hideViewToggle && (
-          <DropdownMenu open={viewMenuOpen} onOpenChange={setViewMenuOpen}>
-            <Tooltip>
-              <DropdownMenuTrigger
-                render={
-                  <TooltipTrigger
-                    render={
-                      <Button variant="outline" size="sm" className={controlButtonClass}>
-                        {viewMode === "board" ? (
-                          <Columns3 className="size-3.5" />
-                        ) : viewMode === "table" ? (
-                          <Table2 className="size-3.5" />
-                        ) : viewMode === "swimlane" ? (
-                          <Waves className="size-3.5" />
-                        ) : viewMode === "gantt" && allowGantt ? (
-                          <ChartGantt className="size-3.5" />
-                        ) : (
-                          <List className="size-3.5" />
-                        )}
-                        <span className="hidden md:inline">
-                          {viewMode === "board"
-                            ? t(($) => $.view.board)
-                            : viewMode === "table"
-                            ? t(($) => $.view.table)
-                            : viewMode === "swimlane"
-                            ? t(($) => $.view.swimlane)
-                            : viewMode === "gantt" && allowGantt
-                            ? t(($) => $.view.gantt)
-                            : t(($) => $.view.list)}
-                        </span>
-                      </Button>
-                    }
-                  />
-                }
-              />
-              <TooltipContent side="bottom">
-                {viewMode === "board"
-                  ? t(($) => $.view.tooltip_board)
-                  : viewMode === "table"
-                  ? t(($) => $.view.tooltip_table)
-                  : viewMode === "swimlane"
-                  ? t(($) => $.view.tooltip_swimlane)
-                  : viewMode === "gantt" && allowGantt
-                  ? t(($) => $.view.tooltip_gantt)
-                  : t(($) => $.view.tooltip_list)}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-auto">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>{t(($) => $.view.section)}</DropdownMenuLabel>
-              </DropdownMenuGroup>
-              <DropdownMenuRadioGroup
-                value={viewMode}
-                onValueChange={(v) => {
-                  act.setViewMode(v as ViewMode);
-                  setViewMenuOpen(false);
-                }}
-              >
-                <DropdownMenuRadioItem value="board">
-                  <Columns3 />
-                  {t(($) => $.view.board)}
+      {!hideViewToggle && (
+        <DropdownMenu open={viewMenuOpen} onOpenChange={setViewMenuOpen}>
+          <Tooltip>
+            <DropdownMenuTrigger
+              render={
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={controlButtonClass}
+                    >
+                      {viewMode === "board" ? (
+                        <Columns3 className="size-3.5" />
+                      ) : viewMode === "table" ? (
+                        <Table2 className="size-3.5" />
+                      ) : viewMode === "swimlane" ? (
+                        <Waves className="size-3.5" />
+                      ) : viewMode === "gantt" && allowGantt ? (
+                        <ChartGantt className="size-3.5" />
+                      ) : (
+                        <List className="size-3.5" />
+                      )}
+                      <span className="hidden md:inline">
+                        {viewMode === "board"
+                          ? t(($) => $.view.board)
+                          : viewMode === "table"
+                          ? t(($) => $.view.table)
+                          : viewMode === "swimlane"
+                          ? t(($) => $.view.swimlane)
+                          : viewMode === "gantt" && allowGantt
+                          ? t(($) => $.view.gantt)
+                          : t(($) => $.view.list)}
+                      </span>
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent side="bottom">
+              {viewMode === "board"
+                ? t(($) => $.view.tooltip_board)
+                : viewMode === "table"
+                ? t(($) => $.view.tooltip_table)
+                : viewMode === "swimlane"
+                ? t(($) => $.view.tooltip_swimlane)
+                : viewMode === "gantt" && allowGantt
+                ? t(($) => $.view.tooltip_gantt)
+                : t(($) => $.view.tooltip_list)}
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="end" className="w-auto">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t(($) => $.view.section)}</DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuRadioGroup
+              value={viewMode}
+              onValueChange={(v) => {
+                act.setViewMode(v as ViewMode);
+                setViewMenuOpen(false);
+              }}
+            >
+              <DropdownMenuRadioItem value="board">
+                <Columns3 />
+                {t(($) => $.view.board)}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="list">
+                <List />
+                {t(($) => $.view.list)}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="table">
+                <Table2 />
+                {t(($) => $.view.table)}
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="swimlane">
+                <Waves />
+                {t(($) => $.view.swimlane)}
+              </DropdownMenuRadioItem>
+              {allowGantt && (
+                <DropdownMenuRadioItem value="gantt">
+                  <ChartGantt />
+                  {t(($) => $.view.gantt)}
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="list">
-                  <List />
-                  {t(($) => $.view.list)}
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="table">
-                  <Table2 />
-                  {t(($) => $.view.table)}
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="swimlane">
-                  <Waves />
-                  {t(($) => $.view.swimlane)}
-                </DropdownMenuRadioItem>
-                {allowGantt && (
-                  <DropdownMenuRadioItem value="gantt">
-                    <ChartGantt />
-                    {t(($) => $.view.gantt)}
-                  </DropdownMenuRadioItem>
-                )}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+              )}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

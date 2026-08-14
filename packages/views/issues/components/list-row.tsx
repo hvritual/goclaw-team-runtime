@@ -5,9 +5,7 @@ import { useSortable, defaultAnimateLayoutChanges } from "@dnd-kit/sortable";
 import type { AnimateLayoutChanges } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AppLink } from "../../navigation";
-import type { Issue, Project,
-  IssueProperty,
-} from "@multica/core/types";
+import type { Issue, Project, IssueProperty } from "@multica/core/types";
 import { formatDateOnly } from "@multica/core/issues/date";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { PropertyIcon } from "../../common/property-icon";
@@ -15,6 +13,7 @@ import { useWorkspacePaths } from "@multica/core/paths";
 import { useQuery } from "@tanstack/react-query";
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useFeatureEnabled } from "@multica/core/config";
 import { propertyListOptions } from "@multica/core/properties";
 import { CustomPropertyValueDisplay } from "./pickers/custom-property-picker";
 import { ProjectIcon } from "../../projects/components/project-icon";
@@ -50,7 +49,10 @@ function ListRowContent({
   containerRef?: Ref<HTMLDivElement>;
   containerStyle?: React.CSSProperties;
   containerProps?: Record<string, unknown>;
-  checkboxProps?: Pick<React.HTMLAttributes<HTMLDivElement>, "onClick" | "onMouseDown" | "onPointerDown">;
+  checkboxProps?: Pick<
+    React.HTMLAttributes<HTMLDivElement>,
+    "onClick" | "onMouseDown" | "onPointerDown"
+  >;
 }) {
   const selection = useIssueSurfaceSelection();
   const selected = selection.selectedIds.has(issue.id);
@@ -59,15 +61,22 @@ function ListRowContent({
   const storeProperties = useViewStore((s) => s.cardProperties);
   const cardPropertyIds = useViewStore((s) => s.cardPropertyIds);
   const rowWsId = useWorkspaceId();
-  const { data: workspaceProperties = [] } = useQuery(propertyListOptions(rowWsId));
+  const propertiesEnabled = useFeatureEnabled("issue_properties", false);
+  const { data: workspaceProperties = [] } = useQuery({
+    ...propertyListOptions(rowWsId),
+    enabled: propertiesEnabled,
+  });
   const cardCustomProperties = cardPropertyIds
     .map((id) => workspaceProperties.find((p) => p.id === id))
-    .filter((p): p is IssueProperty => !!p && issue.properties?.[p.id] !== undefined);
+    .filter(
+      (p): p is IssueProperty => !!p && issue.properties?.[p.id] !== undefined
+    );
   const labels = issue.labels ?? [];
 
   const showProject = storeProperties.project && project;
   const showChildProgress = storeProperties.childProgress && childProgress;
-  const showAssignee = storeProperties.assignee && issue.assignee_type && issue.assignee_id;
+  const showAssignee =
+    storeProperties.assignee && issue.assignee_type && issue.assignee_id;
   const showStartDate = storeProperties.startDate && issue.start_date;
   const showDueDate = storeProperties.dueDate && issue.due_date;
   const showLabels = storeProperties.labels && labels.length > 0;
@@ -103,7 +112,9 @@ function ListRowContent({
         </div>
         <AppLink
           href={p.issueDetail(issue.id)}
-          className={`flex flex-1 items-center gap-2 min-w-0 ${isDragging ? "pointer-events-none" : ""}`}
+          className={`flex flex-1 items-center gap-2 min-w-0 ${
+            isDragging ? "pointer-events-none" : ""
+          }`}
         >
           <span className="w-16 shrink-0 text-xs text-muted-foreground">
             {issue.identifier}
@@ -113,7 +124,11 @@ function ListRowContent({
             <span className="truncate">{issue.title}</span>
             {showChildProgress && (
               <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5">
-                <ProgressRing done={childProgress!.done} total={childProgress!.total} size={14} />
+                <ProgressRing
+                  done={childProgress!.done}
+                  total={childProgress!.total}
+                  size={14}
+                />
                 <span className="text-[11px] text-muted-foreground tabular-nums font-medium">
                   {childProgress!.done}/{childProgress!.total}
                 </span>
@@ -138,8 +153,14 @@ function ListRowContent({
                     key={property.id}
                     className="inline-flex max-w-[120px] items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
                   >
-                    <PropertyIcon property={property} className="size-3 text-[11px]" />
-                    <CustomPropertyValueDisplay property={property} value={issue.properties?.[property.id]} />
+                    <PropertyIcon
+                      property={property}
+                      className="size-3 text-[11px]"
+                    />
+                    <CustomPropertyValueDisplay
+                      property={property}
+                      value={issue.properties?.[property.id]}
+                    />
                   </span>
                 ))}
               </span>
@@ -242,7 +263,11 @@ export const DraggableListRow = memo(function DraggableListRow({
       containerRef={setNodeRef}
       containerStyle={style}
       containerProps={{ ...attributes, ...listeners }}
-      checkboxProps={{ onClick: stopDrag, onMouseDown: stopDrag, onPointerDown: stopDrag }}
+      checkboxProps={{
+        onClick: stopDrag,
+        onMouseDown: stopDrag,
+        onPointerDown: stopDrag,
+      }}
     />
   );
 });

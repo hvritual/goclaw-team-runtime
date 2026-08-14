@@ -167,6 +167,55 @@ func TestSQLiteRuntimePersistsVisibleProjectAndPinActions(t *testing.T) {
 	if projectID == "" || project["workspace_id"] != workspace.ID || project["title"] != "Canonical Projects" || project["priority"] != "high" || project["lead_id"] != leadUserID || project["issue_count"] != float64(0) {
 		t.Fatalf("project = %s", created.Body.String())
 	}
+	createdIssue := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"Project issue","project_id":"`+projectID+`"}`, bearer)
+	if createdIssue.Code != http.StatusCreated {
+		t.Fatalf("create project issue = %d %s", createdIssue.Code, createdIssue.Body.String())
+	}
+	var issue map[string]any
+	if err := json.Unmarshal(createdIssue.Body.Bytes(), &issue); err != nil {
+		t.Fatal(err)
+	}
+	if issue["id"] == "" || issue["workspace_id"] != workspace.ID || issue["project_id"] != projectID || issue["title"] != "Project issue" {
+		t.Fatalf("created issue = %s", createdIssue.Body.String())
+	}
+	missingIssueAuth := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"missing auth"}`, map[string]string{
+		"X-Workspace-Slug": "delivery", "Content-Type": "application/json",
+	})
+	assertRuntimeResponse(t, missingIssueAuth.Code, missingIssueAuth.Body.String(), http.StatusUnauthorized, `{"error":"user not authenticated"}`)
+	missingIssueWorkspace := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"missing workspace"}`, map[string]string{
+		"Authorization": "Bearer " + owner.Token, "Content-Type": "application/json",
+	})
+	assertRuntimeResponse(t, missingIssueWorkspace.Code, missingIssueWorkspace.Body.String(), http.StatusBadRequest, `{"error":"workspace is required"}`)
+	cookieIssueNoCSRF := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"missing csrf"}`, map[string]string{
+		"Cookie": "multica_auth=" + owner.Token, "X-Workspace-Slug": "delivery", "Content-Type": "application/json",
+	})
+	assertRuntimeResponse(t, cookieIssueNoCSRF.Code, cookieIssueNoCSRF.Body.String(), http.StatusForbidden, `{"error":"invalid CSRF token"}`)
+	cookieIssue := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"Cookie issue","project_id":"`+projectID+`"}`, map[string]string{
+		"Cookie": "multica_auth=" + owner.Token + "; multica_csrf=" + owner.CSRF, "X-CSRF-Token": owner.CSRF,
+		"X-Workspace-Slug": "delivery", "Content-Type": "application/json",
+	})
+	if cookieIssue.Code != http.StatusCreated || !strings.Contains(cookieIssue.Body.String(), `"title":"Cookie issue"`) {
+		t.Fatalf("cookie create issue = %d %s", cookieIssue.Code, cookieIssue.Body.String())
+	}
+	for name, body := range map[string]string{
+		"unknown":             `{"title":"unknown","unknown":true}`,
+		"trailing":            `{"title":"trailing"} {}`,
+		"unsupported labels":  `{"title":"labels","label_ids":["label-one"]}`,
+		"unsupported uploads": `{"title":"files","attachment_ids":["asset-one"]}`,
+	} {
+		response := runtimeRequest(runtime, http.MethodPost, "/api/issues", body, bearer)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("%s issue create = %d %s", name, response.Code, response.Body.String())
+		}
+	}
+	oversizedIssue := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"`+strings.Repeat("x", (1<<20)+1)+`"}`, bearer)
+	assertRuntimeResponse(t, oversizedIssue.Code, oversizedIssue.Body.String(), http.StatusBadRequest, `{"error":"invalid request body"}`)
+	missingProjectIssue := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"hidden","project_id":"missing-project"}`, bearer)
+	assertRuntimeResponse(t, missingProjectIssue.Code, missingProjectIssue.Body.String(), http.StatusNotFound, `{"error":"issue not found"}`)
+	configResponse := runtimeRequest(runtime, http.MethodGet, "/api/config", "", nil)
+	if configResponse.Code != http.StatusOK || !strings.Contains(configResponse.Body.String(), `"issue_create":true`) {
+		t.Fatalf("issue create capability = %d %s", configResponse.Code, configResponse.Body.String())
+	}
 
 	listed := runtimeRequest(runtime, http.MethodGet, "/api/projects?status=in_progress", "", bearer)
 	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), `"id":"`+projectID+`"`) {
@@ -190,7 +239,7 @@ func TestSQLiteRuntimePersistsVisibleProjectAndPinActions(t *testing.T) {
 	assertRuntimeResponse(t, missingTargetPin.Code, missingTargetPin.Body.String(), http.StatusNotFound, `{"error":"project not found"}`)
 	if _, err := runtime.db.Exec(`INSERT INTO workspace_issues(
 		id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,metadata,properties,asset_ids,created_at,updated_at
-	) VALUES('project-surface-issue',?,1,'DEL-1','Pin issue','backlog','medium','member',?,'{}','{}','[]','2026-08-14T00:00:00Z','2026-08-14T00:00:00Z')`, workspace.ID, memberRows[0]["id"]); err != nil {
+	) VALUES('project-surface-issue',?,99,'DEL-99','Pin issue','backlog','medium','member',?,'{}','{}','[]','2026-08-14T00:00:00Z','2026-08-14T00:00:00Z')`, workspace.ID, memberRows[0]["id"]); err != nil {
 		t.Fatal(err)
 	}
 	issuePin := runtimeRequest(runtime, http.MethodPost, "/api/pins", `{"item_type":"issue","item_id":"project-surface-issue"}`, bearer)
@@ -230,6 +279,10 @@ func TestSQLiteRuntimePersistsVisibleProjectAndPinActions(t *testing.T) {
 		"Authorization": "Bearer " + foreign.Token, "X-Workspace-Slug": "delivery",
 	})
 	assertRuntimeResponse(t, expiredPins.Code, expiredPins.Body.String(), http.StatusUnauthorized, `{"error":"user not authenticated"}`)
+	expiredIssueCreate := runtimeRequest(runtime, http.MethodPost, "/api/issues", `{"title":"expired"}`, map[string]string{
+		"Authorization": "Bearer " + foreign.Token, "X-Workspace-Slug": "delivery", "Content-Type": "application/json",
+	})
+	assertRuntimeResponse(t, expiredIssueCreate.Code, expiredIssueCreate.Body.String(), http.StatusUnauthorized, `{"error":"user not authenticated"}`)
 	pinCookieNoCSRF := runtimeRequest(runtime, http.MethodDelete, "/api/pins/project/"+projectID, "", map[string]string{
 		"Cookie": "multica_auth=" + owner.Token, "X-Workspace-Slug": "delivery",
 	})

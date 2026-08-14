@@ -63,14 +63,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@multica/ui/components/ui/dropdown-menu";
-import {
-  TableCell,
-  TableRow,
-} from "@multica/ui/components/ui/table";
+import { TableCell, TableRow } from "@multica/ui/components/ui/table";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { cn } from "@multica/ui/lib/utils";
 import { ApiError } from "@multica/core/api";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useFeatureEnabled } from "@multica/core/config";
 import { ALL_STATUSES } from "@multica/core/issues/config";
 import {
   issueKeys,
@@ -87,7 +85,10 @@ import {
 import { useViewStore } from "@multica/core/issues/stores/view-store-context";
 import { propertyListOptions } from "@multica/core/properties";
 import { useWorkspacePaths } from "@multica/core/paths";
-import { buildActorNameResolver, useActorName } from "@multica/core/workspace/hooks";
+import {
+  buildActorNameResolver,
+  useActorName,
+} from "@multica/core/workspace/hooks";
 import { memberListOptions } from "@multica/core/workspace/queries";
 import type {
   Issue,
@@ -149,7 +150,7 @@ type TableViewProps = {
   search: string;
   onSearchChange: (query: string) => void;
   onLoadedIssuesChange: (issues: Issue[]) => void;
-  onCreateIssue: (defaults: IssueCreateDefaults) => void;
+  onCreateIssue?: (defaults: IssueCreateDefaults) => void;
   exportIssues: () => Promise<Issue[]>;
   resolveExportLookups: (needs: {
     projects: boolean;
@@ -216,7 +217,7 @@ function rebaseServerBranchState(
   previous: ServerBranchState,
   identity: string,
   structureIdentity: string,
-  usesServerGrouping: boolean,
+  usesServerGrouping: boolean
 ): ServerBranchState {
   if (previous.identity === identity) return previous;
 
@@ -226,7 +227,7 @@ function rebaseServerBranchState(
           [...previous.branches].map(([key, branch]) => [
             key,
             { ...branch, cursors: [null] },
-          ]),
+          ])
         )
       : new Map<string, ServerBranch>();
 
@@ -292,7 +293,9 @@ function SelectAllCheckbox({
 }) {
   const selection = useIssueSurfaceSelection();
   const ref = useRef<HTMLInputElement>(null);
-  const selectedCount = issueIds.filter((id) => selection.selectedIds.has(id)).length;
+  const selectedCount = issueIds.filter((id) =>
+    selection.selectedIds.has(id)
+  ).length;
   const checked = issueIds.length > 0 && selectedCount === issueIds.length;
 
   useEffect(() => {
@@ -365,8 +368,14 @@ function SortableColumnHeader({
   reorderLabel: string;
 }) {
   const sortable = columnKey !== "title";
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: columnKey, disabled: !sortable });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: columnKey, disabled: !sortable });
   const active = sortField === sortBy;
   // Any column in flight, not only this one: the neighbours shift to open a
   // gap, and each is clipped by its own cell just the same.
@@ -409,7 +418,9 @@ function SortableColumnHeader({
       // a shape tween to say here. The move and the settle stay animated
       // through `transition`.
       style={{
-        transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
+        transform: transform
+          ? `translate3d(${transform.x}px, 0, 0)`
+          : undefined,
         transition,
       }}
       // The wrapper spans the cell's own box — the negative margins undo the
@@ -419,7 +430,7 @@ function SortableColumnHeader({
       // strip is taller than the cell's nominal height once row borders are in.
       className={cn(
         "group/header -mx-4 -my-2 flex h-[calc(100%+1rem)] min-w-0 items-center px-4",
-        isDragging && "opacity-60",
+        isDragging && "opacity-60"
       )}
     >
       {sortable && (
@@ -428,7 +439,7 @@ function SortableColumnHeader({
           aria-label={reorderLabel}
           className={cn(
             "-ml-2 mr-0.5 rounded p-0.5 text-muted-foreground/50 opacity-0 hover:bg-accent hover:text-muted-foreground group-hover/header:opacity-100 focus-visible:opacity-100",
-            isDragging ? "cursor-grabbing opacity-100" : "cursor-grab",
+            isDragging ? "cursor-grabbing opacity-100" : "cursor-grab"
           )}
           {...attributes}
           {...listeners}
@@ -474,9 +485,11 @@ function SortableColumnHeader({
 
 export function TableColumnPicker({
   properties,
+  labelsEnabled = true,
   trigger,
 }: {
   properties: IssueProperty[];
+  labelsEnabled?: boolean;
   trigger: React.ReactElement;
 }) {
   const { t } = useT("issues");
@@ -485,16 +498,18 @@ export function TableColumnPicker({
   const toggleTableColumn = useViewStore((state) => state.toggleTableColumn);
   const selected = useMemo(
     () => new Set(tableColumns.map((column) => column.key)),
-    [tableColumns],
+    [tableColumns]
   );
   const query = search.trim().toLocaleLowerCase();
-  const systemColumns = TABLE_SYSTEM_COLUMNS.filter((key) =>
+  const systemColumns = TABLE_SYSTEM_COLUMNS.filter(
+    (key) => key !== "labels" || labelsEnabled
+  ).filter((key) =>
     t(($) => $.table.columns[key as ColumnLabelKey])
       .toLocaleLowerCase()
-      .includes(query),
+      .includes(query)
   );
   const visibleProperties = properties.filter((property) =>
-    property.name.toLocaleLowerCase().includes(query),
+    property.name.toLocaleLowerCase().includes(query)
   );
 
   return (
@@ -642,7 +657,7 @@ export function InlineTitle({
   onUpdate: (updates: Partial<UpdateIssueRequest>) => void;
   /** Navigate to the issue — clicking the title is the primary way IN. */
   onOpen: () => void;
-  onCreateSubIssue: () => void;
+  onCreateSubIssue?: () => void;
   onToggleParent: () => void;
   toggleLabel: string;
   renameLabel: string;
@@ -742,34 +757,36 @@ export function InlineTitle({
             {row.issue.title}
           </button>
           {/* Lifted out of the flex flow, the way SidebarMenuAction is. Laid
-            * out inline these two reserved ~40px of the title column for
-            * buttons that are invisible until hovered — and title is the
-            * column with the least room to spare. The gradient fades the text
-            * running underneath rather than letting the icons sit on top of
-            * it; the sidebar has no need for one because its labels are short,
-            * but a title runs to the cell's edge. focus-within keeps them
-            * reachable by keyboard, where hover never fires. */}
+           * out inline these two reserved ~40px of the title column for
+           * buttons that are invisible until hovered — and title is the
+           * column with the least room to spare. The gradient fades the text
+           * running underneath rather than letting the icons sit on top of
+           * it; the sidebar has no need for one because its labels are short,
+           * but a title runs to the cell's edge. focus-within keeps them
+           * reachable by keyboard, where hover never fires. */}
           {/* The fade has to be whatever the cell is painted with at the
-            * moment the actions show, and a hovered row is not the resting
-            * background — pinned cells switch to the muted mix on hover, so
-            * the gradient follows. */}
+           * moment the actions show, and a hovered row is not the resting
+           * background — pinned cells switch to the muted mix on hover, so
+           * the gradient follows. */}
           {/* Keyed to the title cell, not the row: these act on the title,
-            * and offering them from anywhere along a row puts them under the
-            * pointer while it is somewhere else entirely. The fade still
-            * follows the row's hover colour, since that is what the cell is
-            * painted with when they appear. */}
+           * and offering them from anywhere along a row puts them under the
+           * pointer while it is somewhere else entirely. The fade still
+           * follows the row's hover colour, since that is what the cell is
+           * painted with when they appear. */}
           <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center gap-0.5 bg-gradient-to-l from-background from-70% to-transparent pr-1 pl-8 opacity-0 transition-opacity group-hover:from-[color-mix(in_oklab,var(--muted)_50%,var(--background))] group-hover/title:pointer-events-auto group-hover/title:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100">
-            <button
-              type="button"
-              aria-label={createSubIssueLabel}
-              className="rounded p-1 text-muted-foreground/60 hover:bg-accent hover:text-foreground"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCreateSubIssue();
-              }}
-            >
-              <Plus className="size-3" />
-            </button>
+            {onCreateSubIssue && (
+              <button
+                type="button"
+                aria-label={createSubIssueLabel}
+                className="rounded p-1 text-muted-foreground/60 hover:bg-accent hover:text-foreground"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCreateSubIssue();
+                }}
+              >
+                <Plus className="size-3" />
+              </button>
+            )}
             <button
               type="button"
               aria-label={renameLabel}
@@ -809,7 +826,9 @@ function LazyLabelCell({
           onOpenChange={(next) => {
             if (!next) onOpenChange(false);
           }}
-          triggerRender={<button type="button" className="flex max-w-full gap-1" />}
+          triggerRender={
+            <button type="button" className="flex max-w-full gap-1" />
+          }
         />
       </div>
     );
@@ -829,11 +848,15 @@ function LazyLabelCell({
             <LabelChip key={label.id} label={label} />
           ))}
           {labels.length > 2 && (
-            <span className="text-xs text-muted-foreground">+{labels.length - 2}</span>
+            <span className="text-xs text-muted-foreground">
+              +{labels.length - 2}
+            </span>
           )}
         </>
       ) : (
-        <span className="text-muted-foreground">{t(($) => $.table.empty_value)}</span>
+        <span className="text-muted-foreground">
+          {t(($) => $.table.empty_value)}
+        </span>
       )}
     </button>
   );
@@ -883,7 +906,7 @@ export function IssueTableGroupRow({
 
 function propertyDisplayValue(
   property: IssueProperty,
-  value: IssuePropertyValue | undefined,
+  value: IssuePropertyValue | undefined
 ) {
   if (value === undefined) return "";
   const options = property.config.options ?? [];
@@ -916,6 +939,7 @@ type TableViewMeta = {
   childProgressMap: Map<string, ChildProgress>;
   propertyById: Map<string, IssueProperty>;
   properties: IssueProperty[];
+  labelsEnabled: boolean;
   visibleIssueIds: string[];
   /** `${row.key}:${column.id}` of the cell whose editor popup / rename input
    *  is open, or null. Owned by TableView so the open editor survives cell
@@ -924,7 +948,7 @@ type TableViewMeta = {
   setEditingCellKey: (key: string | null) => void;
   updateIssue: (issueId: string, updates: Partial<UpdateIssueRequest>) => void;
   openIssue: (issue: Issue) => void;
-  createSubIssue: (issue: Issue) => void;
+  createSubIssue?: (issue: Issue) => void;
   toggleTableParentCollapsed: (issueId: string) => void;
   handleIssueSelection: (issueId: string, shiftKey: boolean) => void;
   getActorName: (actorType: string, actorId: string) => string;
@@ -936,7 +960,7 @@ type TableViewMeta = {
 };
 
 function getTableViewMeta(
-  table: TanstackTable<IssueTableDisplayRow>,
+  table: TanstackTable<IssueTableDisplayRow>
 ): TableViewMeta {
   return table.options.meta as unknown as TableViewMeta;
 }
@@ -963,7 +987,7 @@ function getTableViewMeta(
 export function useReleaseEditingCellOnUnmount(
   cellKey: string | null,
   editingCellKey: string | null,
-  setEditingCellKey: (key: string | null) => void,
+  setEditingCellKey: (key: string | null) => void
 ) {
   const editingCellKeyRef = useRef(editingCellKey);
   editingCellKeyRef.current = editingCellKey;
@@ -1017,6 +1041,7 @@ function IssueTableAddColumnHeader({
   return (
     <TableColumnPicker
       properties={meta.properties}
+      labelsEnabled={meta.labelsEnabled}
       trigger={
         <button
           type="button"
@@ -1080,7 +1105,7 @@ function IssueTableBodyCell({
   useReleaseEditingCellOnUnmount(
     cellKey,
     meta.editingCellKey,
-    meta.setEditingCellKey,
+    meta.setEditingCellKey
   );
   // Placeholder rows go through the ordinary cell renderer so they inherit the
   // real column widths, pinning and borders — the grid is already correct
@@ -1122,7 +1147,9 @@ function IssueTableBodyCell({
           onEditingChange={setEditorOpen}
           onUpdate={onUpdate}
           onOpen={() => meta.openIssue(issue)}
-          onCreateSubIssue={() => meta.createSubIssue(issue)}
+          onCreateSubIssue={
+            meta.createSubIssue ? () => meta.createSubIssue?.(issue) : undefined
+          }
           onToggleParent={() => meta.toggleTableParentCollapsed(issue.id)}
           toggleLabel={t(($) => $.table.toggle_sub_issues)}
           renameLabel={t(($) => $.table.rename_title)}
@@ -1131,7 +1158,9 @@ function IssueTableBodyCell({
       );
     case "identifier":
       return (
-        <span className="text-xs text-muted-foreground">{issue.identifier}</span>
+        <span className="text-xs text-muted-foreground">
+          {issue.identifier}
+        </span>
       );
     case "status":
       return (
@@ -1236,7 +1265,9 @@ function IssueTableBodyCell({
           {progress.done}/{progress.total}
         </span>
       ) : (
-        <span className="text-muted-foreground">{t(($) => $.table.empty_value)}</span>
+        <span className="text-muted-foreground">
+          {t(($) => $.table.empty_value)}
+        </span>
       );
     }
     case "creator":
@@ -1268,46 +1299,53 @@ export function TableView({
 }: TableViewProps) {
   const { t } = useT("issues");
   const wsId = useWorkspaceId();
+  const propertiesEnabled = useFeatureEnabled("issue_properties", false);
+  const labelsEnabled = useFeatureEnabled("issue_labels", false);
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const paths = useWorkspacePaths();
   const actions = useIssueSurfaceActionsOptional();
   const selection = useIssueSurfaceSelection();
   const { getActorName } = useActorName();
-  const {
-    data: properties = [],
-    isSuccess: propertyCatalogSettled,
-  } = useQuery(propertyListOptions(wsId));
+  const { data: properties = [], isSuccess: propertyCatalogSettled } = useQuery(
+    { ...propertyListOptions(wsId), enabled: propertiesEnabled }
+  );
   const propertyById = useMemo(
     () => new Map(properties.map((property) => [property.id, property])),
-    [properties],
+    [properties]
   );
   const activePropertyIds = useMemo(
     () => new Set(properties.map((property) => property.id)),
-    [properties],
+    [properties]
   );
   const groupablePropertyIds = useMemo(
     () =>
       new Set(
         properties
           .filter((property) => ["select", "checkbox"].includes(property.type))
-          .map((property) => property.id),
+          .map((property) => property.id)
       ),
-    [properties],
+    [properties]
   );
   const tableColumns = useViewStore((state) => state.tableColumns);
   const toggleTableColumn = useViewStore((state) => state.toggleTableColumn);
   const reorderTableColumn = useViewStore((state) => state.reorderTableColumn);
-  const setTableColumnWidth = useViewStore((state) => state.setTableColumnWidth);
+  const setTableColumnWidth = useViewStore(
+    (state) => state.setTableColumnWidth
+  );
   const tableGrouping = useViewStore((state) => state.tableGrouping);
   const setTableGrouping = useViewStore((state) => state.setTableGrouping);
-  const tableCollapsedGroups = useViewStore((state) => state.tableCollapsedGroups);
-  const toggleTableGroupCollapsed = useViewStore(
-    (state) => state.toggleTableGroupCollapsed,
+  const tableCollapsedGroups = useViewStore(
+    (state) => state.tableCollapsedGroups
   );
-  const tableCollapsedParents = useViewStore((state) => state.tableCollapsedParents);
+  const toggleTableGroupCollapsed = useViewStore(
+    (state) => state.toggleTableGroupCollapsed
+  );
+  const tableCollapsedParents = useViewStore(
+    (state) => state.tableCollapsedParents
+  );
   const toggleTableParentCollapsed = useViewStore(
-    (state) => state.toggleTableParentCollapsed,
+    (state) => state.toggleTableParentCollapsed
   );
   const tableHierarchy = useViewStore((state) => state.tableHierarchy);
   const sortBy = useViewStore((state) => state.sortBy);
@@ -1347,7 +1385,7 @@ export function TableView({
 
   const serverGroupSpec = useMemo(
     () => tableGroupSpec(effectiveTableGrouping),
-    [effectiveTableGrouping],
+    [effectiveTableGrouping]
   );
   const usesServerGrouping = serverGroupSpec.kind !== "none";
   const serverGroupsRequestGroup =
@@ -1355,11 +1393,7 @@ export function TableView({
       ? ({ kind: "status" } as const)
       : serverGroupSpec;
   const serverGroupsQuery = useInfiniteQuery({
-    ...issueTableGroupsOptions(
-      wsId,
-      serverQuery,
-      serverGroupsRequestGroup,
-    ),
+    ...issueTableGroupsOptions(wsId, serverQuery, serverGroupsRequestGroup),
     enabled: usesServerGrouping,
   });
   const {
@@ -1389,30 +1423,31 @@ export function TableView({
   }, [serverGroupsQuery.error, setTableGrouping, t]);
   const serverGroups = useMemo(
     () => serverGroupsData?.pages.flatMap((page) => page.groups) ?? [],
-    [serverGroupsData?.pages],
+    [serverGroupsData?.pages]
   );
   const serverIdentity = useMemo(
     () => JSON.stringify([serverQuery, serverGroupSpec, tableHierarchy]),
-    [serverGroupSpec, serverQuery, tableHierarchy],
+    [serverGroupSpec, serverQuery, tableHierarchy]
   );
   const serverStructureIdentity = useMemo(
     () => JSON.stringify([serverGroupSpec, tableHierarchy]),
-    [serverGroupSpec, tableHierarchy],
+    [serverGroupSpec, tableHierarchy]
   );
   const collapsedGroupSet = useMemo(
     () => new Set(tableCollapsedGroups),
-    [tableCollapsedGroups],
+    [tableCollapsedGroups]
   );
   const collapsedParentSet = useMemo(
     () => new Set(tableCollapsedParents),
-    [tableCollapsedParents],
+    [tableCollapsedParents]
   );
-  const [serverBranchState, setServerBranchState] =
-    useState<ServerBranchState>({
+  const [serverBranchState, setServerBranchState] = useState<ServerBranchState>(
+    {
       identity: "",
       structureIdentity: "",
       branches: new Map(),
-    });
+    }
+  );
 
   const rebasedServerBranchState = useMemo(
     () =>
@@ -1420,14 +1455,14 @@ export function TableView({
         serverBranchState,
         serverIdentity,
         serverStructureIdentity,
-        usesServerGrouping,
+        usesServerGrouping
       ),
     [
       serverBranchState,
       serverIdentity,
       serverStructureIdentity,
       usesServerGrouping,
-    ],
+    ]
   );
 
   // Commit the synchronous rebase after render. Consumers use the derived
@@ -1441,14 +1476,14 @@ export function TableView({
 
   const activeServerBranches = rebasedServerBranchState.branches;
   const serverBranchPlaceholderRef = useRef(
-    new Map<string, IssueTableRowsResponse>(),
+    new Map<string, IssueTableRowsResponse>()
   );
   const serverBranchPageTargets = useMemo<ServerBranchPageTarget[]>(
     () =>
       [...activeServerBranches.values()].flatMap((branch) =>
-        branch.cursors.map((cursor) => ({ branch, cursor })),
+        branch.cursors.map((cursor) => ({ branch, cursor }))
       ),
-    [activeServerBranches],
+    [activeServerBranches]
   );
   // useQueries compares and installs the supplied query list in an effect.
   // Keeping this array stable prevents a settled branch from being installed
@@ -1460,7 +1495,7 @@ export function TableView({
         const placeholder =
           cursor === null
             ? serverBranchPlaceholderRef.current.get(
-                `${serverStructureIdentity}:${branch.key}`,
+                `${serverStructureIdentity}:${branch.key}`
               )
             : undefined;
         return {
@@ -1492,7 +1527,7 @@ export function TableView({
       serverStructureIdentity,
       tableHierarchy,
       wsId,
-    ],
+    ]
   );
   const combineServerBranchQueries = useCallback(
     (results: Array<UseQueryResult<IssueTableRowsResponse, Error>>) => {
@@ -1528,7 +1563,7 @@ export function TableView({
       }
       return byBranch;
     },
-    [serverBranchPageTargets],
+    [serverBranchPageTargets]
   );
   // `combine` is structurally shared by React Query. It must return only plain
   // objects/arrays: Map instances and freshly-created retry closures cannot be
@@ -1562,11 +1597,7 @@ export function TableView({
     // transitions reuse these entries; old group/property configurations do
     // not accumulate for the lifetime of the Table component.
     serverBranchPlaceholderRef.current = next;
-  }, [
-    activeServerBranches,
-    serverBranchData,
-    serverStructureIdentity,
-  ]);
+  }, [activeServerBranches, serverBranchData, serverStructureIdentity]);
 
   // Re-derive ancestry from the current row graph after realtime re-parenting.
   // Branch keys are parent ids, so an existing branch can move under a new
@@ -1577,7 +1608,7 @@ export function TableView({
     const visit = (
       groupKey: string | null,
       parentId: string | null,
-      ancestors: string[],
+      ancestors: string[]
     ) => {
       const key = serverBranchKey(groupKey, parentId);
       if (visited.has(key)) return;
@@ -1613,7 +1644,7 @@ export function TableView({
     (
       groupKey: string | null,
       parentId: string | null,
-      ancestorIds: string[],
+      ancestorIds: string[]
     ) => {
       setServerBranchState((previous) => {
         if (previous.identity !== serverIdentity) return previous;
@@ -1633,12 +1664,12 @@ export function TableView({
                 parentId,
                 ancestorIds,
                 cursors: [null],
-              },
+              }
         );
         return { ...previous, branches };
       });
     },
-    [serverIdentity],
+    [serverIdentity]
   );
 
   // A broad Table invalidation refetches every active page. As soon as the
@@ -1696,7 +1727,7 @@ export function TableView({
         return { ...previous, branches };
       });
     },
-    [serverIdentity],
+    [serverIdentity]
   );
 
   const retryServerBranch = useCallback(
@@ -1710,7 +1741,7 @@ export function TableView({
           serverGroupSpec,
           branch.groupKey,
           tableHierarchy,
-          branch.parentId,
+          branch.parentId
         ),
         exact: false,
         type: "active",
@@ -1723,7 +1754,7 @@ export function TableView({
       serverQuery,
       tableHierarchy,
       wsId,
-    ],
+    ]
   );
 
   const serverGroupLabel = useCallback(
@@ -1769,7 +1800,7 @@ export function TableView({
           ?.name ?? String(value.value ?? "")
       );
     },
-    [getActorName, propertyById, t],
+    [getActorName, propertyById, t]
   );
 
   const serverDisplayRows = useMemo<IssueTableDisplayRow[]>(() => {
@@ -1779,7 +1810,7 @@ export function TableView({
       groupKey: string | null,
       parentId: string | null,
       depth: number,
-      ancestorIds: string[],
+      ancestorIds: string[]
     ) => {
       const key = serverBranchKey(groupKey, parentId);
       const data = serverBranchData[key];
@@ -1941,7 +1972,7 @@ export function TableView({
         serverQuery.filters,
         serverQuery.search ?? "",
       ]),
-    [serverQuery.filters, serverQuery.scope, serverQuery.search],
+    [serverQuery.filters, serverQuery.scope, serverQuery.search]
   );
   const authoritativeLoadedIssues = useMemo(() => {
     const byId = new Map<string, Issue>();
@@ -1984,16 +2015,17 @@ export function TableView({
       loadedIssueState.issues,
       loadedIssueState.membershipIdentity,
       tableMembershipIdentity,
-    ],
+    ]
   );
 
   const visibleColumnConfigs = useMemo(
     () =>
       tableColumns.filter((column) => {
+        if (column.key === "labels" && !labelsEnabled) return false;
         const propertyId = propertyIdFromViewKey(column.key);
         return !propertyId || activePropertyIds.has(propertyId);
       }),
-    [activePropertyIds, tableColumns],
+    [activePropertyIds, labelsEnabled, tableColumns]
   );
 
   // While a cell editor popup / rename input is open, hold the row structure
@@ -2013,28 +2045,31 @@ export function TableView({
   const frozenRows = frozenRowsRef.current;
   const issueById = useMemo(
     () => new Map(authoritativeLoadedIssues.map((issue) => [issue.id, issue])),
-    [authoritativeLoadedIssues],
+    [authoritativeLoadedIssues]
   );
   const displayRows = useMemo(
     () =>
       frozenRows && frozenRows !== serverDisplayRows
         ? refreshFrozenTableRows(frozenRows, issueById)
         : serverDisplayRows,
-    [frozenRows, issueById, serverDisplayRows],
+    [frozenRows, issueById, serverDisplayRows]
   );
   const visibleIssueIds = useMemo(
     () =>
       displayRows
-        .filter((row): row is Extract<IssueTableDisplayRow, { kind: "issue" }> => row.kind === "issue")
+        .filter(
+          (row): row is Extract<IssueTableDisplayRow, { kind: "issue" }> =>
+            row.kind === "issue"
+        )
         .map((row) => row.issue.id),
-    [displayRows],
+    [displayRows]
   );
   useEffect(() => {
     onLoadedIssuesChange(loadedIssues);
   }, [loadedIssues, onLoadedIssuesChange]);
   const selectedIssues = useMemo(
     () => loadedIssues.filter((issue) => selection.selectedIds.has(issue.id)),
-    [loadedIssues, selection.selectedIds],
+    [loadedIssues, selection.selectedIds]
   );
   const handleIssueSelection = useCallback(
     (issueId: string, shiftKey: boolean) => {
@@ -2042,7 +2077,7 @@ export function TableView({
         ? getIssueTableSelectionRange(
             visibleIssueIds,
             selectionAnchorRef.current,
-            issueId,
+            issueId
           )
         : null;
 
@@ -2055,7 +2090,7 @@ export function TableView({
       selection.toggle(issueId);
       selectionAnchorRef.current = issueId;
     },
-    [selection, visibleIssueIds],
+    [selection, visibleIssueIds]
   );
 
   useEffect(() => {
@@ -2065,16 +2100,17 @@ export function TableView({
   const columnLabel = useCallback(
     (key: TableColumnKey) => {
       const propertyId = propertyIdFromViewKey(key);
-      if (propertyId) return propertyById.get(propertyId)?.name ?? t(($) => $.table.no_value);
+      if (propertyId)
+        return propertyById.get(propertyId)?.name ?? t(($) => $.table.no_value);
       return t(($) => $.table.columns[key as ColumnLabelKey]);
     },
-    [propertyById, t],
+    [propertyById, t]
   );
 
   const updateIssue = useCallback(
     (issueId: string, updates: Partial<UpdateIssueRequest>) =>
       actions?.updateIssue(issueId, updates),
-    [actions],
+    [actions]
   );
 
   const openIssue = useCallback(
@@ -2088,20 +2124,20 @@ export function TableView({
       window.open(
         navigation.getShareableUrl(path),
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
     },
-    [navigation, paths],
+    [navigation, paths]
   );
 
   const createSubIssue = useCallback(
     (issue: Issue) =>
-      onCreateIssue({
+      onCreateIssue?.({
         parent_issue_id: issue.id,
         parent_issue_identifier: issue.identifier,
         ...(issue.project_id ? { project_id: issue.project_id } : {}),
       }),
-    [onCreateIssue],
+    [onCreateIssue]
   );
 
   const onSort = useCallback(
@@ -2109,7 +2145,7 @@ export function TableView({
       setSortBy(field);
       setSortDirection(direction);
     },
-    [setSortBy, setSortDirection],
+    [setSortBy, setSortDirection]
   );
 
   // Fresh object every render is fine — cells read it through
@@ -2119,6 +2155,7 @@ export function TableView({
     childProgressMap,
     propertyById,
     properties,
+    labelsEnabled,
     visibleIssueIds,
     editingCellKey,
     setEditingCellKey,
@@ -2168,7 +2205,7 @@ export function TableView({
         cell: IssueTableEmptyCell,
       },
     ],
-    [visibleColumnConfigs],
+    [visibleColumnConfigs]
   );
 
   const columnSizing = useMemo<ColumnSizingState>(
@@ -2176,19 +2213,20 @@ export function TableView({
       Object.fromEntries(
         visibleColumnConfigs
           .filter((column) => column.width !== undefined)
-          .map((column) => [column.key, column.width!]),
+          .map((column) => [column.key, column.width!])
       ),
-    [visibleColumnConfigs],
+    [visibleColumnConfigs]
   );
   const handleColumnSizingChange = useCallback<OnChangeFn<ColumnSizingState>>(
     (updater) => {
-      const next = typeof updater === "function" ? updater(columnSizing) : updater;
+      const next =
+        typeof updater === "function" ? updater(columnSizing) : updater;
       for (const column of visibleColumnConfigs) {
         const width = next[column.key];
         if (width !== column.width) setTableColumnWidth(column.key, width);
       }
     },
-    [columnSizing, setTableColumnWidth, visibleColumnConfigs],
+    [columnSizing, setTableColumnWidth, visibleColumnConfigs]
   );
 
   const table = useReactTable({
@@ -2207,14 +2245,17 @@ export function TableView({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const handleDragEnd = useCallback(
     ({ active, over }: DragEndEvent) => {
       if (!over || active.id === over.id) return;
-      reorderTableColumn(active.id as TableColumnKey, over.id as TableColumnKey);
+      reorderTableColumn(
+        active.id as TableColumnKey,
+        over.id as TableColumnKey
+      );
     },
-    [reorderTableColumn],
+    [reorderTableColumn]
   );
 
   const handleExport = async (mode: "all" | "selected") => {
@@ -2226,15 +2267,17 @@ export function TableView({
       // user's property columns vanish from the file, and with unsettled
       // directories every actor exports as "Unknown *" (round-2 review
       // P2#4). fetchQuery throws on failure, which lands in the catch below.
-      const needsPropertyCatalog = tableColumns.some(
-        (column) => propertyIdFromViewKey(column.key) !== null,
-      );
+      const needsPropertyCatalog =
+        propertiesEnabled &&
+        tableColumns.some(
+          (column) => propertyIdFromViewKey(column.key) !== null
+        );
       // fetchQuery bypasses the options' `select`, so unwrap the response.
       const exportProperties = needsPropertyCatalog
         ? (await queryClient.fetchQuery(propertyListOptions(wsId))).properties
         : [];
       const exportPropertyById = new Map(
-        exportProperties.map((property) => [property.id, property]),
+        exportProperties.map((property) => [property.id, property])
       );
       // Configured columns against the RESOLVED catalog — only a property
       // definition that is genuinely gone (archived/deleted) drops out.
@@ -2243,14 +2286,14 @@ export function TableView({
         return !propertyId || exportPropertyById.has(propertyId);
       });
       const needsActors = csvColumns.some(
-        (column) => column.key === "assignee" || column.key === "creator",
+        (column) => column.key === "assignee" || column.key === "creator"
       );
       const [rows, exportLookups, exportActorName] = await Promise.all([
         mode === "all" ? exportIssues() : Promise.resolve(selectedIssues),
         resolveExportLookups({
           projects: csvColumns.some((column) => column.key === "project"),
           childProgress: csvColumns.some(
-            (column) => column.key === "child_progress",
+            (column) => column.key === "child_progress"
           ),
         }),
         needsActors
@@ -2306,15 +2349,19 @@ export function TableView({
               return exportActorName(issue.creator_type, issue.creator_id);
           }
           return "";
-        }),
+        })
       );
       const csv = buildIssueTableCsv(headers, csvRows);
-      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+      const blob = new Blob(["\uFEFF", csv], {
+        type: "text/csv;charset=utf-8",
+      });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
       const filenamePrefix = mode === "all" ? "issues" : "issues-selected";
-      anchor.download = `${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.download = `${filenamePrefix}-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
       anchor.click();
       URL.revokeObjectURL(url);
       toast.success(t(($) => $.table.export_success, { count: rows.length }));
@@ -2324,7 +2371,7 @@ export function TableView({
           !(error instanceof IssueTableExportIntegrityError) &&
           error.message
           ? error.message
-          : t(($) => $.table.export_failed),
+          : t(($) => $.table.export_failed)
       );
     } finally {
       setExporting(null);
@@ -2426,11 +2473,11 @@ export function TableView({
                       className="p-0"
                     >
                       {/* The same footer Board / List / Swimlane end their
-                        * columns with. Hand-rolling it here had left the table
-                        * as the one surface where a failed page read as muted
-                        * body text rather than an error, and where reaching the
-                        * end of a paginated branch said nothing at all. The row
-                        * only supplies the cell it lives in. */}
+                       * columns with. Hand-rolling it here had left the table
+                       * as the one surface where a failed page read as muted
+                       * body text rather than an error, and where reaching the
+                       * end of a paginated branch said nothing at all. The row
+                       * only supplies the cell it lives in. */}
                       <div className="sticky left-0 w-full">
                         <ListLoadMoreFooter
                           hasMore={

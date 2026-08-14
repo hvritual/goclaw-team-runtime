@@ -34,6 +34,7 @@ type WorkspaceServiceDependencies struct {
 	HTTPIdentity            contract.WorkspaceHTTPIdentityResolver
 	HTTPMutationAuthorizer  func(*http.Request) error
 	IssueMetadataEnabled    *bool
+	IssueCreateEnabled      *bool
 	Events                  contract.WorkspaceEventPublisher
 	Selection               contract.WorkspaceSelectionService
 	WorkspaceMemberships    contract.WorkspaceMembershipReader
