@@ -906,3 +906,33 @@ Human approval are recorded.
   passed 20 repeated runs and the required sequential full backend run passed.
   Browser evidence and Human Customer acceptance remain pending, so the active
   step advances only to `M1-S7-C7-INTEGRATE`.
+
+## 2026-08-15 — M1-S7-C7 clean-candidate browser technical acceptance
+
+- The exact reviewed candidate is commit
+  `845b5f22ea13afc915fa4cf44aeb327dac977261`. It was checked out detached at
+  `F:\code\ai\goclaw-team-runtime-c7-clean-845b5f2`; the candidate contains
+  the committed Base UI Input and excludes the user's unrelated Input change,
+  stat-dirty byte-identical View paths and local artifact roots. `server/**`
+  remains unchanged.
+- The stopped main-runtime database and the detached candidate copy both had
+  pre-start SHA-256
+  `68D6ACE819575C3EEA7468DB1A91AC3585D44D9A4B1C277F090DB667F2858886`.
+  The candidate selector owns Web `3000`, Canonical HTTP `8000` and gRPC
+  `9000`; legacy `8080` is closed. `/healthz`, `/readyz`, the Web root and the
+  direct/proxied `/api/config` checks pass with identical capability data.
+- The Human Customer reopened retained Issue
+  `f532fa94-761c-456b-bcbd-d7c0ceaca2e4` at the clean-candidate URL. Browser
+  evidence shows the full detail rather than the prior title-only placeholder:
+  title and description, durable activity/comment surface, attached label
+  `测试`, the property-field dialog and every local status including
+  `已完成` render and respond. The page has meaningful DOM, no framework error
+  overlay and a retained screenshot in the acceptance conversation.
+- Browser console filtering reports no warning/error for label, property,
+  acceptance or any `404 /api/issues` request. The retained
+  `/api/invitations` 404 is explicitly outside plan v7 (`Invitations` remains
+  capability-off) and is neither reclassified as C7 success nor hidden.
+- C7 has deterministic HTTP/SQLite/realtime/restart evidence and clean-candidate
+  browser evidence, so it is technically accepted. The active step is
+  `M1-S7-C7-ACCEPT`; Human Customer acceptance is still required before any C8
+  attachment product write begins.
