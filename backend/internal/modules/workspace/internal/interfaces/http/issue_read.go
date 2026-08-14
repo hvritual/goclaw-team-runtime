@@ -44,6 +44,13 @@ func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 	router.POST("/api/issues/table/facets", h.facets)
 	router.POST("/api/issues/table/groups", h.groups)
 	router.POST("/api/issues/table/rows", h.rows)
+	if _, ok := h.service.(contract.IssueHierarchyService); ok {
+		router.GET("/api/issues/children", h.listChildrenByParents)
+		router.GET("/api/issues/child-progress", h.childProgress)
+		router.POST("/api/issues/batch-update", h.batchUpdate)
+		router.POST("/api/issues/batch-delete", h.batchDelete)
+		router.GET("/api/issues/{id}/children", h.listChildren)
+	}
 	router.GET("/api/issues/{id}", h.get)
 	router.PUT("/api/issues/{id}", h.update)
 	router.POST("/api/issues/{id}/move", h.move)

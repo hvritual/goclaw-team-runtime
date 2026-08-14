@@ -103,7 +103,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	var issueService contract.IssueMutationService = baseIssueService
 	var issueMetadataService contract.IssueMetadataService = baseIssueMetadataService
 	if dependencies.Events != nil {
-		issueService = publishingIssueService{IssueMutationService: baseIssueService, events: dependencies.Events}
+		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, events: dependencies.Events}
 		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
 		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
 	}

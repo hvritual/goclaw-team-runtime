@@ -11,6 +11,7 @@ import { ListTodo, Plus } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { cn } from "@multica/ui/lib/utils";
+import { useFeatureEnabled } from "@multica/core/config";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { ViewStoreProvider } from "@multica/core/issues/stores/view-store-context";
 import { getIssueSurfaceViewStore } from "@multica/core/issues/stores/surface-view-store";
@@ -126,6 +127,7 @@ function IssueSurfaceContent({
   contentClassName,
 }: Omit<IssueSurfaceComponentProps, "surfaceKey">) {
   const { t } = useT("projects");
+  const batchEnabled = useFeatureEnabled("issue_batch", true);
   const controller = useIssueSurfaceController({
     scope,
     modes,
@@ -182,6 +184,7 @@ function IssueSurfaceContent({
     issues.length === 0 &&
     (showClientEmpty ? showClientEmpty(renderContext) : true);
   const shouldShowBatchToolbar =
+    batchEnabled &&
     batchToolbar !== "never" &&
     (batchToolbar === "always" ||
       controller.viewMode === "list" ||

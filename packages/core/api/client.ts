@@ -131,7 +131,10 @@ import {
 } from "../project-requirements/schema";
 import {
   AttachmentResponseSchema,
+  BatchDeleteIssuesResponseSchema,
+  BatchUpdateIssuesResponseSchema,
   ChildIssuesResponseSchema,
+  ChildIssueProgressResponseSchema,
   CommentsListSchema,
   EMPTY_APP_CONFIG,
   EMPTY_ATTACHMENT,
@@ -813,9 +816,9 @@ export class ApiClient {
 
   async listChildIssues(id: string): Promise<{ issues: Issue[] }> {
     const raw = await this.fetch<unknown>(`/api/issues/${id}/children`);
-    return parseWithFallback(raw, ChildIssuesResponseSchema, { issues: [] }, {
-      endpoint: "GET /api/issues/:id/children",
-    });
+    const parsed = ChildIssuesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid child issues response");
+    return parsed.data;
   }
 
   /** Batched variant — returns children for multiple parents in one request.
@@ -826,13 +829,16 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(
       `/api/issues/children?parent_ids=${parentIds.join(",")}`,
     );
-    return parseWithFallback(raw, ChildIssuesResponseSchema, { issues: [] }, {
-      endpoint: "GET /api/issues/children",
-    });
+    const parsed = ChildIssuesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid child issues response");
+    return parsed.data;
   }
 
   async getChildIssueProgress(): Promise<{ progress: { parent_issue_id: string; total: number; done: number }[] }> {
-    return this.fetch("/api/issues/child-progress");
+    const raw = await this.fetch<unknown>("/api/issues/child-progress");
+    const parsed = ChildIssueProgressResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid child issue progress response");
+    return parsed.data;
   }
 
   async deleteIssue(id: string): Promise<void> {
@@ -840,17 +846,23 @@ export class ApiClient {
   }
 
   async batchUpdateIssues(issueIds: string[], updates: UpdateIssueRequest): Promise<{ updated: number }> {
-    return this.fetch("/api/issues/batch-update", {
+    const raw = await this.fetch<unknown>("/api/issues/batch-update", {
       method: "POST",
       body: JSON.stringify({ issue_ids: issueIds, updates }),
     });
+    const parsed = BatchUpdateIssuesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid batch issue update response");
+    return parsed.data;
   }
 
   async batchDeleteIssues(issueIds: string[]): Promise<{ deleted: number }> {
-    return this.fetch("/api/issues/batch-delete", {
+    const raw = await this.fetch<unknown>("/api/issues/batch-delete", {
       method: "POST",
       body: JSON.stringify({ issue_ids: issueIds }),
     });
+    const parsed = BatchDeleteIssuesResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid batch issue delete response");
+    return parsed.data;
   }
 
   // Comments

@@ -30,6 +30,10 @@ vi.mock("@multica/ui/hooks/use-mobile", () => ({
   useIsMobile: () => mockViewport.isMobile,
 }));
 
+vi.mock("./batch-action-toolbar", () => ({
+  BatchActionToolbar: () => <div data-testid="batch-action-toolbar" />,
+}));
+
 // useWorkspaceId() derives from useCurrentWorkspace (relative import inside
 // @multica/core/hooks.tsx). vi.mock("@multica/core/paths") only intercepts
 // the bare-specifier, not the internal relative import. Mock the hooks module
@@ -681,6 +685,32 @@ describe("IssueDetail (shared)", () => {
     expect(mockRealtimeConsumers.reconnect).not.toHaveBeenCalled();
     expect(screen.queryByTestId("virtuoso-mock")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/comment/i)).not.toBeInTheDocument();
+  });
+
+  it("does not mount inline batch controls while the runtime capability is disabled", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_timeline: true,
+      issue_children: true,
+      issue_batch: false,
+      issue_detail_pull_requests: false,
+    });
+    mockApiObj.listChildIssues.mockResolvedValue({
+      issues: [
+        {
+          ...mockIssue,
+          id: "child-1",
+          identifier: "TES-2",
+          number: 2,
+          title: "Child issue",
+          parent_issue_id: mockIssue.id,
+        },
+      ],
+    });
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("Child issue")).toBeInTheDocument();
+    expect(screen.queryByTestId("batch-action-toolbar")).not.toBeInTheDocument();
   });
 
   it("renders canonical base detail loading, empty, denied, and error states", async () => {

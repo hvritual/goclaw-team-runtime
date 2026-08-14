@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,10 +82,25 @@ type requirementIssueReference struct {
 }
 
 func clearRequirementIssueReferences(ctx context.Context, connection *sql.Conn, workspaceID, issueID, identifier string) error {
+	return clearRequirementIssueReferencesMany(ctx, connection, workspaceID, []string{issueID, identifier}, time.Now().UTC().Format(time.RFC3339Nano))
+}
+
+func clearRequirementIssueReferencesMany(ctx context.Context, connection *sql.Conn, workspaceID string, removed []string, now string) error {
+	if len(removed) == 0 {
+		return nil
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(removed)), ",")
+	arguments := make([]any, 0, len(removed)+1)
+	arguments = append(arguments, workspaceID)
+	removedSet := make(map[string]struct{}, len(removed))
+	for _, value := range removed {
+		arguments = append(arguments, value)
+		removedSet[value] = struct{}{}
+	}
 	rows, err := connection.QueryContext(ctx, `SELECT r.id,r.current_version,r.issue_ids,v.content
 		FROM workspace_requirements r
 		JOIN workspace_requirement_versions v ON v.requirement_id=r.id AND v.version=r.current_version
-		WHERE r.workspace_id=? AND EXISTS (SELECT 1 FROM json_each(r.issue_ids) WHERE value IN (?,?))`, workspaceID, issueID, identifier)
+		WHERE r.workspace_id=? AND EXISTS (SELECT 1 FROM json_each(r.issue_ids) WHERE value IN (`+placeholders+`))`, arguments...)
 	if err != nil {
 		return err
 	}
@@ -107,7 +123,7 @@ func clearRequirementIssueReferences(ctx context.Context, connection *sql.Conn, 
 		}
 		retained := make([]string, 0, len(current))
 		for _, value := range current {
-			if value != issueID && value != identifier {
+			if _, remove := removedSet[value]; !remove {
 				retained = append(retained, value)
 			}
 		}
@@ -120,7 +136,6 @@ func clearRequirementIssueReferences(ctx context.Context, connection *sql.Conn, 
 		if len(retained) == 0 {
 			coverage = "uncovered"
 		}
-		now := time.Now().UTC().Format(time.RFC3339Nano)
 		result, err := connection.ExecContext(ctx, `UPDATE workspace_requirements
 			SET current_version=?,approval_status='draft',coverage_status=?,issue_ids=?,updated_at=?
 			WHERE workspace_id=? AND id=? AND current_version=?`, nextVersion, coverage, string(encoded), now, workspaceID, reference.id, reference.currentVersion)

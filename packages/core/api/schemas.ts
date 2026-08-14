@@ -4,6 +4,7 @@ import type {
   GroupedIssuesResponse,
   GitHubConnectResponse,
   GitHubPullRequest,
+  Issue,
   Label,
   IssueProperty,
   ListPropertiesResponse,
@@ -847,8 +848,33 @@ const SubscriberSchema = z.object({
 
 export const SubscribersListSchema = z.array(SubscriberSchema);
 
+const ChildIssueSchema = IssueSchema.extend({
+  status: z.enum(["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"]),
+  priority: z.enum(["urgent", "high", "medium", "low", "none"]),
+  assignee_type: z.enum(["member", "agent"]).nullable(),
+  creator_type: z.enum(["member", "agent"]),
+});
+
 export const ChildIssuesResponseSchema = z.object({
-  issues: z.array(IssueSchema).default([]),
+  issues: z.array(ChildIssueSchema),
+}).loose().transform((value): { issues: Issue[] } => value as unknown as { issues: Issue[] });
+
+export const ChildIssueProgressResponseSchema = z.object({
+  progress: z.array(z.object({
+    parent_issue_id: z.string().min(1),
+    total: z.number().int().nonnegative(),
+    done: z.number().int().nonnegative(),
+  }).refine((value) => value.done <= value.total, {
+    message: "done child count cannot exceed total",
+  })),
+}).loose();
+
+export const BatchUpdateIssuesResponseSchema = z.object({
+  updated: z.number().int().nonnegative(),
+}).loose();
+
+export const BatchDeleteIssuesResponseSchema = z.object({
+  deleted: z.number().int().nonnegative(),
 }).loose();
 
 

@@ -909,6 +909,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
 	const propertiesEnabled = useFeatureEnabled("issue_properties", true);
 	const pinsEnabled = useFeatureEnabled("issue_pins", true);
 	const childrenEnabled = useFeatureEnabled("issue_children", true);
+	const batchEnabled = useFeatureEnabled("issue_batch", true);
 	const projectEnabled = useFeatureEnabled("issue_project", true);
 	const childProgressEnabled = useFeatureEnabled("issue_child_progress", true);
 	const acceptanceEnabled = useFeatureEnabled("issue_acceptance", true);
@@ -2499,7 +2500,9 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
 
                 {/* Inline batch toolbar — appears next to the rows when
                     selections exist, instead of as a far-away fixed bar. */}
-                <BatchActionToolbar issues={childIssues} placement="inline" />
+                {batchEnabled && (
+                  <BatchActionToolbar issues={childIssues} placement="inline" />
+                )}
 
                 {/* List */}
                 {!subIssuesCollapsed && (() => {

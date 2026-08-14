@@ -54,6 +54,70 @@ describe("issue update API boundary", () => {
     })).rejects.toThrow("Invalid issue move response");
   });
 
+  it("rejects malformed hierarchy and batch responses", async () => {
+    const responses = [
+      { issues: [{ ...VALID_ISSUE, status: "invented" }] },
+      {},
+      { progress: [{ parent_issue_id: "parent", total: -1, done: 2 }] },
+      { updated: "2" },
+      { deleted: -1 },
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(
+      JSON.stringify(responses.shift()),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.listChildIssues("parent")).rejects.toThrow("Invalid child issues response");
+    await expect(client.listChildrenByParents(["parent"])).rejects.toThrow("Invalid child issues response");
+    await expect(client.getChildIssueProgress()).rejects.toThrow("Invalid child issue progress response");
+    await expect(client.batchUpdateIssues(["issue-1"], { status: "done" })).rejects.toThrow("Invalid batch issue update response");
+    await expect(client.batchDeleteIssues(["issue-1"])).rejects.toThrow("Invalid batch issue delete response");
+  });
+
+  it("accepts and serializes exact hierarchy and batch contracts", async () => {
+    const child = { ...VALID_ISSUE, id: "child-1", parent_issue_id: "parent-1" };
+    const responses = [
+      { issues: [child] },
+      { issues: [child] },
+      { progress: [{ parent_issue_id: "parent-1", total: 2, done: 1 }] },
+      { updated: 2 },
+      { deleted: 2 },
+    ];
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(
+      JSON.stringify(responses.shift()),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.listChildIssues("parent-1")).resolves.toEqual({ issues: [child] });
+    await expect(client.listChildrenByParents(["parent-1", "parent-2"])).resolves.toEqual({ issues: [child] });
+    await expect(client.getChildIssueProgress()).resolves.toEqual({
+      progress: [{ parent_issue_id: "parent-1", total: 2, done: 1 }],
+    });
+    await expect(client.batchUpdateIssues(["issue-1", "issue-2"], {
+      status: "done",
+      parent_issue_id: null,
+    })).resolves.toEqual({ updated: 2 });
+    await expect(client.batchDeleteIssues(["issue-1", "issue-2"])).resolves.toEqual({ deleted: 2 });
+
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+      "http://localhost:3000/api/issues/parent-1/children",
+      "http://localhost:3000/api/issues/children?parent_ids=parent-1,parent-2",
+      "http://localhost:3000/api/issues/child-progress",
+      "http://localhost:3000/api/issues/batch-update",
+      "http://localhost:3000/api/issues/batch-delete",
+    ]);
+    expect(JSON.parse((fetchMock.mock.calls[3]?.[1] as RequestInit).body as string)).toEqual({
+      issue_ids: ["issue-1", "issue-2"],
+      updates: { status: "done", parent_issue_id: null },
+    });
+    expect(JSON.parse((fetchMock.mock.calls[4]?.[1] as RequestInit).body as string)).toEqual({
+      issue_ids: ["issue-1", "issue-2"],
+    });
+  });
+
   it("serializes acceptance input only at the HTTP boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       JSON.stringify(VALID_ISSUE),

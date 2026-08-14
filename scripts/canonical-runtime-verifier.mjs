@@ -30,9 +30,10 @@ const CANONICAL_CAPABILITIES = Object.freeze({
   issue_labels: false,
   issue_properties: false,
   issue_pins: false,
-  issue_children: false,
+  issue_children: true,
   issue_project: false,
-  issue_child_progress: false,
+  issue_child_progress: true,
+  issue_batch: true,
   issue_acceptance: false,
 });
 

@@ -42,6 +42,32 @@ type IssueRepository interface {
 	WouldCreateParentCycle(context.Context, string, string, string) (bool, error)
 }
 
+type IssueHierarchyRepository interface {
+	ListChildren(context.Context, string, []string) ([]issueDomain.Issue, error)
+	ChildProgress(context.Context, string) ([]IssueChildProgress, error)
+	BatchUpdate(context.Context, IssueBatchUpdateCommand) ([]issueDomain.Issue, error)
+	BatchDelete(context.Context, IssueBatchDeleteCommand) ([]string, error)
+}
+
+type IssueChildProgress struct {
+	ParentIssueID string
+	Total         int32
+	Done          int32
+}
+
+type IssueBatchUpdateCommand struct {
+	WorkspaceID string
+	IssueIDs    []string
+	Patch       issueDomain.Patch
+	Now         time.Time
+}
+
+type IssueBatchDeleteCommand struct {
+	WorkspaceID string
+	IssueIDs    []string
+	Now         time.Time
+}
+
 type IssueMoveCommand struct {
 	WorkspaceID string
 	IssueID     string
@@ -55,10 +81,13 @@ var (
 	ErrIssueMoveAnchorNotFound = errors.New("issue move anchor not found")
 	ErrIssueMoveConflict       = errors.New("issue move anchors conflict")
 	ErrIssueMoveInvalid        = errors.New("invalid issue move")
+	ErrIssueBatchConflict      = errors.New("issue batch conflict")
+	ErrIssueBatchInvalid       = errors.New("invalid issue batch")
 )
 
 type IssueUseCase struct {
 	repository IssueRepository
+	hierarchy  IssueHierarchyRepository
 	projects   ProjectRepository
 	authorizer contract.WorkspaceAccessAuthorizer
 	actors     contract.WorkspaceActorReader
@@ -71,7 +100,8 @@ func NewIssueUseCase(repository IssueRepository, projects ProjectRepository, aut
 	if repository == nil || projects == nil || authorizer == nil || actors == nil || assets == nil || newID == nil || now == nil {
 		return nil, errors.New("Issue dependencies are required")
 	}
-	return &IssueUseCase{repository: repository, projects: projects, authorizer: authorizer, actors: actors, assets: assets, newID: newID, now: now}, nil
+	hierarchy, _ := repository.(IssueHierarchyRepository)
+	return &IssueUseCase{repository: repository, hierarchy: hierarchy, projects: projects, authorizer: authorizer, actors: actors, assets: assets, newID: newID, now: now}, nil
 }
 
 func (s *IssueUseCase) CreateIssue(ctx context.Context, request contract.CreateIssueRequest) (contract.CreateIssueResponse, error) {
@@ -256,24 +286,11 @@ func (s *IssueUseCase) updateIssue(ctx context.Context, request contract.UpdateI
 	if err != nil {
 		return contract.UpdateIssueResponse{}, err
 	}
-	patch := issueDomain.Patch{
-		Title: request.Title, Description: request.Description, Status: request.Status, Priority: request.Priority,
-		AssigneeType: issueStringChange(request.AssigneeType), AssigneeID: issueStringChange(request.AssigneeId),
-		ParentIssueID: issueStringChange(request.ParentIssueId), ProjectID: issueStringChange(request.ProjectId),
-		Position: request.Position, StartDate: issueDateChange(request.StartDate), DueDate: issueDateChange(request.DueDate),
+	patch, err := issuePatchFromUpdate(request)
+	if err != nil {
+		return contract.UpdateIssueResponse{}, err
 	}
-	if request.Stage != nil {
-		if *request.Stage < 0 {
-			return contract.UpdateIssueResponse{}, fmt.Errorf("%w: stage cannot be negative", contract.ErrInvalidIssue)
-		}
-		patch.Stage.Set = true
-		if *request.Stage > 0 {
-			stage := *request.Stage
-			patch.Stage.Value = &stage
-		}
-	}
-	if request.AssetIds != nil {
-		patch.AssetIDs = issueDomain.AssetsChange{Set: true, Values: append([]string(nil), request.AssetIds.Values...)}
+	if patch.AssetIDs.Set {
 		if err := s.validateAssets(ctx, workspaceID, patch.AssetIDs.Values); err != nil {
 			return contract.UpdateIssueResponse{}, err
 		}
@@ -320,6 +337,29 @@ func (s *IssueUseCase) updateIssue(ctx context.Context, request contract.UpdateI
 	}
 	result := issueToContract(updated)
 	return contract.UpdateIssueResponse{Issue: &result}, nil
+}
+
+func issuePatchFromUpdate(request contract.UpdateIssueRequest) (issueDomain.Patch, error) {
+	patch := issueDomain.Patch{
+		Title: request.Title, Description: request.Description, Status: request.Status, Priority: request.Priority,
+		AssigneeType: issueStringChange(request.AssigneeType), AssigneeID: issueStringChange(request.AssigneeId),
+		ParentIssueID: issueStringChange(request.ParentIssueId), ProjectID: issueStringChange(request.ProjectId),
+		Position: request.Position, StartDate: issueDateChange(request.StartDate), DueDate: issueDateChange(request.DueDate),
+	}
+	if request.Stage != nil {
+		if *request.Stage < 0 {
+			return issueDomain.Patch{}, fmt.Errorf("%w: stage cannot be negative", contract.ErrInvalidIssue)
+		}
+		patch.Stage.Set = true
+		if *request.Stage > 0 {
+			stage := *request.Stage
+			patch.Stage.Value = &stage
+		}
+	}
+	if request.AssetIds != nil {
+		patch.AssetIDs = issueDomain.AssetsChange{Set: true, Values: append([]string(nil), request.AssetIds.Values...)}
+	}
+	return patch, nil
 }
 
 func (s *IssueUseCase) findIssue(ctx context.Context, workspaceID, issueID string) (issueDomain.Issue, error) {

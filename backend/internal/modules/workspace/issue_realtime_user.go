@@ -8,7 +8,8 @@ import (
 
 type publishingIssueService struct {
 	contract.IssueMutationService
-	events contract.WorkspaceEventPublisher
+	hierarchy contract.IssueHierarchyService
+	events    contract.WorkspaceEventPublisher
 }
 
 func (s publishingIssueService) CreateIssue(ctx context.Context, request contract.CreateIssueRequest) (contract.CreateIssueResponse, error) {
@@ -65,6 +66,41 @@ func (s publishingIssueService) MoveIssue(ctx context.Context, request contract.
 			"status_changed":   before.Issue != nil && before.Issue.Status != response.Issue.Status,
 			"project_changed":  before.Issue != nil && pointerValue(before.Issue.ProjectId) != pointerValue(response.Issue.ProjectId),
 		}, actorID, actorType)
+	}
+	return response, err
+}
+
+func (s publishingIssueService) ListIssueChildren(ctx context.Context, request contract.ListIssueChildrenRequest) (contract.ListIssueChildrenResponse, error) {
+	return s.hierarchy.ListIssueChildren(ctx, request)
+}
+
+func (s publishingIssueService) ListIssueChildrenByParents(ctx context.Context, request contract.ListIssueChildrenByParentsRequest) (contract.ListIssueChildrenResponse, error) {
+	return s.hierarchy.ListIssueChildrenByParents(ctx, request)
+}
+
+func (s publishingIssueService) ListIssueChildProgress(ctx context.Context, request contract.ListIssueChildProgressRequest) (contract.ListIssueChildProgressResponse, error) {
+	return s.hierarchy.ListIssueChildProgress(ctx, request)
+}
+
+func (s publishingIssueService) BatchUpdateIssues(ctx context.Context, request contract.BatchUpdateIssuesRequest) (contract.BatchUpdateIssuesResponse, error) {
+	response, err := s.hierarchy.BatchUpdateIssues(ctx, request)
+	if err == nil {
+		actorID, actorType := realtimeActor(ctx)
+		for index := range response.Issues {
+			issue := response.Issues[index]
+			s.events.Publish(request.WorkspaceID, "issue:updated", map[string]any{"issue": realtimeIssue(&issue)}, actorID, actorType)
+		}
+	}
+	return response, err
+}
+
+func (s publishingIssueService) BatchDeleteIssues(ctx context.Context, request contract.BatchDeleteIssuesRequest) (contract.BatchDeleteIssuesResponse, error) {
+	response, err := s.hierarchy.BatchDeleteIssues(ctx, request)
+	if err == nil {
+		actorID, actorType := realtimeActor(ctx)
+		for _, issueID := range response.IssueIDs {
+			s.events.Publish(request.WorkspaceID, "issue:deleted", map[string]any{"issue_id": issueID}, actorID, actorType)
+		}
 	}
 	return response, err
 }
