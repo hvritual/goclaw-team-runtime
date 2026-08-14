@@ -54,11 +54,60 @@ func (s *LocalAuthStore) RevokeSession(ctx context.Context, token string, now ti
 	return err
 }
 
+func (s *LocalAuthStore) CompleteOnboarding(ctx context.Context, userID, workspaceID string, now time.Time) (application.LocalUser, error) {
+	connection, err := s.db.Conn(ctx)
+	if err != nil {
+		return application.LocalUser{}, err
+	}
+	defer connection.Close()
+	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return application.LocalUser{}, err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.Background(), "ROLLBACK")
+		}
+	}()
+	if workspaceID != "" {
+		var exists int
+		if err := connection.QueryRowContext(ctx, `SELECT 1 FROM auth_members WHERE workspace_id=? AND user_id=?`, workspaceID, userID).Scan(&exists); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return application.LocalUser{}, application.ErrWorkspaceUnavailable
+			}
+			return application.LocalUser{}, err
+		}
+	}
+	timestamp := now.UTC().Format(time.RFC3339Nano)
+	result, err := connection.ExecContext(ctx, `UPDATE auth_users SET onboarded_at=COALESCE(onboarded_at,?),updated_at=? WHERE id=?`, timestamp, timestamp, userID)
+	if err != nil {
+		return application.LocalUser{}, err
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 1 {
+		return application.LocalUser{}, application.ErrInvalidToken
+	}
+	user, err := scanLocalUser(connection.QueryRowContext(ctx, `SELECT id,name,email,avatar_url,onboarded_at,created_at,updated_at FROM auth_users WHERE id=?`, userID))
+	if err != nil {
+		return application.LocalUser{}, err
+	}
+	if _, err := connection.ExecContext(ctx, "COMMIT"); err != nil {
+		return application.LocalUser{}, err
+	}
+	committed = true
+	return user, nil
+}
+
 func (s *LocalAuthStore) findUser(ctx context.Context, query string, arguments ...any) (application.LocalUser, error) {
+	return scanLocalUser(s.db.QueryRowContext(ctx, query, arguments...))
+}
+
+type localUserScanner interface{ Scan(...any) error }
+
+func scanLocalUser(scanner localUserScanner) (application.LocalUser, error) {
 	var user application.LocalUser
 	var avatar sql.NullString
 	var onboardedAt sql.NullString
-	err := s.db.QueryRowContext(ctx, query, arguments...).Scan(&user.ID, &user.Name, &user.Email, &avatar, &onboardedAt, &user.CreatedAt, &user.UpdatedAt)
+	err := scanner.Scan(&user.ID, &user.Name, &user.Email, &avatar, &onboardedAt, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return application.LocalUser{}, err
 	}

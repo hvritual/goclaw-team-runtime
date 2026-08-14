@@ -55,6 +55,7 @@ func (h *LocalAuthHandler) Register(server *kratoshttp.Server) {
 	router.POST("/auth/verify-code", h.verifyCode)
 	router.POST("/auth/logout", h.logout)
 	router.GET("/api/me", h.me)
+	router.POST("/api/me/onboarding/complete", h.completeOnboarding)
 }
 
 func (h *LocalAuthHandler) sendCode(ctx kratoshttp.Context) error {
@@ -117,6 +118,50 @@ func (h *LocalAuthHandler) logout(ctx kratoshttp.Context) error {
 	h.clearCookies(ctx)
 	ctx.Response().WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+func (h *LocalAuthHandler) completeOnboarding(ctx kratoshttp.Context) error {
+	token, cookieAuth := requestToken(ctx.Request())
+	if token == "" {
+		return writeError(ctx, http.StatusUnauthorized, "authentication required")
+	}
+	user, err := h.service.Resolve(ctx.Request().Context(), token)
+	if err != nil {
+		return writeError(ctx, http.StatusUnauthorized, "invalid token")
+	}
+	if cookieAuth && !validCSRF(ctx.Request(), token) {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	var body struct {
+		CompletionPath string `json:"completion_path"`
+		WorkspaceID    string `json:"workspace_id"`
+	}
+	if ctx.Request().ContentLength != 0 && !decodeStrictJSON(ctx, &body) {
+		return nil
+	}
+	completed, err := h.service.CompleteOnboarding(ctx.Request().Context(), user.ID, body.WorkspaceID)
+	if errors.Is(err, application.ErrWorkspaceUnavailable) {
+		return writeError(ctx, http.StatusBadRequest, application.ErrWorkspaceUnavailable.Error())
+	}
+	if err != nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to complete onboarding")
+	}
+	return ctx.JSON(http.StatusOK, completed)
+}
+
+func decodeStrictJSON(ctx kratoshttp.Context, target any) bool {
+	decoder := json.NewDecoder(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, 64<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		_ = writeError(ctx, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		_ = writeError(ctx, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
 }
 
 func decodeJSON(ctx kratoshttp.Context, target any) bool {

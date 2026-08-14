@@ -191,7 +191,9 @@ import {
   InvitationSchema,
   InvitationListSchema,
   WorkspaceListSchema,
+  WorkspaceSchema,
   EMPTY_WORKSPACE_LIST,
+  OnboardingCompletionResponseSchema,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -463,9 +465,11 @@ export class ApiClient {
       method: "POST",
       body: payload ? JSON.stringify(payload) : undefined,
     });
-    return parseWithFallback(raw, UserSchema, EMPTY_USER, {
-      endpoint: "POST /api/me/onboarding/complete",
-    });
+    const parsed = OnboardingCompletionResponseSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error("Invalid onboarding completion response");
+    }
+    return parsed.data;
   }
 
   async updateMe(data: UpdateMeRequest): Promise<User> {
@@ -1028,10 +1032,15 @@ export class ApiClient {
   }
 
   async createWorkspace(data: { name: string; slug: string; description?: string; context?: string }): Promise<Workspace> {
-    return this.fetch("/api/workspaces", {
+    const raw = await this.fetch<unknown>("/api/workspaces", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    const parsed = WorkspaceSchema.safeParse(raw);
+    if (!parsed.success) {
+      throw new Error("Invalid workspace response");
+    }
+    return parsed.data;
   }
 
   async updateWorkspace(id: string, data: { name?: string; description?: string; context?: string; settings?: Record<string, unknown>; repos?: WorkspaceRepo[]; issue_prefix?: string; avatar_url?: string }): Promise<Workspace> {

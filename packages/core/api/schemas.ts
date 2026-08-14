@@ -922,6 +922,21 @@ export const UserSchema = z.object({
   updated_at: z.string().default(""),
 }).loose();
 
+export const OnboardingCompletionResponseSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  email: z.string(),
+  avatar_url: z.string().nullable(),
+  onboarded_at: z.string().min(1),
+  onboarding_questionnaire: z.record(z.string(), z.unknown()),
+  starter_content_state: z.string().nullable(),
+  language: z.string().nullable(),
+  profile_description: z.string(),
+  timezone: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).loose();
+
 export const LoginResponseSchema = z.object({
   token: z.string().min(1),
   user: UserSchema,

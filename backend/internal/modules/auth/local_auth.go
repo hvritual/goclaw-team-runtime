@@ -10,6 +10,7 @@ import (
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/google/uuid"
+	"github.com/hvritual/workspace/internal/modules/auth/contract"
 	"github.com/hvritual/workspace/internal/modules/auth/internal/application"
 	persistence "github.com/hvritual/workspace/internal/modules/auth/internal/infrastructure/sqlite"
 	authhttp "github.com/hvritual/workspace/internal/modules/auth/internal/interfaces/http"
@@ -80,4 +81,8 @@ func (m *Module) AuthorizeHTTPMutation(request *http.Request) error {
 		}
 	}
 	return application.ErrInvalidToken
+}
+
+func NewSQLiteWorkspaceOwnerWriter() contract.SQLiteWorkspaceOwnerWriter {
+	return persistence.NewWorkspaceOwnerWriter()
 }

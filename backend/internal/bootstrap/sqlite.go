@@ -75,6 +75,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
 	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
 	workspaceDependencies.HTTPMutationAuthorizer = authModule.AuthorizeHTTPMutation
+	workspaceDependencies.WorkspaceOwnerWriter = auth.NewSQLiteWorkspaceOwnerWriter()
 	workspaceDependencies.IssueMetadataEnabled = config.IssueMetadataEnabled
 	realtimeHub := canonicalrealtime.NewHub(canonicalrealtime.IdentityResolver(workspaceDependencies.HTTPIdentity))
 	workspaceDependencies.Events = realtimeHub

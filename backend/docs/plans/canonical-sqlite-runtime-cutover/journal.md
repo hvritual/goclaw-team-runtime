@@ -447,3 +447,55 @@ Human approval are recorded.
 - Human Customer milestone acceptance has not been inferred from approval to
   continue testing. `Milestone Accepted` remains pending an explicit final
   acceptance statement.
+
+## 2026-08-14 — onboarding 404 reproduced; plan v4 approved
+
+- Human browser evidence showed `/onboarding` displaying `API error: 404 Not
+  Found`. The live Web log tied the blocking action to `/api/workspaces`.
+  Static route inventory confirmed Canonical registered only
+  `GET /api/workspaces`; the installed onboarding flow uses the existing Core
+  `POST /api/workspaces` and then
+  `POST /api/me/onboarding/complete`, neither of which existed.
+- This is a confirmed post-v3 compatibility gap for a real new user, distinct
+  from the accepted pre-created browser fixture. It blocks final Customer
+  acceptance even though the earlier frozen fixture journey remains valid.
+- The Human Customer approved `plan_v4.md`. Active strict-XP step is
+  `M1-S7-C1`: atomically create the first Workspace/owner membership, complete
+  onboarding idempotently, keep exact API/Core compatibility, and rerun the
+  installed browser journey. No general onboarding, invitation or Workspace
+  CRUD expansion is authorized.
+
+## 2026-08-14 — M1-S7-C1 RED/GREEN and live browser evidence
+
+- RED first proved the installed boundaries independently: Canonical returned
+  404 for `POST /api/workspaces`; after that boundary was added, it returned
+  404 for `POST /api/me/onboarding/complete`. Core RED also proved malformed
+  success bodies were previously accepted.
+- GREEN creates the Workspace row and the Auth-owned owner member/root in one
+  `BEGIN IMMEDIATE` transaction through a public Auth participant contract.
+  Forced Auth persistence failure rolls back all three rows. Duplicate slugs
+  return the frozen 409 while unrelated unique-ID failures remain 500.
+  Concurrent same-slug creation is deterministic (one 201, one 409).
+- Completion resolves trusted identity before request data, reuses the S2
+  Cookie-CSRF boundary, validates Workspace membership, sets `onboarded_at`
+  once with `COALESCE`, and returns the exact User projection. Retry before and
+  after close/reopen preserves the first timestamp. Missing, expired and
+  foreign identities, strict unknown/trailing JSON, generator failure and
+  partial-write cases have executable coverage.
+- Compatibility review corrected generated `issue_prefix` to the retained
+  ASCII-letters-only rule and narrowed duplicate-slug classification to the
+  actual `workspaces.slug` constraint. The existing onboarding preview still
+  displays a four-character slug-derived hint while persistence uses the
+  retained three-letter name-derived rule; this pre-existing display-only
+  discrepancy is recorded as non-blocking UI debt and was not expanded into
+  the approved API correction.
+- Installed Chrome then passed the real new-user journey in `26.5s`: UI
+  email/code login, `/onboarding`, first-Workspace creation, onboarding
+  completion, Workspace Issue route and reload without redirecting back to
+  onboarding. This directly closes the reported `API error: 404 Not Found`.
+- Full gates pass: backend `go test ./...`, `go vet ./...`, `go mod verify`;
+  Core `87` files / `561` tests, Core typecheck/lint, Views and Web typecheck;
+  selector/verifier `22/22`; diff check and no tracked/untracked `server/**`.
+  The preserved unrelated `packages/ui` Input change and local artifacts are
+  excluded from the correction candidate. Clean-candidate browser rerun and
+  final Human Customer acceptance remain the final promotion gates.

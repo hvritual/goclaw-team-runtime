@@ -36,8 +36,8 @@ func NewSqliteWorkspaceSelection(config SqlitePersistenceConfig, memberships con
 	return service, nil
 }
 
-func newWorkspaceSelectionExtension(service contract.WorkspaceSelectionService, identity HTTPUserIDResolver) *workspaceSelectionExtension {
-	return &workspaceSelectionExtension{handler: workspacehttp.NewWorkspaceSelectionHandler(service, workspacehttp.UserIDResolver(identity))}
+func newWorkspaceSelectionExtension(service contract.WorkspaceSelectionService, creator contract.WorkspaceCreationService, identity HTTPUserIDResolver, authorizeMutation func(*http.Request) error) *workspaceSelectionExtension {
+	return &workspaceSelectionExtension{handler: workspacehttp.NewWorkspaceSelectionHandler(service, creator, workspacehttp.UserIDResolver(identity), authorizeMutation)}
 }
 
 func NewTrustedHTTPIdentityResolver(identity HTTPUserIDResolver, selection contract.WorkspaceSelectionService) contract.WorkspaceHTTPIdentityResolver {

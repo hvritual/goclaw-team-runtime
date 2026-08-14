@@ -4,8 +4,8 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7` (technical acceptance passed; Human Customer
-  acceptance pending).
+- Current story: `M1-S7-C1` (new-user onboarding compatibility correction
+  integrated; Human Customer acceptance pending).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -17,7 +17,7 @@
 | --- | --- | --- | --- |
 | Start locally | Freeze ports, DB path, process ownership, rollback | `M1-S1`, `M1-S7` | Production deployment |
 | Authenticate | Freeze login/session/current-user contract | `M1-S2` | Invitations, password recovery, SSO |
-| Enter Workspace | Freeze slug/ID/member/role behavior | `M1-S3` | Workspace administration |
+| Enter Workspace | Freeze slug/ID/member/role behavior | `M1-S3`, `M1-S7-C1` | Workspace administration |
 | Work with Issues | Freeze actual list/detail calls and fields | `M1-S4` | Owned objects and advanced projections |
 | Inspect metadata | Reuse accepted v9 body contract | `M1-S5` | New editing UI |
 | Observe changes | Freeze handshake/event/cache behavior | `M1-S6` | Complete domain event parity |

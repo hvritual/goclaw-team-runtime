@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	persistence "github.com/hvritual/workspace/internal/modules/workspace/internal/infrastructure/sqlite"
@@ -36,6 +37,9 @@ type WorkspaceServiceDependencies struct {
 	Events                  contract.WorkspaceEventPublisher
 	Selection               contract.WorkspaceSelectionService
 	HTTPUserIdentity        HTTPUserIDResolver
+	WorkspaceOwnerWriter    authcontract.SQLiteWorkspaceOwnerWriter
+	NewWorkspaceID          func(context.Context) (string, error)
+	NewWorkspaceMemberID    func(context.Context) (string, error)
 }
 
 // NewWithSqliteWorkspaceServices explicitly selects the migrated Project and

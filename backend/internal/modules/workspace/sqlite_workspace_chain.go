@@ -146,7 +146,26 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	module.extensions = append(module.extensions, newIssueReadExtension(issueService, dependencies.HTTPIdentity))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
-		module.extensions = append(module.extensions, newWorkspaceSelectionExtension(dependencies.Selection, dependencies.HTTPUserIdentity))
+		var creator contract.WorkspaceCreationService
+		if dependencies.WorkspaceOwnerWriter != nil && dependencies.HTTPMutationAuthorizer != nil {
+			creationRepository, createErr := persistence.NewWorkspaceCreationRepository(config, dependencies.WorkspaceOwnerWriter)
+			if createErr != nil {
+				return nil, fmt.Errorf("configure Workspace creation SQLite persistence: %w", createErr)
+			}
+			workspaceIDs := dependencies.NewWorkspaceID
+			memberIDs := dependencies.NewWorkspaceMemberID
+			if workspaceIDs == nil {
+				workspaceIDs = func(context.Context) (string, error) { return uuid.NewString(), nil }
+			}
+			if memberIDs == nil {
+				memberIDs = func(context.Context) (string, error) { return uuid.NewString(), nil }
+			}
+			creator, createErr = application.NewWorkspaceCreationUseCase(creationRepository, workspaceIDs, memberIDs, now)
+			if createErr != nil {
+				return nil, fmt.Errorf("configure Workspace creation application: %w", createErr)
+			}
+		}
+		module.extensions = append(module.extensions, newWorkspaceSelectionExtension(dependencies.Selection, creator, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	return module, nil
 }

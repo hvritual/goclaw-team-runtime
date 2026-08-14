@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	ErrInvalidEmail = errors.New("valid email is required")
-	ErrInvalidCode  = errors.New("invalid verification code")
-	ErrInvalidToken = errors.New("invalid token")
-	ErrInvalidCSRF  = errors.New("invalid CSRF token")
+	ErrInvalidEmail         = errors.New("valid email is required")
+	ErrInvalidCode          = errors.New("invalid verification code")
+	ErrInvalidToken         = errors.New("invalid token")
+	ErrInvalidCSRF          = errors.New("invalid CSRF token")
+	ErrWorkspaceUnavailable = errors.New("workspace is not available to the current user")
 )
 
 type LocalUser struct {
@@ -39,6 +40,7 @@ type LocalAuthRepository interface {
 	CreateSession(context.Context, string, string, time.Time, time.Time) error
 	FindSessionUser(context.Context, string, time.Time) (LocalUser, error)
 	RevokeSession(context.Context, string, time.Time) error
+	CompleteOnboarding(context.Context, string, string, time.Time) (LocalUser, error)
 }
 
 type LocalAuthUseCase struct {
@@ -92,6 +94,14 @@ func (u *LocalAuthUseCase) Revoke(ctx context.Context, token string) error {
 		return nil
 	}
 	return u.repository.RevokeSession(ctx, token, u.now().UTC())
+}
+
+func (u *LocalAuthUseCase) CompleteOnboarding(ctx context.Context, userID, workspaceID string) (LocalUser, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return LocalUser{}, ErrInvalidToken
+	}
+	return u.repository.CompleteOnboarding(ctx, userID, strings.TrimSpace(workspaceID), u.now().UTC())
 }
 
 func (u *LocalAuthUseCase) SessionTTL() time.Duration { return u.sessionTTL }

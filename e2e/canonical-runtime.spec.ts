@@ -6,6 +6,41 @@ const EMAIL = "canonical-fixture@multica.local";
 const SLUG = "canonical-fixture";
 const ISSUE = "CAN-1";
 
+test("Canonical new user creates the first Workspace and completes onboarding", async ({ page }, testInfo) => {
+  const runId = Date.now();
+  const email = `onboarding-${runId}@example.com`;
+  const workspaceName = `Onboarding ${runId}`;
+  const slug = `onboarding-${runId}`;
+  const responses: Array<{ method: string; path: string; status: number }> = [];
+  page.on("response", (response) => {
+    const request = response.request();
+    const url = new URL(response.url());
+    responses.push({ method: request.method(), path: url.pathname, status: response.status() });
+  });
+
+  await page.goto(`${WEB}/login`, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.locator("#login-email").fill(email);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.locator('input[autocomplete="one-time-code"]').fill("888888");
+  await page.waitForURL(`${WEB}/onboarding`);
+
+  await page.locator("#ws-name").fill(workspaceName);
+  await expect(page.locator("#ws-slug")).toHaveValue(slug);
+  const createButton = page.getByRole("button", { name: `Create ${workspaceName}` });
+  await expect(createButton).toBeEnabled();
+  await createButton.click();
+  await page.waitForURL(new RegExp(`/${slug}/issues`));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(new RegExp(`/${slug}/issues`));
+
+  expect(responses).toContainEqual({ method: "POST", path: "/api/workspaces", status: 201 });
+  expect(responses).toContainEqual({ method: "POST", path: "/api/me/onboarding/complete", status: 200 });
+  const tracePath = testInfo.outputPath("canonical-onboarding-trace.json");
+  await writeFile(tracePath, `${JSON.stringify({ email, slug, responses }, null, 2)}\n`);
+  await testInfo.attach("canonical-onboarding-trace", { path: tracePath, contentType: "application/json" });
+});
+
 test("Canonical UI login, Workspace, Issue and metadata journey has no legacy traffic", async ({ page }, testInfo) => {
   const httpTrace: Array<{ method: string; url: string }> = [];
   const wsTrace: string[] = [];

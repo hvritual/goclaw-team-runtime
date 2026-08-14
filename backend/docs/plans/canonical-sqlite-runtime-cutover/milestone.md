@@ -10,7 +10,8 @@ the legacy server.
 
 1. Start the local application with the repository-supported command.
 2. Authenticate and restore the current user.
-3. List and select an authorized Workspace.
+3. Create the first Workspace during onboarding, or list and select an
+   existing authorized Workspace.
 4. View the Issue list and open an Issue detail page.
 5. Read, put, and delete per-Issue metadata.
 6. Observe the committed change after realtime refresh or reconnect.
@@ -76,3 +77,8 @@ acceptance now requires only explicit Human Customer acceptance recorded by
 the active approved plan. Even after acceptance, the readiness claim is
 limited to the frozen local Issue journey; it is not a general replacement
 claim for every legacy surface.
+
+Plan v4 adds the post-acceptance correction `M1-S7-C1` for a real new user:
+first-Workspace creation and onboarding completion are now part of the same
+accepted local journey. Its deterministic and installed-Chrome gates pass;
+Human Customer acceptance remains required before `Milestone Accepted`.
