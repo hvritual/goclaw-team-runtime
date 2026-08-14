@@ -809,3 +809,44 @@ Human approval are recorded.
   batch check. This records C5 manual acceptance paired with the deterministic
   HTTP/SQLite/event/restart evidence; it is not final milestone acceptance.
   The only active story advances to `M1-S7-C6-RED`.
+
+## 2026-08-15 — M1-S7-C6 collaboration technical and manual acceptance
+
+- RED proved that the mounted timeline, comment, reaction and subscriber
+  interactions had no Canonical route family. GREEN adds Workspace-owned
+  comments, comment and Issue reactions, subscribers, activities and local
+  knowledge-proposal evidence through additive migration `000006`, trusted
+  application services and exact HTTP adapters. No fabricated empty route is
+  used to suppress a missing request.
+- Every JSON mutation authenticates before Workspace resolution, enforces the
+  accepted Cookie-CSRF/Bearer split, reads the target before decoding where
+  hidden-target ordering requires it, bounds bodies at 1 MiB, and rejects
+  malformed, unknown and trailing input. SQLite writes use per-connection
+  `BEGIN IMMEDIATE`, Workspace predicates, readback before commit and explicit
+  rollback. Comment-thread deletion and Issue single/batch deletion clean all
+  collaboration dependents transactionally.
+- Runtime acceptance covers root/reply ordering, cross-Issue parent rejection,
+  owner/admin moderation, one resolution per thread, knowledge-proposal
+  idempotency, comment and Issue reactions, subscribers, rollback/no-event,
+  cascade deletion, restart readback and repeated concurrent writers. The
+  realtime hub now accepts the collaboration event union through the existing
+  bounded client queues; Core validates known payload fields before cache
+  invalidation and explicitly refreshes detail keys on reconnect/socket swap.
+- The committed candidate is `2081cdc`. Its 35 paths exclude `server/**`, the
+  unrelated Input and controlled-input test, local artifact roots, and the two
+  stat-dirty View paths whose bytes equal HEAD. Backend full tests/vet/module
+  verification, Core full tests/typecheck/lint, focused IssueDetail tests,
+  Web typecheck and selector/verifier gates pass. Final focused evidence is Go
+  Workspace/Bootstrap/Realtime PASS, Core 31/31, IssueDetail 41/41 and selector
+  22/22. A diagnostic full Views run exposed four pre-existing Windows-path and
+  locale-contract test failures outside the active write boundary; temporary
+  proof fixes were removed rather than mixed into this candidate.
+- Activity rows are a durable post-commit projection of successful Issue
+  mutations. An activity insert failure cannot turn a committed Issue into a
+  false API failure and cannot publish a false `activity:created` event. The
+  lack of a shared Issue/activity transaction remains an explicit final-C9
+  atomic-audit item rather than an unreported guarantee.
+- The Human Customer replied `已完成` after the requested visible C6 check. This
+  records C6 manual acceptance paired with deterministic HTTP/SQLite/event/
+  restart evidence; it is not final milestone acceptance. The sole active
+  story advances to `M1-S7-C7-RED`.
