@@ -572,3 +572,30 @@ Human approval are recorded.
   directories. Independent final review and an exact clean-candidate Chrome
   rerun remain required before technical promotion. Human Customer acceptance
   is not inferred from approval to execute plan v5.
+
+## 2026-08-14 — M1-S7-C2 clean-candidate technical acceptance
+
+- The implementation candidate was committed as
+  `6467b8cfd7cc04bdc5a62fe1dcdd47bd82ef1468`. Its 34-path scope contains the
+  approved plan/evidence, Canonical Auth/Workspace/bootstrap implementation and
+  tests, Core/View capability and schema corrections, the verifier matrix, and
+  the Canonical E2E. It contains no `server/**`, `packages/ui/**`, Auth Input
+  test, or unrelated local artifact.
+- The user's two unrelated Input files were SHA-256 hashed, isolated through a
+  path-scoped Git stash, and the Canonical runtime was restarted from exact
+  commit `6467b8c`. Installed Chrome passed the Projects journey in `17.8s`:
+  the three formerly missing reads returned 200, visible Project create/detail
+  and pin actions succeeded, cleanup returned 204, and no Project/member/pin
+  404 was observed. The stash was restored and both hashes matched exactly.
+- Independent final read-only review returned CODE/SPEC PASS with no P0-P2
+  functional blocker. It confirmed strict identity/tenant/role/CSRF behavior,
+  transactional Project and Pin persistence, restart durability, nullable
+  projection compatibility, rollback/dependent cleanup and zero `server/**`.
+- Explicit non-blocking scope notes remain: Pin reorder is deferred by plan v5;
+  resources, retrospectives, requirements and control are capability-disabled;
+  the full Views suite has four unrelated baseline failures while all focused
+  Project tests and typechecks pass.
+- `M1-S7-C2` is technically integrated and the runtime was restarted for Human
+  verification at `http://127.0.0.1:3000/drcoffee/projects`. Approval to execute
+  is not treated as final acceptance. The milestone remains pending an explicit
+  Human Customer acceptance statement.
