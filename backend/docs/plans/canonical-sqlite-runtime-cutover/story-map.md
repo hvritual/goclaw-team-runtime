@@ -4,7 +4,7 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C5` (hierarchy and batch RED active after C4 technical acceptance).
+- Current story: `M1-S7-C6` (collaboration RED active after C5 technical and manual acceptance).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.

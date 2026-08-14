@@ -781,3 +781,31 @@ Human approval are recorded.
 - `M1-S7-C4` is technically accepted. This is story promotion evidence, not
   final milestone Customer acceptance. The one active story advances to
   `M1-S7-C5-RED` for hierarchy and batch operations.
+
+## 2026-08-14 — M1-S7-C5 hierarchy and batch technical acceptance
+
+- RED first proved the installed hierarchy, child-progress and batch routes
+  returned 404 and that malformed Core hierarchy responses were accepted by a
+  fallback. GREEN adds exact per-parent and batched child reads, completed
+  progress, bounded strict batch bodies, cycle-safe reparenting and atomic
+  batch update/delete under one `BEGIN IMMEDIATE` transaction.
+- Batch deletion resolves UUIDs and identifiers before mutation, cleans Todo,
+  child-parent, Requirement lifecycle/version/audit and Pin references in the
+  same transaction, and publishes complete update/delete events only after a
+  successful commit. Rollback triggers prove all product and audit state is
+  retained and no event escapes; repeated concurrency tests prove serial whole
+  commits rather than mixed rows.
+- The committed candidate is
+  `5725587cc9ab405070128997ca87259d54e58d19`. Its 20 paths exclude every
+  preserved Input/local-artifact path and contain no `server/**` change. The
+  stat-dirty Issue table and create-modal paths were byte-for-byte equal to
+  HEAD and were not staged.
+- Backend `go test ./... -count=1`, `go vet ./...`, `go mod verify`, Core 88
+  files / 567 tests plus typecheck/lint, Views focused 41 tests plus typecheck,
+  Web typecheck and selector/verifier 22/22 all pass. The changed-file Views
+  lint still reports three pre-existing C4 literal-string findings outside the
+  C5 diff; both newly changed Surface files pass lint.
+- The Human Customer replied `已完成` after the requested visible hierarchy and
+  batch check. This records C5 manual acceptance paired with the deterministic
+  HTTP/SQLite/event/restart evidence; it is not final milestone acceptance.
+  The only active story advances to `M1-S7-C6-RED`.
