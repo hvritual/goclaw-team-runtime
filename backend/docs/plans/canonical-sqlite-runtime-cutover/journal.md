@@ -659,3 +659,32 @@ Human approval are recorded.
   i18n literal errors in `issue-detail.tsx`; no v6 changed-file lint error
   remains. Candidate scope excludes `server/**` and the preserved unrelated
   Input/local artifact paths.
+
+## 2026-08-14 — M1-S7-C3 clean-candidate technical acceptance
+
+- The reviewed implementation candidate is exact commit
+  `b9a96e63896c8c7885968bb22b4439b418a17597`. A final RED/GREEN closed the
+  remaining Display-menu capability leak: when Canonical Label and child
+  progress flags are false, their card-property controls are not mounted.
+  Focused Views tests pass 47/47 and Views typecheck passes.
+- The user's unrelated Input implementation and its untracked regression test
+  were SHA-256 hashed, removed through a path-scoped temporary stash, and
+  restored after the browser run with both hashes matching exactly. The
+  compiled tracked candidate therefore matched `b9a96e6`; `server/**` remained
+  unchanged and port 8080 remained closed.
+- Repository Playwright's bundled Chromium was unavailable, so no dependency
+  was installed. The same repository test was rerun with the installed Google
+  Chrome selected through `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. All three
+  Canonical journeys passed in 1.6 minutes: new-user onboarding, retained
+  Workspace/metadata/realtime, and Project detail -> visible Issue create ->
+  `issue:created` -> table/reload persistence with no monitored missing route.
+- Backend `go test ./... -count=1`, `go vet ./...`, and `go mod verify` pass;
+  Core passes 88 files / 564 tests plus typecheck; selector/verifier passes
+  22/22. One intentionally concurrent multi-tool invocation produced two
+  bootstrap fixture 500s; both tests passed immediately when isolated and the
+  complete backend suite passed when run alone, so it is retained as parallel
+  resource-interference evidence rather than hidden or counted as GREEN.
+- `M1-S7-C3` is technically accepted with no remaining P0-P2 blocker in the
+  approved v6 scope. The broader milestone and this correction still require
+  an explicit Human Customer acceptance statement; approval to execute plan
+  v6 is not interpreted as that final acceptance.
