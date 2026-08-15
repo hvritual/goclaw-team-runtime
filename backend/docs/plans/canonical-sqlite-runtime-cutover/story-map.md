@@ -4,10 +4,10 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-BLOCKED` (C7 and C8 Customer Accepted; v10 final
-  review retained two P1 gaps: invitations still produces a local 404 and the
-  HTTP :8080 trace gate is incomplete.  An approved repair plan is required
-  before C9 can resume.)
+- Current story: `M1-S7-C9-INTEGRATE-RED` (C7 and C8 Customer Accepted; v10
+  final review retained one P1: the HTTP `:8080` trace gate is incomplete.
+  The approved v10 E2E/trace-only boundary authorizes the evidence repair;
+  C9 remains technically unaccepted.)
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -173,7 +173,8 @@ advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
 
-As of 2026-08-16, v10 final review stopped C9.  The deterministic and live
-artifacts remain retained, but two P1 gaps prevent treating the integration
-evidence as an acceptance gate.  `plan.md` has no active execution step until
-an approved repair plan supersedes v10.
+As of 2026-08-16, v10 final review retained one P1 evidence gap: the browser
+network trace cannot yet prove zero HTTP legacy traffic to `:8080`.  The
+approved v10 E2E/trace-only boundary resumes at INTEGRATE-RED to repair that
+evidence gate.  C9 remains technically and Customer-unaccepted until a fresh
+clean-candidate run and independent review pass.

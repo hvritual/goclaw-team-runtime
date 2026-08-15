@@ -99,7 +99,8 @@ candidate received independent CODE and SPEC/EVIDENCE PASS with no P0-P2.
 The v9 repair independently closed the C9 attachment-concurrency full-gate
 blocker.  On 2026-08-16 plan v10 retained fresh-clean-candidate deterministic,
 installed-Chrome, restart and rollback evidence, but independent review found
-two P1 gaps: the browser still requests missing Invitations and the HTTP
-`:8080` gate is incomplete.  An approved repair plan, clean candidate rerun,
+one P1: the HTTP `:8080` evidence gate is incomplete.  Invitations remain an
+approved plan-v7 capability-off/non-goal and are not an enabled-detail C9
+failure.  The authorized v10 E2E/trace repair, clean-candidate rerun,
 independent review and explicit Human Customer milestone acceptance remain
 before `Milestone Accepted`.

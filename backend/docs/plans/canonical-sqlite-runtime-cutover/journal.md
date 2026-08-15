@@ -1605,3 +1605,23 @@ Human approval are recorded.
   network gate records all requests/responses/failures before filtering.  It
   must then reproduce a fresh clean-candidate Chrome/restart/rollback run and
   independent reviews.  C9 and the milestone remain unaccepted.
+
+## 2026-08-16 — M1-S7-C9 v10 review correction and evidence-repair resumption
+
+- The preceding blocked-review entry is preserved as historical review output,
+  but its Invitations classification is superseded by a source-grounded
+  adjudication.  `plan_v7.md` explicitly lists Invitations as a capability-off
+  non-goal, and `plan_v10.md` freezes that capability contract.  The exact
+  `/api/invitations` 404 classification remains visible in the sanitized trace;
+  it is not an enabled-detail route failure and is not a P1 for C9.
+- Independent CODE/SECURITY and SPEC/EVIDENCE re-review therefore retain one
+  P1 only: C9 pre/post evidence filtered HTTP responses to the Web origin
+  before the `:8080` assertion and did not record `requestfailed`.  The trace
+  cannot prove zero legacy HTTP traffic.
+- The existing v10 authorized boundary explicitly permits edits to
+  `e2e/canonical-runtime.spec.ts` for C9 sanitized trace assertions.  With the
+  user's continuation approval, `M1-S7-C9-INTEGRATE-RED` resumes solely to
+  capture raw request, response and failure evidence before any origin filter,
+  assert no HTTP or WebSocket request to `:8080`, and repeat the clean-candidate
+  deterministic, Chrome, restart and rollback gates.  Any newly exposed product
+  behavior defect still stops v10 and requires a new plan version.
