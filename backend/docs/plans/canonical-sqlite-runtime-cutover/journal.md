@@ -1393,3 +1393,24 @@ Human approval are recorded.
   blocked from reactivating C9 integration until independent CODE/SECURITY and
   SPEC/EVIDENCE reviews both report no P0-P2 and a later approved plan entry
   selects the next C9 step.
+
+## 2026-08-15 — M1-S7-C9 attachment-concurrency independent review complete
+
+- Independent CODE/SECURITY review of the v9 candidate returned PASS with
+  P0=0, P1=0 and P2=0.  It confirmed that the retry is `BEGIN IMMEDIATE`
+  acquisition-only, classifies extended SQLite BUSY/LOCKED codes, respects the
+  shared eight-second caller-context budget, closes failed connections, and
+  never retries insert/bind/storage/constraint/commit work.  It independently
+  reran the deterministic contention test three times and the Runtime
+  same-Issue upload contract three times.
+- Independent SPEC/EVIDENCE review returned PASS with P0=0, P1=0 and P2=0.
+  It verified the exact product candidate `606ce6524f0836f45b95783406a0d0ad244fedc9`,
+  the docs-only evidence/state commit
+  `e3cd960e15956091d6fe5e96273bacfa351e622a`, clean candidate scope/status,
+  retained failure/RED separation, the journal-indexed full Backend gates and
+  the Windows CRLF-only `gofmt -d` checkout noise against byte-equivalent
+  formatted Go blobs.
+- `M1-S7-C9-ATTACHMENT-CONCURRENCY-REVIEW` is complete.  There is no active
+  product step: v9 explicitly requires a later approved plan entry before C9
+  integration may resume.  This repair completion is not C9 technical or
+  Customer acceptance, and it does not authorize a milestone acceptance claim.
