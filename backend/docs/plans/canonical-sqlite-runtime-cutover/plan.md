@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v9.md](plan_v9.md).
 
 - Plan-ID: `canonical-sqlite-runtime-cutover`
 - Approved version: `9`
-- Active step: `M1-S7-C9-ATTACHMENT-CONCURRENCY-RED`
-- Status: `approved; C7 and C8 Customer Accepted; C9 capability RED and GREEN proven; a retained full-gate attachment-concurrency failure blocks C9 integration pending this narrow repair`
+- Active step: `M1-S7-C9-ATTACHMENT-CONCURRENCY-REVIEW`
+- Status: `approved; C7 and C8 Customer Accepted; C9 capability RED and GREEN proven; the v9 attachment-concurrency RED, GREEN and clean-candidate integration gates passed; independent review is the sole active repair gate`
 - Milestone: [milestone.md](milestone.md)
 - Story map: [story-map.md](story-map.md)
 - Parity matrix: [parity-matrix.md](parity-matrix.md)

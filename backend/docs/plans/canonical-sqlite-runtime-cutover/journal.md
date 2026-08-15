@@ -1370,3 +1370,26 @@ Human approval are recorded.
 - The repair remains uncommitted and C9 remains blocked.  Independent
   code/security and specification/evidence reviews must return no P0-P2 before
   a later approved plan entry can reactivate C9 integration.
+
+## 2026-08-15 — M1-S7-C9 attachment-concurrency clean-candidate integration
+
+- The preceding uncommitted status was accurate when that GREEN checkpoint was
+  recorded.  The exact repair candidate is now committed as
+  `606ce6524f0836f45b95783406a0d0ad244fedc9`
+  (`fix(runtime): bound attachment SQLite contention`).  It contains only the
+  v9 plan/journal, the Space attachment repository and its focused repository
+  test; no `server/**` path or pre-existing user dirty path is included.
+- A new detached clean candidate at
+  `F:\code\ai\goclaw-team-runtime-c9-lock-clean-606ce65` was created directly
+  from that hash.  Its HEAD was `606ce6524f0836f45b95783406a0d0ad244fedc9`,
+  its status and tracked/untracked `server/**` scope were empty, and
+  `git diff --check` passed.
+- In that clean candidate, `go test ./... -count=1`, `go vet ./...`, and
+  `go mod verify` all exited successfully.  This is the v9
+  `ATTACHMENT-CONCURRENCY-INTEGRATE` evidence; it neither replaces nor claims
+  the later C9 browser/integration acceptance.
+- `plan.md` now advances to the sole v9
+  `M1-S7-C9-ATTACHMENT-CONCURRENCY-REVIEW` gate.  The product repair remains
+  blocked from reactivating C9 integration until independent CODE/SECURITY and
+  SPEC/EVIDENCE reviews both report no P0-P2 and a later approved plan entry
+  selects the next C9 step.
