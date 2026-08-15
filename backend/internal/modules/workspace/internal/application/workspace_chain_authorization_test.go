@@ -45,9 +45,9 @@ func (r *issueRepositoryCounter) List(context.Context, IssueListQuery) ([]issueD
 	r.calls++
 	return nil, nil
 }
-func (r *issueRepositoryCounter) Update(context.Context, issueDomain.Issue) error {
+func (r *issueRepositoryCounter) Update(context.Context, IssueUpdateCommand) (issueDomain.Issue, error) {
 	r.calls++
-	return nil
+	return issueDomain.Issue{}, nil
 }
 func (r *issueRepositoryCounter) Move(context.Context, IssueMoveCommand) (issueDomain.Issue, error) {
 	r.calls++

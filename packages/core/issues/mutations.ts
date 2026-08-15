@@ -68,6 +68,18 @@ export type UpdateIssueMutationInput = {
   move_intent?: Pick<MoveIssueRequest, "before_id" | "after_id">;
 } & UpdateIssueRequest;
 
+export function useDeleteIssueAttachment(issueId: string) {
+  const queryClient = useQueryClient();
+  const workspaceId = useWorkspaceId();
+  return useMutation({
+    mutationFn: (attachmentId: string) => api.deleteAttachment(attachmentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.attachments(issueId) });
+      queryClient.invalidateQueries({ queryKey: issueKeys.detail(workspaceId, issueId) });
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Per-status pagination
 // ---------------------------------------------------------------------------

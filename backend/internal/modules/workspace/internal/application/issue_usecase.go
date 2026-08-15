@@ -37,9 +37,17 @@ type IssueRepository interface {
 	IssueReferenceRepository
 	Create(context.Context, issueDomain.Issue) (issueDomain.Issue, error)
 	List(context.Context, IssueListQuery) ([]issueDomain.Issue, error)
-	Update(context.Context, issueDomain.Issue) error
+	Update(context.Context, IssueUpdateCommand) (issueDomain.Issue, error)
 	Move(context.Context, IssueMoveCommand) (issueDomain.Issue, error)
 	WouldCreateParentCycle(context.Context, string, string, string) (bool, error)
+}
+
+type IssueUpdateCommand struct {
+	WorkspaceID      string
+	IssueID          string
+	ExpectedAssetIDs []string
+	Patch            issueDomain.Patch
+	Now              time.Time
 }
 
 type IssueHierarchyRepository interface {
@@ -326,13 +334,21 @@ func (s *IssueUseCase) updateIssue(ctx context.Context, request contract.UpdateI
 			return contract.UpdateIssueResponse{}, err
 		}
 	}
-	updated, err := value.Apply(patch, s.now())
-	if err != nil {
+	now := s.now()
+	if _, err := value.Apply(patch, now); err != nil {
 		return contract.UpdateIssueResponse{}, fmt.Errorf("%w: %v", contract.ErrInvalidIssue, err)
 	}
-	if err := s.repository.Update(ctx, updated); errors.Is(err, ErrIssueRecordNotFound) {
+	updated, err := s.repository.Update(ctx, IssueUpdateCommand{
+		WorkspaceID: workspaceID, IssueID: value.ID,
+		ExpectedAssetIDs: append([]string(nil), value.AssetIDs...), Patch: patch, Now: now,
+	})
+	if errors.Is(err, ErrIssueRecordNotFound) {
 		return contract.UpdateIssueResponse{}, contract.ErrIssueNotFound
-	} else if err != nil {
+	}
+	if errors.Is(err, contract.ErrIssueAttachmentConflict) {
+		return contract.UpdateIssueResponse{}, contract.ErrIssueAttachmentConflict
+	}
+	if err != nil {
 		return contract.UpdateIssueResponse{}, fmt.Errorf("update Issue: %w", err)
 	}
 	result := issueToContract(updated)

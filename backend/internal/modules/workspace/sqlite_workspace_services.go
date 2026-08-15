@@ -45,6 +45,7 @@ type WorkspaceServiceDependencies struct {
 	WorkspaceOwnerWriter    authcontract.SQLiteWorkspaceOwnerWriter
 	IssueAttachments        contract.IssueAttachmentProjectionReader
 	AttachmentCleanup       spacecontract.AttachmentCleanupService
+	AttachmentReferences    spacecontract.AttachmentReferenceValidator
 	NewWorkspaceID          func(context.Context) (string, error)
 	NewWorkspaceMemberID    func(context.Context) (string, error)
 }

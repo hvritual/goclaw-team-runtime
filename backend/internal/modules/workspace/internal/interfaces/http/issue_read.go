@@ -59,20 +59,20 @@ func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 }
 
 type createIssueHTTPRequest struct {
-	Title         string   `json:"title"`
-	Description   *string  `json:"description"`
-	Status        string   `json:"status"`
-	Priority      string   `json:"priority"`
-	AssigneeType  *string  `json:"assignee_type"`
-	AssigneeID    *string  `json:"assignee_id"`
-	ParentIssueID *string  `json:"parent_issue_id"`
-	ProjectID     *string  `json:"project_id"`
-	Position      float64  `json:"position"`
-	Stage         *int32   `json:"stage"`
-	StartDate     *string  `json:"start_date"`
-	DueDate       *string  `json:"due_date"`
-	AttachmentIDs []string `json:"attachment_ids"`
-	LabelIDs      []string `json:"label_ids"`
+	Title         string    `json:"title"`
+	Description   *string   `json:"description"`
+	Status        string    `json:"status"`
+	Priority      string    `json:"priority"`
+	AssigneeType  *string   `json:"assignee_type"`
+	AssigneeID    *string   `json:"assignee_id"`
+	ParentIssueID *string   `json:"parent_issue_id"`
+	ProjectID     *string   `json:"project_id"`
+	Position      float64   `json:"position"`
+	Stage         *int32    `json:"stage"`
+	StartDate     *string   `json:"start_date"`
+	DueDate       *string   `json:"due_date"`
+	AttachmentIDs *[]string `json:"attachment_ids"`
+	LabelIDs      []string  `json:"label_ids"`
 }
 
 type updateIssueHTTPRequest struct {
@@ -145,15 +145,19 @@ func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
 	if len(request.LabelIDs) != 0 {
 		return writeError(ctx, http.StatusBadRequest, "unsupported issue create field")
 	}
-	if !h.attachmentsEnabled && len(request.AttachmentIDs) != 0 {
+	if !h.attachmentsEnabled && request.AttachmentIDs != nil {
 		return writeError(ctx, http.StatusBadRequest, "unsupported issue attachment field")
+	}
+	var attachmentIDs []string
+	if request.AttachmentIDs != nil {
+		attachmentIDs = append([]string(nil), (*request.AttachmentIDs)...)
 	}
 	result, err := h.service.CreateIssue(requestContext, contract.CreateIssueRequest{
 		WorkspaceId: workspaceID, Title: request.Title, Description: request.Description,
 		Status: request.Status, Priority: request.Priority, AssigneeType: request.AssigneeType,
 		AssigneeId: request.AssigneeID, ParentIssueId: request.ParentIssueID, ProjectId: request.ProjectID,
 		Position: request.Position, Stage: request.Stage, StartDate: request.StartDate, DueDate: request.DueDate,
-		AssetIds: append([]string(nil), request.AttachmentIDs...),
+		AssetIds: attachmentIDs,
 	})
 	if errors.Is(err, contract.ErrInvalidIssue) || errors.Is(err, contract.ErrAssetOutsideWorkspace) {
 		return writeError(ctx, http.StatusBadRequest, "invalid issue request")
@@ -328,6 +332,9 @@ func nullableStageUpdate(value nullableInt32Patch) *int32 {
 func (h *IssueReadHandler) writeIssueMutation(ctx kratoshttp.Context, result contract.UpdateIssueResponse, err error, operation string) error {
 	if errors.Is(err, contract.ErrInvalidIssue) {
 		return writeError(ctx, http.StatusBadRequest, "invalid issue request")
+	}
+	if errors.Is(err, contract.ErrIssueAttachmentConflict) {
+		return writeError(ctx, http.StatusConflict, "issue attachments changed")
 	}
 	if errors.Is(err, contract.ErrIssueNotFound) || errors.Is(err, contract.ErrProjectNotFound) || errors.Is(err, contract.ErrActorOutsideWorkspace) || errors.Is(err, contract.ErrWorkspaceNotFound) || errors.Is(err, contract.ErrAssetOutsideWorkspace) {
 		return writeError(ctx, http.StatusNotFound, "issue not found")

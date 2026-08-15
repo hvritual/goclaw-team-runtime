@@ -238,18 +238,53 @@ func TestSQLiteRuntimeHonorsCanonicalAttachmentBoundary(t *testing.T) {
 	}
 
 	t.Run("metadata preview and download reauthorize from stored ownership", func(t *testing.T) {
-		metadata := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", map[string]string{"Authorization": "Bearer " + member.Token})
+		missingWorkspace := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", map[string]string{"Authorization": "Bearer " + member.Token})
+		assertRuntimeResponse(t, missingWorkspace.Code, missingWorkspace.Body.String(), http.StatusBadRequest, `{"error":"workspace is required"}`)
+
+		memberHeaders := collaborationHeaders(member.Token, fixture.workspaceSlug)
+		metadata := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", memberHeaders)
 		if metadata.Code != http.StatusOK || !containsJSON(metadata.Body.Bytes(), `"workspace_id":"`+fixture.workspaceID+`"`) {
 			t.Fatalf("member metadata = %d %s", metadata.Code, metadata.Body.String())
 		}
-		preview := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/content", "", map[string]string{"Authorization": "Bearer " + member.Token})
+		preview := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/content", "", memberHeaders)
 		if preview.Code != http.StatusOK || !bytes.Equal(preview.Body.Bytes(), content) || preview.Header().Get("Content-Type") != "text/plain; charset=utf-8" || preview.Header().Get("X-Original-Content-Type") != attachment.ContentType || preview.Header().Get("X-Content-Type-Options") != "nosniff" || preview.Header().Get("Cache-Control") != "no-store" {
 			t.Fatalf("member preview = %d headers=%v body=%q", preview.Code, preview.Header(), preview.Body.String())
 		}
-		download := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/download", "", map[string]string{"Cookie": "multica_auth=" + member.Token})
+		download := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/download", "", map[string]string{"Cookie": "multica_auth=" + member.Token, "X-Workspace-Slug": fixture.workspaceSlug})
 		if download.Code != http.StatusOK || !bytes.Equal(download.Body.Bytes(), content) || !strings.Contains(download.Header().Get("Content-Disposition"), "contract.md") {
 			t.Fatalf("member download = %d headers=%v body=%q", download.Code, download.Header(), download.Body.String())
 		}
+
+		second := runtimeRequest(fixture.runtime, http.MethodPost, "/api/workspaces", `{"name":"Attachment Context","slug":"attachment-context"}`, map[string]string{"Authorization": "Bearer " + fixture.login.Token, "Content-Type": "application/json"})
+		if second.Code != http.StatusCreated {
+			t.Fatalf("create context Workspace = %d %s", second.Code, second.Body.String())
+		}
+		var contextWorkspace struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(second.Body.Bytes(), &contextWorkspace); err != nil || contextWorkspace.ID == "" {
+			t.Fatalf("decode context Workspace = %#v err=%v", contextWorkspace, err)
+		}
+		wrongContext := collaborationHeaders(fixture.login.Token, "attachment-context")
+		for _, path := range []string{
+			"/api/attachments/" + attachment.ID,
+			"/api/attachments/" + attachment.ID + "/content",
+			"/api/attachments/" + attachment.ID + "/download",
+		} {
+			response := runtimeRequest(fixture.runtime, http.MethodGet, path, "", wrongContext)
+			assertRuntimeResponse(t, response.Code, response.Body.String(), http.StatusNotFound, `{"error":"attachment not found"}`)
+		}
+		wrongDelete := runtimeRequest(fixture.runtime, http.MethodDelete, "/api/attachments/"+attachment.ID, "", wrongContext)
+		assertRuntimeResponse(t, wrongDelete.Code, wrongDelete.Body.String(), http.StatusNotFound, `{"error":"attachment not found"}`)
+		mismatchHeaders := collaborationHeaders(fixture.login.Token, fixture.workspaceSlug)
+		mismatchHeaders["X-Workspace-ID"] = contextWorkspace.ID
+		mismatch := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", mismatchHeaders)
+		assertRuntimeResponse(t, mismatch.Code, mismatch.Body.String(), http.StatusNotFound, `{"error":"attachment not found"}`)
+		retained := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", fixture.headers)
+		if retained.Code != http.StatusOK {
+			t.Fatalf("wrong-context delete removed attachment = %d %s", retained.Code, retained.Body.String())
+		}
+
 		missing := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", nil)
 		assertRuntimeResponse(t, missing.Code, missing.Body.String(), http.StatusUnauthorized, `{"error":"user not authenticated"}`)
 		foreign := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID, "", map[string]string{"Authorization": "Bearer " + outsider.Token})
@@ -296,7 +331,7 @@ func TestSQLiteRuntimeHonorsCanonicalAttachmentBoundary(t *testing.T) {
 	t.Run("only uploader or admin can delete", func(t *testing.T) {
 		denied := runtimeRequest(fixture.runtime, http.MethodDelete, "/api/attachments/"+attachment.ID, "", collaborationHeaders(member.Token, fixture.workspaceSlug))
 		assertRuntimeResponse(t, denied.Code, denied.Body.String(), http.StatusForbidden, `{"error":"insufficient permissions"}`)
-		cookieNoCSRF := runtimeRequest(fixture.runtime, http.MethodDelete, "/api/attachments/"+attachment.ID, "", map[string]string{"Cookie": "multica_auth=" + fixture.login.Token})
+		cookieNoCSRF := runtimeRequest(fixture.runtime, http.MethodDelete, "/api/attachments/"+attachment.ID, "", map[string]string{"Cookie": "multica_auth=" + fixture.login.Token, "X-Workspace-Slug": fixture.workspaceSlug})
 		assertRuntimeResponse(t, cookieNoCSRF.Code, cookieNoCSRF.Body.String(), http.StatusForbidden, `{"error":"invalid CSRF token"}`)
 		deleted := runtimeRequest(fixture.runtime, http.MethodDelete, "/api/attachments/"+attachment.ID, "", cookieHeaders)
 		if deleted.Code != http.StatusNoContent || deleted.Body.Len() != 0 {
@@ -439,6 +474,7 @@ func TestSQLiteRuntimeDisabledAttachmentCapabilityRejectsIssueRelationWrites(t *
 		method, path, body string
 	}{
 		{http.MethodPost, "/api/issues", `{"title":"Disabled attachment create","attachment_ids":["` + attachment.ID + `"]}`},
+		{http.MethodPost, "/api/issues", `{"title":"Disabled empty attachment create","attachment_ids":[]}`},
 		{http.MethodPut, "/api/issues/" + fixture.issueID, `{"attachment_ids":["` + attachment.ID + `"]}`},
 		{http.MethodPut, "/api/issues/" + fixture.issueID, `{"attachment_ids":[]}`},
 	} {

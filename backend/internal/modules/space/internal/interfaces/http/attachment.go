@@ -205,12 +205,24 @@ func (h *AttachmentHandler) authorizeStored(ctx kratoshttp.Context) (string, con
 	if !ok {
 		return "", contract.Attachment{}, false
 	}
+	if !hasWorkspace(ctx.Request()) {
+		_ = writeError(ctx, http.StatusBadRequest, "workspace is required")
+		return "", contract.Attachment{}, false
+	}
+	identity, ok := h.resolveIdentity(ctx)
+	if !ok {
+		return "", contract.Attachment{}, false
+	}
 	value, err := h.service.Get(ctx.Request().Context(), ctx.Vars().Get("id"))
 	if err != nil {
 		_ = writeAttachmentError(ctx, err)
 		return "", contract.Attachment{}, false
 	}
-	_, found, err := h.membership(ctx.Request().Context(), userID, value.WorkspaceID)
+	if identity.WorkspaceID != value.WorkspaceID {
+		_ = writeError(ctx, http.StatusNotFound, "attachment not found")
+		return "", contract.Attachment{}, false
+	}
+	_, found, err := h.membership(ctx.Request().Context(), userID, identity.WorkspaceID)
 	if err != nil || !found {
 		_ = writeError(ctx, http.StatusNotFound, "attachment not found")
 		return "", contract.Attachment{}, false

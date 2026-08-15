@@ -84,8 +84,16 @@ type AttachmentCleanupService interface {
 	PrepareDelete(context.Context, AttachmentExecutor, string, []string) (AttachmentCleanup, error)
 }
 
+// AttachmentReferenceValidator validates a complete attachment reference set
+// on the caller-owned transaction connection. This keeps validation ordered
+// with the Workspace write without transferring Space table ownership.
+type AttachmentReferenceValidator interface {
+	ValidateReferences(context.Context, AttachmentExecutor, string, []string) error
+}
+
 type AttachmentService interface {
 	AttachmentCleanupService
+	AttachmentReferenceValidator
 	Upload(context.Context, UploadAttachmentRequest) (Attachment, error)
 	Get(context.Context, string) (Attachment, error)
 	ListIssue(context.Context, string, string) ([]Attachment, error)

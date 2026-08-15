@@ -16,8 +16,9 @@ import (
 // Config is the provider-owned composition input. Native database values stay
 // in infrastructure and module composition.
 type Config struct {
-	DB                *sql.DB
-	AttachmentCleanup spacecontract.AttachmentCleanupService
+	DB                   *sql.DB
+	AttachmentCleanup    spacecontract.AttachmentCleanupService
+	AttachmentReferences spacecontract.AttachmentReferenceValidator
 }
 
 func New(Config) contract.Service { return application.New() }

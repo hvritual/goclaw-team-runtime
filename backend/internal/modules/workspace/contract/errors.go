@@ -13,6 +13,7 @@ var (
 	ErrWorkspacePermissionDenied    = errors.New("insufficient workspace role")
 	ErrInvalidIssue                 = errors.New("invalid issue")
 	ErrIssueNotFound                = errors.New("issue not found")
+	ErrIssueAttachmentConflict      = errors.New("issue attachment set changed")
 	ErrInvalidIssueMetadata         = errors.New("invalid issue metadata")
 	ErrInvalidKnowledge             = errors.New("invalid knowledge")
 	ErrKnowledgeNotFound            = errors.New("knowledge not found")

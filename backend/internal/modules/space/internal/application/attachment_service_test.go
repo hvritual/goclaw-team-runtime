@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
 	"strings"
@@ -73,11 +74,37 @@ func TestAttachmentDeleteTreatsPostCommitTombstoneRemovalAsDeferredCleanup(t *te
 	}
 }
 
+func TestAttachmentReferenceValidationUsesCallerTransactionAndRequiresEveryID(t *testing.T) {
+	repository := &attachmentRepositoryStub{cleanupValues: []StoredAttachment{
+		{ID: "asset-a", WorkspaceID: "workspace-id"},
+		{ID: "asset-b", WorkspaceID: "workspace-id"},
+	}}
+	service, err := NewAttachmentService(repository, &attachmentObjectsStub{}, attachmentRelationsStub{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	executor := attachmentExecutorStub{}
+	if err := service.ValidateReferences(t.Context(), executor, "workspace-id", []string{"asset-a", "asset-b"}); err != nil {
+		t.Fatal(err)
+	}
+	if repository.cleanupExecutor == nil || repository.cleanupWorkspace != "workspace-id" || len(repository.cleanupIDs) != 2 {
+		t.Fatalf("transactional validation = executor:%v workspace:%q ids:%v", repository.cleanupExecutor, repository.cleanupWorkspace, repository.cleanupIDs)
+	}
+	repository.cleanupValues = repository.cleanupValues[:1]
+	if err := service.ValidateReferences(t.Context(), executor, "workspace-id", []string{"asset-a", "asset-b"}); !errors.Is(err, contract.ErrAttachmentNotFound) {
+		t.Fatalf("missing reference error = %v", err)
+	}
+}
+
 type attachmentRepositoryStub struct {
-	created   StoredAttachment
-	found     StoredAttachment
-	createErr error
-	deleted   bool
+	created          StoredAttachment
+	found            StoredAttachment
+	cleanupValues    []StoredAttachment
+	cleanupExecutor  contract.AttachmentExecutor
+	cleanupWorkspace string
+	cleanupIDs       []string
+	createErr        error
+	deleted          bool
 }
 
 func (r *attachmentRepositoryStub) Create(_ context.Context, value StoredAttachment, _ func(contract.AttachmentExecutor) error) error {
@@ -98,8 +125,11 @@ func (r *attachmentRepositoryStub) Delete(_ context.Context, _ StoredAttachment,
 	return nil
 }
 func (*attachmentRepositoryStub) ObjectKeys(context.Context) ([]string, error) { return nil, nil }
-func (*attachmentRepositoryStub) FindForCleanup(context.Context, contract.AttachmentExecutor, string, []string) ([]StoredAttachment, error) {
-	return nil, nil
+func (r *attachmentRepositoryStub) FindForCleanup(_ context.Context, executor contract.AttachmentExecutor, workspaceID string, ids []string) ([]StoredAttachment, error) {
+	r.cleanupExecutor = executor
+	r.cleanupWorkspace = workspaceID
+	r.cleanupIDs = append([]string(nil), ids...)
+	return append([]StoredAttachment(nil), r.cleanupValues...), nil
 }
 func (*attachmentRepositoryStub) DeleteForCleanup(context.Context, contract.AttachmentExecutor, string, []StoredAttachment) error {
 	return nil
@@ -109,6 +139,16 @@ type attachmentObjectsStub struct {
 	putKey, removedKey string
 	removeErr          error
 }
+
+type attachmentExecutorStub struct{}
+
+func (attachmentExecutorStub) ExecContext(context.Context, string, ...any) (sql.Result, error) {
+	return nil, nil
+}
+func (attachmentExecutorStub) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, nil
+}
+func (attachmentExecutorStub) QueryRowContext(context.Context, string, ...any) *sql.Row { return nil }
 
 func (o *attachmentObjectsStub) Put(_ context.Context, key string, _ []byte) error {
 	o.putKey = key

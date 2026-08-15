@@ -238,6 +238,46 @@ func (s *AttachmentService) PrepareDelete(ctx context.Context, executor contract
 	return cleanup, nil
 }
 
+func (s *AttachmentService) ValidateReferences(ctx context.Context, executor contract.AttachmentExecutor, workspaceID string, rawIDs []string) error {
+	workspaceID = strings.TrimSpace(workspaceID)
+	if executor == nil || workspaceID == "" {
+		return contract.ErrAttachmentInvalid
+	}
+	ids := make([]string, 0, len(rawIDs))
+	seen := make(map[string]struct{}, len(rawIDs))
+	for _, rawID := range rawIDs {
+		id := strings.TrimSpace(rawID)
+		if id == "" {
+			return contract.ErrAttachmentInvalid
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return contract.ErrAttachmentInvalid
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	values, err := s.repository.FindForCleanup(ctx, executor, workspaceID, ids)
+	if err != nil {
+		return err
+	}
+	if len(values) != len(ids) {
+		return contract.ErrAttachmentNotFound
+	}
+	found := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value.WorkspaceID != workspaceID {
+			return contract.ErrAttachmentNotFound
+		}
+		found[value.ID] = struct{}{}
+	}
+	for _, id := range ids {
+		if _, ok := found[id]; !ok {
+			return contract.ErrAttachmentNotFound
+		}
+	}
+	return nil
+}
+
 func (s *AttachmentService) AssetBelongsToWorkspace(ctx context.Context, workspaceID, attachmentID string) (bool, error) {
 	value, err := s.repository.FindByID(ctx, strings.TrimSpace(attachmentID))
 	if errors.Is(err, contract.ErrAttachmentNotFound) {

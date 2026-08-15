@@ -46,10 +46,9 @@ import { ActorAvatar } from "../../common/actor-avatar";
 import { PropRow } from "../../common/prop-row";
 import { PropertyIcon } from "../../common/property-icon";
 import type { Attachment, Issue, IssueProperty, IssueStatus, IssuePriority, TimelineEntry, UpdateIssueRequest } from "@multica/core/types";
-import { contentReferencesAttachment } from "@multica/core/types";
 import { STATUS_CONFIG, PRIORITY_CONFIG } from "@multica/core/issues/config";
 import { formatDateOnly, isPastDateOnly } from "@multica/core/issues/date";
-import { useUpdateIssue } from "@multica/core/issues/mutations";
+import { useDeleteIssueAttachment, useUpdateIssue } from "@multica/core/issues/mutations";
 import { toast } from "sonner";
 import { StatusIcon, PriorityIcon, StatusPicker, PriorityPicker, StagePicker, StartDatePicker, DueDatePicker, AssigneePicker, LabelPicker } from ".";
 import { maxSiblingStage } from "./pickers/stage-picker";
@@ -58,7 +57,7 @@ import { Switch } from "@multica/ui/components/ui/switch";
 import { IssueActionsDropdown, useIssueActions, IssueActionsContextMenu, IssueContextMenuProvider } from "../actions";
 import { LabelChip } from "../../labels/label-chip";
 import { ProjectPicker } from "../../projects/components/project-picker";
-import { CommentCard } from "./comment-card";
+import { AttachmentList, CommentCard } from "./comment-card";
 import { CommentInput } from "./comment-input";
 import { ResolvedThreadBar } from "./resolved-thread-bar";
 import { ThreadMinimap, type ThreadMinimapThread } from "./thread-minimap";
@@ -99,6 +98,7 @@ import { ReactionBar } from "@multica/ui/components/common/reaction-bar";
 import { useTimeAgo } from "../../i18n";
 import { useRestoredScrollOffset, useRestoredScrollRef } from "../../platform";
 import { cn } from "@multica/ui/lib/utils";
+import { completeIssueAttachmentIDs } from "./issue-attachment-bag";
 
 import { ProgressRing } from "./progress-ring";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
@@ -1380,6 +1380,12 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
   // `src`/`href` against this list to resolve an attachment id before
   // calling `/api/attachments/{id}`.
   const { data: issueAttachments } = useQuery({ ...issueAttachmentsOptions(id), enabled: attachmentsEnabled });
+  const { mutate: deleteIssueAttachment } = useDeleteIssueAttachment(id);
+  const handleRemoveIssueAttachment = useCallback((attachmentId: string) => {
+    deleteIssueAttachment(attachmentId, {
+      onError: (error) => toast.error(error instanceof Error && error.message ? error.message : "Failed to delete attachment"),
+    });
+  }, [deleteIssueAttachment]);
 
   // Sub-issue queries
   const parentIssueId = issue?.parent_issue_id;
@@ -1540,9 +1546,10 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
   // keeps this single eager editor affordable; title and composers stay lazy.
   const titleEditorRef = useRef<TitleEditorRef>(null);
   const titleLazy = useLazyEditor({ editorRef: titleEditorRef, resetKey: id });
+  const attachmentEditingEnabled = attachmentsEnabled && issueAttachments !== undefined;
   const { isDragOver: descDragOver, dropZoneProps: descDropZoneProps } = useFileDropZone({
     onDrop: (files) => files.forEach((file) => descEditorRef.current?.uploadFile(file)),
-    enabled: attachmentsEnabled,
+    enabled: attachmentEditingEnabled,
   });
   // Pending uploads in the description editor. We don't pass `issueId` on
   // upload (to avoid orphaning attachments when the user deletes the file
@@ -2392,12 +2399,12 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                 // webview) — while still working on web via the cookie/proxy.
                 // This mirrors the comment/reply/chat composers, which already
                 // bind via `contentReferencesAttachment` (MUL-3130 / MUL-3192).
-                const ids = descPendingAttachmentsRef.current
-                  .filter((a) => contentReferencesAttachment(md, a))
-                  .map((a) => a.id);
-                handleUpdateField({ description: md, attachment_ids: ids.length > 0 ? ids : undefined });
+                const attachmentIds = attachmentEditingEnabled
+                  ? completeIssueAttachmentIDs(md, issueAttachments ?? [], descPendingAttachmentsRef.current)
+                  : undefined;
+                handleUpdateField({ description: md, attachment_ids: attachmentIds });
               }}
-              onUploadFile={attachmentsEnabled ? handleDescriptionUpload : undefined}
+              onUploadFile={attachmentEditingEnabled ? handleDescriptionUpload : undefined}
               debounceMs={1500}
               // Closing the issue modal must save what the user last saw —
               // without the flush, a paste followed by a quick close loses
@@ -2414,7 +2421,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                 onToggle={handleToggleIssueReaction}
                 getActorName={getActorName}
               />
-              {attachmentsEnabled && (
+              {attachmentEditingEnabled && (
                 <FileUploadButton
                   size="sm"
                   multiple
@@ -2422,6 +2429,13 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                 />
               )}
             </div>
+            {attachmentsEnabled && (
+              <AttachmentList
+                attachments={issueAttachments}
+                className="mt-3"
+                onRemove={handleRemoveIssueAttachment}
+              />
+            )}
             {descDragOver && <FileDropOverlay />}
           </div>
 

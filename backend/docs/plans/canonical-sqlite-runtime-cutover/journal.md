@@ -1091,3 +1091,44 @@ Human approval are recorded.
   E2E repairs and the single realtime allowlist file. The sole active step is
   `M1-S7-C8-REPAIR-RED`. C9 remains inactive until RED, GREEN, integration,
   clean-candidate browser evidence and both independent re-reviews pass.
+
+## 2026-08-15 — M1-S7-C8 repair RED and GREEN proven
+
+- Focused RED tests reproduced every approved plan-v8 defect before product
+  changes: a stored attachment read without Workspace input returned 200;
+  capability-off Issue create accepted an explicit empty `attachment_ids`;
+  an ordinary stale Issue update overwrote a concurrently committed attachment
+  bag; and an explicit replacement succeeded after the authoritative bag had
+  changed. The frontend RED showed autosave submitted only pending IDs and had
+  no visible persisted-attachment delete mutation.
+- Stored attachment metadata, preview, download and delete now authenticate
+  first, require trusted Workspace selection and hide selected/stored Workspace
+  mismatches. A user who belongs to both Workspaces cannot use Workspace A
+  context to read or delete a Workspace B attachment, and a wrong-context
+  delete leaves the retained asset untouched.
+- Issue create and explicit attachment replacement now validate exact Space
+  references through the caller-owned `BEGIN IMMEDIATE` transaction. Ordinary
+  Issue updates omit `asset_ids` from the SQL write and therefore preserve the
+  authoritative bag; explicit replacement compares the caller's expected bag,
+  rejects drift with exact 409 `issue attachments changed`, and rolls back
+  Workspace and Issue writes if Space validation fails. Capability-off create
+  distinguishes an omitted field from an explicitly supplied empty array.
+- Issue detail waits for the authoritative attachment query before enabling
+  upload, merges retained IDs with referenced pending uploads for description
+  autosave, and exposes an accessible persisted-attachment delete control. The
+  Core mutation uses the strict attachment client and invalidates both the
+  attachment list and Issue detail. The clean-candidate E2E now requires an
+  explicit installed-Chrome path, records executable and user agent, uploads a
+  second retained attachment after restart, and deletes through the visible
+  control rather than APIRequestContext.
+- Deterministic GREEN gates pass on the repaired working tree: backend
+  `go test ./... -count=1`, `go vet ./...`, and `go mod verify`; Core 91 files /
+  588 tests plus lint/typecheck; focused Views 3 files / 50 tests plus
+  lint/typecheck; Web typecheck; and Playwright discovery of all six Canonical
+  tests. Views lint reports only three pre-existing warnings outside C8 paths.
+  `git diff --check` has no error and both tracked and untracked `server/**`
+  remain empty.
+- Repair GREEN is proven. The sole active step advances to
+  `M1-S7-C8-REPAIR-INTEGRATE` for an explicit scoped product commit, detached
+  clean-candidate real-browser evidence and both independent re-reviews. C8 is
+  not yet accepted and C9 remains inactive.

@@ -9,18 +9,39 @@ const ISSUE = "CAN-1";
 const ISSUE_ID = "01990000-0000-7000-8000-000000000004";
 const C8_PHASE = process.env.C8_PHASE;
 const C8_EVIDENCE_DIR = process.env.C8_EVIDENCE_DIR;
+const C8_CANDIDATE = process.env.C8_CANDIDATE;
 
-interface AttachmentEvidence {
+interface AttachmentArtifact {
   id: string;
   filename: string;
   content: string;
   sizeBytes: number;
+}
+
+interface AttachmentEvidence extends AttachmentArtifact {
+  afterRestart?: AttachmentArtifact;
   cleanupIds: string[];
 }
 
 function attachmentEvidenceDir() {
   if (!C8_EVIDENCE_DIR) throw new Error("C8_EVIDENCE_DIR is required");
   return C8_EVIDENCE_DIR;
+}
+
+function attachmentCandidate() {
+  if (!C8_CANDIDATE) throw new Error("C8_CANDIDATE is required");
+  return C8_CANDIDATE;
+}
+
+async function browserIdentity(page: Page) {
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  if (!executablePath) {
+    throw new Error("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required for C8 evidence");
+  }
+  return {
+    executablePath: path.resolve(executablePath),
+    userAgent: await page.evaluate(() => navigator.userAgent),
+  };
 }
 
 async function loginFixture(page: Page) {
@@ -509,9 +530,11 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
   };
   expect(attachment.filename).toBe(filename);
   expect(attachment.size_bytes).toBe(Buffer.byteLength(content));
-  await expect(page.getByText(filename, { exact: true })).toBeVisible();
+  await expect(page.getByText(filename, { exact: true }).first()).toBeVisible();
 
-  const previewButtons = page.getByRole("button", { name: /Preview|预览/ });
+  const persistedRow = page.locator(`[data-attachment-id="${attachment.id}"]`).last();
+  await expect(persistedRow).toBeVisible();
+  const previewButtons = persistedRow.getByRole("button", { name: /Preview|预览/ });
   await expect(previewButtons).toHaveCount(1);
   const previewResponsePromise = page.waitForResponse(
     (response) =>
@@ -552,24 +575,21 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
     filename: string;
   }>;
   expect(listBody.some(({ id }) => id === attachment.id)).toBe(true);
-  const cleanupIds = listBody
-    .filter(({ filename: listedFilename }) => listedFilename === filename)
-    .map(({ id }) => id);
-
   const evidence: AttachmentEvidence = {
     id: attachment.id,
     filename,
     content,
     sizeBytes: Buffer.byteLength(content),
-    cleanupIds,
+	cleanupIds: [attachment.id],
   };
   await writeFile(
     path.join(evidenceDir, "attachment.json"),
     `${JSON.stringify(evidence, null, 2)}\n`
   );
   const trace = {
-    candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+	candidate: attachmentCandidate(),
     phase: "upload-preview-download",
+	browser: await browserIdentity(page),
     attachment: { id: attachment.id, filename, sizeBytes: evidence.sizeBytes },
     http: sanitizeAttachmentTrace(responses),
     receivedEventTypes: wsFrames
@@ -666,14 +686,53 @@ test("C8 clean candidate reads the same file after runtime restart", async ({
   const listBody = (await listed.json()) as Array<{ id: string }>;
   expect(listBody.some(({ id }) => id === evidence.id)).toBe(true);
 
+	const secondContent = `C8 after-restart attachment ${Date.now()}\n`;
+	const secondFilename = "c8-clean-candidate-after-restart.txt";
+	const secondUploadPath = path.join(evidenceDir, secondFilename);
+	await writeFile(secondUploadPath, secondContent);
+	const fileInputs = page.locator('input[type="file"]');
+	await expect.poll(() => fileInputs.count()).toBeGreaterThanOrEqual(2);
+	const uploadResponsePromise = page.waitForResponse(
+	  (response) =>
+		new URL(response.url()).pathname === "/api/upload-file" &&
+		response.request().method() === "POST"
+	);
+	await fileInputs.nth((await fileInputs.count()) - 1).setInputFiles(secondUploadPath);
+	const uploadResponse = await uploadResponsePromise;
+	expect(uploadResponse.status()).toBe(200);
+	const second = (await uploadResponse.json()) as { id: string; filename: string; size_bytes: number };
+	expect(second).toMatchObject({ filename: secondFilename, size_bytes: Buffer.byteLength(secondContent) });
+	await expect(page.getByText(secondFilename, { exact: true }).first()).toBeVisible();
+
+	await expect.poll(async () => {
+	  const response = await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/attachments`, {
+		headers: { "X-Workspace-Slug": SLUG },
+	  });
+	  if (response.status() !== 200) return [];
+	  const values = (await response.json()) as Array<{ id: string }>;
+	  return values.map(({ id }) => id).sort();
+	}).toEqual([evidence.id, second.id].sort());
+	evidence.afterRestart = {
+	  id: second.id,
+	  filename: secondFilename,
+	  content: secondContent,
+	  sizeBytes: Buffer.byteLength(secondContent),
+	};
+	evidence.cleanupIds = [evidence.id, second.id];
+	await writeFile(path.join(evidenceDir, "attachment.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+
   const tracePath = path.join(evidenceDir, "restart-readback-trace.json");
   await writeFile(
     tracePath,
     `${JSON.stringify(
       {
-        candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+		candidate: attachmentCandidate(),
         phase: "restart-readback",
-        attachment: { id: evidence.id, filename: evidence.filename },
+		browser: await browserIdentity(page),
+		attachments: [
+		  { id: evidence.id, filename: evidence.filename },
+		  { id: second.id, filename: second.filename },
+		],
         http: sanitizeAttachmentTrace(responses),
       },
       null,
@@ -703,26 +762,19 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
     });
   });
   await loginFixture(page);
-  const csrf = (await page.context().cookies(WEB)).find(
-    (cookie) => cookie.name === "multica_csrf"
-  );
-  expect(csrf).toBeDefined();
+  await openFixtureIssue(page);
   for (const attachmentId of evidence.cleanupIds) {
-    const deleted = await page.request.delete(
-      `${WEB}/api/attachments/${attachmentId}`,
-      {
-        headers: {
-          "X-Workspace-Slug": SLUG,
-          "X-CSRF-Token": csrf!.value,
-        },
-      }
-    );
-    responses.push({
-      method: "DELETE",
-      url: deleted.url(),
-      status: deleted.status(),
-    });
-    expect(deleted.status()).toBe(204);
+	const row = page.locator(`[data-attachment-id="${attachmentId}"]`).last();
+	await expect(row).toBeVisible();
+	const deletedPromise = page.waitForResponse(
+	  (response) =>
+		new URL(response.url()).pathname === `/api/attachments/${attachmentId}` &&
+		response.request().method() === "DELETE"
+	);
+	await row.getByRole("button", { name: /Remove attachment|删除附件/ }).click();
+	const deleted = await deletedPromise;
+	expect(deleted.status()).toBe(204);
+	await expect(row).toBeHidden();
   }
   const missing = await page.request.get(
     `${WEB}/api/attachments/${evidence.id}`,
@@ -749,8 +801,9 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
     tracePath,
     `${JSON.stringify(
       {
-        candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+		candidate: attachmentCandidate(),
         phase: "delete",
+		browser: await browserIdentity(page),
         attachment: { id: evidence.id, filename: evidence.filename },
         http: sanitizeAttachmentTrace(responses),
       },

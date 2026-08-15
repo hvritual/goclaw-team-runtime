@@ -37,10 +37,14 @@ func (s *issueRepositoryStub) List(_ context.Context, query IssueListQuery) ([]i
 	s.query = query
 	return append([]issueDomain.Issue(nil), s.values...), s.err
 }
-func (s *issueRepositoryStub) Update(_ context.Context, value issueDomain.Issue) error {
+func (s *issueRepositoryStub) Update(_ context.Context, command IssueUpdateCommand) (issueDomain.Issue, error) {
 	s.updates++
-	s.value = value
-	return s.err
+	if s.err != nil {
+		return issueDomain.Issue{}, s.err
+	}
+	updated, err := s.value.Apply(command.Patch, command.Now)
+	s.value = updated
+	return updated, err
 }
 func (s *issueRepositoryStub) Move(_ context.Context, command IssueMoveCommand) (issueDomain.Issue, error) {
 	s.updates++

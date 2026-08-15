@@ -11,9 +11,10 @@ import {
   useSubIssueDisplayStore,
 } from "@multica/core/issues/stores/sub-issue-display-store";
 import enCommon from "../../locales/en/common.json";
+import enEditor from "../../locales/en/editor.json";
 import enIssues from "../../locales/en/issues.json";
 
-const TEST_RESOURCES = { en: { common: enCommon, issues: enIssues } };
+const TEST_RESOURCES = { en: { common: enCommon, editor: enEditor, issues: enIssues } };
 
 const mockViewport = vi.hoisted(() => ({ isMobile: false }));
 
@@ -162,6 +163,17 @@ vi.mock("../../editor", async () => ({
     modal: null,
   }),
   isPreviewable: () => false,
+  AttachmentDownloadProvider: ({ children }: { children: React.ReactNode }) => children,
+  Attachment: ({ attachment, onDelete }: any) => (
+    <div>
+      <span>{attachment.attachment.filename}</span>
+      {onDelete && (
+        <button type="button" aria-label="Remove attachment" onClick={onDelete}>
+          Remove
+        </button>
+      )}
+    </div>
+  ),
   ReadonlyContent: ({ content }: { content: string }) => (
     <div data-testid="readonly-content">{content}</div>
   ),
@@ -294,6 +306,7 @@ const mockApiObj = vi.hoisted(() => ({
   addIssueReaction: vi.fn(),
   removeIssueReaction: vi.fn(),
   listAttachments: vi.fn().mockResolvedValue([]),
+  deleteAttachment: vi.fn().mockResolvedValue(undefined),
   addCommentReaction: vi.fn(),
   removeCommentReaction: vi.fn(),
   listMembers: vi.fn().mockResolvedValue([{ user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" }]),
@@ -643,6 +656,8 @@ describe("IssueDetail (shared)", () => {
     mockApiObj.listProperties.mockResolvedValue({ properties: [], total: 0 });
     mockApiObj.listIssueAcceptanceConclusions.mockResolvedValue({ acceptanceConclusions: [], total: 0 });
     mockApiObj.listIssues.mockResolvedValue({ issues: [], total: 0 });
+    mockApiObj.listAttachments.mockResolvedValue([]);
+    mockApiObj.deleteAttachment.mockResolvedValue(undefined);
     mockApiObj.listMembers.mockResolvedValue([
       { user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" },
     ]);
@@ -812,6 +827,96 @@ describe("IssueDetail (shared)", () => {
     expect(await screen.findByText("Started working on this")).toBeInTheDocument();
     await waitFor(() => expect(mockApiObj.listAttachments).toHaveBeenCalledWith(mockIssue.id));
     expect(container.querySelectorAll('input[type="file"]').length).toBeGreaterThan(0);
+  });
+
+  it("renders a persisted attachment delete control and deletes through Core", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+	  issue_timeline: true,
+	  issue_members: true,
+	  issue_reactions: true,
+	  issue_subscribers: true,
+      issue_attachments: true,
+	  issue_labels: true,
+	  issue_properties: true,
+	  issue_children: true,
+	  issue_batch: true,
+	  issue_child_progress: true,
+	  issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+    mockApiObj.listAttachments.mockResolvedValue([{
+      id: "attachment-a",
+      workspace_id: "ws-1",
+      issue_id: mockIssue.id,
+      comment_id: null,
+      chat_session_id: null,
+      chat_message_id: null,
+      uploader_type: "member",
+      uploader_id: "user-1",
+      filename: "retained.txt",
+      url: "/api/attachments/attachment-a/download",
+      download_url: "/api/attachments/attachment-a/download",
+      markdown_url: "/api/attachments/attachment-a/download",
+      content_type: "text/plain; charset=utf-8",
+      size_bytes: 8,
+      created_at: "2026-08-15T00:00:00Z",
+    }]);
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("retained.txt")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove attachment" }));
+    await waitFor(() => expect(mockApiObj.deleteAttachment).toHaveBeenCalledWith("attachment-a"));
+  });
+
+  it("submits the complete authoritative attachment bag on description autosave", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: true,
+      issue_labels: true,
+      issue_properties: true,
+      issue_children: true,
+      issue_batch: true,
+      issue_child_progress: true,
+      issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+    mockApiObj.listAttachments.mockResolvedValue([{
+      id: "attachment-a",
+      workspace_id: "ws-1",
+      issue_id: mockIssue.id,
+      comment_id: null,
+      chat_session_id: null,
+      chat_message_id: null,
+      uploader_type: "member",
+      uploader_id: "user-1",
+      filename: "retained.txt",
+      url: "/api/attachments/attachment-a/download",
+      download_url: "/api/attachments/attachment-a/download",
+      markdown_url: "/api/attachments/attachment-a/download",
+      content_type: "text/plain; charset=utf-8",
+      size_bytes: 8,
+      created_at: "2026-08-15T00:00:00Z",
+    }]);
+    mockApiObj.updateIssue.mockResolvedValue(mockIssue);
+
+    renderIssueDetail();
+
+    await waitFor(() => expect(mockApiObj.listAttachments).toHaveBeenCalledWith(mockIssue.id));
+    fireEvent.change(await screen.findByDisplayValue("Add JWT auth to the backend"), {
+      target: { value: "Updated description" },
+    });
+    await waitFor(() => {
+      expect(mockApiObj.updateIssue).toHaveBeenCalledWith("issue-1", expect.objectContaining({
+        description: "Updated description",
+        attachment_ids: ["attachment-a"],
+      }));
+    });
   });
 
   it("does not mount inline batch controls while the runtime capability is disabled", async () => {

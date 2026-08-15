@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"time"
 
 	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
+	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 )
@@ -20,15 +22,16 @@ const issueColumns = `id, workspace_id, number, identifier, title, description, 
 	stage, start_date, due_date, created_at, updated_at, metadata, properties, asset_ids`
 
 type issueRepository struct {
-	db                *sql.DB
-	attachmentCleanup spacecontract.AttachmentCleanupService
+	db                   *sql.DB
+	attachmentCleanup    spacecontract.AttachmentCleanupService
+	attachmentReferences spacecontract.AttachmentReferenceValidator
 }
 
 func NewIssueRepository(config Config) (application.IssueRepository, error) {
 	if config.DB == nil {
 		return nil, errors.New("workspace sqlite database is required")
 	}
-	return &issueRepository{db: config.DB, attachmentCleanup: config.AttachmentCleanup}, nil
+	return &issueRepository{db: config.DB, attachmentCleanup: config.AttachmentCleanup, attachmentReferences: config.AttachmentReferences}, nil
 }
 
 func (r *issueRepository) Create(ctx context.Context, value issueDomain.Issue) (created issueDomain.Issue, err error) {
@@ -49,6 +52,11 @@ func (r *issueRepository) Create(ctx context.Context, value issueDomain.Issue) (
 			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
 		}
 	}()
+	if len(value.AssetIDs) > 0 && r.attachmentReferences != nil {
+		if err := r.attachmentReferences.ValidateReferences(ctx, connection, value.WorkspaceID, value.AssetIDs); err != nil {
+			return issueDomain.Issue{}, fmt.Errorf("validate Issue attachment references: %w", issueAttachmentReferenceError(err))
+		}
+	}
 
 	var prefix string
 	var number int32
@@ -139,32 +147,83 @@ func (r *issueRepository) List(ctx context.Context, query application.IssueListQ
 	return values, nil
 }
 
-func (r *issueRepository) Update(ctx context.Context, value issueDomain.Issue) error {
-	_, _, assets, err := encodeIssueJSON(value)
+func (r *issueRepository) Update(ctx context.Context, command application.IssueUpdateCommand) (updated issueDomain.Issue, err error) {
+	connection, err := r.db.Conn(ctx)
 	if err != nil {
-		return err
+		return issueDomain.Issue{}, fmt.Errorf("acquire Issue update connection: %w", err)
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE workspace_issues SET
-		title = ?, description = ?, status = ?, priority = ?, assignee_type = ?, assignee_id = ?,
-		parent_issue_id = ?, project_id = ?, position = ?, stage = ?, start_date = ?, due_date = ?,
-		asset_ids = ?, updated_at = ?
-		WHERE workspace_id = ? AND id = ?`,
-		value.Title, nullableString(value.Description), value.Status, value.Priority,
-		nullableString(value.AssigneeType), nullableString(value.AssigneeID), nullableString(value.ParentIssueID), nullableString(value.ProjectID),
-		value.Position, nullableInt32(value.Stage), nullableString(value.StartDate), nullableString(value.DueDate),
-		assets, value.UpdatedAt.Format(time.RFC3339Nano), value.WorkspaceID, value.ID,
-	)
+	defer connection.Close()
+	if _, err := connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("configure Issue update lock wait: %w", err)
+	}
+	if _, err := connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("begin immediate Issue update: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+
+	current, err := scanIssue(connection.QueryRowContext(ctx, `SELECT `+issueColumns+`
+		FROM workspace_issues WHERE workspace_id = ? AND id = ?`, command.WorkspaceID, command.IssueID))
 	if err != nil {
-		return fmt.Errorf("update Workspace Issue: %w", err)
+		return issueDomain.Issue{}, err
+	}
+	if command.Patch.AssetIDs.Set && !slices.Equal(current.AssetIDs, command.ExpectedAssetIDs) {
+		return issueDomain.Issue{}, contract.ErrIssueAttachmentConflict
+	}
+	if command.Patch.AssetIDs.Set && len(command.Patch.AssetIDs.Values) > 0 && r.attachmentReferences != nil {
+		if err := r.attachmentReferences.ValidateReferences(ctx, connection, command.WorkspaceID, command.Patch.AssetIDs.Values); err != nil {
+			return issueDomain.Issue{}, fmt.Errorf("validate Issue attachment references: %w", issueAttachmentReferenceError(err))
+		}
+	}
+	updated, err = current.Apply(command.Patch, command.Now)
+	if err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("apply Workspace Issue update: %w", err)
+	}
+	statement := `UPDATE workspace_issues SET
+		title = ?, description = ?, status = ?, priority = ?, assignee_type = ?, assignee_id = ?,
+		parent_issue_id = ?, project_id = ?, position = ?, stage = ?, start_date = ?, due_date = ?`
+	arguments := []any{
+		updated.Title, nullableString(updated.Description), updated.Status, updated.Priority,
+		nullableString(updated.AssigneeType), nullableString(updated.AssigneeID), nullableString(updated.ParentIssueID), nullableString(updated.ProjectID),
+		updated.Position, nullableInt32(updated.Stage), nullableString(updated.StartDate), nullableString(updated.DueDate),
+	}
+	if command.Patch.AssetIDs.Set {
+		assets, marshalErr := json.Marshal(updated.AssetIDs)
+		if marshalErr != nil {
+			return issueDomain.Issue{}, fmt.Errorf("encode Issue assets: %w", marshalErr)
+		}
+		statement += `, asset_ids = ?`
+		arguments = append(arguments, string(assets))
+	}
+	statement += `, updated_at = ? WHERE workspace_id = ? AND id = ?`
+	arguments = append(arguments, updated.UpdatedAt.Format(time.RFC3339Nano), command.WorkspaceID, command.IssueID)
+	result, err := connection.ExecContext(ctx, statement, arguments...)
+	if err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("update Workspace Issue: %w", err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("inspect Workspace Issue update: %w", err)
+		return issueDomain.Issue{}, fmt.Errorf("inspect Workspace Issue update: %w", err)
 	}
 	if rows == 0 {
-		return application.ErrIssueRecordNotFound
+		return issueDomain.Issue{}, application.ErrIssueRecordNotFound
 	}
-	return nil
+	if _, err := connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return issueDomain.Issue{}, fmt.Errorf("commit Workspace Issue update: %w", err)
+	}
+	committed = true
+	return updated, nil
+}
+
+func issueAttachmentReferenceError(err error) error {
+	if errors.Is(err, spacecontract.ErrAttachmentNotFound) || errors.Is(err, spacecontract.ErrAttachmentInvalid) {
+		return errors.Join(contract.ErrAssetOutsideWorkspace, err)
+	}
+	return err
 }
 
 func (r *issueRepository) Move(ctx context.Context, command application.IssueMoveCommand) (updated issueDomain.Issue, err error) {

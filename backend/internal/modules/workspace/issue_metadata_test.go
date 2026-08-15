@@ -501,14 +501,93 @@ func TestIssueMetadataOverlapsMainlineUpdate(t *testing.T) {
 	}
 }
 
+func TestIssueMainlineUpdatePreservesAttachmentBagChangedAfterRead(t *testing.T) {
+	db := openWorkspaceTestDB(t)
+	db.SetMaxOpenConns(8)
+	seedWorkspace(t, db, "workspace-1", "Acme", "acme")
+	module := newIssueMainlineModule(t, db, &issueIDSequence{}, time.Now)
+	ctx := contract.WithWorkspaceActor(context.Background(), "member", "member-1")
+	created, err := module.IssueLocal().CreateIssue(ctx, contract.CreateIssueRequest{WorkspaceId: "workspace-1", Title: "before"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseRepo, _ := persistence.NewIssueRepository(persistence.Config{DB: db})
+	projects, _ := persistence.NewProjectRepository(persistence.Config{DB: db})
+	pause := &pausingIssueRepository{IssueRepository: baseRepo, entered: make(chan struct{}), resume: make(chan struct{})}
+	actors := &workspaceActorCatalog{actors: map[string]bool{"workspace-1/member/member-1": true}}
+	usecase, err := application.NewIssueUseCase(pause, projects, &workspaceAccessStub{}, actors, &workspaceAssetCatalog{assets: map[string]bool{}}, func(context.Context) (string, error) { return "unused", nil }, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	title := "after"
+	done := make(chan error, 1)
+	go func() {
+		_, updateErr := usecase.UpdateIssue(ctx, contract.UpdateIssueRequest{WorkspaceId: "workspace-1", IssueId: created.Issue.Id, Title: &title})
+		done <- updateErr
+	}()
+	<-pause.entered
+	if _, err := db.Exec(`UPDATE workspace_issues SET asset_ids='["concurrent-asset"]' WHERE workspace_id=? AND id=?`, "workspace-1", created.Issue.Id); err != nil {
+		t.Fatal(err)
+	}
+	close(pause.resume)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	got, err := module.IssueLocal().GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: "workspace-1", IssueId: created.Issue.Id})
+	if err != nil || got.Issue.Title != title || len(got.Issue.AssetIds) != 1 || got.Issue.AssetIds[0] != "concurrent-asset" {
+		t.Fatalf("concurrent omitted attachment patch = %#v err=%v", got.Issue, err)
+	}
+}
+
+func TestIssueAttachmentReplacementConflictsWithBagChangedAfterRead(t *testing.T) {
+	db := openWorkspaceTestDB(t)
+	db.SetMaxOpenConns(8)
+	seedWorkspace(t, db, "workspace-1", "Acme", "acme")
+	module := newIssueMainlineModule(t, db, &issueIDSequence{}, time.Now)
+	ctx := contract.WithWorkspaceActor(context.Background(), "member", "member-1")
+	created, err := module.IssueLocal().CreateIssue(ctx, contract.CreateIssueRequest{WorkspaceId: "workspace-1", Title: "before", AssetIds: []string{"asset-1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseRepo, _ := persistence.NewIssueRepository(persistence.Config{DB: db})
+	projects, _ := persistence.NewProjectRepository(persistence.Config{DB: db})
+	pause := &pausingIssueRepository{IssueRepository: baseRepo, entered: make(chan struct{}), resume: make(chan struct{})}
+	actors := &workspaceActorCatalog{actors: map[string]bool{"workspace-1/member/member-1": true}}
+	assets := &workspaceAssetCatalog{assets: map[string]bool{"workspace-1/asset-1": true, "workspace-1/asset-2": true}}
+	usecase, err := application.NewIssueUseCase(pause, projects, &workspaceAccessStub{}, actors, assets, func(context.Context) (string, error) { return "unused", nil }, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, updateErr := usecase.UpdateIssue(ctx, contract.UpdateIssueRequest{
+			WorkspaceId: "workspace-1", IssueId: created.Issue.Id,
+			AssetIds: &contract.IssueAssetIDs{Values: []string{"asset-2"}},
+		})
+		done <- updateErr
+	}()
+	<-pause.entered
+	if _, err := db.Exec(`UPDATE workspace_issues SET asset_ids='["asset-1","concurrent-asset"]' WHERE workspace_id=? AND id=?`, "workspace-1", created.Issue.Id); err != nil {
+		t.Fatal(err)
+	}
+	close(pause.resume)
+	if err := <-done; err == nil {
+		t.Fatal("attachment replacement succeeded after the authoritative bag changed")
+	}
+	got, err := module.IssueLocal().GetIssue(ctx, contract.GetIssueRequest{WorkspaceId: "workspace-1", IssueId: created.Issue.Id})
+	if err != nil || len(got.Issue.AssetIds) != 2 || got.Issue.AssetIds[0] != "asset-1" || got.Issue.AssetIds[1] != "concurrent-asset" {
+		t.Fatalf("conflicted attachment bag = %#v err=%v", got.Issue, err)
+	}
+}
+
 type pausingIssueRepository struct {
 	application.IssueRepository
 	entered chan struct{}
 	resume  chan struct{}
 }
 
-func (r *pausingIssueRepository) Update(ctx context.Context, value issueDomain.Issue) error {
+func (r *pausingIssueRepository) Update(ctx context.Context, command application.IssueUpdateCommand) (issueDomain.Issue, error) {
 	close(r.entered)
 	<-r.resume
-	return r.IssueRepository.Update(ctx, value)
+	return r.IssueRepository.Update(ctx, command)
 }

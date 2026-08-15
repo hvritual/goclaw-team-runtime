@@ -119,6 +119,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.Assets = spaceAttachmentReader{service: spaceModule.Attachments()}
 	workspaceDependencies.IssueAttachments = spaceIssueAttachmentProjection{service: spaceModule.Attachments()}
 	workspaceDependencies.AttachmentCleanup = spaceModule.Attachments()
+	workspaceDependencies.AttachmentReferences = spaceModule.Attachments()
 	workspaceDependencies.Events = realtimeHub
 	workspaceModule, err := workspace.NewWithSqliteWorkspaceChain(
 		workspace.SqlitePersistenceConfig{DB: db},

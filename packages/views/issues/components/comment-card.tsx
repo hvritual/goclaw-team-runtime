@@ -275,12 +275,13 @@ export function AttachmentList({
     <AttachmentDownloadProvider attachments={attachments}>
       <div className={cn("flex flex-col gap-1", className)}>
         {standalone.map((a) => (
-          <AttachmentRenderer
-            key={a.id}
-            attachment={{ kind: "record", attachment: a }}
-            editable={!!onRemove}
-            onDelete={onRemove ? () => onRemove(a.id) : undefined}
-          />
+          <div key={a.id} data-attachment-id={a.id}>
+            <AttachmentRenderer
+              attachment={{ kind: "record", attachment: a }}
+              editable={!!onRemove}
+              onDelete={onRemove ? () => onRemove(a.id) : undefined}
+            />
+          </div>
         ))}
       </div>
     </AttachmentDownloadProvider>

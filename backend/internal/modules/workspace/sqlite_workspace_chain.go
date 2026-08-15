@@ -25,6 +25,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		return nil, errors.New("Skill reference reader is required")
 	}
 	config.AttachmentCleanup = dependencies.AttachmentCleanup
+	config.AttachmentReferences = dependencies.AttachmentReferences
 	module, err := NewWithSqliteWorkspaceServices(config, dependencies)
 	if err != nil {
 		return nil, err
