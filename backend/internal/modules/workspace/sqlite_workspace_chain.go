@@ -24,6 +24,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if dependencies.Skills == nil {
 		return nil, errors.New("Skill reference reader is required")
 	}
+	config.AttachmentCleanup = dependencies.AttachmentCleanup
 	module, err := NewWithSqliteWorkspaceServices(config, dependencies)
 	if err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Project surface application: %w", err)
 	}
-	baseIssueCollaborationService, err := application.NewIssueCollaborationUseCase(issueCollaborationRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewIssueCollaborationID), now)
+	baseIssueCollaborationService, err := application.NewIssueCollaborationUseCase(issueCollaborationRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, dependencies.Assets, dependencies.IssueAttachments, newID(dependencies.NewIssueCollaborationID), now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Issue collaboration application: %w", err)
 	}
@@ -173,10 +174,24 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if dependencies.IssueMetadataEnabled == nil || *dependencies.IssueMetadataEnabled {
 		module.extensions = append(module.extensions, newIssueMetadataExtension(issueMetadataService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
-	module.extensions = append(module.extensions, newIssueReadExtension(issueService, issueCatalogService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer, dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled))
+	module.extensions = append(module.extensions, newIssueReadExtension(
+		issueService,
+		issueCatalogService,
+		dependencies.HTTPIdentity,
+		dependencies.HTTPUserIdentity,
+		dependencies.HTTPMutationAuthorizer,
+		dependencies.IssueCreateEnabled == nil || *dependencies.IssueCreateEnabled,
+		dependencies.IssueAttachmentsEnabled == nil || *dependencies.IssueAttachmentsEnabled,
+	))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
-		module.extensions = append(module.extensions, newIssueCollaborationExtension(issueCollaborationService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+		module.extensions = append(module.extensions, newIssueCollaborationExtension(
+			issueCollaborationService,
+			dependencies.HTTPIdentity,
+			dependencies.HTTPUserIdentity,
+			dependencies.HTTPMutationAuthorizer,
+			dependencies.IssueAttachmentsEnabled == nil || *dependencies.IssueAttachmentsEnabled,
+		))
 		module.extensions = append(module.extensions, newIssueCatalogExtension(issueCatalogService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}

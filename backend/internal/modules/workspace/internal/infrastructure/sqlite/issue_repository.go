@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 )
@@ -18,13 +19,16 @@ const issueColumns = `id, workspace_id, number, identifier, title, description, 
 	assignee_type, assignee_id, creator_type, creator_id, parent_issue_id, project_id, position,
 	stage, start_date, due_date, created_at, updated_at, metadata, properties, asset_ids`
 
-type issueRepository struct{ db *sql.DB }
+type issueRepository struct {
+	db                *sql.DB
+	attachmentCleanup spacecontract.AttachmentCleanupService
+}
 
 func NewIssueRepository(config Config) (application.IssueRepository, error) {
 	if config.DB == nil {
 		return nil, errors.New("workspace sqlite database is required")
 	}
-	return &issueRepository{db: config.DB}, nil
+	return &issueRepository{db: config.DB, attachmentCleanup: config.AttachmentCleanup}, nil
 }
 
 func (r *issueRepository) Create(ctx context.Context, value issueDomain.Issue) (created issueDomain.Issue, err error) {

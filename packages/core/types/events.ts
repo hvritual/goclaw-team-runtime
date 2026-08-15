@@ -16,6 +16,7 @@ export type WSEventType =
   | "issue_labels:changed"
   | "issue_metadata:changed"
   | "issue_properties:changed"
+  | "issue_attachments:changed"
   | "issue_reaction:added"
   | "issue_reaction:removed"
   | "comment:created"
@@ -98,6 +99,27 @@ const IssueDeletedEventPayloadSchema = z.object({ issue_id: z.string().min(1) })
 const IssueMetadataChangedEventPayloadSchema = z.object({
   issue_id: z.string().min(1),
   metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])),
+}).passthrough();
+const RealtimeAttachmentSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  issue_id: z.string().nullable(),
+  comment_id: z.string().nullable(),
+  chat_session_id: z.string().nullable(),
+  chat_message_id: z.string().nullable(),
+  uploader_type: z.enum(["member", "agent"]),
+  uploader_id: z.string().min(1),
+  filename: z.string().min(1),
+  url: z.string().min(1),
+  download_url: z.string().min(1),
+  markdown_url: z.string().min(1),
+  content_type: z.string().min(1),
+  size_bytes: z.number().int().nonnegative(),
+  created_at: z.iso.datetime({ offset: true }),
+}).passthrough();
+const IssueAttachmentsChangedEventPayloadSchema = z.object({
+  issue_id: z.string().min(1),
+  attachments: z.array(RealtimeAttachmentSchema),
 }).passthrough();
 
 const RealtimeLabelSchema = z.object({
@@ -232,6 +254,7 @@ export function isValidCanonicalIssueEventPayload(type: string, payload: unknown
     case "issue:updated": return IssueUpdatedEventPayloadSchema.safeParse(payload).success;
     case "issue:deleted": return IssueDeletedEventPayloadSchema.safeParse(payload).success;
     case "issue_metadata:changed": return IssueMetadataChangedEventPayloadSchema.safeParse(payload).success;
+    case "issue_attachments:changed": return IssueAttachmentsChangedEventPayloadSchema.safeParse(payload).success;
     case "label:created": return LabelChangedEventPayloadSchema.safeParse(payload).success;
     case "label:updated": return z.union([
       LabelChangedEventPayloadSchema,

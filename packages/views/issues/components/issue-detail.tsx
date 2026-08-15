@@ -1542,6 +1542,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
   const titleLazy = useLazyEditor({ editorRef: titleEditorRef, resetKey: id });
   const { isDragOver: descDragOver, dropZoneProps: descDropZoneProps } = useFileDropZone({
     onDrop: (files) => files.forEach((file) => descEditorRef.current?.uploadFile(file)),
+    enabled: attachmentsEnabled,
   });
   // Pending uploads in the description editor. We don't pass `issueId` on
   // upload (to avoid orphaning attachments when the user deletes the file
@@ -2115,6 +2116,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
         <div className="pb-3" id={`comment-${item.id}`}>
           <CommentCard
             issueId={id}
+            attachmentsEnabled={attachmentsEnabled}
             entry={item.entry}
             replies={timelineView.threadReplies.get(item.id) ?? EMPTY_REPLIES}
             currentUserId={user?.id}
@@ -2395,14 +2397,14 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                   .map((a) => a.id);
                 handleUpdateField({ description: md, attachment_ids: ids.length > 0 ? ids : undefined });
               }}
-              onUploadFile={handleDescriptionUpload}
+              onUploadFile={attachmentsEnabled ? handleDescriptionUpload : undefined}
               debounceMs={1500}
               // Closing the issue modal must save what the user last saw —
               // without the flush, a paste followed by a quick close loses
               // the image markdown and its attachment_ids bind (MUL-3254).
               flushPendingOnUnmount
               currentIssueId={id}
-              attachments={descEditorAttachments}
+              attachments={attachmentsEnabled ? descEditorAttachments : undefined}
             />
 
             <div className="flex items-center gap-1 mt-3">
@@ -2412,11 +2414,13 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                 onToggle={handleToggleIssueReaction}
                 getActorName={getActorName}
               />
-              <FileUploadButton
-                size="sm"
-                multiple
-                onSelect={(file) => descEditorRef.current?.uploadFile(file)}
-              />
+              {attachmentsEnabled && (
+                <FileUploadButton
+                  size="sm"
+                  multiple
+                  onSelect={(file) => descEditorRef.current?.uploadFile(file)}
+                />
+              )}
             </div>
             {descDragOver && <FileDropOverlay />}
           </div>
@@ -2684,7 +2688,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
                 keeps the previous issue's in-memory content and the
                 next keystroke would flush it into the new issue's
                 draft key. */}
-            <CommentInput key={id} issueId={id} onSubmit={submitComment} />
+            <CommentInput key={id} issueId={id} attachmentsEnabled={attachmentsEnabled} onSubmit={submitComment} />
           </div>
         </div>
         </div>

@@ -84,6 +84,7 @@ function StickyHeaderShell({
 
 interface CommentCardProps {
   issueId: string;
+  attachmentsEnabled?: boolean;
   entry: TimelineEntry;
   /**
    * Flat list of every nested reply under this thread root, in render order.
@@ -322,6 +323,7 @@ function useEditAttachmentState(
   issueId: string,
   entry: TimelineEntry,
   onEdit: (commentId: string, content: string, attachmentIds: string[]) => Promise<void>,
+  attachmentsEnabled: boolean,
 ) {
   const { t } = useT("issues");
   const { t: tEditor } = useT("editor");
@@ -349,7 +351,7 @@ function useEditAttachmentState(
 
   const { isDragOver, dropZoneProps } = useFileDropZone({
     onDrop: (files) => files.forEach((f) => editorRef.current?.uploadFile(f)),
-    enabled: editing,
+    enabled: editing && attachmentsEnabled,
   });
 
   const getDraft = useCommentDraftStore.getState().getDraft;
@@ -488,6 +490,7 @@ function useEditAttachmentState(
 
 function CommentRow({
   issueId,
+  attachmentsEnabled = true,
   entry,
   currentUserId,
   canModerate = false,
@@ -500,6 +503,7 @@ function CommentRow({
   onResolveToggle,
 }: {
   issueId: string;
+  attachmentsEnabled?: boolean;
   entry: TimelineEntry;
   currentUserId?: string;
   canModerate?: boolean;
@@ -517,7 +521,7 @@ function CommentRow({
   const timeAgo = useTimeAgo();
   const { getActorName } = useActorName();
 
-  const edit = useEditAttachmentState(issueId, entry, onEdit);
+  const edit = useEditAttachmentState(issueId, entry, onEdit, attachmentsEnabled);
 
   const isOwn = entry.actor_type === "member" && entry.actor_id === currentUserId;
   const canEditEntry = isOwn || (canModerate && entry.actor_type === "member");
@@ -648,14 +652,14 @@ function CommentRow({
                 else edit.clearDraft(edit.draftKey);
               }}
               onSubmit={edit.saveEdit}
-              onUploadFile={edit.handleUpload}
+              onUploadFile={attachmentsEnabled ? edit.handleUpload : undefined}
               onUploadingChange={edit.onUploadingChange}
               debounceMs={100}
               currentIssueId={issueId}
-              attachments={edit.editorAttachments}
+              attachments={attachmentsEnabled ? edit.editorAttachments : undefined}
             />
           </div>
-          {edit.standaloneEditAttachments.length > 0 && (
+          {attachmentsEnabled && edit.standaloneEditAttachments.length > 0 && (
             <AttachmentList
               attachments={edit.standaloneEditAttachments}
               className="mt-2 max-w-full"
@@ -671,11 +675,13 @@ function CommentRow({
           <div className="flex items-center justify-between gap-2 mt-2">
             <div className="min-w-0 flex-1" />
             <div className="flex shrink-0 items-center gap-2">
-              <FileUploadButton
-                size="sm"
-                multiple
-                onSelect={(file) => edit.editorRef.current?.uploadFile(file)}
-              />
+              {attachmentsEnabled && (
+                <FileUploadButton
+                  size="sm"
+                  multiple
+                  onSelect={(file) => edit.editorRef.current?.uploadFile(file)}
+                />
+              )}
               <Button size="sm" variant="ghost" onClick={edit.cancelEdit} disabled={edit.saving}>{t(($) => $.comment.cancel_edit)}</Button>
               <Button
                 size="sm"
@@ -695,9 +701,9 @@ function CommentRow({
       ) : (
         <>
           <div className="pl-12 pr-4 pt-1 text-sm leading-relaxed text-foreground/85">
-            <ReadonlyContent content={entry.content ?? ""} attachments={entry.attachments} />
+            <ReadonlyContent content={entry.content ?? ""} attachments={attachmentsEnabled ? entry.attachments : undefined} />
           </div>
-          <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-12 pr-4" />
+          {attachmentsEnabled && <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-12 pr-4" />}
           <ReactionBar
             reactions={reactions}
             currentUserId={currentUserId}
@@ -717,6 +723,7 @@ function CommentRow({
 
 function CommentCardImpl({
   issueId,
+  attachmentsEnabled = true,
   entry,
   replies,
   currentUserId,
@@ -743,7 +750,7 @@ function CommentCardImpl({
     [toggleCollapse, issueId, entry.id],
   );
 
-  const edit = useEditAttachmentState(issueId, entry, onEdit);
+  const edit = useEditAttachmentState(issueId, entry, onEdit, attachmentsEnabled);
 
   const isOwn = entry.actor_type === "member" && entry.actor_id === currentUserId;
   const canEditEntry = isOwn || (canModerate && entry.actor_type === "member");
@@ -962,16 +969,16 @@ function CommentCardImpl({
                       else edit.clearDraft(edit.draftKey);
                     }}
                     onSubmit={edit.saveEdit}
-                    onUploadFile={edit.handleUpload}
+                    onUploadFile={attachmentsEnabled ? edit.handleUpload : undefined}
                     onUploadingChange={edit.onUploadingChange}
                     debounceMs={100}
                     currentIssueId={issueId}
-                    attachments={edit.editorAttachments}
+                    attachments={attachmentsEnabled ? edit.editorAttachments : undefined}
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    {edit.standaloneEditAttachments.length > 0 && (
+                    {attachmentsEnabled && edit.standaloneEditAttachments.length > 0 && (
                       <AttachmentList
                         attachments={edit.standaloneEditAttachments}
                         className="max-w-full"
@@ -984,11 +991,13 @@ function CommentCardImpl({
                         }
                         />
                       )}
-                    <FileUploadButton
-                      size="sm"
-                      multiple
-                      onSelect={(file) => edit.editorRef.current?.uploadFile(file)}
-                    />
+                    {attachmentsEnabled && (
+                      <FileUploadButton
+                        size="sm"
+                        multiple
+                        onSelect={(file) => edit.editorRef.current?.uploadFile(file)}
+                      />
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="ghost" onClick={edit.cancelEdit} disabled={edit.saving}>{t(($) => $.comment.cancel_edit)}</Button>
@@ -1010,9 +1019,9 @@ function CommentCardImpl({
             ) : (
               <>
                 <div className="pl-10 text-sm leading-relaxed text-foreground/85">
-                  <ReadonlyContent content={entry.content ?? ""} attachments={entry.attachments} />
+                  <ReadonlyContent content={entry.content ?? ""} attachments={attachmentsEnabled ? entry.attachments : undefined} />
                 </div>
-                <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-10" />
+                {attachmentsEnabled && <AttachmentList attachments={entry.attachments} content={entry.content} className="mt-1.5 pl-10" />}
                 <ReactionBar
                   reactions={reactions}
                   currentUserId={currentUserId}
@@ -1052,6 +1061,7 @@ function CommentCardImpl({
                 >
                   <CommentRow
                     issueId={issueId}
+                    attachmentsEnabled={attachmentsEnabled}
                     entry={resolutionReply}
                     currentUserId={currentUserId}
                     canModerate={canModerate}
@@ -1092,6 +1102,7 @@ function CommentCardImpl({
                 >
                   <CommentRow
                     issueId={issueId}
+                    attachmentsEnabled={attachmentsEnabled}
                     entry={reply}
                     currentUserId={currentUserId}
                     canModerate={canModerate}
@@ -1110,6 +1121,7 @@ function CommentCardImpl({
               <div className="border-t border-border/50 px-4 py-2.5">
                 <ReplyInput
                   issueId={issueId}
+                  attachmentsEnabled={attachmentsEnabled}
                   placeholder={t(($) => $.reply.placeholder)}
                   size="sm"
                   avatarType="member"

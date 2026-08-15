@@ -432,6 +432,39 @@ describe("WSClient", () => {
     }
   });
 
+  it("validates complete attachment bags before realtime cache consumers run", () => {
+    const ws = new WSClient("ws://example.test/ws");
+    const handler = vi.fn();
+    ws.onAny(handler);
+    ws.connect();
+    const attachment = {
+      id: "attachment-1",
+      workspace_id: "workspace-1",
+      issue_id: "issue-1",
+      comment_id: null,
+      chat_session_id: null,
+      chat_message_id: null,
+      uploader_type: "member",
+      uploader_id: "user-1",
+      filename: "evidence.txt",
+      url: "/api/attachments/attachment-1/download",
+      download_url: "/api/attachments/attachment-1/download",
+      markdown_url: "/api/attachments/attachment-1/download",
+      content_type: "text/plain; charset=utf-8",
+      size_bytes: 8,
+      created_at: "2026-08-15T01:02:03Z",
+    };
+    const payload = { issue_id: "issue-1", attachments: [attachment] };
+    FakeWebSocket.lastInstance!.onmessage?.({ data: JSON.stringify({ type: "issue_attachments:changed", payload }) });
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({ type: "issue_attachments:changed", payload }));
+
+    handler.mockClear();
+    FakeWebSocket.lastInstance!.onmessage?.({
+      data: JSON.stringify({ type: "issue_attachments:changed", payload: { issue_id: "issue-1", attachments: [{ ...attachment, size_bytes: "8" }] } }),
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   // ── Reconnect backoff tests ────────────────────────────────────────
 
   describe("reconnect backoff", () => {

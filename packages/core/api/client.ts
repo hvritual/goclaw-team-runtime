@@ -129,6 +129,8 @@ import {
 	projectRequirementCoverageSchema,
 } from "../project-requirements/schema";
 import {
+  AttachmentSchema,
+  AttachmentListSchema,
   AttachmentResponseSchema,
   BatchDeleteIssuesResponseSchema,
   BatchUpdateIssuesResponseSchema,
@@ -137,7 +139,6 @@ import {
   CommentSchema,
   CommentsListSchema,
   EMPTY_APP_CONFIG,
-  EMPTY_ATTACHMENT,
   EMPTY_GROUPED_ISSUES_RESPONSE,
   EMPTY_ISSUE_TABLE_FACETS_RESPONSE,
   EMPTY_ISSUE_TABLE_GROUPS_RESPONSE,
@@ -1319,16 +1320,17 @@ export class ApiClient {
 
     this.logger.info(`← ${res.status} /api/upload-file`, { rid, duration: `${Date.now() - start}ms` });
     const raw = (await res.json()) as unknown;
-    const attachment = parseWithFallback<Attachment | null>(raw, AttachmentResponseSchema.nullable(), null, {
-      endpoint: "POST /api/upload-file",
-    });
-    if (!attachment) throw new Error("Invalid attachment response");
-    return attachment;
+    const parsed = AttachmentResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid attachment response");
+    return parsed.data as unknown as Attachment;
   }
 
 
   async listAttachments(issueId: string): Promise<Attachment[]> {
-    return this.fetch(`/api/issues/${issueId}/attachments`);
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/attachments`);
+    const parsed = AttachmentListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid attachment response");
+    return parsed.data as Attachment[];
   }
 
   // Fetches a fresh attachment metadata record. The server re-signs
@@ -1337,9 +1339,9 @@ export class ApiClient {
   // signed URL cached in TanStack Query.
   async getAttachment(id: string): Promise<Attachment> {
     const raw = await this.fetch<unknown>(`/api/attachments/${id}`);
-    return parseWithFallback(raw, AttachmentResponseSchema, EMPTY_ATTACHMENT, {
-      endpoint: "GET /api/attachments/{id}",
-    });
+    const parsed = AttachmentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid attachment response");
+    return parsed.data as Attachment;
   }
 
   async deleteAttachment(id: string): Promise<void> {

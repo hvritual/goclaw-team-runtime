@@ -24,7 +24,7 @@ type IssueCollaborationRepository interface {
 	ListComments(context.Context, string, string) ([]contract.IssueComment, error)
 	ListActivities(context.Context, string, string) ([]contract.IssueActivity, error)
 	CreateComment(context.Context, contract.IssueComment) (contract.IssueComment, error)
-	UpdateComment(context.Context, string, string, string, string) (contract.IssueComment, error)
+	UpdateComment(context.Context, string, string, string, []string, string) (contract.IssueComment, error)
 	DeleteComment(context.Context, string, string) error
 	ResolveComment(context.Context, string, string, string, string, string, bool) (contract.IssueComment, error)
 	ProposeCommentKnowledge(context.Context, string, string, string, string, string, string, string) (bool, error)
@@ -43,15 +43,26 @@ type IssueCollaborationUseCase struct {
 	authorizer  contract.WorkspaceAccessAuthorizer
 	actors      contract.WorkspaceActorReader
 	memberships contract.WorkspaceMembershipReader
+	assets      contract.WorkspaceAssetReader
+	attachments contract.IssueAttachmentProjectionReader
 	newID       ProjectIDGenerator
 	now         Clock
 }
 
-func NewIssueCollaborationUseCase(repository IssueCollaborationRepository, authorizer contract.WorkspaceAccessAuthorizer, actors contract.WorkspaceActorReader, memberships contract.WorkspaceMembershipReader, newID ProjectIDGenerator, now Clock) (*IssueCollaborationUseCase, error) {
-	if repository == nil || authorizer == nil || actors == nil || memberships == nil || newID == nil || now == nil {
+func NewIssueCollaborationUseCase(repository IssueCollaborationRepository, authorizer contract.WorkspaceAccessAuthorizer, actors contract.WorkspaceActorReader, memberships contract.WorkspaceMembershipReader, assets contract.WorkspaceAssetReader, attachments contract.IssueAttachmentProjectionReader, newID ProjectIDGenerator, now Clock) (*IssueCollaborationUseCase, error) {
+	if repository == nil || authorizer == nil || actors == nil || memberships == nil || assets == nil || newID == nil || now == nil {
 		return nil, errors.New("Issue collaboration dependencies are required")
 	}
-	return &IssueCollaborationUseCase{repository: repository, authorizer: authorizer, actors: actors, memberships: memberships, newID: newID, now: now}, nil
+	if attachments == nil {
+		attachments = emptyIssueAttachmentProjection{}
+	}
+	return &IssueCollaborationUseCase{repository: repository, authorizer: authorizer, actors: actors, memberships: memberships, assets: assets, attachments: attachments, newID: newID, now: now}, nil
+}
+
+type emptyIssueAttachmentProjection struct{}
+
+func (emptyIssueAttachmentProjection) ReadAttachments(context.Context, string, []string) ([]map[string]any, error) {
+	return []map[string]any{}, nil
 }
 
 func (u *IssueCollaborationUseCase) ResolveIssueID(ctx context.Context, workspaceID, issueID string) (string, error) {
@@ -67,7 +78,11 @@ func (u *IssueCollaborationUseCase) GetIssueComment(ctx context.Context, workspa
 	if err := u.authorizer.AuthorizeWorkspace(ctx, workspaceID, "workspace.issue.comment.get"); err != nil {
 		return contract.IssueComment{}, err
 	}
-	return u.repository.GetComment(ctx, workspaceID, commentID)
+	comment, err := u.repository.GetComment(ctx, workspaceID, commentID)
+	if err != nil {
+		return contract.IssueComment{}, err
+	}
+	return u.hydrateComment(ctx, workspaceID, comment)
 }
 
 func (u *IssueCollaborationUseCase) ListIssueComments(ctx context.Context, request contract.ListIssueCommentsRequest) (contract.ListIssueCommentsResponse, error) {
@@ -82,6 +97,9 @@ func (u *IssueCollaborationUseCase) ListIssueComments(ctx context.Context, reque
 	if comments == nil {
 		comments = []contract.IssueComment{}
 	}
+	if err := u.hydrateComments(ctx, workspaceID, comments); err != nil {
+		return contract.ListIssueCommentsResponse{}, err
+	}
 	return contract.ListIssueCommentsResponse{Comments: comments}, nil
 }
 
@@ -93,6 +111,9 @@ func (u *IssueCollaborationUseCase) ListIssueTimeline(ctx context.Context, reque
 	comments, err := u.repository.ListComments(ctx, workspaceID, issueID)
 	if err != nil {
 		return contract.ListIssueTimelineResponse{}, fmt.Errorf("list Issue timeline comments: %w", err)
+	}
+	if err := u.hydrateComments(ctx, workspaceID, comments); err != nil {
+		return contract.ListIssueTimelineResponse{}, err
 	}
 	activities, err := u.repository.ListActivities(ctx, workspaceID, issueID)
 	if err != nil {
@@ -116,8 +137,12 @@ func (u *IssueCollaborationUseCase) CreateIssueComment(ctx context.Context, requ
 	if commentType == "" {
 		commentType = "comment"
 	}
-	if content == "" || commentType != "comment" || len(request.AttachmentIDs) != 0 {
+	if content == "" || commentType != "comment" {
 		return contract.IssueComment{}, ErrIssueCollaborationInvalid
+	}
+	attachmentIDs, err := u.validateAttachmentIDs(ctx, workspaceID, request.AttachmentIDs)
+	if err != nil {
+		return contract.IssueComment{}, err
 	}
 	parentID := cleanStringPointer(request.ParentID)
 	if parentID != nil {
@@ -131,18 +156,22 @@ func (u *IssueCollaborationUseCase) CreateIssueComment(ctx context.Context, requ
 		return contract.IssueComment{}, fmt.Errorf("generate Issue comment id: %w", err)
 	}
 	now := u.now().UTC().Format(time.RFC3339Nano)
-	return u.repository.CreateComment(ctx, contract.IssueComment{
+	created, err := u.repository.CreateComment(ctx, contract.IssueComment{
 		ID: id, WorkspaceID: workspaceID, IssueID: issueID, AuthorType: actor.Type, AuthorID: actor.ID,
 		Content: content, Type: commentType, ParentID: parentID,
-		Reactions: []contract.CommentReaction{}, Attachments: []map[string]any{}, CreatedAt: now, UpdatedAt: now,
+		Reactions: []contract.CommentReaction{}, Attachments: []map[string]any{}, AttachmentIDs: attachmentIDs, CreatedAt: now, UpdatedAt: now,
 	})
+	if err != nil {
+		return contract.IssueComment{}, err
+	}
+	return u.hydrateComment(ctx, workspaceID, created)
 }
 
 func (u *IssueCollaborationUseCase) UpdateIssueComment(ctx context.Context, request contract.UpdateIssueCommentRequest) (contract.IssueComment, error) {
 	workspaceID := strings.TrimSpace(request.WorkspaceID)
 	commentID := strings.TrimSpace(request.CommentID)
 	content := strings.TrimSpace(request.Content)
-	if workspaceID == "" || commentID == "" || content == "" || len(request.AttachmentIDs) != 0 {
+	if workspaceID == "" || commentID == "" || content == "" {
 		return contract.IssueComment{}, ErrIssueCollaborationInvalid
 	}
 	if err := u.authorizer.AuthorizeWorkspace(ctx, workspaceID, "workspace.issue.comment.update"); err != nil {
@@ -152,7 +181,15 @@ func (u *IssueCollaborationUseCase) UpdateIssueComment(ctx context.Context, requ
 	if err != nil {
 		return contract.IssueComment{}, err
 	}
-	return u.repository.UpdateComment(ctx, workspaceID, comment.ID, content, u.now().UTC().Format(time.RFC3339Nano))
+	attachmentIDs, err := u.validateAttachmentIDs(ctx, workspaceID, request.AttachmentIDs)
+	if err != nil {
+		return contract.IssueComment{}, err
+	}
+	updated, err := u.repository.UpdateComment(ctx, workspaceID, comment.ID, content, attachmentIDs, u.now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return contract.IssueComment{}, err
+	}
+	return u.hydrateComment(ctx, workspaceID, updated)
 }
 
 func (u *IssueCollaborationUseCase) DeleteIssueComment(ctx context.Context, request contract.DeleteIssueCommentRequest) error {
@@ -168,6 +205,56 @@ func (u *IssueCollaborationUseCase) DeleteIssueComment(ctx context.Context, requ
 		return err
 	}
 	return u.repository.DeleteComment(ctx, workspaceID, comment.ID)
+}
+
+func (u *IssueCollaborationUseCase) validateAttachmentIDs(ctx context.Context, workspaceID string, raw []string) ([]string, error) {
+	if len(raw) > 100 {
+		return nil, ErrIssueCollaborationInvalid
+	}
+	result := make([]string, 0, len(raw))
+	seen := make(map[string]struct{}, len(raw))
+	for _, value := range raw {
+		id := strings.TrimSpace(value)
+		if id == "" || id != value {
+			return nil, ErrIssueCollaborationInvalid
+		}
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		belongs, err := u.assets.AssetBelongsToWorkspace(ctx, workspaceID, id)
+		if err != nil {
+			return nil, err
+		}
+		if !belongs {
+			return nil, ErrIssueCollaborationInvalid
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+	return result, nil
+}
+
+func (u *IssueCollaborationUseCase) hydrateComment(ctx context.Context, workspaceID string, comment contract.IssueComment) (contract.IssueComment, error) {
+	values, err := u.attachments.ReadAttachments(ctx, workspaceID, comment.AttachmentIDs)
+	if err != nil {
+		return contract.IssueComment{}, fmt.Errorf("read Issue comment attachments: %w", err)
+	}
+	comment.Attachments = values
+	if comment.Attachments == nil {
+		comment.Attachments = []map[string]any{}
+	}
+	return comment, nil
+}
+
+func (u *IssueCollaborationUseCase) hydrateComments(ctx context.Context, workspaceID string, comments []contract.IssueComment) error {
+	for index := range comments {
+		value, err := u.hydrateComment(ctx, workspaceID, comments[index])
+		if err != nil {
+			return err
+		}
+		comments[index] = value
+	}
+	return nil
 }
 
 func (u *IssueCollaborationUseCase) ResolveIssueComment(ctx context.Context, request contract.ResolveIssueCommentRequest) (contract.IssueComment, error) {
@@ -187,7 +274,11 @@ func (u *IssueCollaborationUseCase) ResolveIssueComment(ctx context.Context, req
 		return contract.IssueComment{}, err
 	}
 	now := u.now().UTC().Format(time.RFC3339Nano)
-	return u.repository.ResolveComment(ctx, workspaceID, comment.ID, actor.Type, actor.ID, now, request.Resolved)
+	updated, err := u.repository.ResolveComment(ctx, workspaceID, comment.ID, actor.Type, actor.ID, now, request.Resolved)
+	if err != nil {
+		return contract.IssueComment{}, err
+	}
+	return u.hydrateComment(ctx, workspaceID, updated)
 }
 
 func (u *IssueCollaborationUseCase) ProposeCommentKnowledge(ctx context.Context, request contract.ProposeCommentKnowledgeRequest) (contract.CommentKnowledgeProposalResponse, error) {

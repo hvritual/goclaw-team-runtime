@@ -13,8 +13,8 @@ type IssueCollaborationExtension struct {
 	handler *httpadapter.IssueCollaborationHandler
 }
 
-func newIssueCollaborationExtension(service contract.IssueCollaborationService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error) *IssueCollaborationExtension {
-	return &IssueCollaborationExtension{handler: httpadapter.NewIssueCollaborationHandler(service, identity, authenticate, mutation)}
+func newIssueCollaborationExtension(service contract.IssueCollaborationService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, attachmentsEnabled bool) *IssueCollaborationExtension {
+	return &IssueCollaborationExtension{handler: httpadapter.NewIssueCollaborationHandler(service, identity, authenticate, mutation, attachmentsEnabled)}
 }
 
 func (e *IssueCollaborationExtension) RegisterHTTP(server *kratoshttp.Server) {

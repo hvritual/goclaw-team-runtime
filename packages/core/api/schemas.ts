@@ -466,23 +466,25 @@ export const IssueReactionSchema = z.object({
 
 export const IssueReactionsListSchema = z.array(IssueReactionSchema);
 
-const AttachmentSchema = z.object({
+export const AttachmentSchema = z.object({
   id: z.string().min(1),
   workspace_id: z.string().min(1),
   issue_id: z.string().nullable(),
   comment_id: z.string().nullable(),
   chat_session_id: z.string().nullable(),
   chat_message_id: z.string().nullable(),
-  uploader_type: z.string().min(1),
+  uploader_type: z.enum(["member", "agent"]),
   uploader_id: z.string().min(1),
-  filename: z.string(),
-  url: z.string(),
-  download_url: z.string(),
-  markdown_url: z.string().optional().default(""),
-  content_type: z.string(),
+  filename: z.string().min(1),
+  url: z.string().min(1),
+  download_url: z.string().min(1),
+  markdown_url: z.string().min(1),
+  content_type: z.string().min(1),
   size_bytes: z.number().int().nonnegative(),
   created_at: z.iso.datetime({ offset: true }),
 }).loose();
+
+export const AttachmentListSchema = z.array(AttachmentSchema);
 
 // Standalone attachment lookup (`GET /api/attachments/{id}`) is the source of
 // truth for click-time download URLs. The two fields the download flow opens
@@ -496,7 +498,7 @@ const AttachmentSchema = z.object({
 // `useFileUpload` helper (which falls back to the legacy
 // `attachmentDownloadPath` shape when `markdown_url` is empty), so the
 // empty-string default does not silently break any persistence path.
-export const AttachmentResponseSchema = z.object({
+export const DirectAttachmentResponseSchema = z.object({
   id: z.string(),
   url: z.string(),
   download_url: z.string(),
@@ -504,7 +506,18 @@ export const AttachmentResponseSchema = z.object({
   filename: z.string(),
   chat_session_id: z.string().nullable().optional(),
   chat_message_id: z.string().nullable().optional(),
-}).loose();
+}).loose().refine((value) => ![
+  "workspace_id",
+  "issue_id",
+  "comment_id",
+  "uploader_type",
+  "uploader_id",
+  "content_type",
+  "size_bytes",
+  "created_at",
+].some((key) => key in value), {
+  message: "direct attachment responses cannot contain canonical workspace fields",
+});
 
 export const EMPTY_ATTACHMENT: Attachment = {
   id: "",
@@ -548,6 +561,11 @@ const CommentTimelineEntrySchema = z.object({
   resolved_by_type: z.enum(["member", "agent"]).nullable(),
   resolved_by_id: z.string().nullable(),
 }).loose();
+
+export const AttachmentResponseSchema = z.union([
+  AttachmentSchema,
+  DirectAttachmentResponseSchema,
+]);
 const ActivityTimelineEntrySchema = z.object({
   type: z.literal("activity"),
   id: z.string().min(1),

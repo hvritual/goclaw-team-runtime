@@ -19,6 +19,7 @@ import { useCommentUploads } from "./use-comment-uploads";
 
 interface ReplyInputProps {
   issueId: string;
+  attachmentsEnabled?: boolean;
   placeholder?: string;
   avatarType: string;
   avatarId: string;
@@ -38,6 +39,7 @@ interface ReplyInputProps {
 
 function ReplyInput({
   issueId,
+  attachmentsEnabled = true,
   placeholder,
   avatarType,
   avatarId,
@@ -82,6 +84,7 @@ function ReplyInput({
   });
   const { isDragOver, dropZoneProps } = useFileDropZone({
     onDrop: lazy.uploadOrQueue,
+    enabled: attachmentsEnabled,
   });
 
   // Flush on tab close / mobile background — same rationale as CommentInput.
@@ -204,11 +207,11 @@ function ReplyInput({
               if (draftKey) setDraft(draftKey, md);
             }}
             onSubmit={submit}
-            onUploadFile={handleUpload}
+            onUploadFile={attachmentsEnabled ? handleUpload : undefined}
             onUploadingChange={uploadGate.onUploadingChange}
             debounceMs={100}
             currentIssueId={issueId}
-            attachments={pendingAttachments}
+            attachments={attachmentsEnabled ? pendingAttachments : undefined}
             enableSlashCommands
             slashCommandMode="command"
           />
@@ -237,11 +240,13 @@ function ReplyInput({
           </div>
         )}
         <div className="absolute bottom-0 right-0 flex items-center gap-1">
-          <FileUploadButton
-            size="sm"
-            multiple
-            onSelect={(file) => lazy.uploadOrQueue([file])}
-          />
+          {attachmentsEnabled && (
+            <FileUploadButton
+              size="sm"
+              multiple
+              onSelect={(file) => lazy.uploadOrQueue([file])}
+            />
+          )}
           <SubmitButton
             onClick={submit}
             disabled={isEmpty}

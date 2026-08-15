@@ -13,13 +13,14 @@ import { useCommentUploads } from "./use-comment-uploads";
 
 interface CommentInputProps {
   issueId: string;
+  attachmentsEnabled?: boolean;
   /** Resolves true on success, false on failure. The composer keeps the text
    *  (editor locked + button spinning) until this settles, then clears only on
    *  success — a failed send must not silently discard the user's draft. */
   onSubmit: (content: string, attachmentIds?: string[]) => Promise<boolean>;
 }
 
-function CommentInput({ issueId, onSubmit }: CommentInputProps) {
+function CommentInput({ issueId, attachmentsEnabled = true, onSubmit }: CommentInputProps) {
   const { t } = useT("issues");
   const { t: tEditor } = useT("editor");
   const sendShortcut = useShortcut("send");
@@ -59,6 +60,7 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
   });
   const { isDragOver, dropZoneProps } = useFileDropZone({
     onDrop: lazy.uploadOrQueue,
+    enabled: attachmentsEnabled,
   });
   // Sticky preference (Settings → Preferences): issue-detail pins this
   // composer to the bottom of the scroll viewport when enabled.
@@ -185,11 +187,11 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
             setDraft(draftKey, md);
           }}
           onSubmit={submit}
-          onUploadFile={handleUpload}
+          onUploadFile={attachmentsEnabled ? handleUpload : undefined}
           onUploadingChange={uploadGate.onUploadingChange}
           debounceMs={100}
           currentIssueId={issueId}
-          attachments={pendingAttachments}
+          attachments={attachmentsEnabled ? pendingAttachments : undefined}
           enableSlashCommands
           slashCommandMode="command"
         />
@@ -222,11 +224,13 @@ function CommentInput({ issueId, onSubmit }: CommentInputProps) {
         </div>
       )}
       <div className="absolute bottom-1 right-1.5 flex items-center gap-1">
-        <FileUploadButton
-          size="sm"
-          multiple
-          onSelect={(file) => lazy.uploadOrQueue([file])}
-        />
+        {attachmentsEnabled && (
+          <FileUploadButton
+            size="sm"
+            multiple
+            onSelect={(file) => lazy.uploadOrQueue([file])}
+          />
+        )}
         <SubmitButton
           onClick={submit}
           disabled={isEmpty}

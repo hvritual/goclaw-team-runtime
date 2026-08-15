@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	persistence "github.com/hvritual/workspace/internal/modules/workspace/internal/infrastructure/sqlite"
@@ -36,11 +37,14 @@ type WorkspaceServiceDependencies struct {
 	HTTPMutationAuthorizer  func(*http.Request) error
 	IssueMetadataEnabled    *bool
 	IssueCreateEnabled      *bool
+	IssueAttachmentsEnabled *bool
 	Events                  contract.WorkspaceEventPublisher
 	Selection               contract.WorkspaceSelectionService
 	WorkspaceMemberships    contract.WorkspaceMembershipReader
 	HTTPUserIdentity        HTTPUserIDResolver
 	WorkspaceOwnerWriter    authcontract.SQLiteWorkspaceOwnerWriter
+	IssueAttachments        contract.IssueAttachmentProjectionReader
+	AttachmentCleanup       spacecontract.AttachmentCleanupService
 	NewWorkspaceID          func(context.Context) (string, error)
 	NewWorkspaceMemberID    func(context.Context) (string, error)
 }

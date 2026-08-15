@@ -20,9 +20,10 @@ func RegisterExtension(factory platformmodule.Factory) {
 }
 
 type Module struct {
-	local      contract.Service
-	server     *protoadapter.Server
-	extensions []platformmodule.Extension
+	local       contract.Service
+	server      *protoadapter.Server
+	extensions  []platformmodule.Extension
+	attachments contract.AttachmentService
 }
 
 func New() *Module {

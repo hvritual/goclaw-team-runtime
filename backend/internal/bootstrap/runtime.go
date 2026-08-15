@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,15 +23,17 @@ import (
 
 // Config defines the standalone backend process identity and listen addresses.
 type Config struct {
-	Name                  string
-	Version               string
-	HTTPAddress           string
-	GRPCAddress           string
-	SQLitePath            string
-	WorkspaceDependencies workspace.WorkspaceServiceDependencies
-	LocalAuth             auth.LocalAuthConfig
-	IssueMetadataEnabled  *bool
-	IssueCreateEnabled    *bool
+	Name                    string
+	Version                 string
+	HTTPAddress             string
+	GRPCAddress             string
+	SQLitePath              string
+	AttachmentRoot          string
+	WorkspaceDependencies   workspace.WorkspaceServiceDependencies
+	LocalAuth               auth.LocalAuthConfig
+	IssueMetadataEnabled    *bool
+	IssueCreateEnabled      *bool
+	IssueAttachmentsEnabled *bool
 }
 
 // Validate rejects incomplete process identity and malformed TCP addresses.
@@ -74,14 +77,15 @@ func validateTCPAddress(label, address string) error {
 
 // Runtime owns the Kratos application and its two transports.
 type Runtime struct {
-	application *Application
-	app         *kratos.App
-	httpServer  *kratoshttp.Server
-	grpcServer  *kratosgrpc.Server
-	db          *sql.DB
-	realtime    *canonicalrealtime.Hub
-	closeOnce   sync.Once
-	closeErr    error
+	application             *Application
+	app                     *kratos.App
+	httpServer              *kratoshttp.Server
+	grpcServer              *kratosgrpc.Server
+	db                      *sql.DB
+	realtime                *canonicalrealtime.Hub
+	ephemeralAttachmentRoot string
+	closeOnce               sync.Once
+	closeErr                error
 }
 
 // NewRuntime creates the shared HTTP and gRPC servers and registers all modules.
@@ -93,8 +97,19 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		logger = slog.Default()
 	}
 
+	ephemeralAttachmentRoot := ""
+	if strings.TrimSpace(config.AttachmentRoot) == "" && strings.TrimSpace(config.SQLitePath) == ":memory:" {
+		root, err := os.MkdirTemp("", "goclaw-canonical-space-")
+		if err != nil {
+			return nil, fmt.Errorf("create ephemeral Space attachment root: %w", err)
+		}
+		config.AttachmentRoot, ephemeralAttachmentRoot = root, root
+	}
 	db, application, realtimeHub, err := newSQLiteApplication(context.Background(), config)
 	if err != nil {
+		if ephemeralAttachmentRoot != "" {
+			_ = os.RemoveAll(ephemeralAttachmentRoot)
+		}
 		return nil, err
 	}
 	httpServer := kratoshttp.NewServer(kratoshttp.Address(config.HTTPAddress))
@@ -103,7 +118,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	realtimeHub.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
-	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled))
+	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled), capabilityEnabled(config.IssueAttachmentsEnabled))
 
 	app := kratos.New(
 		kratos.Name(config.Name),
@@ -113,16 +128,17 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		kratos.Server(httpServer, grpcServer),
 	)
 	return &Runtime{
-		application: application,
-		app:         app,
-		httpServer:  httpServer,
-		grpcServer:  grpcServer,
-		db:          db,
-		realtime:    realtimeHub,
+		application:             application,
+		app:                     app,
+		httpServer:              httpServer,
+		grpcServer:              grpcServer,
+		db:                      db,
+		realtime:                realtimeHub,
+		ephemeralAttachmentRoot: ephemeralAttachmentRoot,
 	}, nil
 }
 
-func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled bool) {
+func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled, issueAttachmentsEnabled bool) {
 	server.Route("/").GET("/api/config", func(ctx kratoshttp.Context) error {
 		return ctx.JSON(http.StatusOK, map[string]any{
 			"cdn_domain": "", "allow_signup": true, "server_version": version,
@@ -131,7 +147,7 @@ func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadat
 				"issue_detail_pull_requests": false,
 				"issue_timeline":             true, "issue_members": true,
 				"issue_reactions": true, "issue_subscribers": true,
-				"issue_attachments": false, "issue_labels": true,
+				"issue_attachments": issueAttachmentsEnabled, "issue_labels": true,
 				"issue_properties": true, "issue_pins": false,
 				"issue_children": true, "issue_project": false,
 				"issue_child_progress": true, "issue_batch": true, "issue_acceptance": true,
@@ -183,6 +199,11 @@ func (r *Runtime) Close() error {
 		}
 		if r.db != nil {
 			r.closeErr = r.db.Close()
+		}
+		if r.ephemeralAttachmentRoot != "" {
+			if err := os.RemoveAll(r.ephemeralAttachmentRoot); r.closeErr == nil && err != nil {
+				r.closeErr = err
+			}
 		}
 	})
 	return r.closeErr

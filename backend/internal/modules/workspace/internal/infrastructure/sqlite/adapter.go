@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	workspaceDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/workspace"
@@ -15,7 +16,8 @@ import (
 // Config is the provider-owned composition input. Native database values stay
 // in infrastructure and module composition.
 type Config struct {
-	DB *sql.DB
+	DB                *sql.DB
+	AttachmentCleanup spacecontract.AttachmentCleanupService
 }
 
 func New(Config) contract.Service { return application.New() }

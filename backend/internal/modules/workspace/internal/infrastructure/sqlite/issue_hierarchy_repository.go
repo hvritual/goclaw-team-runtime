@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 )
@@ -124,9 +125,13 @@ func (r *issueRepository) BatchDelete(ctx context.Context, command application.I
 	}
 	defer connection.Close()
 	committed := false
+	var attachmentCleanup spacecontract.AttachmentCleanup
 	defer func() {
 		if !committed {
 			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+			if attachmentCleanup != nil {
+				err = errors.Join(err, attachmentCleanup.Rollback(context.WithoutCancel(ctx)))
+			}
 		}
 	}()
 
@@ -147,6 +152,10 @@ func (r *issueRepository) BatchDelete(ctx context.Context, command application.I
 		seen[resolvedID] = struct{}{}
 		deleted = append(deleted, resolvedID)
 		tokens = append(tokens, resolvedID, identifier)
+	}
+	attachmentCleanup, err = prepareOwnedIssueAttachmentCleanup(ctx, connection, r.attachmentCleanup, command.WorkspaceID, deleted)
+	if err != nil {
+		return nil, fmt.Errorf("prepare batch Issue attachment cleanup: %w", err)
 	}
 	if err := clearBatchIssueDependents(ctx, connection, command.WorkspaceID, deleted, tokens, command.Now); err != nil {
 		return nil, err
@@ -172,6 +181,9 @@ func (r *issueRepository) BatchDelete(ctx context.Context, command application.I
 		return nil, fmt.Errorf("commit Workspace Issue batch deletion: %w", err)
 	}
 	committed = true
+	if attachmentCleanup != nil {
+		attachmentCleanup.Commit(context.WithoutCancel(ctx))
+	}
 	return deleted, nil
 }
 

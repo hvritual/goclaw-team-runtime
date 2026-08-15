@@ -138,6 +138,18 @@ describe("useRealtimeSync", () => {
     expect(invalidate).toHaveBeenCalledTimes(13);
   });
 
+  it("invalidates the non-workspace-scoped attachment cache after an attachment event", () => {
+    const socket = createMockWs();
+    const attachmentKey = ["issues", "attachments", "issue-1"] as const;
+    qc.setQueryData(attachmentKey, [{ id: "attachment-1" }]);
+    renderHook(() => useRealtimeSync(socket.ws, stores), { wrapper: createWrapper(qc) });
+
+    socket.emit("issue_attachments:changed");
+    act(() => vi.advanceTimersByTime(75));
+
+    expect(qc.getQueryState(attachmentKey)?.isInvalidated).toBe(true);
+  });
+
   it("ignores events outside the retained domains", () => {
     const socket = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");

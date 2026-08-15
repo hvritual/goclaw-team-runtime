@@ -31,11 +31,16 @@ type IssueComment struct {
 	ParentID       *string
 	Reactions      []CommentReaction
 	Attachments    []map[string]any
+	AttachmentIDs  []string
 	CreatedAt      string
 	UpdatedAt      string
 	ResolvedAt     *string
 	ResolvedByType *string
 	ResolvedByID   *string
+}
+
+type IssueAttachmentProjectionReader interface {
+	ReadAttachments(context.Context, string, []string) ([]map[string]any, error)
 }
 
 type IssueActivity struct {

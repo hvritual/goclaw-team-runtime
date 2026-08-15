@@ -787,6 +787,31 @@ describe("IssueDetail (shared)", () => {
     });
     expect(mockApiObj.listAttachments).not.toHaveBeenCalled();
     expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
+  });
+
+  it("mounts attachment query and upload controls only when the capability is enabled", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: true,
+      issue_labels: true,
+      issue_properties: true,
+      issue_children: true,
+      issue_batch: true,
+      issue_child_progress: true,
+      issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+
+    const { container } = renderIssueDetail();
+
+    expect(await screen.findByText("Started working on this")).toBeInTheDocument();
+    await waitFor(() => expect(mockApiObj.listAttachments).toHaveBeenCalledWith(mockIssue.id));
+    expect(container.querySelectorAll('input[type="file"]').length).toBeGreaterThan(0);
   });
 
   it("does not mount inline batch controls while the runtime capability is disabled", async () => {

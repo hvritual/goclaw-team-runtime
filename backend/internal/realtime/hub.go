@@ -170,7 +170,7 @@ func (h *Hub) remove(workspaceID string, value *client) {
 func (h *Hub) Publish(workspaceID, eventType string, payload any, actorID, actorType string) {
 	switch eventType {
 	case "issue:created", "issue:updated", "issue:deleted", "issue_metadata:changed",
-		"issue_labels:changed", "issue_properties:changed",
+		"issue_labels:changed", "issue_properties:changed", "issue_attachments:changed",
 		"comment:created", "comment:updated", "comment:deleted", "comment:resolved", "comment:unresolved",
 		"reaction:added", "reaction:removed", "issue_reaction:added", "issue_reaction:removed",
 		"subscriber:added", "subscriber:removed", "activity:created",

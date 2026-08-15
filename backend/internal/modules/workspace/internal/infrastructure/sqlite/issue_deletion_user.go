@@ -10,16 +10,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 )
 
-type issueDeletionRepository struct{ db *sql.DB }
+type issueDeletionRepository struct {
+	db                *sql.DB
+	attachmentCleanup spacecontract.AttachmentCleanupService
+}
 
 func NewIssueDeletionRepository(config Config) (application.IssueDeletionRepository, error) {
 	if config.DB == nil {
 		return nil, errors.New("workspace sqlite database is required")
 	}
-	return &issueDeletionRepository{db: config.DB}, nil
+	return &issueDeletionRepository{db: config.DB, attachmentCleanup: config.AttachmentCleanup}, nil
 }
 
 func (r *issueDeletionRepository) Delete(ctx context.Context, workspaceID, issueID string) (resolvedID string, err error) {
@@ -36,15 +40,23 @@ func (r *issueDeletionRepository) Delete(ctx context.Context, workspaceID, issue
 		return "", fmt.Errorf("begin Issue deletion: %w", err)
 	}
 	committed := false
+	var attachmentCleanup spacecontract.AttachmentCleanup
 	defer func() {
 		if !committed {
 			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+			if attachmentCleanup != nil {
+				err = errors.Join(err, attachmentCleanup.Rollback(context.WithoutCancel(ctx)))
+			}
 		}
 	}()
 	if err = connection.QueryRowContext(ctx, `SELECT id,identifier FROM workspace_issues WHERE workspace_id=? AND (id=? OR identifier=?)`, workspaceID, issueID, issueID).Scan(&resolvedID, &resolvedIdentifier); errors.Is(err, sql.ErrNoRows) {
 		return "", application.ErrIssueRecordNotFound
 	} else if err != nil {
 		return "", fmt.Errorf("resolve Issue deletion target: %w", err)
+	}
+	attachmentCleanup, err = prepareOwnedIssueAttachmentCleanup(ctx, connection, r.attachmentCleanup, workspaceID, []string{resolvedID})
+	if err != nil {
+		return "", fmt.Errorf("prepare Issue attachment cleanup: %w", err)
 	}
 	if _, err = connection.ExecContext(ctx, `UPDATE workspace_todos SET issue_id=NULL WHERE workspace_id=? AND issue_id IN (?,?)`, workspaceID, resolvedID, resolvedIdentifier); err != nil {
 		return "", fmt.Errorf("clear Workspace Todo Issue references: %w", err)
@@ -76,6 +88,9 @@ func (r *issueDeletionRepository) Delete(ctx context.Context, workspaceID, issue
 		return "", fmt.Errorf("commit Workspace Issue deletion: %w", err)
 	}
 	committed = true
+	if attachmentCleanup != nil {
+		attachmentCleanup.Commit(context.WithoutCancel(ctx))
+	}
 	return resolvedID, nil
 }
 

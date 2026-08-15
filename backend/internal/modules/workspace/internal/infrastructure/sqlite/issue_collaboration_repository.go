@@ -8,20 +8,24 @@ import (
 	"fmt"
 	"strings"
 
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 )
 
-type IssueCollaborationRepository struct{ db *sql.DB }
+type IssueCollaborationRepository struct {
+	db                *sql.DB
+	attachmentCleanup spacecontract.AttachmentCleanupService
+}
 
 func NewIssueCollaborationRepository(config Config) (*IssueCollaborationRepository, error) {
 	if config.DB == nil {
 		return nil, errors.New("workspace sqlite database is required")
 	}
-	return &IssueCollaborationRepository{db: config.DB}, nil
+	return &IssueCollaborationRepository{db: config.DB, attachmentCleanup: config.AttachmentCleanup}, nil
 }
 
-const issueCommentColumns = `id,workspace_id,issue_id,author_type,author_id,content,type,parent_id,created_at,updated_at,resolved_at,resolved_by_type,resolved_by_id`
+const issueCommentColumns = `id,workspace_id,issue_id,author_type,author_id,content,type,parent_id,created_at,updated_at,resolved_at,resolved_by_type,resolved_by_id,asset_ids`
 
 type collaborationQueryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -140,7 +144,11 @@ func (r *IssueCollaborationRepository) CreateComment(ctx context.Context, value 
 			return contract.IssueComment{}, fmt.Errorf("validate parent Issue comment: %w", err)
 		}
 	}
-	_, err = connection.ExecContext(ctx, `INSERT INTO workspace_issue_comments(id,workspace_id,issue_id,author_type,author_id,content,type,parent_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, value.ID, value.WorkspaceID, value.IssueID, value.AuthorType, value.AuthorID, value.Content, value.Type, nullableString(value.ParentID), value.CreatedAt, value.UpdatedAt)
+	if err := ensureIssueAttachmentIDs(ctx, connection, value.WorkspaceID, value.IssueID, value.AttachmentIDs); err != nil {
+		return contract.IssueComment{}, err
+	}
+	encodedAttachments, _ := json.Marshal(value.AttachmentIDs)
+	_, err = connection.ExecContext(ctx, `INSERT INTO workspace_issue_comments(id,workspace_id,issue_id,author_type,author_id,content,type,parent_id,created_at,updated_at,asset_ids) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, value.ID, value.WorkspaceID, value.IssueID, value.AuthorType, value.AuthorID, value.Content, value.Type, nullableString(value.ParentID), value.CreatedAt, value.UpdatedAt, string(encodedAttachments))
 	if err != nil {
 		return contract.IssueComment{}, fmt.Errorf("insert Issue comment: %w", err)
 	}
@@ -155,7 +163,7 @@ func (r *IssueCollaborationRepository) CreateComment(ctx context.Context, value 
 	return created, nil
 }
 
-func (r *IssueCollaborationRepository) UpdateComment(ctx context.Context, workspaceID, commentID, content, now string) (updated contract.IssueComment, err error) {
+func (r *IssueCollaborationRepository) UpdateComment(ctx context.Context, workspaceID, commentID, content string, attachmentIDs []string, now string) (updated contract.IssueComment, err error) {
 	connection, err := r.writeConnection(ctx, "comment update")
 	if err != nil {
 		return contract.IssueComment{}, err
@@ -163,7 +171,17 @@ func (r *IssueCollaborationRepository) UpdateComment(ctx context.Context, worksp
 	defer connection.Close()
 	committed := false
 	defer rollbackConnection(ctx, connection, &committed)
-	result, err := connection.ExecContext(ctx, `UPDATE workspace_issue_comments SET content=?,updated_at=? WHERE workspace_id=? AND id=?`, content, now, workspaceID, commentID)
+	var issueID string
+	if err := connection.QueryRowContext(ctx, `SELECT issue_id FROM workspace_issue_comments WHERE workspace_id=? AND id=?`, workspaceID, commentID).Scan(&issueID); errors.Is(err, sql.ErrNoRows) {
+		return contract.IssueComment{}, application.ErrIssueCommentNotFound
+	} else if err != nil {
+		return contract.IssueComment{}, err
+	}
+	if err := ensureIssueAttachmentIDs(ctx, connection, workspaceID, issueID, attachmentIDs); err != nil {
+		return contract.IssueComment{}, err
+	}
+	encodedAttachments, _ := json.Marshal(attachmentIDs)
+	result, err := connection.ExecContext(ctx, `UPDATE workspace_issue_comments SET content=?,asset_ids=?,updated_at=? WHERE workspace_id=? AND id=?`, content, string(encodedAttachments), now, workspaceID, commentID)
 	if err != nil {
 		return contract.IssueComment{}, fmt.Errorf("update Issue comment: %w", err)
 	}
@@ -188,12 +206,24 @@ func (r *IssueCollaborationRepository) DeleteComment(ctx context.Context, worksp
 	}
 	defer connection.Close()
 	committed := false
-	defer rollbackConnection(ctx, connection, &committed)
+	var attachmentCleanup spacecontract.AttachmentCleanup
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+			if attachmentCleanup != nil {
+				err = errors.Join(err, attachmentCleanup.Rollback(context.WithoutCancel(ctx)))
+			}
+		}
+	}()
 	var exists string
 	if err := connection.QueryRowContext(ctx, `SELECT id FROM workspace_issue_comments WHERE workspace_id=? AND id=?`, workspaceID, commentID).Scan(&exists); errors.Is(err, sql.ErrNoRows) {
 		return application.ErrIssueCommentNotFound
 	} else if err != nil {
 		return fmt.Errorf("resolve Issue comment deletion: %w", err)
+	}
+	attachmentCleanup, err = prepareDeletedCommentAttachmentCleanup(ctx, connection, r.attachmentCleanup, workspaceID, commentID)
+	if err != nil {
+		return fmt.Errorf("prepare Issue comment attachment cleanup: %w", err)
 	}
 	thread := `WITH RECURSIVE descendants(id) AS (SELECT id FROM workspace_issue_comments WHERE workspace_id=? AND id=? UNION SELECT c.id FROM workspace_issue_comments c JOIN descendants d ON c.parent_id=d.id WHERE c.workspace_id=?) SELECT id FROM descendants`
 	for _, statement := range []string{
@@ -210,6 +240,9 @@ func (r *IssueCollaborationRepository) DeleteComment(ctx context.Context, worksp
 		return fmt.Errorf("commit Issue comment deletion: %w", err)
 	}
 	committed = true
+	if attachmentCleanup != nil {
+		attachmentCleanup.Commit(context.WithoutCancel(ctx))
+	}
 	return nil
 }
 
@@ -481,10 +514,41 @@ func listCommentReactionsWith(ctx context.Context, queryer collaborationQueryer,
 func scanIssueComment(scanner interface{ Scan(...any) error }) (contract.IssueComment, error) {
 	var value contract.IssueComment
 	var parentID, resolvedAt, resolvedByType, resolvedByID sql.NullString
-	err := scanner.Scan(&value.ID, &value.WorkspaceID, &value.IssueID, &value.AuthorType, &value.AuthorID, &value.Content, &value.Type, &parentID, &value.CreatedAt, &value.UpdatedAt, &resolvedAt, &resolvedByType, &resolvedByID)
+	var rawAttachmentIDs string
+	err := scanner.Scan(&value.ID, &value.WorkspaceID, &value.IssueID, &value.AuthorType, &value.AuthorID, &value.Content, &value.Type, &parentID, &value.CreatedAt, &value.UpdatedAt, &resolvedAt, &resolvedByType, &resolvedByID, &rawAttachmentIDs)
 	value.ParentID, value.ResolvedAt = nullStringPointer(parentID), nullStringPointer(resolvedAt)
 	value.ResolvedByType, value.ResolvedByID = nullStringPointer(resolvedByType), nullStringPointer(resolvedByID)
+	if err == nil {
+		value.AttachmentIDs = []string{}
+		err = json.Unmarshal([]byte(rawAttachmentIDs), &value.AttachmentIDs)
+	}
 	return value, err
+}
+
+func ensureIssueAttachmentIDs(ctx context.Context, connection *sql.Conn, workspaceID, issueID string, attachmentIDs []string) error {
+	if len(attachmentIDs) == 0 {
+		return nil
+	}
+	var raw string
+	if err := connection.QueryRowContext(ctx, `SELECT asset_ids FROM workspace_issues WHERE workspace_id=? AND id=?`, workspaceID, issueID).Scan(&raw); errors.Is(err, sql.ErrNoRows) {
+		return application.ErrIssueRecordNotFound
+	} else if err != nil {
+		return err
+	}
+	var issueAssetIDs []string
+	if err := json.Unmarshal([]byte(raw), &issueAssetIDs); err != nil {
+		return err
+	}
+	available := make(map[string]struct{}, len(issueAssetIDs))
+	for _, id := range issueAssetIDs {
+		available[id] = struct{}{}
+	}
+	for _, id := range attachmentIDs {
+		if _, ok := available[id]; !ok {
+			return application.ErrIssueCollaborationInvalid
+		}
+	}
+	return nil
 }
 
 func (r *IssueCollaborationRepository) writeConnection(ctx context.Context, operation string) (*sql.Conn, error) {

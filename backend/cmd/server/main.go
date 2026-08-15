@@ -51,8 +51,10 @@ func parseConfig(arguments []string, output io.Writer) (bootstrap.Config, error)
 	flags.StringVar(&config.SQLitePath, "sqlite-path", "data/multica-canonical.db", "Canonical product SQLite path")
 	verificationCode := ""
 	issueMetadataEnabled := true
+	issueAttachmentsEnabled := true
 	flags.StringVar(&verificationCode, "dev-verification-code", "888888", "development-only local verification code")
 	flags.BoolVar(&issueMetadataEnabled, "issue-metadata", true, "enable Canonical Issue metadata routes")
+	flags.BoolVar(&issueAttachmentsEnabled, "issue-attachments", true, "enable Canonical Issue attachment routes")
 	config.WorkspaceDependencies = bootstrap.FailClosedWorkspaceDependencies()
 	if err := flags.Parse(arguments); err != nil {
 		return bootstrap.Config{}, err
@@ -62,6 +64,7 @@ func parseConfig(arguments []string, output io.Writer) (bootstrap.Config, error)
 	}
 	config.LocalAuth = auth.LocalAuthConfig{VerificationCode: verificationCode, SessionTTL: 7 * 24 * time.Hour}
 	config.IssueMetadataEnabled = &issueMetadataEnabled
+	config.IssueAttachmentsEnabled = &issueAttachmentsEnabled
 	if err := config.Validate(); err != nil {
 		return bootstrap.Config{}, err
 	}

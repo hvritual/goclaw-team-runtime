@@ -75,6 +75,7 @@ export function useRealtimeSync(
         domain === "issue_labels" ||
         domain === "issue_metadata" ||
         domain === "issue_properties" ||
+        domain === "issue_attachments" ||
         domain === "comment" ||
         domain === "activity" ||
         domain === "reaction" ||

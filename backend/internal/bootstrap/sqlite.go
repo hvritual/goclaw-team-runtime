@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"github.com/hvritual/workspace/internal/modules/auth"
 	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
 	"github.com/hvritual/workspace/internal/modules/space"
+	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	systemmodule "github.com/hvritual/workspace/internal/modules/system"
 	"github.com/hvritual/workspace/internal/modules/workspace"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
@@ -59,6 +61,9 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
 		return nil, nil, nil, err
 	}
+	if err := space.MigrateSqlite(ctx, db); err != nil {
+		return nil, nil, nil, err
+	}
 	if err := normalizeRetainedIssueMemberActors(ctx, db); err != nil {
 		return nil, nil, nil, err
 	}
@@ -77,12 +82,43 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.Selection = selection
 	workspaceDependencies.WorkspaceMemberships = memberships
 	workspaceDependencies.HTTPUserIdentity = authModule.ResolveHTTPUserID
-	workspaceDependencies.HTTPIdentity = workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
+	workspaceIdentity := workspace.NewTrustedHTTPIdentityResolver(authModule.ResolveHTTPUserID, selection)
+	workspaceDependencies.HTTPIdentity = workspaceIdentity
 	workspaceDependencies.HTTPMutationAuthorizer = authModule.AuthorizeHTTPMutation
 	workspaceDependencies.WorkspaceOwnerWriter = auth.NewSQLiteWorkspaceOwnerWriter()
 	workspaceDependencies.IssueMetadataEnabled = config.IssueMetadataEnabled
 	workspaceDependencies.IssueCreateEnabled = config.IssueCreateEnabled
+	workspaceDependencies.IssueAttachmentsEnabled = config.IssueAttachmentsEnabled
+	attachmentRelations, err := workspace.NewSQLiteAttachmentRelations(db)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	attachmentRoot := strings.TrimSpace(config.AttachmentRoot)
+	if attachmentRoot == "" {
+		attachmentRoot = path + ".files"
+	}
 	realtimeHub := canonicalrealtime.NewHub(canonicalrealtime.IdentityResolver(workspaceDependencies.HTTPIdentity))
+	spaceModule, err := space.NewWithSQLiteAttachments(space.SQLiteAttachmentConfig{
+		DB: db, StorageRoot: attachmentRoot, Relations: attachmentRelations,
+		HTTPIdentity: func(request *http.Request) (spacecontract.HTTPIdentity, error) {
+			identity, resolveErr := workspaceIdentity(request)
+			return spacecontract.HTTPIdentity{WorkspaceID: identity.WorkspaceID, ActorType: identity.ActorType, ActorID: identity.ActorID}, resolveErr
+		},
+		HTTPUserIdentity:       spacecontract.HTTPUserResolver(authModule.ResolveHTTPUserID),
+		HTTPMutationAuthorizer: spacecontract.HTTPMutationAuthorizer(authModule.AuthorizeHTTPMutation),
+		WorkspaceMemberships: func(requestContext context.Context, userID, workspaceID string) (string, bool, error) {
+			membership, found, readErr := memberships.FindForUserAndWorkspace(requestContext, userID, workspaceID)
+			return membership.Role, found, readErr
+		},
+		Events:      realtimeHub,
+		HTTPEnabled: capabilityEnabled(config.IssueAttachmentsEnabled),
+	})
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	workspaceDependencies.Assets = spaceAttachmentReader{service: spaceModule.Attachments()}
+	workspaceDependencies.IssueAttachments = spaceIssueAttachmentProjection{service: spaceModule.Attachments()}
+	workspaceDependencies.AttachmentCleanup = spaceModule.Attachments()
 	workspaceDependencies.Events = realtimeHub
 	workspaceModule, err := workspace.NewWithSqliteWorkspaceChain(
 		workspace.SqlitePersistenceConfig{DB: db},
@@ -92,7 +128,45 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		return nil, nil, nil, err
 	}
 	failed = false
-	return db, NewApplicationWithModules(workspaceModule, authModule, space.New(), systemmodule.New()), realtimeHub, nil
+	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemmodule.New()), realtimeHub, nil
+}
+
+type spaceAttachmentReader struct {
+	service spacecontract.AttachmentService
+}
+
+func (r spaceAttachmentReader) AssetBelongsToWorkspace(ctx context.Context, workspaceID, assetID string) (bool, error) {
+	if r.service == nil {
+		return false, nil
+	}
+	return r.service.AssetBelongsToWorkspace(ctx, workspaceID, assetID)
+}
+
+type spaceIssueAttachmentProjection struct {
+	service spacecontract.AttachmentService
+}
+
+func (r spaceIssueAttachmentProjection) ReadAttachments(ctx context.Context, workspaceID string, ids []string) ([]map[string]any, error) {
+	result := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		value, err := r.service.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if value.WorkspaceID != workspaceID {
+			return nil, spacecontract.ErrAttachmentNotFound
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		var projection map[string]any
+		if err := json.Unmarshal(encoded, &projection); err != nil {
+			return nil, err
+		}
+		result = append(result, projection)
+	}
+	return result, nil
 }
 
 func normalizeRetainedIssueMemberActors(ctx context.Context, db *sql.DB) (err error) {
