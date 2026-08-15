@@ -69,6 +69,51 @@ async function uploadFromDescriptionControl(page: Page, filename: string) {
   await chooser.setFiles(filename);
 }
 
+async function awaitCookieRealtimeSubscription(page: Page, wsFrames: string[]) {
+  const csrfCookie = (await page.context().cookies(WEB)).find(
+    (cookie) => cookie.name === "multica_csrf"
+  );
+  expect(csrfCookie).toBeDefined();
+  const headers = {
+    "X-Workspace-Slug": SLUG,
+    "X-CSRF-Token": csrfCookie!.value,
+  };
+  const key = "c8_attachment_ws_ready";
+  let attempts = 0;
+  let observed = false;
+
+  try {
+    // Cookie-mode sockets intentionally receive no auth_ack. A bounded,
+    // self-cleaning metadata event therefore proves that the server has added
+    // this browser to the Workspace subscription before the measured upload.
+    for (let attempt = 1; attempt <= 10 && !observed; attempt += 1) {
+      attempts = attempt;
+      const marker = `ready-${Date.now()}-${attempt}`;
+      const response = await page.request.put(
+        `${WEB}/api/issues/${ISSUE}/metadata/${key}`,
+        { headers, data: { value: marker } }
+      );
+      expect(response.status()).toBe(200);
+      for (let tick = 0; tick < 10 && !observed; tick += 1) {
+        observed = wsFrames.some(
+          (frame) =>
+            frame.includes("issue_metadata:changed") && frame.includes(marker)
+        );
+        if (!observed) await page.waitForTimeout(25);
+      }
+    }
+  } finally {
+    const cleanup = await page.request.delete(
+      `${WEB}/api/issues/${ISSUE}/metadata/${key}`,
+      { headers }
+    );
+    expect(cleanup.status()).toBe(200);
+  }
+
+  expect(observed).toBe(true);
+  return attempts;
+}
+
 function sanitizeAttachmentTrace(
   values: Array<{ method: string; url: string; status: number }>
 ) {
@@ -523,6 +568,10 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
   await loginFixture(page);
   await openFixtureIssue(page);
   await workspaceSocket;
+  const realtimeReadinessAttempts = await awaitCookieRealtimeSubscription(
+    page,
+    wsFrames
+  );
   const uploadResponsePromise = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/upload-file" &&
@@ -599,6 +648,7 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
     phase: "upload-preview-download",
 	browser: await browserIdentity(page),
     attachment: { id: attachment.id, filename, sizeBytes: evidence.sizeBytes },
+    realtimeReadinessAttempts,
     http: sanitizeAttachmentTrace(responses),
     receivedEventTypes: wsFrames
       .map((frame) => {
