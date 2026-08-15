@@ -1132,3 +1132,61 @@ Human approval are recorded.
   `M1-S7-C8-REPAIR-INTEGRATE` for an explicit scoped product commit, detached
   clean-candidate real-browser evidence and both independent re-reviews. C8 is
   not yet accepted and C9 remains inactive.
+
+## 2026-08-15 — M1-S7-C8 repair clean-candidate integration proven
+
+- The repaired product commit is
+  `be9aa3de49d3feae3f4478eba997f722e8739cbb`. Its first detached installed-
+  Chrome run exposed one additional real integration defect rather than being
+  retried as success: the native download hook supplied trusted
+  `workspace_slug` in the query because an anchor cannot set the Core request
+  header, while the repaired stored endpoint required only a header. Chrome
+  therefore downloaded the 400 JSON error as `download.json`. The sole
+  synthetic asset from that failed run was explicitly removed and its stopped
+  database/logs were retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-be9aa3d`.
+- Commit `4d26bf9b2ac536ba31f3d0bc8599fec74b7c9de4` adds the focused RED/GREEN
+  contract for Cookie native download with `?workspace_slug=`. Only the
+  download handler promotes that untrusted slug into the existing header seam
+  when no Workspace header is already present; authentication still occurs
+  before trusted slug/member resolution, missing Workspace remains 400 and
+  cross-Workspace ownership remains hidden 404. The full backend test, vet and
+  module-verification gates pass after this correction.
+- A subsequent evidence-only run stopped before upload because the harness
+  assumed two hidden file inputs even though both visible `Attach file`
+  controls were mounted with one current input. Commit
+  `c297216eaeeadfaa3dbc2231c4fb8e18f007acef` replaces that DOM-count heuristic
+  with the first visible Issue-description `Attach file` control and the real
+  browser file chooser. This exact commit is the final detached product
+  candidate; its `@multica/core` and `@multica/views` links resolve inside the
+  detached worktree rather than the user's dirty main checkout.
+- Installed Headless Chrome 151 from
+  `C:\Program Files\Google\Chrome\Application\chrome.exe` then passed all
+  three repair phases. Upload used the visible control, previewed exact text,
+  completed a native download with the canonical filename and received
+  `issue_attachments:changed`. After a real Runtime stop/restart, metadata,
+  content and download for A were exact; the same visible control uploaded B;
+  and the authoritative list was exactly A+B, proving retained A was not
+  overwritten. The final phase clicked each persisted row's visible
+  `Remove attachment` control; both DELETE responses were 204, metadata became
+  the expected hidden 404 and the Issue attachment list excluded both IDs.
+- Synthetic IDs were `1c9920bf-88a4-4b42-9d14-8971d550a9c5` and
+  `42cb3dd4-0464-4204-9b77-e2ec5b3a5dff`. Their exact byte SHA-256 values were
+  `854CFF6B4E9CA0678D657E24D79DB088E03293B9DDE6D839CEEEBA721FEAB063`
+  and `16E6B0CF96DA584477CEF8CDEB1DBB0704919EEEC2EEC3F465D7CB43B369DC23`.
+  After cleanup the object root contains zero regular files and the stopped
+  database SHA-256 is
+  `9B8652EA751D4EA772F2F4CDEB452DC739AC9FB4ADADAB07850B69DBD8D85B7D`.
+- Sanitized evidence is retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-c297216\c8-evidence`.
+  Upload, restart-readback and visible-delete traces contain 113, 114 and 114
+  HTTP responses; every recorded origin is `http://127.0.0.1:3000` and none
+  uses port 8080. Their SHA-256 values are respectively
+  `CE4C3CF40006C57E5DC417D33ED95958BABB762C9E8122ABB89685ACD12506AC`,
+  `9F1F40EE2D7ABD57A96C4D99B1B66EF070DCB2DF030043EAC19B31A60CB01A86`
+  and `89A41499F906BE30ECCF96A824ABE70657EB77463FAF66C87B825F34EE9CA041`.
+  The selector is stopped, reports Canonical selected with previous legacy,
+  and ports 3000, 8000, 8080 and 9000 are all closed.
+- Clean-candidate repair integration is proven, but both independent read-only
+  re-reviews are still required. The active step remains
+  `M1-S7-C8-REPAIR-INTEGRATE`; C8 is not yet accepted and C9 remains inactive.
