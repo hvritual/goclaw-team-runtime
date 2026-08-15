@@ -226,7 +226,12 @@ test("Canonical UI login, Workspace, Issue and metadata journey has no legacy tr
   await page.goto(`${WEB}/${SLUG}/issues`, { waitUntil: "domcontentloaded" });
   await page.getByText("Canonical runtime acceptance", { exact: true }).click();
   await page.waitForURL(new RegExp(`/${SLUG}/issues/(?:${ISSUE}|0199)`));
-  await expect(page.getByText("Canonical runtime acceptance")).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Canonical runtime acceptance",
+      exact: true,
+    }),
+  ).toBeVisible();
 
   const value = `browser-${Date.now()}`;
   const metadataTrace = await page.evaluate(
