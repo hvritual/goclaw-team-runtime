@@ -1580,3 +1580,28 @@ Human approval are recorded.
 - `M1-S7-C9-INTEGRATE-GREEN` and `M1-S7-C9-INTEGRATE-VERIFY` are complete.
   The sole active step is now `M1-S7-C9-REVIEW`; no Customer acceptance is
   inferred or recorded by this entry.
+
+## 2026-08-16 — M1-S7-C9 v10 final review blocked
+
+- The preceding v10 entry retains the exact clean-candidate execution outputs,
+  but does not constitute acceptance.  Independent CODE/SECURITY and
+  SPEC/EVIDENCE reviews both returned FAIL with P0=0, P1=2 and no independent
+  P2.  The final candidate runtime was already stopped and local
+  `3000/8000/8080/9000` listeners remain quiescent.
+- P1: final C9 traces contain four pre-restart and one post-restart
+  `GET /api/invitations -> 404` responses, and the Web log/screenshot records
+  the resulting API error.  `c9UnexpectedFailures` incorrectly allowlisted
+  that local route.  The immutable v10 acceptance contract says a local 404 or
+  missing endpoint stops the plan; the journal cannot create a deferred-route
+  exception after approval.
+- P1: the C9 HTTP trace listener filtered responses to the Canonical Web origin
+  before asserting no `:8080`, did not observe `requestfailed`, and cleared an
+  authenticated post-restart load window.  It therefore cannot prove zero HTTP
+  legacy traffic.  The existing WebSocket capture does not close that HTTP
+  evidence gap.
+- No product endpoint, capability or frontend behavior may be changed under
+  v10.  The next authorized action is an approved `plan_v11.md` that narrowly
+  decides how Invitations is capability-gated or implemented and how the C9
+  network gate records all requests/responses/failures before filtering.  It
+  must then reproduce a fresh clean-candidate Chrome/restart/rollback run and
+  independent reviews.  C9 and the milestone remain unaccepted.

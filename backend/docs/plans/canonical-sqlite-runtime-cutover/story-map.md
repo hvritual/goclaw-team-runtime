@@ -4,10 +4,10 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-REVIEW` (C7 and C8 Customer Accepted; complete
-  local Issue-detail capability plus the fresh-clean-candidate browser, restart
-  and rollback gates are proven; independent final review and milestone Customer
-  acceptance remain pending).
+- Current story: `M1-S7-C9-BLOCKED` (C7 and C8 Customer Accepted; v10 final
+  review retained two P1 gaps: invitations still produces a local 404 and the
+  HTTP :8080 trace gate is incomplete.  An approved repair plan is required
+  before C9 can resume.)
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -173,7 +173,7 @@ advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
 
-As of 2026-08-16, the approved v10 execution state in `plan.md` has advanced
-to `M1-S7-C9-REVIEW`.  The C9 capability matrix and fresh-clean-candidate
-integration evidence are GREEN; independent final review and Customer milestone
-acceptance are still pending.
+As of 2026-08-16, v10 final review stopped C9.  The deterministic and live
+artifacts remain retained, but two P1 gaps prevent treating the integration
+evidence as an acceptance gate.  `plan.md` has no active execution step until
+an approved repair plan supersedes v10.
