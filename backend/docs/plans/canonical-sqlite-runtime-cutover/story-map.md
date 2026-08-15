@@ -4,10 +4,10 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-INTEGRATE-RED` (C7 and C8 Customer Accepted; v10
-  final review retained one P1: the HTTP `:8080` trace gate is incomplete.
-  The approved v10 E2E/trace-only boundary authorizes the evidence repair;
-  C9 remains technically unaccepted.)
+- Current story: `M1-S7-C9-INTEGRATE-GREEN` (C7 and C8 Customer Accepted; the
+  v10 E2E-only repair records raw request/response/failure evidence before
+  origin filtering. C9 remains technically unaccepted pending a fresh clean
+  candidate and independent review.)
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.

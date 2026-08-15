@@ -931,7 +931,15 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
   });
 });
 
-type C9TraceEntry = { method: string; url: string; status: number };
+type C9TraceKind = "request" | "response" | "requestfailed";
+
+type C9TraceEntry = {
+  kind?: C9TraceKind;
+  method: string;
+  url: string;
+  status?: number;
+  error?: string;
+};
 
 interface C9Artifact {
   candidate: string;
@@ -952,24 +960,118 @@ async function c9Checked(
   method: string,
   accepted: number[] = [200, 201, 204]
 ) {
-  trace.push({ method, url: response.url(), status: response.status() });
+  trace.push({ kind: "request", method, url: response.url() });
+  trace.push({
+    kind: "response",
+    method,
+    url: response.url(),
+    status: response.status(),
+  });
   expect(accepted, `${method} ${response.url()}`).toContain(response.status());
   return response;
 }
 
 function c9SanitizedTrace(trace: C9TraceEntry[]) {
-  return trace.map(({ method, url, status }) => {
+  return trace.map(({ kind = "response", method, url, status, error }) => {
     const parsed = new URL(url);
-    return { method, origin: parsed.origin, path: parsed.pathname, status };
+    return {
+      kind,
+      method,
+      origin: parsed.origin,
+      path: parsed.pathname,
+      ...(status === undefined ? {} : { status }),
+      ...(error === undefined ? {} : { error }),
+    };
   });
 }
 
 function c9UnexpectedFailures(trace: C9TraceEntry[]) {
-  return c9SanitizedTrace(trace).filter(({ path: requestPath, status }) => {
-    if (requestPath === "/api/invitations" && status === 404) return false;
-    return status >= 400;
+  return c9SanitizedTrace(trace).filter(
+    ({ kind, origin, path: requestPath, status }) => {
+      if (origin !== WEB) return true;
+      if (kind !== "response") return false;
+      if (requestPath === "/api/invitations" && status === 404) return false;
+      return (status ?? 0) >= 400;
+    }
+  );
+}
+
+function c9LegacyTraffic(trace: C9TraceEntry[]) {
+  return c9SanitizedTrace(trace).filter(
+    ({ origin }) => new URL(origin).port === "8080"
+  );
+}
+
+function captureC9PageTraffic(
+  page: Page,
+  rawTrace: C9TraceEntry[],
+  activeTrace: C9TraceEntry[],
+  captureActive: () => boolean
+) {
+  const record = (entry: C9TraceEntry) => {
+    rawTrace.push(entry);
+    if (captureActive()) activeTrace.push(entry);
+  };
+  page.on("request", (request) => {
+    record({ kind: "request", method: request.method(), url: request.url() });
+  });
+  page.on("response", (response) => {
+    record({
+      kind: "response",
+      method: response.request().method(),
+      url: response.url(),
+      status: response.status(),
+    });
+  });
+  page.on("requestfailed", (request) => {
+    record({
+      kind: "requestfailed",
+      method: request.method(),
+      url: request.url(),
+      error: request.failure()?.errorText ?? "unknown request failure",
+    });
   });
 }
+
+test("C9 trace rejects a successful legacy HTTP response", () => {
+  const legacyResponse: C9TraceEntry[] = [
+    {
+      method: "GET",
+      url: "http://127.0.0.1:8080/api/issues",
+      status: 200,
+    },
+  ];
+
+  expect(c9UnexpectedFailures(legacyResponse)).toEqual(
+    c9SanitizedTrace(legacyResponse)
+  );
+});
+
+test("C9 trace retains failed-request evidence before origin filtering", () => {
+  const failedRequest: C9TraceEntry[] = [
+    {
+      kind: "requestfailed",
+      method: "GET",
+      url: "http://127.0.0.1:8080/api/issues",
+      status: 0,
+      error: "net::ERR_CONNECTION_REFUSED",
+    },
+  ];
+
+  expect(c9SanitizedTrace(failedRequest)).toEqual([
+    {
+      kind: "requestfailed",
+      method: "GET",
+      origin: "http://127.0.0.1:8080",
+      path: "/api/issues",
+      status: 0,
+      error: "net::ERR_CONNECTION_REFUSED",
+    },
+  ]);
+  expect(c9UnexpectedFailures(failedRequest)).toEqual(
+    c9SanitizedTrace(failedRequest)
+  );
+});
 
 async function c9CSRFHeaders(page: Page) {
   const cookie = (await page.context().cookies(WEB)).find(
@@ -997,19 +1099,12 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   const evidenceDir = c9EvidenceDir();
   await mkdir(evidenceDir, { recursive: true });
   const run = `${Date.now()}`;
+  const browserTrace: C9TraceEntry[] = [];
   const trace: C9TraceEntry[] = [];
   let captureTrace = false;
   const wsFrames: string[] = [];
   const websockets: Array<{ origin: string; path: string }> = [];
-  page.on("response", (response) => {
-    if (captureTrace && new URL(response.url()).origin === WEB) {
-      trace.push({
-        method: response.request().method(),
-        url: response.url(),
-        status: response.status(),
-      });
-    }
-  });
+  captureC9PageTraffic(page, browserTrace, trace, () => captureTrace);
   page.on("websocket", (socket) => {
     const parsed = new URL(socket.url());
     websockets.push({ origin: parsed.origin, path: parsed.pathname });
@@ -1020,6 +1115,7 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
     predicate: (socket) => new URL(socket.url()).pathname === "/ws",
   });
   await loginFixture(page);
+  captureTrace = true;
   await socketReady;
   await openFixtureIssue(page);
   await expectC9VisibleText(page, "Canonical runtime acceptance");
@@ -1027,12 +1123,6 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
     page.getByRole("button", { name: "Attach file" }).first()
   ).toBeVisible();
   const headers = await c9CSRFHeaders(page);
-  // Authentication bootstrap may intentionally probe protected endpoints before
-  // the cookie session is established. Wait for those requests to settle before
-  // enabling the C9 route gate, where every failure is actionable.
-  await page.waitForLoadState("networkidle");
-  trace.length = 0;
-  captureTrace = true;
 
   const projectResponse = await c9Checked(
     await page.request.post(`${WEB}/api/projects`, {
@@ -1213,6 +1303,12 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   await uploadFromDescriptionControl(page, attachmentPath);
   const uploaded = await uploadPromise;
   trace.push({
+    kind: "request",
+    method: "POST",
+    url: uploaded.url(),
+  });
+  trace.push({
+    kind: "response",
     method: "POST",
     url: uploaded.url(),
     status: uploaded.status(),
@@ -1324,19 +1420,18 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   expect(bodies[7]).toContain(attachment.id);
   expect(bodies[8]).toContain(pin.id);
   expect(c9UnexpectedFailures(trace)).toEqual([]);
-  expect(c9SanitizedTrace(trace).every(({ origin }) => origin === WEB)).toBe(
-    true
-  );
+  expect(
+    c9SanitizedTrace(browserTrace).every(({ origin }) => origin === WEB)
+  ).toBe(true);
+  expect(c9LegacyTraffic(browserTrace)).toEqual([]);
+  expect(c9LegacyTraffic(trace)).toEqual([]);
   expect(websockets).toContainEqual({
     origin: "ws://127.0.0.1:3000",
     path: "/ws",
   });
-  expect(
-    [
-      ...c9SanitizedTrace(trace).map(({ origin }) => origin),
-      ...websockets.map(({ origin }) => origin),
-    ].some((origin) => new URL(origin).port === "8080")
-  ).toBe(false);
+  expect(websockets.some(({ origin }) => new URL(origin).port === "8080")).toBe(
+    false
+  );
 
   const artifact: C9Artifact = {
     candidate: c9Candidate(),
@@ -1361,7 +1456,8 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
       {
         ...artifact,
         browser: await browserIdentity(page),
-        http: c9SanitizedTrace(trace),
+        http: c9SanitizedTrace(browserTrace),
+        enabledDetailHttp: c9SanitizedTrace(trace),
         websockets,
         receivedEventTypes: [
           ...new Set(
@@ -1401,26 +1497,20 @@ test("C9 clean candidate retains complete local Issue detail after restart", asy
   const artifact = JSON.parse(
     await readFile(path.join(evidenceDir, "c9-pre-restart.json"), "utf8")
   ) as C9Artifact;
+  const browserTrace: C9TraceEntry[] = [];
   const trace: C9TraceEntry[] = [];
+  let captureTrace = false;
   const websockets: Array<{ origin: string; path: string }> = [];
-  page.on("response", (response) => {
-    if (new URL(response.url()).origin === WEB) {
-      trace.push({
-        method: response.request().method(),
-        url: response.url(),
-        status: response.status(),
-      });
-    }
-  });
+  captureC9PageTraffic(page, browserTrace, trace, () => captureTrace);
   page.on("websocket", (socket) => {
     const parsed = new URL(socket.url());
     websockets.push({ origin: parsed.origin, path: parsed.pathname });
   });
 
   await loginFixture(page);
+  captureTrace = true;
   await openFixtureIssue(page);
   const headers = await c9CSRFHeaders(page);
-  trace.length = 0;
   await expectC9VisibleText(page, `C9 complete detail ${artifact.run}`);
   await expectC9VisibleText(page, artifact.project.title);
   await expectC9VisibleText(page, artifact.label.name);
@@ -1503,14 +1593,19 @@ test("C9 clean candidate retains complete local Issue detail after restart", asy
   expect(bodies[7]).toContain(artifact.attachment.id);
   expect(bodies[8]).toContain(artifact.pin.id);
   expect(c9UnexpectedFailures(trace)).toEqual([]);
-  expect(c9SanitizedTrace(trace).every(({ origin }) => origin === WEB)).toBe(
-    true
-  );
+  expect(
+    c9SanitizedTrace(browserTrace).every(({ origin }) => origin === WEB)
+  ).toBe(true);
+  expect(c9LegacyTraffic(browserTrace)).toEqual([]);
+  expect(c9LegacyTraffic(trace)).toEqual([]);
   await expect
     .poll(() =>
       websockets.some(({ path: requestPath }) => requestPath === "/ws")
     )
     .toBe(true);
+  expect(websockets.some(({ origin }) => new URL(origin).port === "8080")).toBe(
+    false
+  );
 
   const tracePath = path.join(evidenceDir, "c9-post-restart.json");
   await writeFile(
@@ -1527,7 +1622,8 @@ test("C9 clean candidate retains complete local Issue detail after restart", asy
           property: artifact.property.id,
           attachment: artifact.attachment.id,
         },
-        http: c9SanitizedTrace(trace),
+        http: c9SanitizedTrace(browserTrace),
+        enabledDetailHttp: c9SanitizedTrace(trace),
         websockets,
       },
       null,

@@ -1625,3 +1625,25 @@ Human approval are recorded.
   assert no HTTP or WebSocket request to `:8080`, and repeat the clean-candidate
   deterministic, Chrome, restart and rollback gates.  Any newly exposed product
   behavior defect still stops v10 and requires a new plan version.
+
+## 2026-08-16 — M1-S7-C9-INTEGRATE-RED and trace-capture GREEN
+
+- RED was reproduced in the v10-authorized E2E harness without a runtime:
+  `C9 trace rejects a successful legacy HTTP response` initially received `[]`
+  for a synthetic `http://127.0.0.1:8080/api/issues` status `200` response.
+  A second RED showed that a synthetic failed request lost both its
+  `requestfailed` kind and `net::ERR_CONNECTION_REFUSED` fact during
+  sanitization.
+- GREEN extends the sanitized C9 trace with `request`, `response` and
+  `requestfailed` kind/failure fields.  The page listener now records every
+  raw browser request, response and failed request before active-detail or
+  origin filtering; the active detail window starts immediately after login
+  and before the detail route loads.  Direct API-assisted setup records request
+  and response facts too.  Pre/post gates assert raw same-origin traffic, retain
+  every failed-request fact for review, and reject raw HTTP `:8080`,
+  API-assisted `:8080` and WebSocket `:8080` traffic.
+- The focused trace regression tests passed `2/2`; Playwright now discovers ten
+  scenarios (the prior eight journey scenarios plus the two trace regressions).
+  This is test/evidence-only work; no product route, capability, frontend or
+  backend behavior changed.  `M1-S7-C9-INTEGRATE-GREEN` is the sole active
+  step pending a fresh detached clean-candidate integration run.
