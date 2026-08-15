@@ -517,8 +517,12 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
     socket.on("framereceived", (event) => wsFrames.push(String(event.payload)));
   });
 
+  const workspaceSocket = page.waitForEvent("websocket", {
+    predicate: (socket) => new URL(socket.url()).pathname === "/ws",
+  });
   await loginFixture(page);
   await openFixtureIssue(page);
+  await workspaceSocket;
   const uploadResponsePromise = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/upload-file" &&
