@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -10,6 +10,9 @@ const ISSUE_ID = "01990000-0000-7000-8000-000000000004";
 const C8_PHASE = process.env.C8_PHASE;
 const C8_EVIDENCE_DIR = process.env.C8_EVIDENCE_DIR;
 const C8_CANDIDATE = process.env.C8_CANDIDATE;
+const C9_PHASE = process.env.C9_PHASE;
+const C9_EVIDENCE_DIR = process.env.C9_EVIDENCE_DIR;
+const C9_CANDIDATE = process.env.C9_CANDIDATE;
 
 interface AttachmentArtifact {
   id: string;
@@ -33,10 +36,22 @@ function attachmentCandidate() {
   return C8_CANDIDATE;
 }
 
+function c9EvidenceDir() {
+  if (!C9_EVIDENCE_DIR) throw new Error("C9_EVIDENCE_DIR is required");
+  return C9_EVIDENCE_DIR;
+}
+
+function c9Candidate() {
+  if (!C9_CANDIDATE) throw new Error("C9_CANDIDATE is required");
+  return C9_CANDIDATE;
+}
+
 async function browserIdentity(page: Page) {
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
   if (!executablePath) {
-    throw new Error("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required for C8 evidence");
+    throw new Error(
+      "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is required for C8 evidence"
+    );
   }
   return {
     executablePath: path.resolve(executablePath),
@@ -589,9 +604,13 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
   expect(attachment.size_bytes).toBe(Buffer.byteLength(content));
   await expect(page.getByText(filename, { exact: true }).first()).toBeVisible();
 
-  const persistedRow = page.locator(`[data-attachment-id="${attachment.id}"]`).last();
+  const persistedRow = page
+    .locator(`[data-attachment-id="${attachment.id}"]`)
+    .last();
   await expect(persistedRow).toBeVisible();
-  const previewButtons = persistedRow.getByRole("button", { name: /Preview|预览/ });
+  const previewButtons = persistedRow.getByRole("button", {
+    name: /Preview|预览/,
+  });
   await expect(previewButtons).toHaveCount(1);
   const previewResponsePromise = page.waitForResponse(
     (response) =>
@@ -637,16 +656,16 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
     filename,
     content,
     sizeBytes: Buffer.byteLength(content),
-	cleanupIds: [attachment.id],
+    cleanupIds: [attachment.id],
   };
   await writeFile(
     path.join(evidenceDir, "attachment.json"),
     `${JSON.stringify(evidence, null, 2)}\n`
   );
   const trace = {
-	candidate: attachmentCandidate(),
+    candidate: attachmentCandidate(),
     phase: "upload-preview-download",
-	browser: await browserIdentity(page),
+    browser: await browserIdentity(page),
     attachment: { id: attachment.id, filename, sizeBytes: evidence.sizeBytes },
     realtimeReadinessAttempts,
     http: sanitizeAttachmentTrace(responses),
@@ -744,51 +763,68 @@ test("C8 clean candidate reads the same file after runtime restart", async ({
   const listBody = (await listed.json()) as Array<{ id: string }>;
   expect(listBody.some(({ id }) => id === evidence.id)).toBe(true);
 
-	const secondContent = `C8 after-restart attachment ${Date.now()}\n`;
-	const secondFilename = "c8-clean-candidate-after-restart.txt";
-	const secondUploadPath = path.join(evidenceDir, secondFilename);
-	await writeFile(secondUploadPath, secondContent);
-	const uploadResponsePromise = page.waitForResponse(
-	  (response) =>
-		new URL(response.url()).pathname === "/api/upload-file" &&
-		response.request().method() === "POST"
-	);
-	await uploadFromDescriptionControl(page, secondUploadPath);
-	const uploadResponse = await uploadResponsePromise;
-	expect(uploadResponse.status()).toBe(200);
-	const second = (await uploadResponse.json()) as { id: string; filename: string; size_bytes: number };
-	expect(second).toMatchObject({ filename: secondFilename, size_bytes: Buffer.byteLength(secondContent) });
-	await expect(page.getByText(secondFilename, { exact: true }).first()).toBeVisible();
+  const secondContent = `C8 after-restart attachment ${Date.now()}\n`;
+  const secondFilename = "c8-clean-candidate-after-restart.txt";
+  const secondUploadPath = path.join(evidenceDir, secondFilename);
+  await writeFile(secondUploadPath, secondContent);
+  const uploadResponsePromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/upload-file" &&
+      response.request().method() === "POST"
+  );
+  await uploadFromDescriptionControl(page, secondUploadPath);
+  const uploadResponse = await uploadResponsePromise;
+  expect(uploadResponse.status()).toBe(200);
+  const second = (await uploadResponse.json()) as {
+    id: string;
+    filename: string;
+    size_bytes: number;
+  };
+  expect(second).toMatchObject({
+    filename: secondFilename,
+    size_bytes: Buffer.byteLength(secondContent),
+  });
+  await expect(
+    page.getByText(secondFilename, { exact: true }).first()
+  ).toBeVisible();
 
-	await expect.poll(async () => {
-	  const response = await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/attachments`, {
-		headers: { "X-Workspace-Slug": SLUG },
-	  });
-	  if (response.status() !== 200) return [];
-	  const values = (await response.json()) as Array<{ id: string }>;
-	  return values.map(({ id }) => id).sort();
-	}).toEqual([evidence.id, second.id].sort());
-	evidence.afterRestart = {
-	  id: second.id,
-	  filename: secondFilename,
-	  content: secondContent,
-	  sizeBytes: Buffer.byteLength(secondContent),
-	};
-	evidence.cleanupIds = [evidence.id, second.id];
-	await writeFile(path.join(evidenceDir, "attachment.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+  await expect
+    .poll(async () => {
+      const response = await page.request.get(
+        `${WEB}/api/issues/${ISSUE_ID}/attachments`,
+        {
+          headers: { "X-Workspace-Slug": SLUG },
+        }
+      );
+      if (response.status() !== 200) return [];
+      const values = (await response.json()) as Array<{ id: string }>;
+      return values.map(({ id }) => id).sort();
+    })
+    .toEqual([evidence.id, second.id].sort());
+  evidence.afterRestart = {
+    id: second.id,
+    filename: secondFilename,
+    content: secondContent,
+    sizeBytes: Buffer.byteLength(secondContent),
+  };
+  evidence.cleanupIds = [evidence.id, second.id];
+  await writeFile(
+    path.join(evidenceDir, "attachment.json"),
+    `${JSON.stringify(evidence, null, 2)}\n`
+  );
 
   const tracePath = path.join(evidenceDir, "restart-readback-trace.json");
   await writeFile(
     tracePath,
     `${JSON.stringify(
       {
-		candidate: attachmentCandidate(),
+        candidate: attachmentCandidate(),
         phase: "restart-readback",
-		browser: await browserIdentity(page),
-		attachments: [
-		  { id: evidence.id, filename: evidence.filename },
-		  { id: second.id, filename: second.filename },
-		],
+        browser: await browserIdentity(page),
+        attachments: [
+          { id: evidence.id, filename: evidence.filename },
+          { id: second.id, filename: second.filename },
+        ],
         http: sanitizeAttachmentTrace(responses),
       },
       null,
@@ -819,24 +855,27 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
   });
   await loginFixture(page);
   await openFixtureIssue(page);
-	const keyboardActivations: Array<{ id: string; key: "Enter" | "Space" }> = [];
+  const keyboardActivations: Array<{ id: string; key: "Enter" | "Space" }> = [];
   for (const [index, attachmentId] of evidence.cleanupIds.entries()) {
-	const row = page.locator(`[data-attachment-id="${attachmentId}"]`).last();
-	await expect(row).toBeVisible();
-	const remove = row.getByRole("button", { name: /Remove attachment|删除附件/ });
-	const key = index === 0 ? "Enter" : "Space";
-	const deletedPromise = page.waitForResponse(
-	  (response) =>
-		new URL(response.url()).pathname === `/api/attachments/${attachmentId}` &&
-		response.request().method() === "DELETE"
-	);
-	await remove.focus();
-	await expect(remove).toBeFocused();
-	await remove.press(key);
-	const deleted = await deletedPromise;
-	expect(deleted.status()).toBe(204);
-	keyboardActivations.push({ id: attachmentId, key });
-	await expect(row).toBeHidden();
+    const row = page.locator(`[data-attachment-id="${attachmentId}"]`).last();
+    await expect(row).toBeVisible();
+    const remove = row.getByRole("button", {
+      name: /Remove attachment|删除附件/,
+    });
+    const key = index === 0 ? "Enter" : "Space";
+    const deletedPromise = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+          `/api/attachments/${attachmentId}` &&
+        response.request().method() === "DELETE"
+    );
+    await remove.focus();
+    await expect(remove).toBeFocused();
+    await remove.press(key);
+    const deleted = await deletedPromise;
+    expect(deleted.status()).toBe(204);
+    keyboardActivations.push({ id: attachmentId, key });
+    await expect(row).toBeHidden();
   }
   const missing = await page.request.get(
     `${WEB}/api/attachments/${evidence.id}`,
@@ -863,11 +902,11 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
     tracePath,
     `${JSON.stringify(
       {
-		candidate: attachmentCandidate(),
+        candidate: attachmentCandidate(),
         phase: "delete",
-		browser: await browserIdentity(page),
+        browser: await browserIdentity(page),
         attachment: { id: evidence.id, filename: evidence.filename },
-		keyboard_activations: keyboardActivations,
+        keyboard_activations: keyboardActivations,
         http: sanitizeAttachmentTrace(responses),
       },
       null,
@@ -877,5 +916,610 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
   await testInfo.attach("C8 delete trace", {
     path: tracePath,
     contentType: "application/json",
+  });
+});
+
+type C9TraceEntry = { method: string; url: string; status: number };
+
+interface C9Artifact {
+  candidate: string;
+  run: string;
+  project: { id: string; title: string };
+  pin: { id: string; item_id: string; item_type: string };
+  label: { id: string; name: string };
+  property: { id: string; name: string; value: string };
+  childTitle: string;
+  commentText: string;
+  acceptanceRationale: string;
+  attachment: { id: string; filename: string; content: string };
+}
+
+async function c9Checked(
+  response: APIResponse,
+  trace: C9TraceEntry[],
+  method: string,
+  accepted: number[] = [200, 201, 204]
+) {
+  trace.push({ method, url: response.url(), status: response.status() });
+  expect(accepted, `${method} ${response.url()}`).toContain(response.status());
+  return response;
+}
+
+function c9SanitizedTrace(trace: C9TraceEntry[]) {
+  return trace.map(({ method, url, status }) => {
+    const parsed = new URL(url);
+    return { method, origin: parsed.origin, path: parsed.pathname, status };
+  });
+}
+
+function c9UnexpectedFailures(trace: C9TraceEntry[]) {
+  return c9SanitizedTrace(trace).filter(({ path: requestPath, status }) => {
+    if (requestPath === "/api/invitations" && status === 404) return false;
+    return status >= 400;
+  });
+}
+
+async function c9CSRFHeaders(page: Page) {
+  const cookie = (await page.context().cookies(WEB)).find(
+    (value) => value.name === "multica_csrf"
+  );
+  expect(cookie).toBeDefined();
+  return {
+    "X-Workspace-Slug": SLUG,
+    "X-CSRF-Token": cookie!.value,
+  };
+}
+
+async function expectC9VisibleText(page: Page, value: string) {
+  const matches = page.getByText(value, { exact: true });
+  await expect
+    .poll(() => matches.count(), { timeout: 30_000 })
+    .toBeGreaterThan(0);
+  await expect(matches.first()).toBeVisible();
+}
+
+test("C9 clean candidate exercises complete local Issue detail before restart", async ({
+  page,
+}, testInfo) => {
+  test.skip(C9_PHASE !== "pre", `C9 phase is ${C9_PHASE ?? "unset"}`);
+  const evidenceDir = c9EvidenceDir();
+  await mkdir(evidenceDir, { recursive: true });
+  const run = `${Date.now()}`;
+  const trace: C9TraceEntry[] = [];
+  const wsFrames: string[] = [];
+  const websockets: Array<{ origin: string; path: string }> = [];
+  page.on("response", (response) => {
+    if (new URL(response.url()).origin === WEB) {
+      trace.push({
+        method: response.request().method(),
+        url: response.url(),
+        status: response.status(),
+      });
+    }
+  });
+  page.on("websocket", (socket) => {
+    const parsed = new URL(socket.url());
+    websockets.push({ origin: parsed.origin, path: parsed.pathname });
+    socket.on("framereceived", (event) => wsFrames.push(String(event.payload)));
+  });
+
+  const socketReady = page.waitForEvent("websocket", {
+    predicate: (socket) => new URL(socket.url()).pathname === "/ws",
+  });
+  await loginFixture(page);
+  await socketReady;
+  await openFixtureIssue(page);
+  await expect(page.getByTestId("issue-base-detail")).toBeVisible();
+  await expectC9VisibleText(page, "Canonical runtime acceptance");
+  const headers = await c9CSRFHeaders(page);
+
+  const projectResponse = await c9Checked(
+    await page.request.post(`${WEB}/api/projects`, {
+      headers,
+      data: {
+        title: `C9 Project ${run}`,
+        description: "C9 complete-detail acceptance",
+        status: "in_progress",
+        priority: "high",
+      },
+    }),
+    trace,
+    "POST"
+  );
+  const project = (await projectResponse.json()) as {
+    id: string;
+    title: string;
+  };
+  const pinResponse = await c9Checked(
+    await page.request.post(`${WEB}/api/pins`, {
+      headers,
+      data: { item_type: "project", item_id: project.id },
+    }),
+    trace,
+    "POST"
+  );
+  const pin = (await pinResponse.json()) as {
+    id: string;
+    item_id: string;
+    item_type: string;
+  };
+  expect(pin).toMatchObject({ item_id: project.id, item_type: "project" });
+
+  const labelResponse = await c9Checked(
+    await page.request.post(`${WEB}/api/labels`, {
+      headers,
+      data: {
+        resource_type: "issue",
+        name: `c9-label-${run}`,
+        description: "C9 acceptance label",
+        color: "#3b82f6",
+      },
+    }),
+    trace,
+    "POST"
+  );
+  const label = (await labelResponse.json()) as { id: string; name: string };
+  const propertyResponse = await c9Checked(
+    await page.request.post(`${WEB}/api/properties`, {
+      headers,
+      data: {
+        name: `C9 Property ${run}`,
+        type: "text",
+        description: "C9 acceptance property",
+      },
+    }),
+    trace,
+    "POST"
+  );
+  const property = (await propertyResponse.json()) as {
+    id: string;
+    name: string;
+  };
+  const propertyValue = `verified-${run}`;
+  const description = `C9 complete detail ${run}`;
+
+  await c9Checked(
+    await page.request.put(`${WEB}/api/issues/${ISSUE_ID}`, {
+      headers,
+      data: {
+        description,
+        priority: "high",
+        project_id: project.id,
+        start_date: "2026-08-15",
+        due_date: "2026-08-20",
+      },
+    }),
+    trace,
+    "PUT"
+  );
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues/${ISSUE_ID}/move`, {
+      headers,
+      data: { status: "done", before_id: null, after_id: null },
+    }),
+    trace,
+    "POST"
+  );
+
+  const childTitle = `C9 child ${run}`;
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues`, {
+      headers,
+      data: {
+        title: childTitle,
+        status: "todo",
+        priority: "medium",
+        parent_issue_id: ISSUE_ID,
+        project_id: project.id,
+        stage: 1,
+      },
+    }),
+    trace,
+    "POST"
+  );
+  const commentText = `C9 collaboration ${run}`;
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues/${ISSUE_ID}/comments`, {
+      headers,
+      data: { content: commentText, type: "comment" },
+    }),
+    trace,
+    "POST"
+  );
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues/${ISSUE_ID}/subscribe`, {
+      headers,
+      data: {},
+    }),
+    trace,
+    "POST"
+  );
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues/${ISSUE_ID}/reactions`, {
+      headers,
+      data: { emoji: "✅" },
+    }),
+    trace,
+    "POST"
+  );
+  await c9Checked(
+    await page.request.post(`${WEB}/api/issues/${ISSUE_ID}/labels`, {
+      headers,
+      data: { label_id: label.id },
+    }),
+    trace,
+    "POST"
+  );
+  await c9Checked(
+    await page.request.put(
+      `${WEB}/api/issues/${ISSUE_ID}/properties/${property.id}`,
+      { headers, data: { value: propertyValue } }
+    ),
+    trace,
+    "PUT"
+  );
+  const acceptanceRationale = `C9 acceptance ${run}`;
+  await c9Checked(
+    await page.request.post(
+      `${WEB}/api/issues/${ISSUE_ID}/acceptance-conclusions`,
+      {
+        headers,
+        data: {
+          result: "accepted",
+          rationale: acceptanceRationale,
+          evidence_refs: [`local://c9/${run}`],
+        },
+      }
+    ),
+    trace,
+    "POST"
+  );
+
+  // Reload before the visible upload so the editor starts from the complete
+  // authoritative Issue/attachment bag written by the API-assisted setup.
+  await page.reload({ waitUntil: "networkidle" });
+  await expectC9VisibleText(page, description);
+
+  const attachmentFilename = `c9-attachment-${run}.txt`;
+  const attachmentContent = `C9 attachment ${run}\n`;
+  const attachmentPath = path.join(evidenceDir, attachmentFilename);
+  await writeFile(attachmentPath, attachmentContent);
+  const uploadPromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/upload-file" &&
+      response.request().method() === "POST"
+  );
+  await uploadFromDescriptionControl(page, attachmentPath);
+  const uploaded = await uploadPromise;
+  trace.push({
+    method: "POST",
+    url: uploaded.url(),
+    status: uploaded.status(),
+  });
+  expect(uploaded.status()).toBe(200);
+  const attachment = (await uploaded.json()) as {
+    id: string;
+    filename: string;
+  };
+  await expectC9VisibleText(page, attachment.filename);
+
+  await expect
+    .poll(
+      () =>
+        [
+          "issue:updated",
+          "issue:created",
+          "comment:created",
+          "subscriber:added",
+          "issue_reaction:added",
+          "issue_labels:changed",
+          "issue_properties:changed",
+          "issue_attachments:changed",
+        ].every((type) => wsFrames.some((frame) => frame.includes(type))),
+      { timeout: 20_000 }
+    )
+    .toBe(true);
+
+  await page.reload({ waitUntil: "networkidle" });
+  await expectC9VisibleText(page, description);
+  await expectC9VisibleText(page, project.title);
+  await expectC9VisibleText(page, label.name);
+  await expectC9VisibleText(page, property.name);
+  await expectC9VisibleText(page, propertyValue);
+  await expectC9VisibleText(page, attachment.filename);
+
+  const readbacks = await Promise.all([
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE}`, { headers }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/timeline`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/subscribers`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/reactions`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/children`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/labels`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(
+        `${WEB}/api/issues/${ISSUE_ID}/acceptance-conclusions`,
+        { headers }
+      ),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/attachments`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/pins`, { headers }),
+      trace,
+      "GET"
+    ),
+  ]);
+  const bodies = await Promise.all(
+    readbacks.map((response) => response.text())
+  );
+  expect(bodies[0]).toContain(project.id);
+  expect(bodies[0]).toContain(propertyValue);
+  expect(bodies[1]).toContain(commentText);
+  expect(bodies[3]).toContain("✅");
+  expect(bodies[4]).toContain(childTitle);
+  expect(bodies[5]).toContain(label.id);
+  expect(bodies[6]).toContain(acceptanceRationale);
+  expect(bodies[7]).toContain(attachment.id);
+  expect(bodies[8]).toContain(pin.id);
+  expect(c9UnexpectedFailures(trace)).toEqual([]);
+  expect(c9SanitizedTrace(trace).every(({ origin }) => origin === WEB)).toBe(
+    true
+  );
+  expect(websockets).toContainEqual({
+    origin: "ws://127.0.0.1:3000",
+    path: "/ws",
+  });
+  expect(
+    [
+      ...c9SanitizedTrace(trace).map(({ origin }) => origin),
+      ...websockets.map(({ origin }) => origin),
+    ].some((origin) => new URL(origin).port === "8080")
+  ).toBe(false);
+
+  const artifact: C9Artifact = {
+    candidate: c9Candidate(),
+    run,
+    project,
+    pin,
+    label,
+    property: { ...property, value: propertyValue },
+    childTitle,
+    commentText,
+    acceptanceRationale,
+    attachment: {
+      id: attachment.id,
+      filename: attachment.filename,
+      content: attachmentContent,
+    },
+  };
+  const tracePath = path.join(evidenceDir, "c9-pre-restart.json");
+  await writeFile(
+    tracePath,
+    `${JSON.stringify(
+      {
+        ...artifact,
+        browser: await browserIdentity(page),
+        http: c9SanitizedTrace(trace),
+        websockets,
+        receivedEventTypes: [
+          ...new Set(
+            wsFrames.map((frame) => {
+              try {
+                return (
+                  (JSON.parse(frame) as { type?: string }).type ?? "unknown"
+                );
+              } catch {
+                return "invalid";
+              }
+            })
+          ),
+        ].sort(),
+      },
+      null,
+      2
+    )}\n`
+  );
+  const screenshotPath = path.join(evidenceDir, "c9-pre-restart.png");
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  await testInfo.attach("C9 complete detail pre-restart", {
+    path: tracePath,
+    contentType: "application/json",
+  });
+  await testInfo.attach("C9 complete detail pre-restart screenshot", {
+    path: screenshotPath,
+    contentType: "image/png",
+  });
+});
+
+test("C9 clean candidate retains complete local Issue detail after restart", async ({
+  page,
+}, testInfo) => {
+  test.skip(C9_PHASE !== "post", `C9 phase is ${C9_PHASE ?? "unset"}`);
+  const evidenceDir = c9EvidenceDir();
+  const artifact = JSON.parse(
+    await readFile(path.join(evidenceDir, "c9-pre-restart.json"), "utf8")
+  ) as C9Artifact;
+  const trace: C9TraceEntry[] = [];
+  const websockets: Array<{ origin: string; path: string }> = [];
+  page.on("response", (response) => {
+    if (new URL(response.url()).origin === WEB) {
+      trace.push({
+        method: response.request().method(),
+        url: response.url(),
+        status: response.status(),
+      });
+    }
+  });
+  page.on("websocket", (socket) => {
+    const parsed = new URL(socket.url());
+    websockets.push({ origin: parsed.origin, path: parsed.pathname });
+  });
+
+  await loginFixture(page);
+  await openFixtureIssue(page);
+  const headers = await c9CSRFHeaders(page);
+  await expectC9VisibleText(page, `C9 complete detail ${artifact.run}`);
+  await expectC9VisibleText(page, artifact.project.title);
+  await expectC9VisibleText(page, artifact.label.name);
+  await expectC9VisibleText(page, artifact.property.name);
+  await expectC9VisibleText(page, artifact.property.value);
+  await expectC9VisibleText(page, artifact.attachment.filename);
+
+  const readbacks = await Promise.all([
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE}`, { headers }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/timeline`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/subscribers`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/reactions`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/children`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/labels`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(
+        `${WEB}/api/issues/${ISSUE_ID}/acceptance-conclusions`,
+        { headers }
+      ),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/issues/${ISSUE_ID}/attachments`, {
+        headers,
+      }),
+      trace,
+      "GET"
+    ),
+    c9Checked(
+      await page.request.get(`${WEB}/api/pins`, { headers }),
+      trace,
+      "GET"
+    ),
+  ]);
+  const bodies = await Promise.all(
+    readbacks.map((response) => response.text())
+  );
+  expect(bodies[0]).toContain(artifact.project.id);
+  expect(bodies[0]).toContain(artifact.property.value);
+  expect(bodies[1]).toContain(artifact.commentText);
+  expect(bodies[3]).toContain("✅");
+  expect(bodies[4]).toContain(artifact.childTitle);
+  expect(bodies[5]).toContain(artifact.label.id);
+  expect(bodies[6]).toContain(artifact.acceptanceRationale);
+  expect(bodies[7]).toContain(artifact.attachment.id);
+  expect(bodies[8]).toContain(artifact.pin.id);
+  expect(c9UnexpectedFailures(trace)).toEqual([]);
+  expect(c9SanitizedTrace(trace).every(({ origin }) => origin === WEB)).toBe(
+    true
+  );
+  await expect
+    .poll(() =>
+      websockets.some(({ path: requestPath }) => requestPath === "/ws")
+    )
+    .toBe(true);
+
+  const tracePath = path.join(evidenceDir, "c9-post-restart.json");
+  await writeFile(
+    tracePath,
+    `${JSON.stringify(
+      {
+        candidate: c9Candidate(),
+        run: artifact.run,
+        browser: await browserIdentity(page),
+        retained: {
+          project: artifact.project.id,
+          pin: artifact.pin.id,
+          label: artifact.label.id,
+          property: artifact.property.id,
+          attachment: artifact.attachment.id,
+        },
+        http: c9SanitizedTrace(trace),
+        websockets,
+      },
+      null,
+      2
+    )}\n`
+  );
+  const screenshotPath = path.join(evidenceDir, "c9-post-restart.png");
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  await testInfo.attach("C9 complete detail post-restart", {
+    path: tracePath,
+    contentType: "application/json",
+  });
+  await testInfo.attach("C9 complete detail post-restart screenshot", {
+    path: screenshotPath,
+    contentType: "image/png",
   });
 });

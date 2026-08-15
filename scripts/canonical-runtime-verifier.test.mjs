@@ -11,7 +11,7 @@ import {
   validateQuiescentEvidence,
 } from "./canonical-runtime-verifier.mjs";
 import { createLaunchFingerprint } from "./runtime-selector.mjs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -44,6 +44,24 @@ test("artifact hashes prove databases and logs are preserved", async () => {
   ]);
   assert.deepEqual(await captureArtifactHashes(root), before);
   await writeFile(path.join(root, "canonical-web.log"), "changed");
+  assert.notDeepEqual(await captureArtifactHashes(root), before);
+});
+
+test("artifact hashes include nested attachment objects", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "canonical-object-hash-"));
+  const object = path.join(
+    root,
+    "multica-canonical.db.files",
+    "objects",
+    "attachment.txt"
+  );
+  await mkdir(path.dirname(object), { recursive: true });
+  await writeFile(object, "first object");
+
+  const before = await captureArtifactHashes(root);
+  assert.ok(before["multica-canonical.db.files/objects/attachment.txt"]);
+
+  await writeFile(object, "changed object");
   assert.notDeepEqual(await captureArtifactHashes(root), before);
 });
 

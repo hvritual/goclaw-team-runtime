@@ -50,21 +50,41 @@ export function expectedAcceptanceContract() {
 }
 
 export async function captureArtifactHashes(directory) {
-  const names = (await readdir(directory))
-    .filter(
-      (name) =>
-        name.endsWith(".db") ||
-        name.endsWith(".db-wal") ||
-        name.endsWith(".db-shm") ||
-        name.endsWith(".db-journal") ||
-        name.endsWith(".log")
-    )
-    .sort();
+  const entries = await readdir(directory, { withFileTypes: true });
   const result = {};
-  for (const name of names)
-    result[name] = createHash("sha256")
-      .update(await readFile(path.join(directory, name)))
+  const hash = async (filename, relativeName) => {
+    result[relativeName.split(path.sep).join("/")] = createHash("sha256")
+      .update(await readFile(filename))
       .digest("hex");
+  };
+  const captureObjects = async (objectRoot, relativeRoot) => {
+    const nested = await readdir(objectRoot, { withFileTypes: true });
+    for (const entry of nested.sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )) {
+      const filename = path.join(objectRoot, entry.name);
+      const relativeName = path.join(relativeRoot, entry.name);
+      if (entry.isDirectory()) await captureObjects(filename, relativeName);
+      else if (entry.isFile()) await hash(filename, relativeName);
+    }
+  };
+  for (const entry of entries.sort((left, right) =>
+    left.name.localeCompare(right.name)
+  )) {
+    const filename = path.join(directory, entry.name);
+    if (
+      entry.isFile() &&
+      (entry.name.endsWith(".db") ||
+        entry.name.endsWith(".db-wal") ||
+        entry.name.endsWith(".db-shm") ||
+        entry.name.endsWith(".db-journal") ||
+        entry.name.endsWith(".log"))
+    ) {
+      await hash(filename, entry.name);
+    } else if (entry.isDirectory() && entry.name.endsWith(".db.files")) {
+      await captureObjects(filename, entry.name);
+    }
+  }
   return result;
 }
 
