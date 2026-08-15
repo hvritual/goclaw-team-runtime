@@ -132,6 +132,7 @@ func (h *AttachmentHandler) preview(ctx kratoshttp.Context) error {
 }
 
 func (h *AttachmentHandler) download(ctx kratoshttp.Context) error {
+	promoteNativeDownloadWorkspace(ctx.Request())
 	_, value, ok := h.authorizeStored(ctx)
 	if !ok {
 		return nil
@@ -365,6 +366,15 @@ func textPreviewable(contentType, filename string) bool {
 
 func hasWorkspace(request *http.Request) bool {
 	return strings.TrimSpace(request.Header.Get("X-Workspace-ID")) != "" || strings.TrimSpace(request.Header.Get("X-Workspace-Slug")) != ""
+}
+
+func promoteNativeDownloadWorkspace(request *http.Request) {
+	if hasWorkspace(request) {
+		return
+	}
+	if workspaceSlug := strings.TrimSpace(request.URL.Query().Get("workspace_slug")); workspaceSlug != "" {
+		request.Header.Set("X-Workspace-Slug", workspaceSlug)
+	}
 }
 
 func setSecurityHeaders(header http.Header) {

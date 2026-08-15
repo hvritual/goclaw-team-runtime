@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -253,6 +254,10 @@ func TestSQLiteRuntimeHonorsCanonicalAttachmentBoundary(t *testing.T) {
 		download := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/download", "", map[string]string{"Cookie": "multica_auth=" + member.Token, "X-Workspace-Slug": fixture.workspaceSlug})
 		if download.Code != http.StatusOK || !bytes.Equal(download.Body.Bytes(), content) || !strings.Contains(download.Header().Get("Content-Disposition"), "contract.md") {
 			t.Fatalf("member download = %d headers=%v body=%q", download.Code, download.Header(), download.Body.String())
+		}
+		nativeDownload := runtimeRequest(fixture.runtime, http.MethodGet, "/api/attachments/"+attachment.ID+"/download?workspace_slug="+url.QueryEscape(fixture.workspaceSlug), "", map[string]string{"Cookie": "multica_auth=" + member.Token})
+		if nativeDownload.Code != http.StatusOK || !bytes.Equal(nativeDownload.Body.Bytes(), content) || !strings.Contains(nativeDownload.Header().Get("Content-Disposition"), "contract.md") {
+			t.Fatalf("native member download = %d headers=%v body=%q", nativeDownload.Code, nativeDownload.Header(), nativeDownload.Body.String())
 		}
 
 		second := runtimeRequest(fixture.runtime, http.MethodPost, "/api/workspaces", `{"name":"Attachment Context","slug":"attachment-context"}`, map[string]string{"Authorization": "Bearer " + fixture.login.Token, "Content-Type": "application/json"})
