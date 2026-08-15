@@ -1462,3 +1462,29 @@ Human approval are recorded.
   C9 acceptance scenario and repair selector/verifier evidence handling only
   within v10's authorized boundary; any product behavior failure stops the
   plan and requires a new version.
+
+## 2026-08-16 — M1-S7-C9-INTEGRATE-RED complete
+
+- Exact evidence-gate commit is
+  `bb9e44d` (`test(runtime): add C9 clean-candidate evidence gate`).  It changes
+  only v10-authorized `e2e/canonical-runtime.spec.ts` and
+  `scripts/canonical-runtime-verifier*`; committed `server/**` scope is empty.
+- The new verifier test first failed because
+  `captureArtifactHashes` omitted
+  `multica-canonical.db.files/objects/attachment.txt`.  The smallest GREEN
+  recursively hashes regular files below a `*.db.files` object root using
+  normalized relative names; the focused selector/verifier suite then passed
+  23/23.
+- The tracked C9 pre-restart scenario was run while the verified old runtime
+  was quiescent.  It failed as intended at
+  `page.goto(http://127.0.0.1:3000/login)` with
+  `net::ERR_CONNECTION_REFUSED`; this is a harness/startup RED, not a product
+  failure.  `pnpm exec playwright test e2e/canonical-runtime.spec.ts --list`
+  now discovers eight tracked scenarios, including C9 pre/post restart.
+- The C9 scenario records API-assisted state setup separately from visible
+  login/detail/attachment interaction, captures HTTP and WebSocket origin/path
+  plus received event types, includes Project and Pin readback, and rejects all
+  local failures except the explicitly deferred `/api/invitations` 404.
+- `M1-S7-C9-INTEGRATE-GREEN` is now the sole active step.  It may start only a
+  fresh clean candidate from the exact evidence-gate commit and must stop on a
+  missing local control/route, capability, persistence or realtime failure.
