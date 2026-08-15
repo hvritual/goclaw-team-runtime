@@ -26,15 +26,15 @@ const CANONICAL_CAPABILITIES = Object.freeze({
   issue_members: true,
   issue_reactions: true,
   issue_subscribers: true,
-  issue_attachments: false,
-  issue_labels: false,
-  issue_properties: false,
-  issue_pins: false,
+  issue_attachments: true,
+  issue_labels: true,
+  issue_properties: true,
+  issue_pins: true,
   issue_children: true,
-  issue_project: false,
+  issue_project: true,
   issue_child_progress: true,
   issue_batch: true,
-  issue_acceptance: false,
+  issue_acceptance: true,
 });
 
 export function expectedAcceptanceContract() {

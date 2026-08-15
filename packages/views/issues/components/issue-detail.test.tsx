@@ -313,6 +313,7 @@ const mockApiObj = vi.hoisted(() => ({
   removeCommentReaction: vi.fn(),
   listMembers: vi.fn().mockResolvedValue([{ user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" }]),
   listAgents: vi.fn().mockResolvedValue([]),
+  listPins: vi.fn().mockResolvedValue([]),
   getProject: vi.fn(),
   listProjects: vi.fn().mockResolvedValue({ projects: [] }),
   listIssuePullRequests: vi.fn().mockResolvedValue({ pull_requests: [] }),
@@ -659,6 +660,7 @@ describe("IssueDetail (shared)", () => {
     mockApiObj.listIssueAcceptanceConclusions.mockResolvedValue({ acceptanceConclusions: [], total: 0 });
     mockApiObj.listIssues.mockResolvedValue({ issues: [], total: 0 });
     mockApiObj.listAttachments.mockResolvedValue([]);
+    mockApiObj.listPins.mockResolvedValue([]);
     mockApiObj.deleteAttachment.mockResolvedValue(undefined);
     mockDescriptionUploadWithToast.mockResolvedValue(undefined);
     mockApiObj.listMembers.mockResolvedValue([
@@ -806,6 +808,77 @@ describe("IssueDetail (shared)", () => {
     expect(mockApiObj.listAttachments).not.toHaveBeenCalled();
     expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
     expect(document.querySelector('input[type="file"]')).not.toBeInTheDocument();
+  });
+
+  it("mounts every local detail consumer while external pull requests remain disabled", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: true,
+      issue_labels: true,
+      issue_properties: true,
+      issue_pins: true,
+      issue_children: true,
+      issue_batch: true,
+      issue_project: true,
+      issue_child_progress: true,
+      issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+    mockApiObj.getIssue.mockResolvedValue({ ...mockIssue, project_id: "p-1" });
+    mockApiObj.getProject.mockResolvedValue({
+      id: "p-1",
+      workspace_id: "ws-1",
+      title: "Complete local project",
+      description: null,
+      icon: null,
+      status: "planned",
+      priority: "none",
+      lead_type: null,
+      lead_id: null,
+      start_date: null,
+      due_date: null,
+      created_at: "2026-08-15T00:00:00Z",
+      updated_at: "2026-08-15T00:00:00Z",
+      issue_count: 1,
+      done_count: 0,
+      resource_count: 0,
+    });
+    mockApiObj.listChildIssues.mockResolvedValue({
+      issues: [{
+        ...mockIssue,
+        id: "child-1",
+        identifier: "TES-2",
+        number: 2,
+        title: "Complete local child",
+        parent_issue_id: mockIssue.id,
+      }],
+    });
+    mockApiObj.getChildIssueProgress.mockResolvedValue({
+      progress: [{ parent_issue_id: "child-1", total: 1, done: 0 }],
+    });
+
+    renderIssueDetail();
+
+    expect(await screen.findByText("Complete local project")).toBeInTheDocument();
+    expect(await screen.findByText("Complete local child")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockApiObj.listTimeline).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listIssueReactions).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listIssueSubscribers).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listAttachments).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listPins).toHaveBeenCalled();
+      expect(mockApiObj.getProject).toHaveBeenCalledWith("p-1");
+      expect(mockApiObj.listChildIssues).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.getChildIssueProgress).toHaveBeenCalled();
+      expect(mockApiObj.listLabelsForIssue).toHaveBeenCalledWith(mockIssue.id);
+      expect(mockApiObj.listProperties).toHaveBeenCalledWith(true);
+      expect(mockApiObj.listIssueAcceptanceConclusions).toHaveBeenCalledWith(mockIssue.id);
+    });
+    expect(mockApiObj.listIssuePullRequests).not.toHaveBeenCalled();
   });
 
   it("mounts attachment query and upload controls only when the capability is enabled", async () => {

@@ -293,6 +293,36 @@ func TestSQLiteRuntimeAdvertisesHonestIssueCapabilities(t *testing.T) {
 	}
 }
 
+func TestSQLiteRuntimeC9RequiresCompleteLocalIssueDetailCapabilities(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{Name: "backend-test", Version: "test", HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0", SQLitePath: filepath.Join(t.TempDir(), "config.db"), WorkspaceDependencies: FailClosedWorkspaceDependencies(), LocalAuth: auth.LocalAuthConfig{VerificationCode: "888888"}})
+	response := runtimeRequest(runtime, http.MethodGet, "/api/config", "", nil)
+	if response.Code != http.StatusOK {
+		t.Fatalf("config status = %d %s", response.Code, response.Body.String())
+	}
+
+	var config struct {
+		FeatureFlags map[string]bool `json:"feature_flags"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &config); err != nil {
+		t.Fatalf("decode config: %v", err)
+	}
+	requiredLocal := []string{
+		"issue_list", "issue_base_detail", "issue_timeline", "issue_members",
+		"issue_reactions", "issue_subscribers", "issue_attachments", "issue_labels",
+		"issue_properties", "issue_pins", "issue_children", "issue_project",
+		"issue_child_progress", "issue_batch", "issue_acceptance", "issue_metadata",
+		"issue_realtime", "issue_create",
+	}
+	for _, capability := range requiredLocal {
+		if !config.FeatureFlags[capability] {
+			t.Errorf("C9 local capability %q = false, want true", capability)
+		}
+	}
+	if config.FeatureFlags["issue_detail_pull_requests"] {
+		t.Error("external pull-request capability = true, want false")
+	}
+}
+
 func containsJSON(body []byte, fragments ...string) bool {
 	encoded := string(body)
 	for _, fragment := range fragments {

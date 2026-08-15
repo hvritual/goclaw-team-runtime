@@ -369,15 +369,15 @@ test("Canonical config enforces the complete frozen capability matrix", () => {
     issue_members: true,
     issue_reactions: true,
     issue_subscribers: true,
-    issue_attachments: false,
-    issue_labels: false,
-    issue_properties: false,
-    issue_pins: false,
+    issue_attachments: true,
+    issue_labels: true,
+    issue_properties: true,
+    issue_pins: true,
     issue_children: true,
-    issue_project: false,
+    issue_project: true,
     issue_child_progress: true,
     issue_batch: true,
-    issue_acceptance: false,
+    issue_acceptance: true,
   };
   assert.doesNotThrow(() => validateCanonicalConfig({ feature_flags }));
   for (const [key, expected] of Object.entries(feature_flags)) {
