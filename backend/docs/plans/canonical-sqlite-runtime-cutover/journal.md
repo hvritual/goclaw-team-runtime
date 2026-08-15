@@ -1488,3 +1488,28 @@ Human approval are recorded.
 - `M1-S7-C9-INTEGRATE-GREEN` is now the sole active step.  It may start only a
   fresh clean candidate from the exact evidence-gate commit and must stop on a
   missing local control/route, capability, persistence or realtime failure.
+
+## 2026-08-16 — C9 evidence-scenario development validation
+
+- Development-only candidate `2039a6e` exposed three test-harness assumptions,
+  not product failures: the full detail surface no longer renders the retired
+  `issue-base-detail` test ID; unauthenticated bootstrap probes precede the
+  cookie login; and the C8 restart test incorrectly required the complete
+  Issue attachment list to contain only its two synthetic IDs while C9 validly
+  retained another attachment.
+- `88ca4ea` (`test(runtime): stabilize C9 evidence trace`) removes only those
+  assumptions.  Its C9 gate starts failures after authenticated detail entry,
+  asserts current visible controls/text, and requires the C8 synthetic IDs to
+  be present without treating independent retained attachments as a failure.
+  It changes no product behavior or backend/API route.
+- On the development candidate, installed Chrome passed C9 pre-restart and
+  post-restart scenarios, C8 upload/preview/download, C8 retained readback and
+  C8 visible keyboard deletion.  Canonical verifier mutation and retained
+  metadata readback also passed.  This validation is intentionally not final
+  evidence because it predates the `88ca4ea` clean candidate and its retained
+  database/traces will not be reused.
+- The development runtime was stopped through its own selector and the fixed
+  local ports were again quiescent.  The next action remains
+  `M1-S7-C9-INTEGRATE-GREEN`: create an exact fresh clean candidate containing
+  `88ca4ea`, then repeat deterministic and live evidence without reusing the
+  development artifacts.
