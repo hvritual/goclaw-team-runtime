@@ -275,7 +275,28 @@ export function AttachmentList({
     <AttachmentDownloadProvider attachments={attachments}>
       <div className={cn("flex flex-col gap-1", className)}>
         {standalone.map((a) => (
-          <div key={a.id} data-attachment-id={a.id}>
+          <div
+            key={a.id}
+            data-attachment-id={a.id}
+            onClickCapture={(event) => {
+              // The shared editor chrome owns pointer deletion on mousedown.
+              // Native keyboard and assistive-technology activation instead
+              // emit a detail=0 click; bridge only that click to this
+              // Issue-owned remove callback so mouse activation is not run
+              // twice and preview/download buttons remain untouched.
+              if (!onRemove || event.detail !== 0) return;
+              const target = event.target instanceof Element
+                ? event.target.closest("button")
+                : null;
+              const removeButton = event.currentTarget.querySelector(
+                "button:last-of-type",
+              );
+              if (!target || target !== removeButton) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onRemove(a.id);
+            }}
+          >
             <AttachmentRenderer
               attachment={{ kind: "record", attachment: a }}
               editable={!!onRemove}

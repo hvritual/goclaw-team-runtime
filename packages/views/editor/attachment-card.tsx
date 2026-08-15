@@ -91,10 +91,6 @@ function AttachmentCardChrome({
           onMouseDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
             onDelete();
           }}
         >

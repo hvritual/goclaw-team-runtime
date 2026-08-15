@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -130,5 +131,42 @@ describe("AttachmentList — inline attachment filtering", () => {
 
     expect(screen.queryByText("report.pdf")).toBeNull();
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe("AttachmentList — accessible delete", () => {
+  it("invokes removal from native keyboard activation", async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    const attachment = {
+      id: "att-keyboard",
+      workspace_id: "ws-1",
+      issue_id: "issue-1",
+      comment_id: null,
+      chat_session_id: null,
+      chat_message_id: null,
+      uploader_type: "member",
+      uploader_id: "user-1",
+      filename: "notes.txt",
+      url: "/api/attachments/att-keyboard/download",
+      download_url: "/api/attachments/att-keyboard/download",
+      markdown_url: "/api/attachments/att-keyboard/download",
+      content_type: "text/plain",
+      size_bytes: 8,
+      created_at: "2026-08-15T00:00:00Z",
+    } as any;
+
+    const { container } = renderWithQuery(
+      <AttachmentList attachments={[attachment]} onRemove={onRemove} />,
+    );
+    const remove = container.querySelector<HTMLButtonElement>(
+      '[data-attachment-id="att-keyboard"] button:last-of-type',
+    );
+    expect(remove).not.toBeNull();
+    remove!.focus();
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+
+    expect(onRemove).toHaveBeenCalledTimes(2);
   });
 });

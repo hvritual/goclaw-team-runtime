@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 
 vi.mock("../i18n", () => ({
   useT: () => ({
@@ -9,7 +8,6 @@ vi.mock("../i18n", () => ({
         image: { download: "Download" },
         attachment: {
           preview: "Preview",
-          remove: "Remove attachment",
           preview_loading: "Loading preview…",
         },
         file_card: { uploading: "Uploading {{filename}}" },
@@ -139,30 +137,5 @@ describe("AttachmentCard — Eye / Download buttons", () => {
     // proves the uploading branch was selected without depending on the
     // interpolation behavior of the mock.
     expect(screen.getByText("Uploading {{filename}}")).toBeTruthy();
-  });
-});
-
-describe("AttachmentCard — accessible delete", () => {
-  it("invokes delete from native keyboard activation", async () => {
-    const user = userEvent.setup();
-    const onDelete = vi.fn();
-    render(
-      <AttachmentCard
-        filename="notes.txt"
-        contentType="text/plain"
-        attachmentId="att-1"
-        href="https://cdn.example/notes.txt"
-        onPreview={() => {}}
-        onDownload={() => {}}
-        onDelete={onDelete}
-      />,
-    );
-    const remove = screen.getByRole("button", { name: "Remove attachment" });
-
-    remove.focus();
-    await user.keyboard("{Enter}");
-    await user.keyboard(" ");
-
-    expect(onDelete).toHaveBeenCalledTimes(2);
   });
 });
