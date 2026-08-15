@@ -44,15 +44,15 @@ func (h *IssueCollaborationHandler) Register(server *kratoshttp.Server) {
 }
 
 type createCommentHTTPRequest struct {
-	Content       string    `json:"content"`
-	Type          string    `json:"type"`
-	ParentID      *string   `json:"parent_id"`
-	AttachmentIDs *[]string `json:"attachment_ids"`
+	Content       string           `json:"content"`
+	Type          string           `json:"type"`
+	ParentID      *string          `json:"parent_id"`
+	AttachmentIDs stringSlicePatch `json:"attachment_ids"`
 }
 
 type updateCommentHTTPRequest struct {
-	Content       string    `json:"content"`
-	AttachmentIDs *[]string `json:"attachment_ids"`
+	Content       string           `json:"content"`
+	AttachmentIDs stringSlicePatch `json:"attachment_ids"`
 }
 
 type reactionHTTPRequest struct {
@@ -108,7 +108,7 @@ func (h *IssueCollaborationHandler) createComment(ctx kratoshttp.Context) error 
 	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
 		return writeError(ctx, http.StatusBadRequest, "invalid request body")
 	}
-	if !h.attachmentsEnabled && request.AttachmentIDs != nil {
+	if !h.attachmentsEnabled && request.AttachmentIDs.Set {
 		return writeError(ctx, http.StatusBadRequest, "unsupported comment attachment field")
 	}
 	response, err := h.service.CreateIssueComment(requestContext, contract.CreateIssueCommentRequest{WorkspaceID: workspaceID, IssueID: issueID, Content: request.Content, Type: request.Type, ParentID: request.ParentID, AttachmentIDs: attachmentIDValues(request.AttachmentIDs)})
@@ -131,7 +131,7 @@ func (h *IssueCollaborationHandler) updateComment(ctx kratoshttp.Context) error 
 	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
 		return writeError(ctx, http.StatusBadRequest, "invalid request body")
 	}
-	if !h.attachmentsEnabled && request.AttachmentIDs != nil {
+	if !h.attachmentsEnabled && request.AttachmentIDs.Set {
 		return writeError(ctx, http.StatusBadRequest, "unsupported comment attachment field")
 	}
 	response, err := h.service.UpdateIssueComment(requestContext, contract.UpdateIssueCommentRequest{WorkspaceID: workspaceID, CommentID: comment.ID, Content: request.Content, AttachmentIDs: attachmentIDValues(request.AttachmentIDs)})
@@ -141,11 +141,11 @@ func (h *IssueCollaborationHandler) updateComment(ctx kratoshttp.Context) error 
 	return ctx.JSON(http.StatusOK, publicIssueComment(response))
 }
 
-func attachmentIDValues(values *[]string) []string {
-	if values == nil {
+func attachmentIDValues(values stringSlicePatch) []string {
+	if !values.Set || values.Value == nil {
 		return nil
 	}
-	return append([]string(nil), (*values)...)
+	return append([]string(nil), (*values.Value)...)
 }
 
 func (h *IssueCollaborationHandler) deleteComment(ctx kratoshttp.Context) error {

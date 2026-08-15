@@ -59,20 +59,20 @@ func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 }
 
 type createIssueHTTPRequest struct {
-	Title         string    `json:"title"`
-	Description   *string   `json:"description"`
-	Status        string    `json:"status"`
-	Priority      string    `json:"priority"`
-	AssigneeType  *string   `json:"assignee_type"`
-	AssigneeID    *string   `json:"assignee_id"`
-	ParentIssueID *string   `json:"parent_issue_id"`
-	ProjectID     *string   `json:"project_id"`
-	Position      float64   `json:"position"`
-	Stage         *int32    `json:"stage"`
-	StartDate     *string   `json:"start_date"`
-	DueDate       *string   `json:"due_date"`
-	AttachmentIDs *[]string `json:"attachment_ids"`
-	LabelIDs      []string  `json:"label_ids"`
+	Title         string           `json:"title"`
+	Description   *string          `json:"description"`
+	Status        string           `json:"status"`
+	Priority      string           `json:"priority"`
+	AssigneeType  *string          `json:"assignee_type"`
+	AssigneeID    *string          `json:"assignee_id"`
+	ParentIssueID *string          `json:"parent_issue_id"`
+	ProjectID     *string          `json:"project_id"`
+	Position      float64          `json:"position"`
+	Stage         *int32           `json:"stage"`
+	StartDate     *string          `json:"start_date"`
+	DueDate       *string          `json:"due_date"`
+	AttachmentIDs stringSlicePatch `json:"attachment_ids"`
+	LabelIDs      []string         `json:"label_ids"`
 }
 
 type updateIssueHTTPRequest struct {
@@ -89,7 +89,12 @@ type updateIssueHTTPRequest struct {
 	StartDate            contract.NullableStringPatch     `json:"start_date"`
 	DueDate              contract.NullableStringPatch     `json:"due_date"`
 	AcceptanceConclusion *acceptanceConclusionHTTPRequest `json:"acceptance_conclusion"`
-	AttachmentIDs        *[]string                        `json:"attachment_ids"`
+	AttachmentIDs        stringSlicePatch                 `json:"attachment_ids"`
+}
+
+type stringSlicePatch struct {
+	Set   bool
+	Value *[]string
 }
 
 type nullableInt32Patch struct {
@@ -121,6 +126,20 @@ func (p *nullableInt32Patch) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (p *stringSlicePatch) UnmarshalJSON(data []byte) error {
+	p.Set = true
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		p.Value = nil
+		return nil
+	}
+	var values []string
+	if err := json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	p.Value = &values
+	return nil
+}
+
 func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
 	if h.authenticate == nil {
 		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
@@ -145,12 +164,12 @@ func (h *IssueReadHandler) create(ctx kratoshttp.Context) error {
 	if len(request.LabelIDs) != 0 {
 		return writeError(ctx, http.StatusBadRequest, "unsupported issue create field")
 	}
-	if !h.attachmentsEnabled && request.AttachmentIDs != nil {
+	if !h.attachmentsEnabled && request.AttachmentIDs.Set {
 		return writeError(ctx, http.StatusBadRequest, "unsupported issue attachment field")
 	}
 	var attachmentIDs []string
-	if request.AttachmentIDs != nil {
-		attachmentIDs = append([]string(nil), (*request.AttachmentIDs)...)
+	if request.AttachmentIDs.Value != nil {
+		attachmentIDs = append([]string(nil), (*request.AttachmentIDs.Value)...)
 	}
 	result, err := h.service.CreateIssue(requestContext, contract.CreateIssueRequest{
 		WorkspaceId: workspaceID, Title: request.Title, Description: request.Description,
@@ -196,7 +215,7 @@ func (h *IssueReadHandler) update(ctx kratoshttp.Context) error {
 	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
 		return writeError(ctx, http.StatusBadRequest, "invalid request body")
 	}
-	if !h.attachmentsEnabled && request.AttachmentIDs != nil {
+	if !h.attachmentsEnabled && request.AttachmentIDs.Set {
 		return writeError(ctx, http.StatusBadRequest, "unsupported issue attachment field")
 	}
 	if request.AcceptanceConclusion != nil {
@@ -234,14 +253,14 @@ func acceptanceOnlyUpdate(request updateIssueHTTPRequest) bool {
 	return request.Title == nil && request.Description == nil && request.Priority == nil &&
 		!request.AssigneeType.Set && !request.AssigneeID.Set && !request.ParentIssueID.Set &&
 		!request.ProjectID.Set && request.Position == nil && !request.Stage.Set &&
-		!request.StartDate.Set && !request.DueDate.Set && request.AttachmentIDs == nil
+		!request.StartDate.Set && !request.DueDate.Set && !request.AttachmentIDs.Set
 }
 
-func attachmentIDsUpdate(values *[]string) *contract.IssueAssetIDs {
-	if values == nil {
+func attachmentIDsUpdate(values stringSlicePatch) *contract.IssueAssetIDs {
+	if !values.Set || values.Value == nil {
 		return nil
 	}
-	return &contract.IssueAssetIDs{Values: append([]string(nil), (*values)...)}
+	return &contract.IssueAssetIDs{Values: append([]string(nil), (*values.Value)...)}
 }
 
 func (h *IssueReadHandler) move(ctx kratoshttp.Context) error {

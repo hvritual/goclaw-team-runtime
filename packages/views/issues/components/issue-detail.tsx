@@ -1381,11 +1381,6 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
   // calling `/api/attachments/{id}`.
   const { data: issueAttachments } = useQuery({ ...issueAttachmentsOptions(id), enabled: attachmentsEnabled });
   const { mutate: deleteIssueAttachment } = useDeleteIssueAttachment(id);
-  const handleRemoveIssueAttachment = useCallback((attachmentId: string) => {
-    deleteIssueAttachment(attachmentId, {
-      onError: (error) => toast.error(error instanceof Error && error.message ? error.message : "Failed to delete attachment"),
-    });
-  }, [deleteIssueAttachment]);
 
   // Sub-issue queries
   const parentIssueId = issue?.parent_issue_id;
@@ -1580,6 +1575,19 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
     descPendingAttachmentsRef.current = [];
     setDescPendingAttachments([]);
   }, [id]);
+
+  const handleRemoveIssueAttachment = useCallback((attachmentId: string) => {
+    deleteIssueAttachment(attachmentId, {
+      onSuccess: () => {
+        const retained = descPendingAttachmentsRef.current.filter(
+          (attachment) => attachment.id !== attachmentId,
+        );
+        descPendingAttachmentsRef.current = retained;
+        setDescPendingAttachments(retained);
+      },
+      onError: (error) => toast.error(error instanceof Error && error.message ? error.message : "Failed to delete attachment"),
+    });
+  }, [deleteIssueAttachment]);
 
   // Shared issue actions (mutations, pin, copy-link, modal dispatch, etc.).
   // Called before the `if (!issue)` early return so hook order stays stable.

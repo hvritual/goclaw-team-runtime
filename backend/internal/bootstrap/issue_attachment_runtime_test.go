@@ -480,8 +480,10 @@ func TestSQLiteRuntimeDisabledAttachmentCapabilityRejectsIssueRelationWrites(t *
 	}{
 		{http.MethodPost, "/api/issues", `{"title":"Disabled attachment create","attachment_ids":["` + attachment.ID + `"]}`},
 		{http.MethodPost, "/api/issues", `{"title":"Disabled empty attachment create","attachment_ids":[]}`},
+		{http.MethodPost, "/api/issues", `{"title":"Disabled null attachment create","attachment_ids":null}`},
 		{http.MethodPut, "/api/issues/" + fixture.issueID, `{"attachment_ids":["` + attachment.ID + `"]}`},
 		{http.MethodPut, "/api/issues/" + fixture.issueID, `{"attachment_ids":[]}`},
+		{http.MethodPut, "/api/issues/" + fixture.issueID, `{"attachment_ids":null}`},
 	} {
 		response := runtimeRequest(restarted, probe.method, probe.path, probe.body, fixture.headers)
 		if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != `{"error":"unsupported issue attachment field"}` {
@@ -492,7 +494,9 @@ func TestSQLiteRuntimeDisabledAttachmentCapabilityRejectsIssueRelationWrites(t *
 		method, path, body string
 	}{
 		{http.MethodPost, "/api/issues/" + fixture.issueID + "/comments", `{"content":"blocked comment","attachment_ids":["` + attachment.ID + `"]}`},
+		{http.MethodPost, "/api/issues/" + fixture.issueID + "/comments", `{"content":"blocked null comment","attachment_ids":null}`},
 		{http.MethodPut, "/api/comments/" + comment.ID, `{"content":"retained comment","attachment_ids":[]}`},
+		{http.MethodPut, "/api/comments/" + comment.ID, `{"content":"retained comment","attachment_ids":null}`},
 	} {
 		response := runtimeRequest(restarted, probe.method, probe.path, probe.body, fixture.headers)
 		if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != `{"error":"unsupported comment attachment field"}` {

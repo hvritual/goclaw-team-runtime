@@ -21,6 +21,7 @@ const mockViewport = vi.hoisted(() => ({ isMobile: false }));
 // Counts MockContentEditor mounts. This pins the description to exactly one
 // eager editor per issue and catches stale editor reuse across issue switches.
 const contentEditorMounts = vi.hoisted(() => ({ count: 0 }));
+const mockDescriptionUploadWithToast = vi.hoisted(() => vi.fn());
 // Stable empty-attachments reference: the real store returns a shared constant
 // so the `useCommentDraftStore(s => s.getAttachments(key))` selector keeps a
 // stable identity. A fresh `[]` per call would loop useSyncExternalStore.
@@ -145,7 +146,7 @@ vi.mock("../../editor", async () => ({
     "../../editor/use-composer-submit",
   )),
   useEditorUpload: () => ({
-    uploadWithToast: vi.fn(),
+    uploadWithToast: mockDescriptionUploadWithToast,
     upload: vi.fn(),
     uploading: false,
   }),
@@ -182,6 +183,7 @@ vi.mock("../../editor", async () => ({
       defaultValue,
       value: syncedValue,
       onUpdate,
+      onUploadFile,
       placeholder,
       flushPendingOnUnmount,
       onReady,
@@ -215,7 +217,7 @@ vi.mock("../../editor", async () => ({
       // Mocks track ids only — no document to draw into.
       insertUploadPlaceholder: () => true,
       settleUploadPlaceholder: () => false,
-      uploadFile: () => {},
+      uploadFile: (file: File) => onUploadFile?.(file),
     }));
     return (
       <textarea
@@ -658,6 +660,7 @@ describe("IssueDetail (shared)", () => {
     mockApiObj.listIssues.mockResolvedValue({ issues: [], total: 0 });
     mockApiObj.listAttachments.mockResolvedValue([]);
     mockApiObj.deleteAttachment.mockResolvedValue(undefined);
+    mockDescriptionUploadWithToast.mockResolvedValue(undefined);
     mockApiObj.listMembers.mockResolvedValue([
       { user_id: "user-1", name: "Test User", email: "test@test.com", role: "admin" },
     ]);
@@ -868,6 +871,75 @@ describe("IssueDetail (shared)", () => {
     expect(await screen.findByText("retained.txt")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remove attachment" }));
     await waitFor(() => expect(mockApiObj.deleteAttachment).toHaveBeenCalledWith("attachment-a"));
+  });
+
+  it("does not rebind a same-page pending upload after its visible delete succeeds", async () => {
+    configStore.getState().setFeatureFlags({
+      issue_base_detail: true,
+      issue_timeline: true,
+      issue_members: true,
+      issue_reactions: true,
+      issue_subscribers: true,
+      issue_attachments: true,
+      issue_labels: true,
+      issue_properties: true,
+      issue_children: true,
+      issue_batch: true,
+      issue_child_progress: true,
+      issue_acceptance: true,
+      issue_detail_pull_requests: false,
+    });
+    const attachment = {
+      id: "attachment-a",
+      workspace_id: "ws-1",
+      issue_id: mockIssue.id,
+      comment_id: null,
+      chat_session_id: null,
+      chat_message_id: null,
+      uploader_type: "member" as const,
+      uploader_id: "user-1",
+      filename: "pending.txt",
+      url: "/api/attachments/attachment-a/download",
+      download_url: "/api/attachments/attachment-a/download",
+      markdown_url: "/api/attachments/attachment-a/download",
+      content_type: "text/plain; charset=utf-8",
+      size_bytes: 8,
+      created_at: "2026-08-15T00:00:00Z",
+    };
+    mockApiObj.listAttachments
+      .mockResolvedValueOnce([attachment])
+      .mockResolvedValueOnce([attachment])
+      .mockResolvedValue([]);
+    mockDescriptionUploadWithToast.mockResolvedValue(attachment);
+    mockApiObj.updateIssue.mockResolvedValue(mockIssue);
+
+    const { container } = renderIssueDetail();
+    expect(await screen.findByText("pending.txt")).toBeInTheDocument();
+    const uploadInput = container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(uploadInput).not.toBeNull();
+    fireEvent.change(uploadInput!, {
+      target: { files: [new File(["pending"], "pending.txt", { type: "text/plain" })] },
+    });
+    await waitFor(() => expect(mockDescriptionUploadWithToast).toHaveBeenCalled());
+
+    const editor = await screen.findByDisplayValue("Add JWT auth to the backend");
+    const referenced = `Keep [pending.txt](${attachment.markdown_url})`;
+    fireEvent.change(editor, { target: { value: referenced } });
+    await waitFor(() => {
+      expect(mockApiObj.updateIssue).toHaveBeenCalledWith("issue-1", expect.objectContaining({
+        attachment_ids: ["attachment-a"],
+      }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove attachment" }));
+    await waitFor(() => expect(mockApiObj.deleteAttachment).toHaveBeenCalledWith("attachment-a"));
+    mockApiObj.updateIssue.mockClear();
+    fireEvent.change(editor, { target: { value: `${referenced} edited` } });
+    await waitFor(() => {
+      expect(mockApiObj.updateIssue).toHaveBeenCalledWith("issue-1", expect.objectContaining({
+        attachment_ids: [],
+      }));
+    });
   });
 
   it("submits the complete authoritative attachment bag on description autosave", async () => {

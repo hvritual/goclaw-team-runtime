@@ -33,7 +33,7 @@ import {
 } from "./delete-cache";
 import { useWorkspaceId } from "../hooks";
 import { useRecentIssuesStore } from "./stores";
-import type { GroupedIssuesResponse, Issue, IssueAssigneeGroup, IssueReaction, IssueStatus } from "../types";
+import type { Attachment, GroupedIssuesResponse, Issue, IssueAssigneeGroup, IssueReaction, IssueStatus } from "../types";
 import type {
   CreateIssueRequest,
   ListIssuesCache,
@@ -73,7 +73,10 @@ export function useDeleteIssueAttachment(issueId: string) {
   const workspaceId = useWorkspaceId();
   return useMutation({
     mutationFn: (attachmentId: string) => api.deleteAttachment(attachmentId),
-    onSuccess: () => {
+    onSuccess: (_data, attachmentId) => {
+      queryClient.setQueryData<Attachment[]>(issueKeys.attachments(issueId), (current) =>
+        current?.filter((attachment) => attachment.id !== attachmentId),
+      );
       queryClient.invalidateQueries({ queryKey: issueKeys.attachments(issueId) });
       queryClient.invalidateQueries({ queryKey: issueKeys.detail(workspaceId, issueId) });
     },
