@@ -1513,3 +1513,70 @@ Human approval are recorded.
   `M1-S7-C9-INTEGRATE-GREEN`: create an exact fresh clean candidate containing
   `88ca4ea`, then repeat deterministic and live evidence without reusing the
   development artifacts.
+
+## 2026-08-16 — M1-S7-C9-INTEGRATE-GREEN and VERIFY complete
+
+- The final browser/evidence candidate is detached clean commit
+  `fdb3a3e76b940bb57247e7564d1ac4e4b26f7aef` at
+  `F:\code\ai\goclaw-team-runtime-c9-v10-final-fdb3a3e`.  Its status was empty
+  before startup; its committed range from the v10 base has no `server/**`
+  path, its tracked/untracked `server/**` scopes are empty, and `git diff
+  --check` passes.  The primary worktree's dirty Input/table/create-modal and
+  local-artifact paths were not present in the candidate.
+- Three evidence-only commits after the earlier development checkpoint fixed
+  stale detail selectors and delayed C9 route-trace capture until the
+  authenticated page reached network idle:
+  `1586eadf7240b27884cbb4938d88f7bd450c1305`,
+  `5d8a48d68b78f2892388339843931bbfa9ff23d2`, and the final
+  `fdb3a3e76b940bb57247e7564d1ac4e4b26f7aef`.  They change only the v10
+  authorized Playwright evidence path; no product route, capability or backend
+  behavior changed.
+- Final deterministic gates on that exact candidate passed: focused Auth,
+  Workspace, Bootstrap and server Go tests; `go test ./... -count=1`; `go vet
+  ./...`; `go mod verify`; Core tests `91 files / 589 tests`, Core typecheck
+  and lint; Views focused tests `2 files / 49 tests` and typecheck; Web
+  typecheck; selector/verifier tests `23/23`; and Playwright discovery `8`
+  scenarios.  No Go path changed in the v10 range, so `gofmt -d` had no
+  candidate Go input.  Windows race exit `0xc0000139` was not run or claimed.
+- The final candidate selector first started/stopped the empty migrated
+  database, then the quiescent fixture command created
+  `canonical-fixture@multica.local`, Workspace `canonical-fixture` and Issue
+  `CAN-1`.  It subsequently owned only local `3000/8000/9000`; `8080` had no
+  local listener.  Health, readiness and Web root returned `ok`, `ready` and
+  `200` at each required startup.
+- Installed system Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`,
+  Playwright user agent `HeadlessChrome/151.0.0.0`) passed all final journeys:
+  the three baseline login/Workspace/Issue/Projects scenarios; C9 complete
+  pre-restart detail; C8 upload/preview/download; a same-database restart plus
+  verifier retained metadata readback; C9 post-restart detail; C8 retained
+  attachment readback; and C8 visible synthetic-attachment deletion.
+- Sanitized final C9 traces are
+  `.local-runtime/c9-v10-evidence/c9-pre-restart.json`
+  (`9C7659E2272928AEE47F92C2A794575BA6C19E2A804855CFEE97273864EF9CF8`)
+  and `.local-runtime/c9-v10-evidence/c9-post-restart.json`
+  (`9A07412EAD97E020678DD414E89B51CB2BE3921CE37AC3CFD7D064699D3902B3`).
+  Both name the exact final candidate, use only same-origin
+  `127.0.0.1:3000` HTTP/`ws://127.0.0.1:3000/ws`, contain no `:8080` request,
+  and prove the frozen edit, move, hierarchy, collaboration, labels,
+  properties, acceptance, attachment and realtime state.  The only C9 trace
+  failures are the explicitly deferred `/api/invitations` 404 probes.
+- Final C8 trace hashes are upload
+  `2EEEE49C3377DD6EBFCB6DAE48CE06D2419CC06F5C04C5D319ACF2C8128F07EE`,
+  restart readback
+  `083D995D64A5D88D345BFD08BAA8C36C3A9DA105212E5D931FA8FABB0B8BF976`, and
+  visible deletion
+  `20CD43D49DBD0DA8C13C468D5A0C4B859F6F59A95DCDFAFD3DB305233EEEC517`.
+  Its pre-login `/api/me` and `/api/workspaces` 401s, deferred invitations
+  404s, and the expected post-delete attachment 404 are classified evidence,
+  not missing Canonical routes.
+- Verifier mutation value `retained-1786820191090` read back after the first
+  restart and again after selector rollback/reselect/restart.  While quiescent,
+  snapshot and preserved checks reported identical SHA-256 values for
+  `multica-canonical.db`, canonical backend/Web logs, and the retained asset
+  object
+  `multica-canonical.db.files/01990000-0000-7000-8000-000000000003/025d2518-00ef-44e8-98fb-98a83909ced7/706ab8d0-23dd-44bb-b785-0ae32dce015b.blob`.
+  The selector was restored without starting legacy and the final candidate
+  runtime was stopped; `3000/8000/8080/9000` are all quiescent.
+- `M1-S7-C9-INTEGRATE-GREEN` and `M1-S7-C9-INTEGRATE-VERIFY` are complete.
+  The sole active step is now `M1-S7-C9-REVIEW`; no Customer acceptance is
+  inferred or recorded by this entry.

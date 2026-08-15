@@ -4,10 +4,10 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-INTEGRATE` (C7 and C8 Customer Accepted; complete
-  local Issue-detail capability RED and GREEN proven; clean-candidate browser,
-  restart, rollback, independent final review and milestone Customer acceptance
-  pending).
+- Current story: `M1-S7-C9-REVIEW` (C7 and C8 Customer Accepted; complete
+  local Issue-detail capability plus the fresh-clean-candidate browser, restart
+  and rollback gates are proven; independent final review and milestone Customer
+  acceptance remain pending).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -173,7 +173,7 @@ advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
 
-As of 2026-08-16, `plan_v10.md` makes only
-`M1-S7-C9-INTEGRATE-PREFLIGHT` active.  The C9 capability matrix is GREEN, but
-the fresh-clean-candidate integration, final review and Customer milestone
+As of 2026-08-16, the approved v10 execution state in `plan.md` has advanced
+to `M1-S7-C9-REVIEW`.  The C9 capability matrix and fresh-clean-candidate
+integration evidence are GREEN; independent final review and Customer milestone
 acceptance are still pending.
