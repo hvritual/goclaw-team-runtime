@@ -9,6 +9,7 @@ import (
 
 	"github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/space/internal/application"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 type AttachmentRepository struct{ db *sql.DB }
@@ -181,20 +182,56 @@ func scanAttachment(row rowScanner) (application.StoredAttachment, error) {
 	return value, nil
 }
 
+const (
+	attachmentWriteAcquireBudget  = 8 * time.Second
+	attachmentWriteAcquireRetries = 2
+)
+
 func (r *AttachmentRepository) writeConnection(ctx context.Context, label string) (*sql.Conn, error) {
-	connection, err := r.db.Conn(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("acquire %s connection: %w", label, err)
+	acquireContext, cancel := context.WithTimeout(ctx, attachmentWriteAcquireBudget)
+	defer cancel()
+	for attempt := 0; ; attempt++ {
+		connection, err := r.db.Conn(acquireContext)
+		if err != nil {
+			return nil, fmt.Errorf("acquire %s connection: %w", label, err)
+		}
+		if _, err := connection.ExecContext(acquireContext, `PRAGMA busy_timeout = 5000`); err != nil {
+			connection.Close()
+			return nil, fmt.Errorf("configure %s lock wait: %w", label, err)
+		}
+		if _, err := connection.ExecContext(acquireContext, `BEGIN IMMEDIATE`); err == nil {
+			return connection, nil
+		} else {
+			connection.Close()
+			if !isSQLiteWriteContention(err) || attempt >= attachmentWriteAcquireRetries || acquireContext.Err() != nil {
+				return nil, fmt.Errorf("begin %s: %w", label, err)
+			}
+			if err := waitForAttachmentWriteRetry(acquireContext, attempt); err != nil {
+				return nil, fmt.Errorf("begin %s: %w", label, err)
+			}
+		}
 	}
-	if _, err := connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
-		connection.Close()
-		return nil, fmt.Errorf("configure %s lock wait: %w", label, err)
+}
+
+func isSQLiteWriteContention(err error) bool {
+	var coded interface{ Code() int }
+	if !errors.As(err, &coded) {
+		return false
 	}
-	if _, err := connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
-		connection.Close()
-		return nil, fmt.Errorf("begin %s: %w", label, err)
+	code := coded.Code() & 0xff
+	return code == sqlite3.SQLITE_BUSY || code == sqlite3.SQLITE_LOCKED
+}
+
+func waitForAttachmentWriteRetry(ctx context.Context, attempt int) error {
+	delay := 20 * time.Millisecond * time.Duration(attempt+1)
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
-	return connection, nil
 }
 
 func rollback(ctx context.Context, connection *sql.Conn, committed *bool) {

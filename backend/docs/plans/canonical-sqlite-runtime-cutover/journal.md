@@ -1328,3 +1328,45 @@ Human approval are recorded.
   installed-Chrome journey, retained restart and realtime evidence, quiescent
   rollback hashes, independent final review and explicit Human Customer
   milestone acceptance remain required.
+
+## 2026-08-15 — M1-S7-C9 retained attachment-concurrency gate failure
+
+- Exact clean candidate `0888efc` completed the installed-Chrome C9 journey,
+  restart/readback and rollback proof, but the required Backend full gate
+  `go test ./... -count=1` failed in
+  `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`.
+  Twelve authenticated uploads to one Issue expected twelve successful
+  attachment responses, durable references and files; one response instead was
+  `500 {"error":"attachment operation failed"}`.  The failure is retained as a
+  C9 integration blocker and is not reclassified by later passing repetitions.
+- A diagnosis-only focused run of the same test passed twenty consecutive
+  counts.  This confirms intermittency but is not a replacement for the failed
+  full-gate evidence.  No product code changed during diagnosis.
+- Under plan-v9 RED, the new repository-level deterministic contention test
+  held twelve `BEGIN IMMEDIATE` transactions for 550ms each against a
+  16-connection file SQLite database.  Before the repair it failed after
+  5.46s with the classified output
+  `begin attachment creation: database is locked (5) (SQLITE_BUSY)`.  The test
+  also requires its contention window to exceed the original five-second
+  SQLite wait, so it cannot silently become a no-contention pass.
+- The Human Customer confirmed execution.  Approved plan v9 records the narrow
+  `M1-S7-C9-ATTACHMENT-CONCURRENCY-RED` repair authority: classify the failure,
+  add deterministic RED evidence, make only a bounded Canonical SQLite
+  transaction repair if justified, and re-run independent review before C9
+  integration can resume.
+
+## 2026-08-15 — M1-S7-C9 attachment-concurrency GREEN pending review
+
+- `AttachmentRepository.writeConnection` now gives `BEGIN IMMEDIATE`
+  acquisition a shared eight-second, caller-context-aware budget.  It retries
+  only classified SQLite `BUSY`/`LOCKED` acquisition failures, at most twice
+  with 20ms/40ms backoff.  It closes failed acquisition connections and never
+  retries insert, bind, storage, constraint, rollback or commit failures.
+- The deterministic repository RED is GREEN three consecutive times (each
+  crosses the original five-second lock wait); the real 12-request Runtime
+  upload/list/file contract passes ten consecutive counts.  Focused Canonical
+  Space/Workspace/bootstrap/server tests, the complete Backend test suite,
+  vet and module verification pass after the final test assertion.
+- The repair remains uncommitted and C9 remains blocked.  Independent
+  code/security and specification/evidence reviews must return no P0-P2 before
+  a later approved plan entry can reactivate C9 integration.
