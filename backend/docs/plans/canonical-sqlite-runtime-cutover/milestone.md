@@ -97,10 +97,10 @@ Human Customer acceptance remains required before `Milestone Accepted`.
 On 2026-08-15 the Human Customer accepted `M1-S7-C8` after its repaired exact
 candidate received independent CODE and SPEC/EVIDENCE PASS with no P0-P2.
 The v9 repair independently closed the C9 attachment-concurrency full-gate
-blocker.  On 2026-08-16 plan v10 retained fresh-clean-candidate deterministic,
-installed-Chrome, restart and rollback evidence, but independent review found
-one P1: the HTTP `:8080` evidence gate is incomplete.  Invitations remain an
-approved plan-v7 capability-off/non-goal and are not an enabled-detail C9
-failure.  The authorized v10 E2E/trace repair, clean-candidate rerun,
-independent review and explicit Human Customer milestone acceptance remain
-before `Milestone Accepted`.
+blocker.  On 2026-08-16 plan v10 repaired the HTTP `:8080` trace harness and
+then exposed a product P1 in a fresh clean candidate: the authenticated C9
+detail journey received two `GET /api/issues` responses with status 500.
+Invitations remain an approved plan-v7 capability-off/non-goal and are not an
+enabled-detail C9 failure.  An approved product-repair plan_v11, clean
+candidate rerun, independent review and explicit Human Customer milestone
+acceptance remain before `Milestone Accepted`.

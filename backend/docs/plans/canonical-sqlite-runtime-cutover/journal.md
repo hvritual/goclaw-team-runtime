@@ -1647,3 +1647,36 @@ Human approval are recorded.
   This is test/evidence-only work; no product route, capability, frontend or
   backend behavior changed.  `M1-S7-C9-INTEGRATE-GREEN` is the sole active
   step pending a fresh detached clean-candidate integration run.
+
+## 2026-08-16 — M1-S7-C9 v10 clean-candidate browser gate stopped
+
+- Exact clean candidate: `f63a9791a5f7522d7fcbc7ecea059bda58889c30` in
+  `F:\code\ai\goclaw-team-runtime-c9-v10-raw-f63a979`.  It was clean before
+  execution; its source scope excludes `server/**` and every user-dirty path.
+  Candidate-local offline dependencies were installed from the frozen lockfile.
+- Deterministic gates passed before Chrome: Backend `go test ./... -count=1`,
+  `go vet ./...`, `go mod verify`; Core 91 files/589 tests plus typecheck/lint;
+  focused Views 2 files/49 tests plus typecheck; Web typecheck; selector/verifier
+  23/23; Playwright discovery 10 scenarios; and diff/server-scope checks.
+- The candidate selector initialized the migrated database, the explicit
+  `canonical-fixture` seeded `CAN-1`, and runtime health/readiness passed.
+  The first verifier-mutate shell invocation ended in a local post-start timeout
+  before writing `restart_readback`; a subsequent read-only verifier branch and
+  direct authenticated GET plus controlled local PUT/GET confirmed the runtime
+  state.  After the Next/Web warm-up, the formal verifier mutation succeeded with retained value
+  `retained-1786823436043`.  Chrome 151 then passed the three baseline
+  Canonical login/Workspace/Issue/Projects journeys.
+- The C9 pre-restart journey stopped at its raw enabled-detail failure gate:
+  it recorded two authenticated same-origin `GET /api/issues` responses with
+  status `500`.  Expected was zero actionable local failures.  The retained
+  Playwright failure context is
+  `test-results/canonical-runtime-C9-clean-950ab-Issue-detail-before-restart-chromium/error-context.md`
+  (SHA-256 `CDEF56C12E6451448E05B154B5241EFDCAC886D3AFD04A6CA42DCE2359ADC646`).
+  A later direct authenticated GET returned 200, but that does not erase the
+  observed browser failure and was not used as a retry claim.
+- Per v10 stop conditions, no C8/C9 restart, rollback, Chrome rerun or product
+  repair was attempted.  The candidate runtime was stopped through its owned
+  selector; `3000/8000/8080/9000` are quiescent.  This is a P1 product failure,
+  not an invitation non-goal or a trace-harness classification issue.  C9 and
+  the milestone remain unaccepted pending an approved `plan_v11.md` that first
+  reproduces and repairs the list-route failure with deterministic coverage.

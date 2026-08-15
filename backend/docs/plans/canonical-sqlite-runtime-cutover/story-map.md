@@ -4,10 +4,10 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-INTEGRATE-GREEN` (C7 and C8 Customer Accepted; the
-  v10 E2E-only repair records raw request/response/failure evidence before
-  origin filtering. C9 remains technically unaccepted pending a fresh clean
-  candidate and independent review.)
+- Current story: `M1-S7-C9-BLOCKED` (C7 and C8 Customer Accepted; the v10
+  E2E-only trace repair exposed two authenticated `GET /api/issues` 500
+  responses in the clean-candidate C9 detail journey. A product repair needs
+  an approved plan_v11 before C9 can resume.)
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -173,8 +173,8 @@ advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
 
-As of 2026-08-16, v10 final review retained one P1 evidence gap: the browser
-network trace cannot yet prove zero HTTP legacy traffic to `:8080`.  The
-approved v10 E2E/trace-only boundary resumes at INTEGRATE-RED to repair that
-evidence gate.  C9 remains technically and Customer-unaccepted until a fresh
-clean-candidate run and independent review pass.
+As of 2026-08-16, v10 resumed at INTEGRATE-RED to repair its HTTP `:8080`
+evidence gate.  Its clean-candidate journey then exposed two authenticated
+`GET /api/issues` responses with status 500.  C9 is blocked pending an
+approved product-repair plan_v11, a fresh clean-candidate run and independent
+review; it remains technically and Customer-unaccepted.
