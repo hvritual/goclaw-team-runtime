@@ -1435,3 +1435,30 @@ Human approval are recorded.
 - Story-map and milestone wording that still called C9 generically “active” is
   superseded by `plan.md`: only the v10 preflight step is active.  C9 technical
   and Customer acceptance remain pending.
+
+## 2026-08-16 — M1-S7-C9-INTEGRATE-PREFLIGHT complete
+
+- Exact v10 planning commit is
+  `f6a1f67ca64c8064418fc67fe2c82293901ed38a`; its `plan_v10.md` SHA-256 is
+  `E1E0E37E337864688029EFAEB947A219B88451C60513C34D69B325B36B953AB8`.
+  Detached clean candidate
+  `F:\code\ai\goclaw-team-runtime-c9-v10-clean-f6a1f67` was created directly
+  from that commit with empty status, empty tracked/untracked `server/**`
+  scope and a passing `git diff --check`.
+- Before any new candidate startup, the older manifest-owned launcher tree in
+  `F:\code\ai\goclaw-team-runtime-c9-clean-0888efc` was verified as the owner
+  of local `3000/8000/9000` through recorded parent/child processes
+  (`go.exe`/`server.exe` and Node/Next).  It was stopped through that exact
+  worktree's `node scripts/runtime-selector.mjs stop`, which reported
+  `{"stopped":true,"mode":"canonical"}`.
+- Post-stop inspection found no local listener on `3000`, `8000`, `8080` or
+  `9000`, and none of the recorded launcher/child PIDs remained.  The absence
+  of a local `8080` listener is scoped to the Canonical/legacy runtime; it does
+  not make a host-wide claim about unrelated outbound software.
+- The old candidate's attachment repository has no v9 retry helper, so its
+  historical Chrome/rollback artifacts remain retained evidence only.  They
+  cannot be reused as the final repaired C9 candidate proof.
+- `M1-S7-C9-INTEGRATE-RED` is now the sole active step.  It may add a tracked
+  C9 acceptance scenario and repair selector/verifier evidence handling only
+  within v10's authorized boundary; any product behavior failure stops the
+  plan and requires a new version.
