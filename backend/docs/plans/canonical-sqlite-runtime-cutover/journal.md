@@ -1190,3 +1190,91 @@ Human approval are recorded.
 - Clean-candidate repair integration is proven, but both independent read-only
   re-reviews are still required. The active step remains
   `M1-S7-C8-REPAIR-INTEGRATE`; C8 is not yet accepted and C9 remains inactive.
+
+## 2026-08-15 — M1-S7-C8 independent findings repaired and final evidence retained
+
+- The first plan-v8 independent re-reviews did not pass. Code review found that
+  explicit `attachment_ids:null` was still indistinguishable from omission
+  while the capability was disabled, and that a successful same-page visible
+  delete left the pending-upload ref able to re-submit the deleted ID on the
+  next description autosave. Specification review found that the real shared
+  attachment card handled pointer `onMouseDown` only, so Enter/Space did not
+  activate its otherwise labelled delete button. C8 therefore remained
+  unaccepted and C9 remained inactive.
+- Focused RED/GREEN repairs now preserve JSON field presence for Issue and
+  Comment create/update, so arrays, empty arrays and explicit null are all
+  rejected when attachments are disabled. The Core delete mutation removes a
+  successful delete from the authoritative attachment cache before
+  invalidation, while IssueDetail removes it from the pending ref/state only on
+  success. The upload-bind-delete-same-page regression proves the next edit
+  submits an empty complete bag rather than resurrecting the deleted ID.
+- The keyboard repair was deliberately relocated out of the shared editor and
+  into the plan-authorized Issue attachment wrapper. Pointer activation remains
+  owned by the editor, while keyboard/screen-reader generated clicks are
+  captured once by the Issue wrapper. A real component test proves both Enter
+  and Space. The cumulative repair diff therefore contains no
+  `packages/views/editor/**`, `server/**`, or unrelated dirty Input/table/create
+  paths.
+- A stopped detached run at commit `7cb557f` timed out waiting for the upload
+  realtime frame before the harness explicitly awaited a Workspace socket; its
+  sole synthetic attachment
+  `2055e94b-e162-42bf-8445-ed62b3cca597` was explicitly deleted and the failed
+  DB/log evidence was retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-7cb557f`.
+  A later exact `52f00d7` run uploaded/previewed/downloaded successfully but
+  again missed the realtime frame; synthetic attachment
+  `ec4ca862-9afa-49e5-b378-d6b6e98b0cf4` was explicitly deleted and the stopped
+  failed-run DB was retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-52f00d7`.
+- Commit `8488898` added a bounded, self-cleaning cookie-WebSocket readiness
+  probe because the frozen cookie handshake intentionally has no `auth_ack`.
+  The probe event was received, yet the measured upload-bind still emitted no
+  `issue_attachments:changed`; this proved a product event gap rather than a
+  listener race. Synthetic attachment
+  `d62cf8ec-7d80-4ce4-bf0a-cdc10799ed0b` was explicitly deleted and the stopped
+  failed-run DB was retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-8488898`.
+- A new real Runtime RED then reproduced the exact editor sequence: unbound
+  upload followed by an atomic Issue `attachment_ids` bind produced only
+  `issue:updated`. Commit `55a18e7f775890eac1a0cabc99530f02ca4feb7f`
+  wires the existing attachment projection into the Issue publisher and, only
+  after a successful bind commit and changed bag, publishes the complete
+  `issue_attachments:changed` snapshot. The RED is GREEN with deterministic
+  event order `issue:updated` then the complete attachment bag.
+- One deliberately over-parallelized aggregate gate run caused SQLite 5-second
+  lock timeouts and is retained as a failed orchestration experiment, not a
+  product pass. The exact acceptance commands were then run sequentially:
+  backend `go test ./... -count=1`, `go vet ./...`, and `go mod verify` pass;
+  Core 91 files / 589 tests plus typecheck/lint pass; focused Views 2 files /
+  50 tests plus typecheck/lint pass (three pre-existing warnings, zero errors);
+  Web typecheck and all-six Playwright discovery pass; the attachment
+  concurrency test passes ten consecutive counts. `git diff --check` has no
+  error and tracked/untracked `server/**` remain empty.
+- Exact detached candidate `55a18e7f775890eac1a0cabc99530f02ca4feb7f`
+  passed all three installed Headless Chrome 151 phases against a fresh DB.
+  Upload A used the visible Issue description control, previewed exact text,
+  completed a native download, and received the committed complete attachment
+  bag after a one-attempt readiness probe. A real stop/restart retained A's
+  exact bytes; uploading B retained authoritative A+B. Persisted A was deleted
+  with Enter and B with Space through the real labelled controls; both DELETEs
+  were 204, post-delete metadata was hidden 404 and the object root contained
+  zero regular files.
+- Synthetic IDs are `2ca44ca4-4e15-4dc0-92ae-db22c957792c` and
+  `a59c219f-5c26-4e4d-b6f9-ae7cb6f3a493`. Their byte SHA-256 values are
+  `D2C16F2B698D3938AEA6C32F3461061BB07C5E30354B8ED5BDD56B01F35B94E3`
+  and `8C6101456CFBEB47B1A061BF6B422112D99DDFA55F828A99A469B40F72A44F12`.
+  Upload, restart-readback and keyboard-delete traces contain 168, 132 and 111
+  HTTP responses, only origin `http://127.0.0.1:3000`, and zero port-8080 URLs.
+  Their SHA-256 values are respectively
+  `21E878A074F8CF5AB0AC83582E80BC50CA30DC759A05C9C2D3C9A70F4829005B`,
+  `3CBCE221CFE8ABCFF19CEA6DBF637C609DA551D32ACE1EB3F31DF708C6BCB336`
+  and `62225203A9F04CAF201C6E7A633FDD12710C37CBFFF32BDBF1B9321CCA994F1A`.
+  The stopped database SHA-256 is
+  `A0EA1A0BAC3CE37BC88D85DDEE9EB9A269F75B7067FD7A0265605796767FCBB8`.
+- Sanitized traces and final stopped DB/object/log artifacts are retained under
+  `F:\code\ai\goclaw-team-runtime-c8-repair-evidence-55a18e7`. The detached
+  candidate is clean; the selector reports Canonical selected with previous
+  legacy; ports 3000, 8000, 8080 and 9000 are all closed. The main worktree's
+  pre-existing unrelated dirty files remain excluded. C8 is still not accepted
+  and C9 remains inactive until both final independent re-reviews return no
+  P0-P2.
