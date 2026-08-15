@@ -96,7 +96,9 @@ Human Customer acceptance remains required before `Milestone Accepted`.
 
 On 2026-08-15 the Human Customer accepted `M1-S7-C8` after its repaired exact
 candidate received independent CODE and SPEC/EVIDENCE PASS with no P0-P2.
-`M1-S7-C9` is active: the complete local Issue-detail capability matrix is
-GREEN, while its clean-candidate browser, retained restart, rollback,
-independent final review and explicit Human Customer milestone acceptance
-still remain before `Milestone Accepted`.
+The v9 repair independently closed the C9 attachment-concurrency full-gate
+blocker.  On 2026-08-16 plan v10 reactivated only C9 integration preflight;
+the complete local Issue-detail capability matrix remains GREEN, while its
+fresh-clean-candidate browser, retained restart, rollback, independent final
+review and explicit Human Customer milestone acceptance still remain before
+`Milestone Accepted`.

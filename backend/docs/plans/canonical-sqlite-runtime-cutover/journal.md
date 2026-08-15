@@ -1414,3 +1414,24 @@ Human approval are recorded.
   product step: v9 explicitly requires a later approved plan entry before C9
   integration may resume.  This repair completion is not C9 technical or
   Customer acceptance, and it does not authorize a milestone acceptance claim.
+
+## 2026-08-16 — C9 integration reactivated under plan v10
+
+- The Human Customer approved continuation (`批准进行`).  Immutable
+  `plan_v10.md` supersedes v9 and selects only
+  `M1-S7-C9-INTEGRATE-PREFLIGHT`; no product implementation authority is
+  re-opened.
+- The v10 base is `06a2273c270019e2e6ba3a449e5d8f59a9df69bd`; it includes the
+  v9 repair `606ce6524f0836f45b95783406a0d0ad244fedc9`.  A fresh detached
+  candidate will be created from the v10 evidence commit before any final C9
+  browser evidence is collected.
+- Preflight inventory identified a stale, repair-free `0888efc` selector tree
+  on local ports `3000/8000/9000`.  Its verified supervisor and children must
+  be stopped before the fresh candidate is started.  Port `8080` has no local
+  listener; unrelated outbound host traffic is not legacy-runtime evidence and
+  is out of scope.
+- The primary worktree retains unrelated dirty UI and local-artifact paths.
+  They are excluded from both the v10 candidate and its browser evidence.
+- Story-map and milestone wording that still called C9 generically “active” is
+  superseded by `plan.md`: only the v10 preflight step is active.  C9 technical
+  and Customer acceptance remain pending.

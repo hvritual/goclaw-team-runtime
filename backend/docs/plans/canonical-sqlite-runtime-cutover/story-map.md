@@ -172,3 +172,8 @@ Story status changes are recorded append-only in `journal.md`. `plan.md` may
 advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
+
+As of 2026-08-16, `plan_v10.md` makes only
+`M1-S7-C9-INTEGRATE-PREFLIGHT` active.  The C9 capability matrix is GREEN, but
+the fresh-clean-candidate integration, final review and Customer milestone
+acceptance are still pending.
