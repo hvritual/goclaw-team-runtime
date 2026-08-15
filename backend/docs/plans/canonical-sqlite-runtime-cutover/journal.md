@@ -1301,3 +1301,30 @@ Human approval are recorded.
   still prove the complete local capability surface, clean-candidate journey,
   retained restart behavior, no-legacy process/network evidence and reversible
   rollback before a final milestone acceptance request may be made.
+
+## 2026-08-15 — M1-S7-C9 capability RED and GREEN proven
+
+- C9 mounted the full current Issue-detail consumer matrix in a focused View
+  test and froze the Runtime capability contract in a real `/api/config` test.
+  The first RED failed only because `issue_pins` and `issue_project` were false;
+  every other local Issue-detail capability was already true and the external
+  `issue_detail_pull_requests` integration was correctly false.
+- A second RED updated the Canonical runtime verifier from its older partial
+  capability snapshot. It rejected the current accepted attachment/catalog
+  matrix because it still expected those flags to be false.
+- Commit `2fc9525` enables only the already implemented and accepted local Pin
+  and Project consumers, keeps external pull requests disabled, and aligns the
+  verifier with all C4-C8 accepted local Issue capabilities. The full-detail
+  test observes timeline, reactions, subscribers, attachments, Pins, Project,
+  hierarchy/progress, labels, properties and acceptance consumers while proving
+  the external pull-request query remains unmounted.
+- GREEN evidence: the exact Runtime capability tests pass; focused Workspace
+  and bootstrap Go tests pass; the IssueDetail suite passes 47/47; Views
+  typecheck passes; and the selector/verifier suite passes 22/22. Scope and
+  diff checks contain no `server/**` path and exclude all pre-existing unrelated
+  dirty files.
+- The sole active step advances to `M1-S7-C9-INTEGRATE`. C9 is not technically
+  or Customer Accepted: full deterministic gates, a detached clean-candidate
+  installed-Chrome journey, retained restart and realtime evidence, quiescent
+  rollback hashes, independent final review and explicit Human Customer
+  milestone acceptance remain required.

@@ -94,7 +94,9 @@ first-Workspace creation and onboarding completion are now part of the same
 accepted local journey. Its deterministic and installed-Chrome gates pass;
 Human Customer acceptance remains required before `Milestone Accepted`.
 
-On 2026-08-15 the Human Customer accepted `M1-S7-C7` after its deterministic
-and clean-candidate browser evidence. Plan v7 therefore advances to
-`M1-S7-C8`; attachment and final C9 cutover gates still remain before
-`Milestone Accepted`.
+On 2026-08-15 the Human Customer accepted `M1-S7-C8` after its repaired exact
+candidate received independent CODE and SPEC/EVIDENCE PASS with no P0-P2.
+`M1-S7-C9` is active: the complete local Issue-detail capability matrix is
+GREEN, while its clean-candidate browser, retained restart, rollback,
+independent final review and explicit Human Customer milestone acceptance
+still remain before `Milestone Accepted`.
