@@ -1,10 +1,54 @@
-import { expect, test } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { expect, test, type Page } from "@playwright/test";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const WEB = "http://127.0.0.1:3000";
 const EMAIL = "canonical-fixture@multica.local";
 const SLUG = "canonical-fixture";
 const ISSUE = "CAN-1";
+const ISSUE_ID = "01990000-0000-7000-8000-000000000004";
+const C8_PHASE = process.env.C8_PHASE;
+const C8_EVIDENCE_DIR = process.env.C8_EVIDENCE_DIR;
+
+interface AttachmentEvidence {
+  id: string;
+  filename: string;
+  content: string;
+  sizeBytes: number;
+  cleanupIds: string[];
+}
+
+function attachmentEvidenceDir() {
+  if (!C8_EVIDENCE_DIR) throw new Error("C8_EVIDENCE_DIR is required");
+  return C8_EVIDENCE_DIR;
+}
+
+async function loginFixture(page: Page) {
+  await page.goto(`${WEB}/login`, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle");
+  await page.locator("#login-email").fill(EMAIL);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.locator('input[autocomplete="one-time-code"]').fill("888888");
+  await page.waitForURL(new RegExp(`/${SLUG}/issues`));
+}
+
+async function openFixtureIssue(page: Page) {
+  await page.goto(`${WEB}/${SLUG}/issues/${ISSUE_ID}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await expect(
+    page.getByText("Canonical runtime acceptance", { exact: true })
+  ).toBeVisible({ timeout: 30_000 });
+}
+
+function sanitizeAttachmentTrace(
+  values: Array<{ method: string; url: string; status: number }>
+) {
+  return values.map(({ method, url, status }) => {
+    const parsed = new URL(url);
+    return { method, origin: parsed.origin, path: parsed.pathname, status };
+  });
+}
 
 test("Canonical new user creates the first Workspace and completes onboarding", async ({
   page,
@@ -416,6 +460,305 @@ test("Canonical Projects page loads and its visible actions do not request missi
     )}\n`
   );
   await testInfo.attach("canonical-projects-network-trace", {
+    path: tracePath,
+    contentType: "application/json",
+  });
+});
+
+test("C8 clean candidate uploads, previews and downloads a real file", async ({
+  page,
+}, testInfo) => {
+  test.skip(C8_PHASE !== "upload", `C8 phase is ${C8_PHASE ?? "unset"}`);
+  const evidenceDir = attachmentEvidenceDir();
+  await mkdir(evidenceDir, { recursive: true });
+  const content = `C8 clean-candidate attachment ${Date.now()}\n`;
+  const filename = "c8-clean-candidate.txt";
+  const uploadPath = path.join(evidenceDir, filename);
+  await writeFile(uploadPath, content);
+
+  const responses: Array<{ method: string; url: string; status: number }> = [];
+  const wsFrames: string[] = [];
+  page.on("response", (response) => {
+    responses.push({
+      method: response.request().method(),
+      url: response.url(),
+      status: response.status(),
+    });
+  });
+  page.on("websocket", (socket) => {
+    socket.on("framereceived", (event) => wsFrames.push(String(event.payload)));
+  });
+
+  await loginFixture(page);
+  await openFixtureIssue(page);
+  const fileInputs = page.locator('input[type="file"]');
+  const fileInputCount = await fileInputs.count();
+  expect(fileInputCount).toBeGreaterThanOrEqual(2);
+  const uploadResponsePromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/upload-file" &&
+      response.request().method() === "POST"
+  );
+  await fileInputs.nth(fileInputCount - 1).setInputFiles(uploadPath);
+  const uploadResponse = await uploadResponsePromise;
+  expect(uploadResponse.status()).toBe(200);
+  const attachment = (await uploadResponse.json()) as {
+    id: string;
+    filename: string;
+    size_bytes: number;
+  };
+  expect(attachment.filename).toBe(filename);
+  expect(attachment.size_bytes).toBe(Buffer.byteLength(content));
+  await expect(page.getByText(filename, { exact: true })).toBeVisible();
+
+  const previewButtons = page.getByRole("button", { name: /Preview|预览/ });
+  await expect(previewButtons).toHaveCount(1);
+  const previewResponsePromise = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname ===
+      `/api/attachments/${attachment.id}/content`
+  );
+  await previewButtons.click();
+  const previewResponse = await previewResponsePromise;
+  expect(previewResponse.status()).toBe(200);
+  const dialog = page.getByRole("dialog", { name: filename });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(content.trim(), { exact: true })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: /Download|下载/ }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(filename);
+  await dialog.getByRole("button", { name: /Close|关闭/ }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect
+    .poll(() =>
+      wsFrames.some(
+        (frame) =>
+          frame.includes("issue_attachments:changed") &&
+          frame.includes(attachment.id)
+      )
+    )
+    .toBe(true);
+  const listed = await page.request.get(
+    `${WEB}/api/issues/${ISSUE_ID}/attachments`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({ method: "GET", url: listed.url(), status: listed.status() });
+  expect(listed.status()).toBe(200);
+  const listBody = (await listed.json()) as Array<{
+    id: string;
+    filename: string;
+  }>;
+  expect(listBody.some(({ id }) => id === attachment.id)).toBe(true);
+  const cleanupIds = listBody
+    .filter(({ filename: listedFilename }) => listedFilename === filename)
+    .map(({ id }) => id);
+
+  const evidence: AttachmentEvidence = {
+    id: attachment.id,
+    filename,
+    content,
+    sizeBytes: Buffer.byteLength(content),
+    cleanupIds,
+  };
+  await writeFile(
+    path.join(evidenceDir, "attachment.json"),
+    `${JSON.stringify(evidence, null, 2)}\n`
+  );
+  const trace = {
+    candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+    phase: "upload-preview-download",
+    attachment: { id: attachment.id, filename, sizeBytes: evidence.sizeBytes },
+    http: sanitizeAttachmentTrace(responses),
+    receivedEventTypes: wsFrames
+      .map((frame) => {
+        try {
+          return JSON.parse(frame)?.type;
+        } catch {
+          return "unparseable";
+        }
+      })
+      .filter((value): value is string => typeof value === "string"),
+  };
+  const tracePath = path.join(evidenceDir, "upload-trace.json");
+  await writeFile(tracePath, `${JSON.stringify(trace, null, 2)}\n`);
+  await testInfo.attach("C8 upload preview download trace", {
+    path: tracePath,
+    contentType: "application/json",
+  });
+  const screenshotPath = path.join(evidenceDir, "attachment-visible.png");
+  await page.screenshot({ path: screenshotPath, fullPage: false });
+  await testInfo.attach("C8 attachment visible", {
+    path: screenshotPath,
+    contentType: "image/png",
+  });
+});
+
+test("C8 clean candidate reads the same file after runtime restart", async ({
+  page,
+}, testInfo) => {
+  test.skip(C8_PHASE !== "readback", `C8 phase is ${C8_PHASE ?? "unset"}`);
+  const evidenceDir = attachmentEvidenceDir();
+  const evidence = JSON.parse(
+    await readFile(path.join(evidenceDir, "attachment.json"), "utf8")
+  ) as AttachmentEvidence;
+  const responses: Array<{ method: string; url: string; status: number }> = [];
+  page.on("response", (response) => {
+    responses.push({
+      method: response.request().method(),
+      url: response.url(),
+      status: response.status(),
+    });
+  });
+  await loginFixture(page);
+  await openFixtureIssue(page);
+
+  const metadata = await page.request.get(
+    `${WEB}/api/attachments/${evidence.id}`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({
+    method: "GET",
+    url: metadata.url(),
+    status: metadata.status(),
+  });
+  expect(metadata.status()).toBe(200);
+  const metadataBody = (await metadata.json()) as {
+    id: string;
+    filename: string;
+    size_bytes: number;
+  };
+  expect(metadataBody).toMatchObject({
+    id: evidence.id,
+    filename: evidence.filename,
+    size_bytes: evidence.sizeBytes,
+  });
+  const content = await page.request.get(
+    `${WEB}/api/attachments/${evidence.id}/content`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({
+    method: "GET",
+    url: content.url(),
+    status: content.status(),
+  });
+  expect(content.status()).toBe(200);
+  expect(await content.text()).toBe(evidence.content);
+  const download = await page.request.get(
+    `${WEB}/api/attachments/${evidence.id}/download`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({
+    method: "GET",
+    url: download.url(),
+    status: download.status(),
+  });
+  expect(download.status()).toBe(200);
+  expect(await download.body()).toEqual(Buffer.from(evidence.content));
+  const listed = await page.request.get(
+    `${WEB}/api/issues/${ISSUE_ID}/attachments`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({ method: "GET", url: listed.url(), status: listed.status() });
+  expect(listed.status()).toBe(200);
+  const listBody = (await listed.json()) as Array<{ id: string }>;
+  expect(listBody.some(({ id }) => id === evidence.id)).toBe(true);
+
+  const tracePath = path.join(evidenceDir, "restart-readback-trace.json");
+  await writeFile(
+    tracePath,
+    `${JSON.stringify(
+      {
+        candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+        phase: "restart-readback",
+        attachment: { id: evidence.id, filename: evidence.filename },
+        http: sanitizeAttachmentTrace(responses),
+      },
+      null,
+      2
+    )}\n`
+  );
+  await testInfo.attach("C8 restart readback trace", {
+    path: tracePath,
+    contentType: "application/json",
+  });
+});
+
+test("C8 clean candidate deletes only the synthetic attachment", async ({
+  page,
+}, testInfo) => {
+  test.skip(C8_PHASE !== "delete", `C8 phase is ${C8_PHASE ?? "unset"}`);
+  const evidenceDir = attachmentEvidenceDir();
+  const evidence = JSON.parse(
+    await readFile(path.join(evidenceDir, "attachment.json"), "utf8")
+  ) as AttachmentEvidence;
+  const responses: Array<{ method: string; url: string; status: number }> = [];
+  page.on("response", (response) => {
+    responses.push({
+      method: response.request().method(),
+      url: response.url(),
+      status: response.status(),
+    });
+  });
+  await loginFixture(page);
+  const csrf = (await page.context().cookies(WEB)).find(
+    (cookie) => cookie.name === "multica_csrf"
+  );
+  expect(csrf).toBeDefined();
+  for (const attachmentId of evidence.cleanupIds) {
+    const deleted = await page.request.delete(
+      `${WEB}/api/attachments/${attachmentId}`,
+      {
+        headers: {
+          "X-Workspace-Slug": SLUG,
+          "X-CSRF-Token": csrf!.value,
+        },
+      }
+    );
+    responses.push({
+      method: "DELETE",
+      url: deleted.url(),
+      status: deleted.status(),
+    });
+    expect(deleted.status()).toBe(204);
+  }
+  const missing = await page.request.get(
+    `${WEB}/api/attachments/${evidence.id}`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({
+    method: "GET",
+    url: missing.url(),
+    status: missing.status(),
+  });
+  expect(missing.status()).toBe(404);
+  const listed = await page.request.get(
+    `${WEB}/api/issues/${ISSUE_ID}/attachments`,
+    { headers: { "X-Workspace-Slug": SLUG } }
+  );
+  responses.push({ method: "GET", url: listed.url(), status: listed.status() });
+  expect(listed.status()).toBe(200);
+  const listBody = (await listed.json()) as Array<{ id: string }>;
+  expect(listBody.some(({ id }) => evidence.cleanupIds.includes(id))).toBe(
+    false
+  );
+  const tracePath = path.join(evidenceDir, "delete-trace.json");
+  await writeFile(
+    tracePath,
+    `${JSON.stringify(
+      {
+        candidate: "0e0ab303b608006e15e35727fb4bd46c9ed42ed4",
+        phase: "delete",
+        attachment: { id: evidence.id, filename: evidence.filename },
+        http: sanitizeAttachmentTrace(responses),
+      },
+      null,
+      2
+    )}\n`
+  );
+  await testInfo.attach("C8 delete trace", {
     path: tracePath,
     contentType: "application/json",
   });

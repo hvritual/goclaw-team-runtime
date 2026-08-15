@@ -946,3 +946,124 @@ Human approval are recorded.
 - This acceptance does not mark the milestone complete: C8 attachment gates
   and C9 final clean-candidate/rollback acceptance remain required before
   `Milestone Accepted`.
+
+## 2026-08-15 — M1-S7-C8 attachment RED proven
+
+- A real file was created on disk and sent as multipart `file` plus
+  `issue_id` through the assembled Canonical Runtime. The focused test
+  `TestSQLiteRuntimeServesCanonicalIssueAttachments` failed with the observed
+  response `404 page not found` from `POST /api/upload-file`; this proves the
+  installed Runtime has no attachment upload boundary rather than merely
+  lacking a unit-level provider.
+- Core RED tests demonstrated two independent false-success paths: a Workspace
+  upload response with string `size_bytes` was accepted, and malformed list /
+  standalone metadata responses with numeric `content_type` were returned to
+  callers. The focused Vitest run failed exactly 2 of 5 tests for these
+  malformed success bodies.
+- Canonical Space remains a generated Asset stub and registers no HTTP routes;
+  `/api/config` still advertises `issue_attachments:false`. These are current
+  state facts, not accepted empty behavior.
+- C8-RED is complete. The sole active step advances to `M1-S7-C8-GREEN` for
+  the approved Space SQLite/file providers, trusted transport boundary,
+  Workspace Issue/Comment binding and exact Core schemas. No `server/**`
+  change is authorized.
+
+## 2026-08-15 — M1-S7-C8 attachment GREEN proven
+
+- Canonical Space now owns additive SQLite asset/version metadata and a
+  server-owned `<database>.files` object root. Uploads use bounded multipart
+  reads, opaque object paths and atomic rename; preview/download responses
+  enforce content disposition and MIME safety, and attachment metadata/list/
+  delete routes reuse trusted Auth, Workspace membership and Cookie-CSRF or
+  Bearer mutation semantics.
+- Issue and Comment create/update paths bind complete attachment-ID bags only
+  after Workspace-scoped target validation. Capability-off runtimes reject an
+  explicitly supplied Issue or Comment attachment field instead of silently
+  persisting an unsupported relationship. Issue, batch-Issue and Comment
+  deletion prepare file quarantine with their SQLite dependent cleanup, restore
+  files on rollback, preserve shared references, and delete the object only
+  after the last retained reference is gone.
+- Runtime tests cover real-file upload, list, metadata, preview, download and
+  delete; exact auth/isolation/CSRF and capability-route coupling; size, MIME,
+  path and strict multipart/JSON boundaries; binding rollback, shared refs,
+  orphan reconciliation, restart/hash readback and post-commit realtime. The
+  Comment deletion RED initially left Space metadata readable after its final
+  reference; GREEN now proves trigger-forced rollback restoration, sibling
+  Comment retention and final-reference cleanup.
+- Core rejects malformed Canonical attachment successes without misclassifying
+  them as legacy direct responses, validates `issue_attachments:changed`, and
+  invalidates the authoritative per-Issue attachment cache. The enabled View
+  renders upload/dropzone/comment attachment controls; the disabled View does
+  not mount them.
+- Sequential deterministic gates pass: backend `go test ./... -count=1`,
+  `go vet ./...`, `go mod verify`; Core 90 files / 587 tests plus typecheck and
+  lint; focused Views 3 files / 51 tests plus Views lint/typecheck; Web
+  typecheck; selector/verifier 22/22; changed-file gofmt, generated diff,
+  diff-check, legacy-import scan and the permanent `server/**` boundary. Views
+  lint reports three pre-existing warnings outside the C8 paths and no errors.
+  One initial all-at-once host-contention run returned a transient upload 500;
+  the exact attachment binding test then passed 20 repeated runs and the
+  required sequential full-backend run passed.
+- C8 product GREEN is proven. The sole active step advances to
+  `M1-S7-C8-INTEGRATE` for scoped commit, clean-candidate real-browser upload/
+  preview/download/delete, restart/hash evidence and independent review. No
+  Human Customer acceptance or C9 authorization is implied.
+
+## 2026-08-15 — M1-S7-C8 clean-candidate browser and retained-file evidence
+
+- The exact product candidate is commit
+  `0e0ab303b608006e15e35727fb4bd46c9ed42ed4`, checked out detached at
+  `F:\code\ai\goclaw-team-runtime-c8-clean-0e0ab30`. The detached checkout is
+  clean after evidence extraction and excludes the user's unrelated Input and
+  stat-dirty View files. Both tracked and untracked `server/**` remain empty.
+- The retained database copied from the main runtime collided with part of the
+  fixed browser fixture. The fixture correctly refused to overwrite it; that
+  database is preserved as `data\multica-canonical.pre-c8-conflict.db` with
+  SHA-256 `E6AF9D7BBEA7DD1C934933EAEDEB342B96E955609AAE7AC9362E7CBD0B146D83`.
+  A fresh Canonical database was migrated by the real Runtime and then seeded
+  through the explicit non-overwriting fixture. After real upload and before
+  restart its quiescent hash was
+  `B2B05A2E0C780C176109B6D4123E17049DFAD9AC4BD6C6F5B825CA1BD08E2369`.
+- The in-app browser proved the real login and full Issue detail exposed both
+  upload controls. Because that browser interface has no supported file chooser
+  operation, the file interaction continued with repository Playwright and the
+  installed Chrome executable. Chrome uploaded the real local text file
+  `c8-clean-candidate.txt`, rendered its exact preview, completed a browser
+  download with the canonical filename, and received
+  `issue_attachments:changed`. An initial harness assertion incorrectly treated
+  the frozen top-level attachment array as an envelope after a successful
+  upload; the harness was corrected and the successful second run retained both
+  synthetic IDs for explicit cleanup rather than hiding the first committed
+  side effect.
+- Before restart, the two opaque object files had SHA-256
+  `D96301D4579A4C1BA233893D541BD757179CC1109E70B11D2827C11971C30E6B`
+  and `7E2C965E2AFA0BA82F8D628DAC6A585FBC9AEC064D43C6E80EA38AB8CD3466F8`.
+  After stopping and restarting the same Runtime/database/object root, Chrome
+  received metadata, content, download and Issue-list responses with status
+  200; downloaded bytes were exact and both object hashes were unchanged. One
+  first readback attempt exceeded a five-second UI wait during cold Next
+  compilation; the bounded wait was corrected to thirty seconds and the same
+  retained runtime then passed without a product retry or data rewrite.
+- After the Human Customer explicitly replied `确认删除`, Chrome deleted only
+  synthetic attachment IDs `8293a954-6d69-4524-8c13-14741b340fb3` and
+  `e51d6b6d-23bc-4fe5-b0c8-7d3de0ed3914`; both DELETE responses were 204. The
+  selected metadata read then returned the expected hidden 404, the Issue
+  attachment list returned 200 without either ID, and the object root contained
+  zero regular files. The stopped final database hash is
+  `0FCB8AD2B94A6BDADCC32A9B3D034D75EA27782A42E61AFE3F64FC478C40FF30`.
+- The sanitized upload, restart-readback and delete traces are retained under
+  `F:\code\ai\goclaw-team-runtime-c8-evidence-0e0ab30\c8-evidence` with
+  SHA-256 values `67F9FD48EF751F20F5199D46AC9BFBF57E7CD2DBCE1C920E224B3A936FF72A1C`,
+  `D4DE84CEF07EAEB82CC542B1E9FDD1D1FB0254598009E386354D1869C645A6B6`,
+  and `AB8FB7D9D2D05C6573964CF5AE9CC97CA5409F4789C1FEA0D3944FEBC05DDD54`.
+  All browser requests use origin `127.0.0.1:3000`; no HTTP or WebSocket URL
+  uses legacy port 8080. The trace still records the previously disclosed
+  out-of-scope `/api/invitations` 404 and the intentional post-delete attachment
+  404; neither is reclassified as attachment success or concealed.
+- The selector stopped Canonical Web/HTTP/gRPC cleanly and ports 3000, 8000,
+  8080 and 9000 are all closed. The executable C8 phases now live in the
+  approved `e2e/canonical-runtime.spec.ts`, and Playwright discovers all six
+  Canonical tests. C8 deterministic and clean-candidate integration evidence is
+  complete, but the required independent review is still pending. Therefore
+  the active step remains `M1-S7-C8-INTEGRATE`; C8 is not Customer Accepted and
+  C9 remains unauthorized.
