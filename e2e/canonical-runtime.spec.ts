@@ -765,17 +765,23 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
   });
   await loginFixture(page);
   await openFixtureIssue(page);
-  for (const attachmentId of evidence.cleanupIds) {
+	const keyboardActivations: Array<{ id: string; key: "Enter" | "Space" }> = [];
+  for (const [index, attachmentId] of evidence.cleanupIds.entries()) {
 	const row = page.locator(`[data-attachment-id="${attachmentId}"]`).last();
 	await expect(row).toBeVisible();
+	const remove = row.getByRole("button", { name: /Remove attachment|删除附件/ });
+	const key = index === 0 ? "Enter" : "Space";
 	const deletedPromise = page.waitForResponse(
 	  (response) =>
 		new URL(response.url()).pathname === `/api/attachments/${attachmentId}` &&
 		response.request().method() === "DELETE"
 	);
-	await row.getByRole("button", { name: /Remove attachment|删除附件/ }).click();
+	await remove.focus();
+	await expect(remove).toBeFocused();
+	await remove.press(key);
 	const deleted = await deletedPromise;
 	expect(deleted.status()).toBe(204);
+	keyboardActivations.push({ id: attachmentId, key });
 	await expect(row).toBeHidden();
   }
   const missing = await page.request.get(
@@ -807,6 +813,7 @@ test("C8 clean candidate deletes only the synthetic attachment", async ({
         phase: "delete",
 		browser: await browserIdentity(page),
         attachment: { id: evidence.id, filename: evidence.filename },
+		keyboard_activations: keyboardActivations,
         http: sanitizeAttachmentTrace(responses),
       },
       null,
