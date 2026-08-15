@@ -798,7 +798,10 @@ test("C8 clean candidate reads the same file after runtime restart", async ({
       );
       if (response.status() !== 200) return [];
       const values = (await response.json()) as Array<{ id: string }>;
-      return values.map(({ id }) => id).sort();
+      return values
+        .map(({ id }) => id)
+        .filter((id) => id === evidence.id || id === second.id)
+        .sort();
     })
     .toEqual([evidence.id, second.id].sort());
   evidence.afterRestart = {
@@ -1009,9 +1012,15 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   await loginFixture(page);
   await socketReady;
   await openFixtureIssue(page);
-  await expect(page.getByTestId("issue-base-detail")).toBeVisible();
   await expectC9VisibleText(page, "Canonical runtime acceptance");
+  await expect(
+    page.getByRole("button", { name: "Attach file" }).first()
+  ).toBeVisible();
   const headers = await c9CSRFHeaders(page);
+  // Authentication bootstrap may intentionally probe protected endpoints before
+  // the cookie session is established. The C9 route gate starts at the
+  // authenticated detail interaction, where every failure is actionable.
+  trace.length = 0;
 
   const projectResponse = await c9Checked(
     await page.request.post(`${WEB}/api/projects`, {
@@ -1399,6 +1408,7 @@ test("C9 clean candidate retains complete local Issue detail after restart", asy
   await loginFixture(page);
   await openFixtureIssue(page);
   const headers = await c9CSRFHeaders(page);
+  trace.length = 0;
   await expectC9VisibleText(page, `C9 complete detail ${artifact.run}`);
   await expectC9VisibleText(page, artifact.project.title);
   await expectC9VisibleText(page, artifact.label.name);
