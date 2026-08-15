@@ -998,10 +998,11 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   await mkdir(evidenceDir, { recursive: true });
   const run = `${Date.now()}`;
   const trace: C9TraceEntry[] = [];
+  let captureTrace = false;
   const wsFrames: string[] = [];
   const websockets: Array<{ origin: string; path: string }> = [];
   page.on("response", (response) => {
-    if (new URL(response.url()).origin === WEB) {
+    if (captureTrace && new URL(response.url()).origin === WEB) {
       trace.push({
         method: response.request().method(),
         url: response.url(),
@@ -1027,9 +1028,11 @@ test("C9 clean candidate exercises complete local Issue detail before restart", 
   ).toBeVisible();
   const headers = await c9CSRFHeaders(page);
   // Authentication bootstrap may intentionally probe protected endpoints before
-  // the cookie session is established. The C9 route gate starts at the
-  // authenticated detail interaction, where every failure is actionable.
+  // the cookie session is established. Wait for those requests to settle before
+  // enabling the C9 route gate, where every failure is actionable.
+  await page.waitForLoadState("networkidle");
   trace.length = 0;
+  captureTrace = true;
 
   const projectResponse = await c9Checked(
     await page.request.post(`${WEB}/api/projects`, {
