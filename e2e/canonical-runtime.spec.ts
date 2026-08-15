@@ -284,8 +284,12 @@ test("Canonical UI login, Workspace, Issue and metadata journey has no legacy tr
       )
     )
     .toBe(true);
-  await expect(page.getByTestId("issue-base-detail")).toBeVisible();
-  await expect(page.getByText("Canonical runtime acceptance")).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Canonical runtime acceptance",
+      exact: true,
+    }),
+  ).toBeVisible();
   const removed = await page.evaluate(async (issue) => {
     const csrf = document.cookie
       .split("; ")
