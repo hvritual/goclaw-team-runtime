@@ -1278,3 +1278,26 @@ Human approval are recorded.
   pre-existing unrelated dirty files remain excluded. C8 is still not accepted
   and C9 remains inactive until both final independent re-reviews return no
   P0-P2.
+
+## 2026-08-15 — M1-S7-C8 Customer Accepted; C9 RED activated
+
+- Independent CODE/SECURITY review returned `CODE PASS` for exact product
+  candidate `55a18e7f775890eac1a0cabc99530f02ca4feb7f`, with P0=0, P1=0 and
+  P2=0. Its independent gates included full backend tests, focused attachment
+  concurrency/event tests at ten counts, vet, module verification, Core and
+  Views focused tests/typechecks, six-test Playwright discovery, scope checks
+  and retained Chrome trace verification.
+- Independent SPEC/EVIDENCE review returned `SPEC PASS`, with P0=0, P1=0 and
+  P2=0. It independently verified the clean detached candidate, plan-v8 path
+  boundary, null/omission semantics, successful pending/cache cleanup,
+  keyboard Enter/Space deletion, committed complete attachment events, final
+  hashes, database integrity, zero retained objects, closed fixed ports and
+  separation of all failed runs from the final evidence set.
+- The Human Customer had explicitly authorized independent C8 review and
+  conditionally directed C8 acceptance and C9 startup after the review passed.
+  Both required PASS conditions are now true, so `M1-S7-C8` is Customer
+  Accepted and the sole active story advances to `M1-S7-C9-RED`.
+- This story transition is not final milestone Customer acceptance. C9 must
+  still prove the complete local capability surface, clean-candidate journey,
+  retained restart behavior, no-legacy process/network evidence and reversible
+  rollback before a final milestone acceptance request may be made.
