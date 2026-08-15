@@ -2,15 +2,17 @@ package workspace
 
 import (
 	"context"
+	"slices"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 )
 
 type publishingIssueService struct {
 	contract.IssueMutationService
-	hierarchy  contract.IssueHierarchyService
-	activities contract.IssueActivityRecorder
-	events     contract.WorkspaceEventPublisher
+	hierarchy   contract.IssueHierarchyService
+	activities  contract.IssueActivityRecorder
+	attachments contract.IssueAttachmentProjectionReader
+	events      contract.WorkspaceEventPublisher
 }
 
 func (s publishingIssueService) CreateIssue(ctx context.Context, request contract.CreateIssueRequest) (contract.CreateIssueResponse, error) {
@@ -37,11 +39,31 @@ func (s publishingIssueService) UpdateIssue(ctx context.Context, request contrac
 			"status_changed":   before.Issue != nil && before.Issue.Status != response.Issue.Status,
 			"project_changed":  before.Issue != nil && pointerValue(before.Issue.ProjectId) != pointerValue(response.Issue.ProjectId),
 		}, actorID, actorType)
+		if before.Issue != nil && !slices.Equal(before.Issue.AssetIds, response.Issue.AssetIds) {
+			s.publishAttachmentBag(ctx, request.WorkspaceId, response.Issue)
+		}
 		if before.Issue != nil {
 			s.recordChanges(ctx, request.WorkspaceId, before.Issue, response.Issue)
 		}
 	}
 	return response, err
+}
+
+func (s publishingIssueService) publishAttachmentBag(ctx context.Context, workspaceID string, issue *contract.Issue) {
+	if s.attachments == nil || issue == nil {
+		return
+	}
+	attachments, err := s.attachments.ReadAttachments(ctx, workspaceID, issue.AssetIds)
+	if err != nil {
+		return
+	}
+	if attachments == nil {
+		attachments = []map[string]any{}
+	}
+	actorID, actorType := realtimeActor(ctx)
+	s.events.Publish(workspaceID, "issue_attachments:changed", map[string]any{
+		"issue_id": issue.Id, "attachments": attachments,
+	}, actorID, actorType)
 }
 
 func (s publishingIssueService) UpdateIssueStatus(ctx context.Context, request contract.UpdateIssueStatusRequest) (contract.UpdateIssueStatusResponse, error) {

@@ -127,7 +127,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		publishingCollaboration := publishingIssueCollaborationService{IssueCollaborationService: baseIssueCollaborationService, activities: baseIssueCollaborationService, events: dependencies.Events}
 		issueCollaborationService = publishingCollaboration
 		issueActivities = publishingCollaboration
-		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, activities: issueActivities, events: dependencies.Events}
+		issueService = publishingIssueService{IssueMutationService: baseIssueService, hierarchy: baseIssueService, activities: issueActivities, attachments: dependencies.IssueAttachments, events: dependencies.Events}
 		issueMetadataService = publishingIssueMetadataService{IssueMetadataService: baseIssueMetadataService, events: dependencies.Events}
 		issueDeletionService = publishingIssueDeletionService{IssueDeletionService: baseIssueDeletionService, events: dependencies.Events}
 		issueCatalogService = publishingIssueCatalogService{IssueCatalogService: baseIssueCatalogService, events: dependencies.Events}

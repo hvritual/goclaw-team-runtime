@@ -598,6 +598,19 @@ func TestSQLiteRuntimePublishesCompleteAttachmentBagOnlyAfterCommit(t *testing.T
 		t.Fatalf("delete = %d %s", deleted.Code, deleted.Body.String())
 	}
 	assertRealtimeEvent(t, deleteSocket, "issue_attachments:changed", `"attachments":[]`)
+
+	// The description editor deliberately uploads without issue_id, then binds
+	// the complete attachment bag in the following Issue update. That committed
+	// binding is the realtime boundary other clients must observe.
+	unbound := decodeRuntimeAttachment(t, runtimeMultipartFileRequest(t, fixture.runtime, "/api/upload-file", filePath, nil, fixture.headers))
+	bindSocket := dialTokenRealtime(t, server.URL, fixture.workspaceSlug, fixture.login.Token)
+	defer bindSocket.Close()
+	bound := runtimeRequest(fixture.runtime, http.MethodPut, "/api/issues/"+fixture.issueID, `{"attachment_ids":["`+unbound.ID+`"]}`, fixture.headers)
+	if bound.Code != http.StatusOK {
+		t.Fatalf("bind uploaded attachment = %d %s", bound.Code, bound.Body.String())
+	}
+	assertRealtimeEvent(t, bindSocket, "issue:updated", "")
+	assertRealtimeEvent(t, bindSocket, "issue_attachments:changed", `"id":"`+unbound.ID+`"`)
 }
 
 func TestSQLiteRuntimeIssueDeletionCleansOwnedSpaceAttachmentAndFile(t *testing.T) {
