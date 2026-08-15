@@ -4,8 +4,8 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C8` (C7 Customer Accepted; clean-candidate attachment
-  evidence complete, independent review pending).
+- Current story: `M1-S7-C8-REPAIR` (C7 Customer Accepted; plan v8 approved;
+  independent-review repair RED active; C9 inactive).
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.

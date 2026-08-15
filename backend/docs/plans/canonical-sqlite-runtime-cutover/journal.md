@@ -1067,3 +1067,27 @@ Human approval are recorded.
   complete, but the required independent review is still pending. Therefore
   the active step remains `M1-S7-C8-INTEGRATE`; C8 is not Customer Accepted and
   C9 remains unauthorized.
+
+## 2026-08-15 — C8 independent review failed; plan v8 approved
+
+- The Human Customer authorized independent C8 review and conditionally directed
+  C8 acceptance/C9 startup only after that review passed. Two independent
+  read-only Navigators instead returned `CODE FAIL` and `SPEC FAIL`; the
+  condition did not become true, so no C8 acceptance or C9 activation occurred.
+- Code P1 findings: Issue attachment validation and the repository write occur
+  in different transactions, allowing a concurrent delete/upload or ordinary
+  stale Issue update to create a dangling or lost reference; and IssueDetail
+  submits only the current session's pending IDs while the backend treats the
+  field as a complete replacement bag.
+- Specification/evidence P1 findings: stored attachment endpoints ignore the
+  request's trusted Workspace context; and the retained deletion evidence used
+  Playwright APIRequestContext rather than a visible UI/Core delete control.
+- Supporting P2 findings: capability-off Issue create accepts an explicit empty
+  attachment array; traces do not retain installed-Chrome executable/user-agent
+  identity; and the required realtime event allowlist change touched
+  `backend/internal/realtime/hub.go`, which plan v7 had not listed explicitly.
+- The Human Customer then explicitly approved plan v8. The immutable repair
+  contract is `plan_v8.md`; it authorizes only the exact C8 backend/Core/View/
+  E2E repairs and the single realtime allowlist file. The sole active step is
+  `M1-S7-C8-REPAIR-RED`. C9 remains inactive until RED, GREEN, integration,
+  clean-candidate browser evidence and both independent re-reviews pass.
