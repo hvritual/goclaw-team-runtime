@@ -62,6 +62,13 @@ async function openFixtureIssue(page: Page) {
   ).toBeVisible({ timeout: 30_000 });
 }
 
+async function uploadFromDescriptionControl(page: Page, filename: string) {
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Attach file" }).first().click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(filename);
+}
+
 function sanitizeAttachmentTrace(
   values: Array<{ method: string; url: string; status: number }>
 ) {
@@ -512,15 +519,12 @@ test("C8 clean candidate uploads, previews and downloads a real file", async ({
 
   await loginFixture(page);
   await openFixtureIssue(page);
-  const fileInputs = page.locator('input[type="file"]');
-  const fileInputCount = await fileInputs.count();
-  expect(fileInputCount).toBeGreaterThanOrEqual(2);
   const uploadResponsePromise = page.waitForResponse(
     (response) =>
       new URL(response.url()).pathname === "/api/upload-file" &&
       response.request().method() === "POST"
   );
-  await fileInputs.nth(fileInputCount - 1).setInputFiles(uploadPath);
+  await uploadFromDescriptionControl(page, uploadPath);
   const uploadResponse = await uploadResponsePromise;
   expect(uploadResponse.status()).toBe(200);
   const attachment = (await uploadResponse.json()) as {
@@ -690,14 +694,12 @@ test("C8 clean candidate reads the same file after runtime restart", async ({
 	const secondFilename = "c8-clean-candidate-after-restart.txt";
 	const secondUploadPath = path.join(evidenceDir, secondFilename);
 	await writeFile(secondUploadPath, secondContent);
-	const fileInputs = page.locator('input[type="file"]');
-	await expect.poll(() => fileInputs.count()).toBeGreaterThanOrEqual(2);
 	const uploadResponsePromise = page.waitForResponse(
 	  (response) =>
 		new URL(response.url()).pathname === "/api/upload-file" &&
 		response.request().method() === "POST"
 	);
-	await fileInputs.nth((await fileInputs.count()) - 1).setInputFiles(secondUploadPath);
+	await uploadFromDescriptionControl(page, secondUploadPath);
 	const uploadResponse = await uploadResponsePromise;
 	expect(uploadResponse.status()).toBe(200);
 	const second = (await uploadResponse.json()) as { id: string; filename: string; size_bytes: number };
