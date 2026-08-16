@@ -176,3 +176,29 @@ Known limitations, blockers, and next action
   - independent review remains unassigned.
 - Task `PCR-001-S01A-R3` is therefore implementation-complete but not
   technically accepted. No dependent roadmap step is activated.
+
+## 2026-08-16 — J008 — S01A waiver accepted and S01B design activated
+
+- Human Customer directed `激活S01B` and then answered `确认` to the explicit
+  question whether that direction constitutes S01A acceptance plus waiver of:
+  1. the attachment concurrency failures;
+  2. the Windows race-loader limitation;
+  3. the missing independent review.
+- S01A is recorded as Customer Accepted with those explicit waivers. The
+  underlying technical evidence is preserved and is not upgraded to PASS.
+- Read-only dependency discovery for S01B completed in two rounds with
+  `new_dependencies = 0`, no remaining retrievable blockers, and status
+  `stable` for activation planning.
+- Verified ownership boundary: Canonical Workspace must own revision, audit,
+  idempotency, and outbox state. The separate Control Plane implementation is
+  migration evidence only; direct reads, imports, and dual writes are forbidden.
+- Verified migration-policy conflict requiring design resolution before code:
+  root policy requires every migration-created index to use a standalone
+  `CREATE [UNIQUE] INDEX CONCURRENTLY`, while the current Workspace SQLite
+  runner executes ordered migrations inside one transaction and SQLite does not
+  implement that PostgreSQL syntax.
+- Activated `PCR-001-S01B-R4` as a documentation-only contract and migration
+  design task on base `cc61297be42ca5acf1fc47d9ba9d70939f406588`.
+- r004 authorizes only the exact roadmap-document paths in the task register.
+  It grants no product-code, migration, API, frontend, Control Plane, or
+  `server/**` write authority.

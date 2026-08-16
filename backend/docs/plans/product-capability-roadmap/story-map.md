@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v1`
-- Status: `proposed; no active implementation story`
+- Status: `PCR-S01B active; contract and migration design only`
 
 ## Delivery policy
 

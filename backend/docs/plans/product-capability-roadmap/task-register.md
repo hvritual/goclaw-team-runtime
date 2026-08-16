@@ -2,8 +2,8 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v1`
-- Registry status: `PCR-S00 complete; PCR-S01A active`
-- Registry revision: `r003`
+- Registry status: `PCR-S01A accepted by Customer waiver; PCR-S01B design active`
+- Registry revision: `r004`
 - Updated: `2026-08-16`
 
 ## Frozen policy bundle
@@ -50,9 +50,9 @@ Expected outputs:
 - Task-Revision: `r003`
 - Work-Item: `PCR-S01A`
 - Title: `Canonical capability authorization and accurate feature flags`
-- Status: `implementation-complete; verification-blocked`
+- Status: `customer-accepted-with-explicit-gate-waiver`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `must be assigned before acceptance`
+- Independent reviewer: `waived by explicit Human Customer acceptance`
 - Base commit: `144997ab5fcd04544f8ffa40a1a75fc79fdb5904`
 - Prior blocking gate: cleared by the Human Customer statement that C9 passed
   and the explicit direction to return to PCR-S01A.
@@ -111,16 +111,69 @@ required before technical acceptance.
 - Focused contract and Bootstrap S01A tests pass.
 - Policy check, changed-file formatting, generated-output cleanliness, and
   `go vet ./...` pass.
-- Technical acceptance remains blocked: the frozen race command exits with the
+- Technical verification remains incomplete: the frozen race command exits with the
   documented Windows loader code `0xc0000139`; full `go test ./...` also
   reproduces pre-existing attachment concurrency failures outside S01A scope.
-- No later roadmap task is activated while these gates and independent review
-  remain outstanding.
+- The Human Customer explicitly accepted S01A and waived the three outstanding
+  gates before directing S01B activation. The technical evidence remains
+  unchanged and must not be represented as a PASS.
+
+## PCR-001-S01B-R4
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B-R4`
+- Task-Revision: `r004`
+- Work-Item: `PCR-S01B`
+- Title: `Revision, audit, idempotency, and outbox contract and migration design`
+- Status: `active-design`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before product-code task acceptance`
+- Base commit: `cc61297be42ca5acf1fc47d9ba9d70939f406588`
+- Authority source: Human Customer confirmation accepting S01A gate waivers and
+  activating S01B on `2026-08-16`.
+- Product-code authority: none.
+
+### Exact allowed paths
+
+- `backend/docs/plans/product-capability-roadmap/plan.md`
+- `backend/docs/plans/product-capability-roadmap/plan_v2.md` (new, proposed)
+- `backend/docs/plans/product-capability-roadmap/s01b-foundation-design.md` (new)
+- `backend/docs/plans/product-capability-roadmap/story-map.md`
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No Go, SQL migration, generated, frontend, Control Plane, or `server/**` path is
+authorized by r004. Product work requires an approved plan version and a new
+task revision with exact implementation paths.
+
+### Frozen design acceptance
+
+1. Workspace owns its governance records; Control Plane is evidence only and is
+   neither imported nor dual-written.
+2. Revision conflict, idempotency replay/body-conflict, audit redaction, outbox
+   state, retry, lease, and post-commit contracts are exact and testable.
+3. The design resolves the root concurrent-index rule against the current
+   transaction-wrapped SQLite migration runner without weakening either policy
+   by implication.
+4. Transaction ownership proves rollback removes domain, audit, idempotency,
+   and outbox effects together.
+5. A proposed `plan_v2.md` freezes exact product paths, migrations, tests,
+   diagnostics, rollback, and independent-review gates for Customer approval.
+
+### Deterministic verification
+
+```text
+git diff --check -- backend/docs/plans/product-capability-roadmap
+git diff --name-only -- server
+```
+
+Revalidate the policy-bundle hashes and base commit before proposing v2.
 
 ## Queue rules
 
-- No task after PCR-S01A may be enqueued until S01A is accepted and the next
-  task revision freezes exact paths and checks.
+- No product-code task in PCR-S01B may be enqueued until r004 completes, the
+  migration-policy conflict is resolved in a proposed plan version, and the
+  Human Customer approves that version.
 - A task status in this file is not a substitute for the active-step pointer in
   `plan.md`; both must agree.
 - A base, plan hash, policy hash, or allowed-path mismatch stops execution.
