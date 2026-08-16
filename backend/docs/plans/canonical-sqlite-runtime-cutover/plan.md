@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v11.md](plan_v11.md).
 
 - Plan-ID: `canonical-sqlite-runtime-cutover`
 - Approved version: `11`
-- Active step: `M1-S7-C9-INTEGRATE`
-- Status: `approved-for-execution; C7 and C8 Customer Accepted; C9 Issue-list RED/GREEN and Backend deterministic verification are complete; clean-candidate integration is active; C9 and milestone acceptance remain pending.`
+- Active step: `none — v11 integration blocked at clean-candidate offline dependency setup`
+- Status: `blocked; C7 and C8 Customer Accepted; C9 Issue-list RED/GREEN and Backend verification passed, but the single frozen offline install timed out before TypeScript/browser gates; no retry or alternate source was attempted; C9 and milestone acceptance remain pending.`
 - Milestone: [milestone.md](milestone.md)
 - Story map: [story-map.md](story-map.md)
 - Parity matrix: [parity-matrix.md](parity-matrix.md)

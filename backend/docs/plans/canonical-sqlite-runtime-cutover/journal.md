@@ -1732,3 +1732,30 @@ Human approval are recorded.
   create and audit a detached clean candidate at exact commit `df3d23e` plus
   this evidence-only pointer commit, then run the frozen TypeScript, selector,
   trace and installed-Chrome gates once.
+
+## 2026-08-16 — M1-S7-C9-INTEGRATE blocked at offline dependency setup
+
+- Exact detached candidate:
+  `F:\code\ai\goclaw-team-runtime-c9-v11-clean-7b74ec1` at
+  `7b74ec1875d9b373e65ff0ac4b2a4236ac774896`.
+- Pre-install candidate status was empty, tracked/untracked `server/**` status
+  was empty, and `git diff --check` passed.
+- The candidate had no `node_modules`, so the frozen integration attempted once:
+  `pnpm.cmd install --offline --frozen-lockfile`.
+- The command produced no usable output and exited `124` after the 120-second
+  command limit (`124.1s`). This is an abnormal incomplete dependency producer,
+  not a passing install and not a product regression result.
+- Per the v11 stop condition and the declared no-alternate-source boundary, the
+  install was not retried, network install was not attempted, and TypeScript,
+  selector, browser, restart and rollback gates were not started.
+- Read-only post-failure inspection found a partial ignored
+  `node_modules/.pnpm` directory, no remaining candidate install process, empty
+  Git status, empty `server/**` status, and no listener on local
+  `3000/8000/8080/9000`.
+- Unrelated host Node processes were not stopped or modified.
+- The clean candidate and partial ignored dependency directory are preserved for
+  diagnosis; nothing was deleted.
+- v11 is blocked with no active step. C9 and milestone acceptance remain
+  pending. Resumption requires a new explicit instruction that decides whether
+  to allow one bounded longer offline install or supplies a verified dependency
+  cache/candidate. It does not authorize a network fallback automatically.
