@@ -101,8 +101,8 @@ func TestSqliteMigrationsAreOrderedAtomicAndRepeatable(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 8 {
-		t.Fatalf("migration count = %d, want 8", count)
+	if count != 9 {
+		t.Fatalf("migration count = %d, want 9", count)
 	}
 	for _, table := range []string{
 		"workspaces",
@@ -127,6 +127,10 @@ func TestSqliteMigrationsAreOrderedAtomicAndRepeatable(t *testing.T) {
 		"workspace_issue_property_definitions",
 		"workspace_issue_acceptance_conclusions",
 		"workspace_acceptance_knowledge_proposals",
+		"workspace_resource_revisions",
+		"workspace_mutation_idempotency",
+		"workspace_audit_entries",
+		"workspace_outbox_events",
 	} {
 		var found string
 		if err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&found); err != nil {
@@ -150,6 +154,30 @@ func TestSqliteMigrationsAreOrderedAtomicAndRepeatable(t *testing.T) {
 	) VALUES ('invalid-issue', 'workspace-1', 1, 'WSP-0', 'Invalid', 'pending', 'medium',
 		'member', 'member-1', '2026-08-03T00:00:00Z', '2026-08-03T00:00:00Z')`); err == nil {
 		t.Fatal("invalid Issue status persisted")
+	}
+}
+
+func TestWorkspaceGovernanceMigrationEnforcesIdentityStateAndIsolation(t *testing.T) {
+	db := openWorkspaceTestDB(t)
+	mustReject := func(name, statement string, args ...any) {
+		t.Helper()
+		if _, err := db.Exec(statement, args...); err == nil {
+			t.Errorf("%s persisted", name)
+		}
+	}
+	mustReject("empty revision workspace", `INSERT INTO workspace_resource_revisions(workspace_id,resource_kind,resource_id,revision,updated_at) VALUES('','task','task-1',1,'2026-08-16T00:00:00Z')`)
+	mustReject("empty idempotency action", `INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','','key-1','hash','task','task-1',1,201,'{}','2026-08-16T00:00:00Z')`)
+	mustReject("invalid replay envelope", `INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.task.create','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','task','task-1',1,201,'{','2026-08-16T00:00:00Z')`)
+	mustReject("ready event with claim", `INSERT INTO workspace_outbox_events(state,available_at,workspace_id,id,event_type,aggregate_kind,aggregate_id,aggregate_revision,payload_json,actor_type,actor_id,claim_token,lease_expires_at,created_at) VALUES('ready','2026-08-16T00:00:00Z','workspace-1','event-1','task:created','task','task-1',1,'{}','member','member-1','claim-1','2026-08-16T00:01:00Z','2026-08-16T00:00:00Z')`)
+
+	for _, workspaceID := range []string{"workspace-1", "workspace-2"} {
+		if _, err := db.Exec(`INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES(?,?,?,?,?,?,1,201,'{}','2026-08-16T00:00:00Z')`, workspaceID, "workspace.task.create", "same-key", strings.Repeat("a", 64), "task", "task-1"); err != nil {
+			t.Fatalf("insert isolated idempotency row for %s: %v", workspaceID, err)
+		}
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_mutation_idempotency WHERE action='workspace.task.create' AND idempotency_key='same-key'`).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("isolated idempotency rows = %d, %v", count, err)
 	}
 }
 
