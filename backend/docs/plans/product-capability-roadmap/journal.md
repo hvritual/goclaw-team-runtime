@@ -353,3 +353,23 @@ Known limitations, blockers, and next action
   `server/**` path was modified by the product candidate.
 - PCR-S01B-2 remains verification-blocked pending independent review and Human
   Customer disposition of the outstanding gates. PCR-S01B-3 is not active.
+
+## 2026-08-17 — J014 — S01B-2 waiver accepted and S01B-3 activated
+
+- Human Customer directed `开始S01B-3` and answered `确认` to the explicit
+  question whether that direction accepts S01B-2 and waives:
+  1. Windows race exit `0xc0000139`;
+  2. the Makefile Windows `fmt-check` wrapper failure;
+  3. the two recorded out-of-scope attachment concurrency failures from full
+     `go test ./...`.
+- The Customer also confirmed that independent review is deferred to S01B-4.
+- S01B-2 is recorded as Customer Accepted with explicit gate waiver. Its
+  technical evidence remains unchanged and is not represented as PASS.
+- Activated `PCR-001-S01B3-R7` on product-code base `40d65ad` with the exact
+  paths, acceptance, and verification in the task register.
+- S01B-3 is limited to outbox claim/delivery/retry/dead-letter/replay,
+  owner/admin diagnostics, explicit worker lifecycle/readiness composition,
+  their tests, and roadmap evidence. It cannot add a product capability or
+  enable a roadmap feature flag.
+- Existing unrelated UI and local-runtime changes remain excluded.
+- The next authorized product action is a TDD RED for SQLite outbox claiming.

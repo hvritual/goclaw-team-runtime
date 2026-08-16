@@ -2,9 +2,9 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v2`
-- Registry status: `PCR-S01B-2 candidate committed; verification blocked`
-- Registry revision: `r006`
-- Updated: `2026-08-16`
+- Registry status: `PCR-S01B-2 accepted by Customer waiver; PCR-S01B-3 active`
+- Registry revision: `r007`
+- Updated: `2026-08-17`
 
 ## Frozen policy bundle
 
@@ -266,7 +266,7 @@ technical PASS.
 - Task-Revision: `r006`
 - Work-Item: `PCR-S01B-2`
 - Title: `SQLite mutation governance`
-- Status: `candidate-committed-verification-blocked`
+- Status: `customer-accepted-with-explicit-gate-waiver`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before S01B final acceptance`
 - Product-code base commit: `3876791`
@@ -342,9 +342,89 @@ remain indexed and may not be hidden or weakened.
 - Independent review and Human Customer acceptance remain outstanding;
   `PCR-S01B-3` is inactive.
 
+The Human Customer subsequently confirmed that starting S01B-3 constitutes
+S01B-2 acceptance and explicit waiver of the Windows race loader failure, the
+Makefile Windows wrapper failure, and the two recorded out-of-scope attachment
+concurrency failures. Independent review is deferred to S01B-4. The underlying
+technical evidence remains unchanged and is not represented as a PASS.
+
+## PCR-001-S01B3-R7
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B3-R7`
+- Task-Revision: `r007`
+- Work-Item: `PCR-S01B-3`
+- Title: `Outbox delivery and governance diagnostics`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `deferred to PCR-S01B-4 by Human Customer confirmation`
+- Product-code base commit: `40d65ad`
+- Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
+- Plan-Version: `v2`
+- Plan-Step: `PCR-S01B-3`
+- Policy bundle: the frozen v2 hashes above.
+
+### Exact allowed paths
+
+- `backend/internal/modules/workspace/internal/application/outbox_service.go` (new)
+- `backend/internal/modules/workspace/internal/application/outbox_service_test.go` (new)
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/governance_repository.go`
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/governance_repository_test.go`
+- `backend/internal/modules/workspace/internal/interfaces/http/governance.go` (new)
+- `backend/internal/modules/workspace/internal/interfaces/http/governance_test.go` (new)
+- `backend/internal/modules/workspace/governance.go`
+- `backend/internal/modules/workspace/governance_outbox.go` (new)
+- `backend/internal/modules/workspace/governance_outbox_test.go` (new)
+- `backend/internal/modules/workspace/sqlite_workspace_chain.go`
+- `backend/internal/modules/workspace/sqlite_workspace_chain_test.go`
+- `backend/internal/modules/workspace/sqlite_workspace_services.go`
+- `backend/internal/bootstrap/sqlite.go`
+- `backend/internal/bootstrap/sqlite_runtime_test.go`
+- `backend/internal/bootstrap/runtime.go`
+- `backend/internal/bootstrap/runtime_test.go`
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No migration, contract, existing capability repository, feature API, frontend,
+Control Plane, generated, or `server/**` path is authorized by r007. Discovery
+of a required path outside this list stops implementation and requires a new
+task revision.
+
+### Frozen acceptance
+
+1. Claim batches enforce default 100 and hard cap 500 with 60-second leases.
+2. Stale claim tokens cannot ack, retry, dead-letter, or replay an event.
+3. Initial delivery plus three retries, deterministic jitter, dead-letter,
+   operator-authorized replay, restart, and lease reclaim pass.
+4. Publish/ack crash windows may redeliver only the same stable event ID and
+   aggregate revision.
+5. `GET /api/operations/governance` is Workspace-scoped, owner/admin-only, and
+   returns counts/timestamps without payload or audit content.
+6. Database/provider unavailability keeps readiness honest; backlog older than
+   15 minutes is reported degraded without restarting the process.
+7. Explicit Canonical composition owns worker start/stop and no product feature
+   flag becomes true.
+
+### Deterministic verification
+
+```text
+cd backend && go test ./internal/modules/workspace/internal/application -run Outbox
+cd backend && go test ./internal/modules/workspace/internal/infrastructure/sqlite -run 'Governance|Outbox'
+cd backend && go test ./internal/modules/workspace/internal/interfaces/http -run Governance
+cd backend && go test ./internal/modules/workspace ./internal/bootstrap -run Governance
+cd backend && go test -race ./internal/modules/workspace/internal/application ./internal/modules/workspace/internal/infrastructure/sqlite ./internal/modules/workspace/internal/interfaces/http ./internal/modules/workspace ./internal/bootstrap
+cd backend && make check
+git diff --check
+git diff --name-only -- server
+```
+
+Windows `0xc0000139` is not a race PASS. The Customer waiver closing r006 does
+not silently waive r007 verification. Existing attachment failures remain
+indexed and may not be hidden or weakened.
+
 ## Queue rules
 
-- No task after PCR-S01B-2 may be enqueued until r006 closes and the next task
+- No task after PCR-S01B-3 may be enqueued until r007 closes and the next task
   revision freezes its exact base, paths, checks, and active-step pointer.
 - A task status in this file is not a substitute for the active-step pointer in
   `plan.md`; both must agree.
