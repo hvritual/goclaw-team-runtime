@@ -241,3 +241,54 @@ Known limitations, blockers, and next action
   the task register.
 - Existing unrelated dirty UI and local-runtime paths remain excluded.
 - The next authorized action is a TDD RED in the contract or migration tests.
+
+## 2026-08-16 — J011 — PCR-S01B-1 candidate committed; verification blocked
+
+- Product candidate commit: `3876791`.
+- Added Workspace governance contract values and stable errors for trusted
+  mutation identity, command revision/idempotency, replay result, audit,
+  outbox state/event, diagnostics, sink, and diagnostics reader.
+- Added additive migration `000009_workspace_governance` with four
+  Workspace-owned `WITHOUT ROWID` tables:
+  - `workspace_resource_revisions`;
+  - `workspace_mutation_idempotency`;
+  - `workspace_audit_entries`;
+  - `workspace_outbox_events`.
+- Migration contains no foreign key, cascade, trigger, explicit index, or
+  secondary unique-index DDL. Strict `CREATE TABLE` prevents an incompatible
+  pre-existing object from being silently accepted as an applied migration.
+- TDD RED evidence:
+  - migration count was 8 instead of 9;
+  - governance identity/command/result/audit/outbox/diagnostics contracts were
+    absent;
+  - empty schema identities and ready events with claims persisted;
+  - replay envelopes accepted invalid JSON;
+  - migration tables lacked `WITHOUT ROWID`;
+  - a conflicting retained object allowed v9 to be recorded without an audit
+    table until strict table creation was used.
+- GREEN evidence:
+  - `go test ./internal/modules/workspace/contract` passed;
+  - `go test ./internal/modules/workspace -run
+    'Test.*(Governance|Migration|Migrate)'` passed;
+  - complete `go test ./internal/modules/workspace/contract
+    ./internal/modules/workspace` passed during iteration;
+  - retained version-8 upgrade, second run, partial-failure rollback, restart
+    persistence, schema constraints, and workspace idempotency isolation pass.
+- Equivalent Makefile checks:
+  - changed-file `gofmt` clean;
+  - generated output diff clean;
+  - policy check passed;
+  - `go vet ./...` passed.
+- Outstanding verification:
+  - `go test -race ./internal/modules/workspace/contract
+    ./internal/modules/workspace` exited Windows loader code `0xc0000139` and is
+    not a PASS;
+  - `make check` stopped in the Windows `fmt-check` wrapper with
+    `exit was unexpected at this time`;
+  - direct full `go test ./...` failed in out-of-scope existing tests:
+    `TestSQLiteRuntimeServesCanonicalIssueAttachments` (local-user create 500),
+    `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`
+    (attachment 500), and
+    `TestAttachmentRepositoryRetriesBusyWriteAcquisition` (deadline exceeded).
+- No failure was weakened or repaired outside r005 scope. S01B-1 remains active
+  and verification-blocked; S01B-2 is not activated.

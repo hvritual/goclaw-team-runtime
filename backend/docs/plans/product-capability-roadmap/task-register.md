@@ -188,7 +188,7 @@ Revalidate the policy-bundle hashes and base commit before proposing v2.
 - Task-Revision: `r005`
 - Work-Item: `PCR-S01B-1`
 - Title: `Workspace governance contract and SQLite migration`
-- Status: `active`
+- Status: `implementation-complete; verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before S01B final acceptance`
 - Product-code base commit: `312feda1aeaafb5d1aecffd61a7fbcdcbd7ee3c6`
@@ -238,6 +238,19 @@ git diff --name-only -- server
 The Windows loader code `0xc0000139` remains an environment limitation, not a
 race PASS. Existing attachment concurrency failures may not be hidden or
 weakened by this task.
+
+### Current evidence
+
+- Product candidate commit:
+  `3876791` (`feat(workspace): add governance contracts and schema`).
+- Contract and focused Workspace migration tests pass.
+- Changed-file formatting, generated-output cleanliness, policy check, and
+  `go vet ./...` pass.
+- Technical closure is blocked because the frozen Windows race command exits
+  `0xc0000139`, the Makefile `fmt-check` wrapper fails before equivalent checks,
+  and full `go test ./...` reproduces out-of-scope attachment/auth SQLite
+  concurrency failures.
+- PCR-S01B-2 remains inactive.
 
 ## Queue rules
 
