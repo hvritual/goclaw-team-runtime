@@ -309,3 +309,47 @@ Known limitations, blockers, and next action
   Workspace constructor, their tests, and roadmap evidence. It cannot retrofit
   existing repositories or compose runtime behavior.
 - The next authorized action is a TDD RED for atomic governed mutation behavior.
+
+## 2026-08-16 — J013 — PCR-S01B-2 candidate committed; verification blocked
+
+- Product candidate commit: `a9f04b0`.
+- Added an application-layer governance preparer that validates mutation input,
+  derives the next resource revision, allowlists audit metadata, and prepares
+  ready outbox events without importing SQLite.
+- Added an explicitly opt-in SQLite governance repository. It owns one
+  connection and `BEGIN IMMEDIATE`, invokes the supplied domain mutation on the
+  same connection, and atomically persists resource revision, audit, outbox,
+  and idempotency replay state.
+- Replay is scoped by workspace, action, and idempotency key. Matching hashes
+  return the original response without executing the domain callback; a
+  different hash returns the stable idempotency conflict.
+- Defensive envelope validation rejects audit or outbox identity, resource, or
+  revision drift before the domain callback, including cross-workspace outbox
+  injection.
+- TDD RED evidence recorded missing application types, missing repository,
+  missing five-phase failure controls, missing opt-in constructor, and an
+  initially accepted cross-workspace prepared envelope.
+- GREEN evidence:
+  - `go test ./internal/modules/workspace/internal/application -run Governance`
+    passed;
+  - `go test ./internal/modules/workspace/internal/infrastructure/sqlite -run
+    Governance` passed;
+  - `go test ./internal/modules/workspace -run Governance` passed;
+  - complete tests for those three packages passed;
+  - concurrency proves one same-revision winner and one conflict reporting
+    current revision 1;
+  - injected aborts after domain, revision, audit, outbox, and replay each leave
+    all domain and governance tables unchanged.
+- Direct Windows-compatible formatting, generated-clean, policy, and
+  `go vet ./...` checks passed.
+- Outstanding verification:
+  - the frozen three-package race command exited `0xc0000139` for each package
+    and is not a PASS;
+  - `make check` stopped in the known Windows `fmt-check` wrapper;
+  - full `go test ./...` reproduced only the indexed out-of-scope attachment
+    concurrency failures in Bootstrap and Space SQLite.
+- No existing capability repository, runtime route/composition, HTTP,
+  frontend, Control Plane, generated output, migration, contract, or
+  `server/**` path was modified by the product candidate.
+- PCR-S01B-2 remains verification-blocked pending independent review and Human
+  Customer disposition of the outstanding gates. PCR-S01B-3 is not active.

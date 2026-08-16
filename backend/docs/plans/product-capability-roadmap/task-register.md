@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v2`
-- Registry status: `PCR-S01B-1 accepted by Customer waiver; PCR-S01B-2 active`
+- Registry status: `PCR-S01B-2 candidate committed; verification blocked`
 - Registry revision: `r006`
 - Updated: `2026-08-16`
 
@@ -266,7 +266,7 @@ technical PASS.
 - Task-Revision: `r006`
 - Work-Item: `PCR-S01B-2`
 - Title: `SQLite mutation governance`
-- Status: `active`
+- Status: `candidate-committed-verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before S01B final acceptance`
 - Product-code base commit: `3876791`
@@ -317,6 +317,30 @@ git diff --name-only -- server
 
 Windows `0xc0000139` is not a race PASS. Previously waived full-suite failures
 remain indexed and may not be hidden or weakened.
+
+### Current evidence
+
+- Product candidate commit: `a9f04b0`.
+- Focused Governance tests and the complete application, SQLite infrastructure,
+  and Workspace module test packages pass.
+- Concurrent expected-revision mutation, deterministic replay/hash conflict,
+  five-phase rollback, workspace/action isolation, audit allowlisting, and
+  cross-workspace envelope rejection pass.
+- Changed-file formatting, generated-output cleanliness, policy boundary, and
+  `go vet ./...` pass through direct Windows-compatible commands.
+- Technical closure remains blocked:
+  - the frozen race command exits with Windows loader code `0xc0000139` for all
+    three packages and is not a PASS;
+  - `make check` stops in the known Windows `fmt-check` wrapper with
+    `exit was unexpected at this time`;
+  - full `go test ./...` reproduces the out-of-scope existing failures
+    `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`
+    (attachment 500) and
+    `TestAttachmentRepositoryRetriesBusyWriteAcquisition`
+    (context deadline exceeded).
+- No existing capability repository or runtime composition was changed.
+- Independent review and Human Customer acceptance remain outstanding;
+  `PCR-S01B-3` is inactive.
 
 ## Queue rules
 
