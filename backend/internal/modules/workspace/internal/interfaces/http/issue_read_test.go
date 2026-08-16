@@ -13,6 +13,19 @@ import (
 
 type attachmentConflictIssueService struct{ contract.IssueMutationService }
 
+type recordingIssueListService struct {
+	contract.IssueMutationService
+	request contract.ListIssuesRequest
+}
+
+func (s *recordingIssueListService) ListIssues(_ context.Context, request contract.ListIssuesRequest) (contract.ListIssuesResponse, error) {
+	s.request = request
+	return contract.ListIssuesResponse{Issues: []contract.Issue{{
+		Id: "issue-blocked", WorkspaceId: "workspace-1", Number: 1, Identifier: "ONE-1",
+		Title: "Blocked issue", Status: "blocked", Priority: "high", CreatorType: "member", CreatorId: "member-1",
+	}}}, nil
+}
+
 func (attachmentConflictIssueService) GetIssue(context.Context, contract.GetIssueRequest) (contract.GetIssueResponse, error) {
 	return contract.GetIssueResponse{Issue: &contract.Issue{Id: "issue-1", WorkspaceId: "workspace-1"}}, nil
 }
@@ -39,6 +52,29 @@ func TestIssueAttachmentConflictReturnsCanonical409(t *testing.T) {
 	server.ServeHTTP(response, request)
 	if response.Code != http.StatusConflict || strings.TrimSpace(response.Body.String()) != `{"error":"issue attachments changed"}` {
 		t.Fatalf("attachment conflict = %d %s", response.Code, response.Body.String())
+	}
+}
+
+func TestIssueListPushesSingularStatusIntoServiceQuery(t *testing.T) {
+	service := &recordingIssueListService{}
+	server := kratoshttp.NewServer()
+	handler := NewIssueReadHandler(
+		service, nil,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		},
+		nil, nil, false, false,
+	)
+	handler.Register(server)
+
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/issues?status=blocked&limit=50", nil))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("list = %d %s", response.Code, response.Body.String())
+	}
+	if service.request.Status != "blocked" {
+		t.Fatalf("service status = %q, want blocked", service.request.Status)
 	}
 }
 

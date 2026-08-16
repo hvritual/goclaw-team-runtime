@@ -493,7 +493,11 @@ func (h *IssueReadHandler) filteredIssues(ctx context.Context, workspaceID strin
 	if requested := strings.TrimSpace(params["workspace_id"]); requested != "" && requested != workspaceID {
 		return nil, contract.ErrActorOutsideWorkspace
 	}
-	result, err := h.service.ListIssues(ctx, contract.ListIssuesRequest{WorkspaceId: workspaceID})
+	request := contract.ListIssuesRequest{WorkspaceId: workspaceID}
+	if status := params["status"]; statusRank(status) != 99 {
+		request.Status = status
+	}
+	result, err := h.service.ListIssues(ctx, request)
 	if err != nil {
 		return nil, err
 	}
