@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v1`
-- Registry status: `PCR-S01A accepted by Customer waiver; PCR-S01B design active`
+- Registry status: `PCR-S01A accepted by Customer waiver; PCR-S01B v2 proposal awaiting approval`
 - Registry revision: `r004`
 - Updated: `2026-08-16`
 
@@ -125,7 +125,7 @@ required before technical acceptance.
 - Task-Revision: `r004`
 - Work-Item: `PCR-S01B`
 - Title: `Revision, audit, idempotency, and outbox contract and migration design`
-- Status: `active-design`
+- Status: `design-complete; awaiting-plan-v2-approval`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before product-code task acceptance`
 - Base commit: `cc61297be42ca5acf1fc47d9ba9d70939f406588`
@@ -168,6 +168,17 @@ git diff --name-only -- server
 ```
 
 Revalidate the policy-bundle hashes and base commit before proposing v2.
+
+### Design outputs
+
+- `s01b-foundation-design.md`
+- `plan_v2.md` with status `proposed; awaiting Human Customer approval`
+- Design SHA256:
+  `dfff4f470f29234880939b1ca2826db8f5a6c4e979df7f4c50473f906f033d3f`
+- Proposed plan SHA256:
+  `af0486c7625067b2b25de163271ba6f4be153c74331488eb57d9c42ab69ffd30`
+- Product-code authority remains none until v2 is explicitly approved and a
+  new implementation task is frozen.
 
 ## Queue rules
 

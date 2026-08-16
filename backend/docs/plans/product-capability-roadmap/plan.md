@@ -1,6 +1,8 @@
 # Product capability roadmap
 
 The approved execution snapshot is [plan_v1.md](plan_v1.md).
+The proposed successor is [plan_v2.md](plan_v2.md); it is not executable until
+the Human Customer explicitly approves version 2.
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `1`
@@ -13,6 +15,7 @@ The approved execution snapshot is [plan_v1.md](plan_v1.md).
 - Ordered delivery stories: [story-map.md](story-map.md)
 - Task register: [task-register.md](task-register.md)
 - Evidence journal: [journal.md](journal.md)
+- S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
 
 The user explicitly accepted S01A and its three documented gate waivers, then
 confirmed activation of S01B on 2026-08-16. S01B begins with a documentation-only

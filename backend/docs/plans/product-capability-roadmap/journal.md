@@ -202,3 +202,28 @@ Known limitations, blockers, and next action
 - r004 authorizes only the exact roadmap-document paths in the task register.
   It grants no product-code, migration, API, frontend, Control Plane, or
   `server/**` write authority.
+
+## 2026-08-16 — J009 — S01B design and proposed v2 completed
+
+- Completed `s01b-foundation-design.md` under documentation-only task
+  `PCR-001-S01B-R4`.
+- Ownership decision: Canonical Workspace owns the four governance tables and
+  mutation transaction. Control Plane remains evidence only and is not read,
+  imported, invoked, or dual-written.
+- Transaction decision: each future capability repository owns one dedicated
+  SQLite connection and `BEGIN IMMEDIATE`; domain, revision, audit, outbox, and
+  replay writes commit or roll back together. Nested transactions are forbidden.
+- Migration decision proposed for approval: version 9 adds table definitions
+  and composite primary keys only, with no explicit secondary/unique index DDL.
+  A measured need for another SQLite index stops execution and requires a new
+  plan version.
+- Delivery decision: durable outbox uses bounded claims, 60-second leases,
+  initial plus three attempts, stable event IDs, deterministic retry tests, and
+  dead-letter state. At-least-once crash-window duplicates are explicit.
+- Diagnostic decision: owner/admin-only
+  `GET /api/operations/governance` returns counts/timestamps and never payload
+  content.
+- Created `plan_v2.md` with four ordered S01B steps, exact product paths,
+  acceptance, deterministic checks, risks, and rollback.
+- v2 status is `proposed; awaiting Human Customer approval`. No product code is
+  authorized and no implementation step is active.
