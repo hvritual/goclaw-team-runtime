@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v2`
-- Status: `PCR-S01B-1 active`
+- Status: `PCR-S01B-2 active`
 
 ## Delivery policy
 

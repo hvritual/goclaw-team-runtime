@@ -292,3 +292,20 @@ Known limitations, blockers, and next action
     `TestAttachmentRepositoryRetriesBusyWriteAcquisition` (deadline exceeded).
 - No failure was weakened or repaired outside r005 scope. S01B-1 remains active
   and verification-blocked; S01B-2 is not activated.
+
+## 2026-08-16 — J012 — S01B-1 waiver accepted and S01B-2 activated
+
+- Human Customer directed `开始S01B-2` and answered `确认` to the explicit
+  question whether that direction accepts S01B-1 and waives:
+  1. Windows race exit `0xc0000139`;
+  2. the Makefile Windows `fmt-check` wrapper failure;
+  3. the three recorded out-of-scope attachment/auth SQLite concurrency
+     failures from full `go test ./...`.
+- S01B-1 is recorded as Customer Accepted with explicit gate waiver. The
+  technical evidence remains unchanged and is not represented as PASS.
+- Activated `PCR-001-S01B2-R6` on product-code base `3876791` with the exact
+  paths, acceptance, and verification in the task register.
+- S01B-2 is limited to the new application service, SQLite repository/helper,
+  Workspace constructor, their tests, and roadmap evidence. It cannot retrofit
+  existing repositories or compose runtime behavior.
+- The next authorized action is a TDD RED for atomic governed mutation behavior.

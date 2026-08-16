@@ -2,8 +2,8 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v2`
-- Registry status: `PCR-S01B-1 active`
-- Registry revision: `r005`
+- Registry status: `PCR-S01B-1 accepted by Customer waiver; PCR-S01B-2 active`
+- Registry revision: `r006`
 - Updated: `2026-08-16`
 
 ## Frozen policy bundle
@@ -188,7 +188,7 @@ Revalidate the policy-bundle hashes and base commit before proposing v2.
 - Task-Revision: `r005`
 - Work-Item: `PCR-S01B-1`
 - Title: `Workspace governance contract and SQLite migration`
-- Status: `implementation-complete; verification-blocked`
+- Status: `customer-accepted-with-explicit-gate-waiver`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before S01B final acceptance`
 - Product-code base commit: `312feda1aeaafb5d1aecffd61a7fbcdcbd7ee3c6`
@@ -250,11 +250,77 @@ weakened by this task.
   `0xc0000139`, the Makefile `fmt-check` wrapper fails before equivalent checks,
   and full `go test ./...` reproduces out-of-scope attachment/auth SQLite
   concurrency failures.
-- PCR-S01B-2 remains inactive.
+- At the time the r005 candidate evidence was recorded, PCR-S01B-2 remained
+  inactive.
+
+The Human Customer subsequently confirmed that starting S01B-2 constitutes
+S01B-1 acceptance and explicit waiver of the Windows race loader failure, the
+Makefile Windows wrapper failure, and the three recorded out-of-scope full-suite
+concurrency failures. The underlying evidence remains unchanged and is not a
+technical PASS.
+
+## PCR-001-S01B2-R6
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B2-R6`
+- Task-Revision: `r006`
+- Work-Item: `PCR-S01B-2`
+- Title: `SQLite mutation governance`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before S01B final acceptance`
+- Product-code base commit: `3876791`
+- Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
+- Plan-Version: `v2`
+- Plan-Step: `PCR-S01B-2`
+- Policy bundle: the frozen v2 hashes above.
+
+### Exact allowed paths
+
+- `backend/internal/modules/workspace/internal/application/governance_service.go` (new)
+- `backend/internal/modules/workspace/internal/application/governance_service_test.go` (new)
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/governance_repository.go` (new)
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/governance_repository_test.go` (new)
+- `backend/internal/modules/workspace/governance.go` (new)
+- `backend/internal/modules/workspace/governance_test.go` (new)
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No contract, migration, existing capability repository, runtime composition,
+HTTP, frontend, Control Plane, generated, or `server/**` path is authorized by
+r006. Discovery of a required path outside this list stops implementation and
+requires a new task revision.
+
+### Frozen acceptance
+
+1. Concurrent mutations with one expected revision produce one commit and one
+   revision conflict containing the current revision.
+2. Same workspace/action/key/hash replays the original response without a
+   second domain mutation, audit row, outbox row, or revision advance.
+3. Same key with a different request hash returns idempotency conflict.
+4. Test aborts after domain, revision, audit, outbox, and replay phases leave no
+   partial committed state.
+5. Workspace/action isolation and audit allowlisting/redaction pass.
+6. No existing repository or runtime route is retrofitted.
+
+### Deterministic verification
+
+```text
+cd backend && go test ./internal/modules/workspace/internal/application -run Governance
+cd backend && go test ./internal/modules/workspace/internal/infrastructure/sqlite -run Governance
+cd backend && go test ./internal/modules/workspace -run Governance
+cd backend && go test -race ./internal/modules/workspace/internal/application ./internal/modules/workspace/internal/infrastructure/sqlite ./internal/modules/workspace
+cd backend && make check
+git diff --check
+git diff --name-only -- server
+```
+
+Windows `0xc0000139` is not a race PASS. Previously waived full-suite failures
+remain indexed and may not be hidden or weakened.
 
 ## Queue rules
 
-- No task after PCR-S01B-1 may be enqueued until r005 closes and the next task
+- No task after PCR-S01B-2 may be enqueued until r006 closes and the next task
   revision freezes its exact base, paths, checks, and active-step pointer.
 - A task status in this file is not a substitute for the active-step pointer in
   `plan.md`; both must agree.
