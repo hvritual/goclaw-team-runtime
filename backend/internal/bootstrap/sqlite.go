@@ -71,7 +71,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships()}
+	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships(), roadmapProvider: config.RoadmapCapabilityProvider}
 	selection, err := workspace.NewSqliteWorkspaceSelection(workspace.SqlitePersistenceConfig{DB: db}, memberships)
 	if err != nil {
 		return nil, nil, nil, err
@@ -210,7 +210,8 @@ func normalizeRetainedIssueMemberActors(ctx context.Context, db *sql.DB) (err er
 }
 
 type authMembershipAdapter struct {
-	reader authcontract.WorkspaceMembershipReader
+	reader          authcontract.WorkspaceMembershipReader
+	roadmapProvider contract.RoadmapCapabilityProvider
 }
 
 func (a authMembershipAdapter) ListForUser(ctx context.Context, userID string) ([]contract.WorkspaceMembership, error) {
@@ -236,23 +237,36 @@ func (a authMembershipAdapter) FindByMemberAndWorkspace(ctx context.Context, mem
 }
 
 func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspaceID, permission string) error {
-	switch permission {
-	case "workspace.issue.create", "workspace.issue.get", "workspace.issue.list", "workspace.issue.update", "workspace.issue.update_status", "workspace.issue.delete",
-		"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete",
-		"workspace.issue.timeline.list", "workspace.issue.timeline.record",
-		"workspace.issue.comment.get", "workspace.issue.comment.list", "workspace.issue.comment.create", "workspace.issue.comment.update", "workspace.issue.comment.delete", "workspace.issue.comment.resolve", "workspace.issue.comment.knowledge", "workspace.issue.comment.react",
-		"workspace.issue.reaction.list", "workspace.issue.reaction.put", "workspace.issue.reaction.delete",
-		"workspace.issue.subscriber.list", "workspace.issue.subscriber.put", "workspace.issue.subscriber.delete",
-		"workspace.issue.label.list", "workspace.issue.label.write",
-		"workspace.issue.property.list", "workspace.issue.property.write",
-		"workspace.issue.acceptance.list", "workspace.issue.acceptance.write",
-		"workspace.project.create", "workspace.project.get", "workspace.project.list", "workspace.project.search", "workspace.project.update", "workspace.project.delete",
-		"workspace.pin.list", "workspace.pin.create", "workspace.pin.delete":
-	default:
-		return contract.ErrWorkspaceActorRequired
+	roadmapPermission := contract.IsRoadmapCapabilityPermission(permission)
+	if roadmapPermission {
+		if !contract.RoadmapCapabilityInstalled(permission, a.roadmapProvider) {
+			return contract.ErrWorkspacePermissionDenied
+		}
+	} else {
+		switch permission {
+		case "workspace.issue.create", "workspace.issue.get", "workspace.issue.list", "workspace.issue.update", "workspace.issue.update_status", "workspace.issue.delete",
+			"workspace.issue.metadata.get", "workspace.issue.metadata.put", "workspace.issue.metadata.delete",
+			"workspace.issue.timeline.list", "workspace.issue.timeline.record",
+			"workspace.issue.comment.get", "workspace.issue.comment.list", "workspace.issue.comment.create", "workspace.issue.comment.update", "workspace.issue.comment.delete", "workspace.issue.comment.resolve", "workspace.issue.comment.knowledge", "workspace.issue.comment.react",
+			"workspace.issue.reaction.list", "workspace.issue.reaction.put", "workspace.issue.reaction.delete",
+			"workspace.issue.subscriber.list", "workspace.issue.subscriber.put", "workspace.issue.subscriber.delete",
+			"workspace.issue.label.list", "workspace.issue.label.write",
+			"workspace.issue.property.list", "workspace.issue.property.write",
+			"workspace.issue.acceptance.list", "workspace.issue.acceptance.write",
+			"workspace.project.create", "workspace.project.get", "workspace.project.list", "workspace.project.search", "workspace.project.update", "workspace.project.delete",
+			"workspace.pin.list", "workspace.pin.create", "workspace.pin.delete":
+		default:
+			return contract.ErrWorkspaceActorRequired
+		}
 	}
 	actor, ok := contract.WorkspaceActorFromContext(ctx)
-	if !ok || actor.Type != "member" {
+	if !ok {
+		return contract.ErrWorkspaceActorRequired
+	}
+	if roadmapPermission && actor.Type != "member" {
+		return contract.ErrWorkspacePermissionDenied
+	}
+	if actor.Type != "member" {
 		return contract.ErrWorkspaceActorRequired
 	}
 	membership, found, err := a.FindForUserAndWorkspace(ctx, actor.ID, workspaceID)
@@ -267,6 +281,9 @@ func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspace
 	}
 	if !found {
 		return contract.ErrActorOutsideWorkspace
+	}
+	if roadmapPermission && !contract.RoadmapCapabilityAllows(permission, actor.Type, membership.Role) {
+		return contract.ErrWorkspacePermissionDenied
 	}
 	if permission == "workspace.project.delete" && membership.Role != "owner" && membership.Role != "admin" {
 		return contract.ErrWorkspacePermissionDenied

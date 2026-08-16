@@ -50,7 +50,7 @@ Expected outputs:
 - Task-Revision: `r003`
 - Work-Item: `PCR-S01A`
 - Title: `Canonical capability authorization and accurate feature flags`
-- Status: `active`
+- Status: `implementation-complete; verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `must be assigned before acceptance`
 - Base commit: `144997ab5fcd04544f8ffa40a1a75fc79fdb5904`
@@ -102,6 +102,20 @@ cd backend && make check
 On Windows, loader exit `0xc0000139` is recorded as an environment limitation,
 not a passing race result. A non-Windows race result or CI equivalent remains
 required before technical acceptance.
+
+### Current verification state
+
+- The S01A authorization catalog, installed-provider seam, explicit disabled
+  flags, membership isolation, and role/agent defaults are implemented inside
+  the frozen paths.
+- Focused contract and Bootstrap S01A tests pass.
+- Policy check, changed-file formatting, generated-output cleanliness, and
+  `go vet ./...` pass.
+- Technical acceptance remains blocked: the frozen race command exits with the
+  documented Windows loader code `0xc0000139`; full `go test ./...` also
+  reproduces pre-existing attachment concurrency failures outside S01A scope.
+- No later roadmap task is activated while these gates and independent review
+  remain outstanding.
 
 ## Queue rules
 

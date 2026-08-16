@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/hvritual/workspace/internal/modules/auth"
+	workspacecontract "github.com/hvritual/workspace/internal/modules/workspace/contract"
 )
 
 func TestConfigValidate(t *testing.T) {
@@ -108,6 +109,97 @@ func TestRuntimeRegistersHealthAndModuleRoutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *testing.T) {
+	runtime := newTestRuntime(t)
+	response := httptest.NewRecorder()
+	runtime.HTTPServer().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %s", response.Code, http.StatusOK, response.Body.String())
+	}
+	var body struct {
+		FeatureFlags map[string]bool `json:"feature_flags"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	for _, capability := range []string{
+		"tasks",
+		"issue_search",
+		"project_search",
+		"pin_reorder",
+		"skill_administration",
+		"skill_import",
+		"knowledge_query",
+		"knowledge_review",
+		"project_resources",
+		"project_requirements",
+		"project_retrospectives",
+		"issue_similarity",
+		"notifications",
+		"overdue_reminders",
+		"project_phases",
+		"project_outline",
+		"project_phase_board",
+	} {
+		enabled, present := body.FeatureFlags[capability]
+		if !present {
+			t.Errorf("feature flag %q is absent", capability)
+			continue
+		}
+		if enabled {
+			t.Errorf("uninstalled feature flag %q = true, want false", capability)
+		}
+	}
+}
+
+func TestRoadmapFeatureFlagsRequireAnInstalledProvider(t *testing.T) {
+	provider := runtimeCapabilityProviderStub{workspacecontract.PermissionTaskRead: true}
+	flags := roadmapFeatureFlags(provider)
+	if !flags["tasks"] {
+		t.Error("tasks flag = false after its provider reported installed")
+	}
+	if flags["issue_search"] {
+		t.Error("issue_search flag = true without its provider")
+	}
+	for name, enabled := range roadmapFeatureFlags(nil) {
+		if enabled {
+			t.Errorf("feature flag %q = true without an injected provider", name)
+		}
+	}
+}
+
+func TestRuntimeReportsOnlyCapabilitiesProvenByInjectedProvider(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{
+		Name: "backend-test", Version: "test",
+		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath:            filepath.Join(t.TempDir(), "capability-runtime.db"),
+		WorkspaceDependencies: FailClosedWorkspaceDependencies(),
+		RoadmapCapabilityProvider: runtimeCapabilityProviderStub{
+			workspacecontract.PermissionTaskRead: true,
+		},
+	})
+	response := httptest.NewRecorder()
+	runtime.HTTPServer().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/config", nil))
+	var body struct {
+		FeatureFlags map[string]bool `json:"feature_flags"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.FeatureFlags["tasks"] {
+		t.Error("tasks flag = false after runtime provider installation")
+	}
+	if body.FeatureFlags["skill_import"] {
+		t.Error("skill_import flag = true without runtime provider installation")
+	}
+}
+
+type runtimeCapabilityProviderStub map[string]bool
+
+func (s runtimeCapabilityProviderStub) RoadmapCapabilityInstalled(permission string) bool {
+	return s[permission]
 }
 
 func TestRuntimeRegistersGRPCServices(t *testing.T) {

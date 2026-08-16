@@ -18,22 +18,24 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/auth"
 	"github.com/hvritual/workspace/internal/modules/workspace"
+	workspacecontract "github.com/hvritual/workspace/internal/modules/workspace/contract"
 	canonicalrealtime "github.com/hvritual/workspace/internal/realtime"
 )
 
 // Config defines the standalone backend process identity and listen addresses.
 type Config struct {
-	Name                    string
-	Version                 string
-	HTTPAddress             string
-	GRPCAddress             string
-	SQLitePath              string
-	AttachmentRoot          string
-	WorkspaceDependencies   workspace.WorkspaceServiceDependencies
-	LocalAuth               auth.LocalAuthConfig
-	IssueMetadataEnabled    *bool
-	IssueCreateEnabled      *bool
-	IssueAttachmentsEnabled *bool
+	Name                      string
+	Version                   string
+	HTTPAddress               string
+	GRPCAddress               string
+	SQLitePath                string
+	AttachmentRoot            string
+	WorkspaceDependencies     workspace.WorkspaceServiceDependencies
+	LocalAuth                 auth.LocalAuthConfig
+	IssueMetadataEnabled      *bool
+	IssueCreateEnabled        *bool
+	IssueAttachmentsEnabled   *bool
+	RoadmapCapabilityProvider workspacecontract.RoadmapCapabilityProvider
 }
 
 // Validate rejects incomplete process identity and malformed TCP addresses.
@@ -118,7 +120,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	realtimeHub.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
 	registerHealthRoutes(httpServer, db)
-	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled), capabilityEnabled(config.IssueAttachmentsEnabled))
+	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled), capabilityEnabled(config.IssueAttachmentsEnabled), config.RoadmapCapabilityProvider)
 
 	app := kratos.New(
 		kratos.Name(config.Name),
@@ -138,26 +140,56 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	}, nil
 }
 
-func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled, issueAttachmentsEnabled bool) {
+func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled, issueAttachmentsEnabled bool, roadmapProvider workspacecontract.RoadmapCapabilityProvider) {
 	server.Route("/").GET("/api/config", func(ctx kratoshttp.Context) error {
+		featureFlags := map[string]bool{
+			"issue_list": true, "issue_base_detail": true,
+			"issue_detail_pull_requests": false,
+			"issue_timeline":             true, "issue_members": true,
+			"issue_reactions": true, "issue_subscribers": true,
+			"issue_attachments": issueAttachmentsEnabled, "issue_labels": true,
+			"issue_properties": true, "issue_pins": true,
+			"issue_children": true, "issue_project": true,
+			"issue_child_progress": true, "issue_batch": true, "issue_acceptance": true,
+			"issue_metadata": issueMetadataEnabled, "issue_realtime": true,
+			"issue_create":    issueCreateEnabled,
+			"project_control": false,
+		}
+		for name, enabled := range roadmapFeatureFlags(roadmapProvider) {
+			featureFlags[name] = enabled
+		}
 		return ctx.JSON(http.StatusOK, map[string]any{
 			"cdn_domain": "", "allow_signup": true, "server_version": version,
-			"feature_flags": map[string]bool{
-				"issue_list": true, "issue_base_detail": true,
-				"issue_detail_pull_requests": false,
-				"issue_timeline":             true, "issue_members": true,
-				"issue_reactions": true, "issue_subscribers": true,
-				"issue_attachments": issueAttachmentsEnabled, "issue_labels": true,
-				"issue_properties": true, "issue_pins": true,
-				"issue_children": true, "issue_project": true,
-				"issue_child_progress": true, "issue_batch": true, "issue_acceptance": true,
-				"issue_metadata": issueMetadataEnabled, "issue_realtime": true,
-				"issue_create":           issueCreateEnabled,
-				"project_resources":      false,
-				"project_retrospectives": false, "project_requirements": false, "project_control": false,
-			},
+			"feature_flags": featureFlags,
 		})
 	})
+}
+
+func roadmapFeatureFlags(provider workspacecontract.RoadmapCapabilityProvider) map[string]bool {
+	permissions := map[string]string{
+		"tasks":                  workspacecontract.PermissionTaskRead,
+		"issue_search":           workspacecontract.PermissionSearchReadable,
+		"project_search":         workspacecontract.PermissionSearchReadable,
+		"pin_reorder":            workspacecontract.PermissionPinReorder,
+		"skill_administration":   workspacecontract.PermissionSkillCreate,
+		"skill_import":           workspacecontract.PermissionSkillImport,
+		"knowledge_query":        workspacecontract.PermissionKnowledgeQuery,
+		"knowledge_review":       workspacecontract.PermissionKnowledgeReview,
+		"project_resources":      workspacecontract.PermissionResourceRead,
+		"project_requirements":   workspacecontract.PermissionRequirementEditDraft,
+		"project_retrospectives": workspacecontract.PermissionRetrospectiveDraft,
+		"issue_similarity":       workspacecontract.PermissionSimilarityCheck,
+		"notifications":          workspacecontract.PermissionNotificationReadUpdateOwn,
+		"overdue_reminders":      workspacecontract.PermissionReminderReplayRepair,
+		"project_phases":         workspacecontract.PermissionProjectPhaseTransition,
+		"project_outline":        workspacecontract.PermissionOutlineEditReorderLink,
+		"project_phase_board":    workspacecontract.PermissionProjectPhaseTransition,
+	}
+	flags := make(map[string]bool, len(permissions))
+	for name, permission := range permissions {
+		flags[name] = workspacecontract.RoadmapCapabilityInstalled(permission, provider)
+	}
+	return flags
 }
 
 func capabilityEnabled(value *bool) bool { return value == nil || *value }

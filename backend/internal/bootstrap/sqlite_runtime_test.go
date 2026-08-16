@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"github.com/hvritual/workspace/internal/modules/auth"
+	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
+	workspacecontract "github.com/hvritual/workspace/internal/modules/workspace/contract"
 )
 
 func TestSQLiteRuntimeRegistersTrustedLocalAuthJourney(t *testing.T) {
@@ -139,6 +142,107 @@ func TestSQLiteRuntimeMemoryDatabaseUsesOneConnection(t *testing.T) {
 		t.Fatalf("memory database max connections = %d, want 1", stats.MaxOpenConnections)
 	}
 	assertSQLiteTables(t, runtime, "auth_users", "workspaces")
+}
+
+func TestSQLiteAuthorizationExplicitlyDeniesUninstalledRoadmapCapabilities(t *testing.T) {
+	reader := roadmapMembershipReader{membership: authcontract.WorkspaceMembership{
+		MemberID: "member-1", UserID: "user-1", WorkspaceID: "workspace-1", Role: "owner",
+	}}
+	authorizer := authMembershipAdapter{reader: reader}
+	tests := []struct {
+		name       string
+		ctx        context.Context
+		permission string
+	}{
+		{
+			name:       "owner member",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "member", "user-1"),
+			permission: workspacecontract.PermissionTaskRead,
+		},
+		{
+			name:       "agent",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "agent", "agent-1"),
+			permission: workspacecontract.PermissionSearchReadable,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := authorizer.AuthorizeWorkspace(test.ctx, "workspace-1", test.permission)
+			if !errors.Is(err, workspacecontract.ErrWorkspacePermissionDenied) {
+				t.Fatalf("AuthorizeWorkspace() error = %v, want %v", err, workspacecontract.ErrWorkspacePermissionDenied)
+			}
+		})
+	}
+}
+
+func TestSQLiteAuthorizationAppliesRoadmapRoleDefaultsOnlyAfterProviderInstallation(t *testing.T) {
+	reader := roadmapMembershipReader{membership: authcontract.WorkspaceMembership{
+		MemberID: "member-1", UserID: "user-1", WorkspaceID: "workspace-1", Role: "member",
+	}}
+	provider := runtimeCapabilityProviderStub{
+		workspacecontract.PermissionTaskRead:    true,
+		workspacecontract.PermissionSkillImport: true,
+	}
+	authorizer := authMembershipAdapter{reader: reader, roadmapProvider: provider}
+	tests := []struct {
+		name       string
+		ctx        context.Context
+		workspace  string
+		permission string
+		wantErr    error
+	}{
+		{
+			name:       "member task read",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "member", "user-1"),
+			workspace:  "workspace-1",
+			permission: workspacecontract.PermissionTaskRead,
+		},
+		{
+			name:       "member skill import denied",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "member", "user-1"),
+			workspace:  "workspace-1",
+			permission: workspacecontract.PermissionSkillImport,
+			wantErr:    workspacecontract.ErrWorkspacePermissionDenied,
+		},
+		{
+			name:       "client supplied agent type denied",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "agent", "user-1"),
+			workspace:  "workspace-1",
+			permission: workspacecontract.PermissionTaskRead,
+			wantErr:    workspacecontract.ErrWorkspacePermissionDenied,
+		},
+		{
+			name:       "client supplied foreign workspace denied",
+			ctx:        workspacecontract.WithWorkspaceActor(context.Background(), "member", "user-1"),
+			workspace:  "workspace-foreign",
+			permission: workspacecontract.PermissionTaskRead,
+			wantErr:    workspacecontract.ErrActorOutsideWorkspace,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := authorizer.AuthorizeWorkspace(test.ctx, test.workspace, test.permission)
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("AuthorizeWorkspace() error = %v, want %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+type roadmapMembershipReader struct {
+	membership authcontract.WorkspaceMembership
+}
+
+func (r roadmapMembershipReader) ListForUser(context.Context, string) ([]authcontract.WorkspaceMembership, error) {
+	return []authcontract.WorkspaceMembership{r.membership}, nil
+}
+
+func (r roadmapMembershipReader) FindForUserAndWorkspace(_ context.Context, userID, workspaceID string) (authcontract.WorkspaceMembership, bool, error) {
+	return r.membership, r.membership.UserID == userID && r.membership.WorkspaceID == workspaceID, nil
+}
+
+func (r roadmapMembershipReader) FindByMemberAndWorkspace(_ context.Context, memberID, workspaceID string) (authcontract.WorkspaceMembership, bool, error) {
+	return r.membership, r.membership.MemberID == memberID && r.membership.WorkspaceID == workspaceID, nil
 }
 
 func newRuntimeForConfig(t *testing.T, config Config) *Runtime {

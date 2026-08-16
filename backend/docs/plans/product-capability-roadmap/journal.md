@@ -134,3 +134,45 @@ Known limitations, blockers, and next action
   `144997ab5fcd04544f8ffa40a1a75fc79fdb5904` as its product-code base.
 - Allowed paths and acceptance criteria are unchanged from r002.
 - No product code changed in this re-freeze.
+
+## 2026-08-16 — J007 — PCR-S01A implementation complete; verification blocked
+
+- Implemented the frozen capability authorization foundation:
+  - 28 named roadmap permission actions with explicit owner/admin/member
+    defaults and no implicit agent grants;
+  - unknown actions, actor types, roles, and absent providers fail closed;
+  - runtime installation requires an injected capability provider;
+  - membership and workspace isolation remain server-side;
+  - 17 roadmap feature flags are explicit and false without an installed
+    provider.
+- TDD evidence:
+  - `/api/config` RED exposed 14 missing roadmap flags;
+  - authorization RED returned `workspace actor is required` instead of the
+    required explicit unavailable denial;
+  - provider-injection RED failed to compile until the provider seam was added;
+  - the focused GREEN commands passed:
+    `go test ./internal/modules/workspace/contract -count=1` and
+    `go test ./internal/bootstrap -run
+    'Test(RuntimeReports|RoadmapFeatureFlags|SQLiteAuthorization|RuntimeRegistersHealthAndModuleRoutes)'
+    -count=1`.
+- Deterministic evidence:
+  - changed Go files are `gofmt` clean;
+  - generated output diff is clean;
+  - `ci/check-policy.sh` passed using Git for Windows Bash;
+  - `go vet ./...` passed with `GOTMPDIR=F:\codex-tmp\pcr-s01a`;
+  - no `server/**` diff exists.
+- Environment and acceptance blockers:
+  - `make check` stopped in its Windows `fmt-check` wrapper with
+    `exit was unexpected at this time`;
+  - the equivalent direct checks were run, but full `go test ./...` reproduced
+    `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`
+    returning HTTP 500 and
+    `TestAttachmentRepositoryRetriesBusyWriteAcquisition` timing out;
+  - a single serial diagnostic rerun reproduced the Bootstrap attachment 500;
+  - the failures are outside the S01A changed paths and are not repaired under
+    this task;
+  - `go test -race` for the frozen packages exited `0xc0000139`, an environment
+    limitation and not a PASS;
+  - independent review remains unassigned.
+- Task `PCR-001-S01A-R3` is therefore implementation-complete but not
+  technically accepted. No dependent roadmap step is activated.
