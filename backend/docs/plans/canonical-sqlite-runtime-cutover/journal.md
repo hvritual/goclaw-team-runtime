@@ -1680,3 +1680,55 @@ Human approval are recorded.
   not an invitation non-goal or a trace-harness classification issue.  C9 and
   the milestone remain unaccepted pending an approved `plan_v11.md` that first
   reproduces and repairs the list-route failure with deterministic coverage.
+
+## 2026-08-16 — M1-S7-C9 v11 approved and LIST RED/GREEN complete
+
+- Human Customer authorized the v11 repair with `批准`.
+- Frozen base: `45213820fade7f61294d2287e063bf19fbd015ee` on
+  `codex/multica-six-domain-baseline`.
+- Frozen `plan_v11.md` SHA-256:
+  `362f270582e737e2118701800214030c4145364920f1b5108f00cc95e7c8e4e1`.
+- The roadmap plan was paused so v11 remains the sole active implementation
+  plan.
+- TDD RED added
+  `TestIssueListPushesSingularStatusIntoServiceQuery`. It failed for the
+  expected product reason: `GET /api/issues?status=blocked` reached the existing
+  `ListIssues` service with `Status == ""`.
+- Minimal GREEN builds the existing service request with the singular status
+  only when it is one of the known lifecycle values. Existing post-filtering is
+  retained, so totals, ordering and unsupported/multi-value semantics are not
+  moved or redefined.
+- The focused RED became GREEN. The complete Issue HTTP package and Bootstrap
+  `IssueRead|IssueList` tests passed.
+- No retry, timeout, pool, journal mode, migration, schema, API, frontend,
+  capability or `server/**` change was made.
+- `M1-S7-C9-LIST-VERIFY` is now the sole active step. Browser evidence has not
+  been rerun and no C9 acceptance is inferred.
+
+## 2026-08-16 — M1-S7-C9-LIST-VERIFY complete
+
+- Atomic plan commit: `61c7d98` (`docs(runtime): approve C9 issue list repair
+  v11`).
+- Atomic RED/GREEN repair commit: `df3d23e` (`fix(workspace): push Issue status
+  into list query`).
+- Focused GREEN passed:
+  `go test ./internal/modules/workspace/internal/interfaces/http -run
+  TestIssueListPushesSingularStatusIntoServiceQuery -count=1`.
+- Package and installed-runtime Issue read checks passed:
+  `go test ./internal/modules/workspace/internal/interfaces/http -count=1` and
+  `go test ./internal/bootstrap -run 'IssueRead|IssueList' -count=1`.
+- Focused Backend candidate checks passed:
+  `go test ./internal/modules/workspace ./internal/bootstrap ./cmd/server
+  -count=1`; output included Workspace, Bootstrap and server success.
+- Full Backend checks passed:
+  `go test ./... -count=1`, `go vet ./...`, and `go mod verify` (`all modules
+  verified`).
+- `gofmt -d` over the two changed Go files produced no diff.
+- Full Web/Core/Views and live browser evidence have not yet been run on an
+  exact clean candidate and are not claimed here.
+- Existing user-dirty UI files, local artifact roots, product-roadmap documents,
+  and `server/**` were excluded from both atomic commits.
+- `M1-S7-C9-INTEGRATE` is now the sole active step. Its first action is to
+  create and audit a detached clean candidate at exact commit `df3d23e` plus
+  this evidence-only pointer commit, then run the frozen TypeScript, selector,
+  trace and installed-Chrome gates once.
