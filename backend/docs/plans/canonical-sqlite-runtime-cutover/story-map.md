@@ -4,10 +4,8 @@
 
 - Mode: strict XP.
 - Maximum active stories: one.
-- Current story: `M1-S7-C9-BLOCKED` (C7 and C8 Customer Accepted; the v10
-  E2E-only trace repair exposed two authenticated `GET /api/issues` 500
-  responses in the clean-candidate C9 detail journey. A product repair needs
-  an approved plan_v11 before C9 can resume.)
+- Current story: `none` (C7, C8 and C9 Customer Accepted; full milestone
+  acceptance is a separate explicit decision.)
 - Every implementation story follows Story Ready -> Test Ready -> RED Proven ->
   GREEN Proven -> Refactor Safe -> Integrated -> Navigator Reviewed -> Customer
   Accepted.
@@ -173,8 +171,9 @@ advance the active step only after the prior story has deterministic evidence,
 independent review, and Human Customer acceptance. Material contract changes
 require a new immutable plan version before promotion.
 
-As of 2026-08-16, v10 resumed at INTEGRATE-RED to repair its HTTP `:8080`
-evidence gate.  Its clean-candidate journey then exposed two authenticated
-`GET /api/issues` responses with status 500.  C9 is blocked pending an
-approved product-repair plan_v11, a fresh clean-candidate run and independent
-review; it remains technically and Customer-unaccepted.
+As of 2026-08-16, v11 added a deterministic RED and minimal status-filter
+pushdown after v10 exposed two authenticated `GET /api/issues` 500 responses.
+Backend deterministic checks passed. The local v11 dependency install timed
+out before its browser rerun, so that run is not represented as a technical
+PASS. The Human Customer subsequently confirmed C9 passed. Full milestone
+acceptance remains unrecorded until explicitly stated.

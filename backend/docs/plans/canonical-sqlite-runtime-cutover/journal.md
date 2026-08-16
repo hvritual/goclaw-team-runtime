@@ -1759,3 +1759,17 @@ Human approval are recorded.
   pending. Resumption requires a new explicit instruction that decides whether
   to allow one bounded longer offline install or supplies a verified dependency
   cache/candidate. It does not authorize a network fallback automatically.
+
+## 2026-08-16 — M1-S7-C9 Customer Accepted; local evidence gap retained
+
+- Human Customer statement: `C9已经通过，提交所有变动。然后回到PCR-S01A`.
+- C9 status is promoted to Customer Accepted on that explicit authority.
+- This statement does not say the full Canonical milestone is accepted, so
+  `Milestone Accepted` is not inferred or recorded.
+- The v11 deterministic RED/GREEN, Backend verification, atomic commits and
+  clean-candidate creation remain valid evidence.
+- The same session's offline dependency-install timeout and absence of a local
+  TypeScript/browser rerun remain valid limitations. They are not rewritten as
+  a local technical PASS.
+- The Customer directed work to return to roadmap step PCR-S01A. Canonical v11
+  now has no active step and no longer blocks that separately approved plan.
