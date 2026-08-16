@@ -3,7 +3,7 @@
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v1`
 - Registry status: `PCR-S00 complete; PCR-S01A active`
-- Registry revision: `r002`
+- Registry revision: `r003`
 - Updated: `2026-08-16`
 
 ## Frozen policy bundle
@@ -43,17 +43,17 @@ Expected outputs:
 - this task register;
 - append-only approval, drift, and gate evidence in `journal.md`.
 
-## PCR-001-S01A-R2
+## PCR-001-S01A-R3
 
 - Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
-- Task-ID: `PCR-001-S01A-R2`
-- Task-Revision: `r002`
+- Task-ID: `PCR-001-S01A-R3`
+- Task-Revision: `r003`
 - Work-Item: `PCR-S01A`
 - Title: `Canonical capability authorization and accurate feature flags`
 - Status: `active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `must be assigned before acceptance`
-- Base commit: `387eb64264b42a6e23959f95f4c2c4eb15b45c91`
+- Base commit: `144997ab5fcd04544f8ffa40a1a75fc79fdb5904`
 - Prior blocking gate: cleared by the Human Customer statement that C9 passed
   and the explicit direction to return to PCR-S01A.
 - Evidence qualification: the local v11 dependency/browser rerun remained
@@ -63,8 +63,8 @@ Expected outputs:
 
 ### Exact allowed product paths after resume
 
-Only the following files are authorized for task revision r002. If architecture
-discovery proves another path is necessary, stop and create r003 before editing.
+Only the following files are authorized for task revision r003. If architecture
+discovery proves another path is necessary, stop and create r004 before editing.
 
 - `backend/internal/modules/workspace/contract/capability_authorization.go`
 - `backend/internal/modules/workspace/contract/capability_authorization_test.go`
@@ -77,7 +77,7 @@ discovery proves another path is necessary, stop and create r003 before editing.
 
 The task may add the two new contract files above. It may make narrow edits to
 the named bootstrap/runtime files. No migration, API, frontend, Control Plane,
-legacy server, or unrelated refactor is authorized by S01A r002.
+legacy server, or unrelated refactor is authorized by S01A r003.
 
 ### Frozen acceptance
 

@@ -124,3 +124,13 @@ Known limitations, blockers, and next action
   PCR-S01A is limited to new Workspace authorization contract files and named
   Bootstrap/runtime files.
 - PCR-S01A is the sole active product implementation step.
+
+## 2026-08-16 — J006 — PCR-S01A activation base finalized
+
+- Roadmap documentation commit:
+  `144997ab5fcd04544f8ffa40a1a75fc79fdb5904`.
+- Because that commit created the approved plan directory in Git, the active
+  product task was re-frozen as `PCR-001-S01A-R3`, revision r003, with
+  `144997ab5fcd04544f8ffa40a1a75fc79fdb5904` as its product-code base.
+- Allowed paths and acceptance criteria are unchanged from r002.
+- No product code changed in this re-freeze.

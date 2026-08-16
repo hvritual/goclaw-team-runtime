@@ -7,7 +7,7 @@ The approved execution snapshot is [plan_v1.md](plan_v1.md).
 - Active step: `PCR-S01A — Canonical capability authorization and accurate feature flags`
 - Status: `approved-for-execution; PCR-S01A active`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `387eb64264b42a6e23959f95f4c2c4eb15b45c91`
+- Active task base commit: `144997ab5fcd04544f8ffa40a1a75fc79fdb5904`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
