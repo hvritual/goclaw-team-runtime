@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v1`
-- Status: `PCR-S01B design complete; proposed plan_v2 awaiting approval`
+- Plan-Version: `v2`
+- Status: `PCR-S01B-1 active`
 
 ## Delivery policy
 

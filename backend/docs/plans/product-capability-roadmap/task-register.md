@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v1`
-- Registry status: `PCR-S01A accepted by Customer waiver; PCR-S01B v2 proposal awaiting approval`
-- Registry revision: `r004`
+- Plan-Version: `v2`
+- Registry status: `PCR-S01B-1 active`
+- Registry revision: `r005`
 - Updated: `2026-08-16`
 
 ## Frozen policy bundle
@@ -13,6 +13,7 @@
 | `CLAUDE.md` | `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646` |
 | `backend/AGENTS.md` | `fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209` |
 | `plan_v1.md` | `4351025652e88083b8ceb25a72488e9d568a445a5f0e3a8793650393086ad0b5` |
+| `plan_v2.md` | `af0486c7625067b2b25de163271ba6f4be153c74331488eb57d9c42ab69ffd30` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -125,7 +126,7 @@ required before technical acceptance.
 - Task-Revision: `r004`
 - Work-Item: `PCR-S01B`
 - Title: `Revision, audit, idempotency, and outbox contract and migration design`
-- Status: `design-complete; awaiting-plan-v2-approval`
+- Status: `complete-by-customer-approval`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before product-code task acceptance`
 - Base commit: `cc61297be42ca5acf1fc47d9ba9d70939f406588`
@@ -180,11 +181,68 @@ Revalidate the policy-bundle hashes and base commit before proposing v2.
 - Product-code authority remains none until v2 is explicitly approved and a
   new implementation task is frozen.
 
+## PCR-001-S01B1-R5
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B1-R5`
+- Task-Revision: `r005`
+- Work-Item: `PCR-S01B-1`
+- Title: `Workspace governance contract and SQLite migration`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before S01B final acceptance`
+- Product-code base commit: `312feda1aeaafb5d1aecffd61a7fbcdcbd7ee3c6`
+- Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
+- Plan-Version: `v2`
+- Plan-Step: `PCR-S01B-1`
+- Policy bundle: the hashes above, including approved `plan_v2.md`.
+
+### Exact allowed paths
+
+- `backend/internal/modules/workspace/contract/governance.go` (new)
+- `backend/internal/modules/workspace/contract/governance_test.go` (new)
+- `backend/internal/modules/workspace/contract/errors.go`
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/migrations/000009_workspace_governance.up.sql` (new)
+- `backend/internal/modules/workspace/internal/infrastructure/sqlite/migrations/000009_workspace_governance.down.sql` (new)
+- `backend/internal/modules/workspace/sqlite_workspace_services_test.go`
+- `backend/internal/modules/workspace/sqlite_persistence_test.go`
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No runtime composition, repository, application service, HTTP, frontend,
+Control Plane, generated, or `server/**` path is authorized by r005.
+
+### Frozen acceptance
+
+1. Governance contract values reject empty identity/action/resource data,
+   invalid revisions and states, and oversized replay/audit/outbox payloads.
+2. Stable errors cover revision conflict, idempotency conflict, oversized replay
+   response, unavailable provider, and stale outbox claim.
+3. Migration 9 creates the four Workspace-owned tables with no FK, cascade,
+   trigger, explicit index, or secondary unique-index DDL.
+4. Fresh install, retained version-8 upgrade, second migration run, failure
+   rollback, restart persistence, and workspace isolation are proven.
+5. No runtime route, worker, event behavior, or feature flag changes.
+
+### Deterministic verification
+
+```text
+cd backend && go test ./internal/modules/workspace/contract
+cd backend && go test ./internal/modules/workspace -run 'Test.*(Governance|Migration|Migrate)'
+cd backend && go test -race ./internal/modules/workspace/contract ./internal/modules/workspace
+cd backend && make check
+git diff --check
+git diff --name-only -- server
+```
+
+The Windows loader code `0xc0000139` remains an environment limitation, not a
+race PASS. Existing attachment concurrency failures may not be hidden or
+weakened by this task.
+
 ## Queue rules
 
-- No product-code task in PCR-S01B may be enqueued until r004 completes, the
-  migration-policy conflict is resolved in a proposed plan version, and the
-  Human Customer approves that version.
+- No task after PCR-S01B-1 may be enqueued until r005 closes and the next task
+  revision freezes its exact base, paths, checks, and active-step pointer.
 - A task status in this file is not a substitute for the active-step pointer in
   `plan.md`; both must agree.
 - A base, plan hash, policy hash, or allowed-path mismatch stops execution.

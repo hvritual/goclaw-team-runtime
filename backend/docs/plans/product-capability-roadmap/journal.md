@@ -227,3 +227,17 @@ Known limitations, blockers, and next action
   acceptance, deterministic checks, risks, and rollback.
 - v2 status is `proposed; awaiting Human Customer approval`. No product code is
   authorized and no implementation step is active.
+
+## 2026-08-16 — J010 — v2 approved and PCR-S01B-1 activated
+
+- Human Customer statement: `批准 PRODUCT-CAPABILITY-ROADMAP-001 v2`.
+- `plan_v2.md` SHA256 revalidated as
+  `af0486c7625067b2b25de163271ba6f4be153c74331488eb57d9c42ab69ffd30`.
+- `plan.md` now names v2 as the approved execution snapshot and activates only
+  `PCR-S01B-1 — Contract and migration`.
+- Documentation task `PCR-001-S01B-R4` is complete by Customer approval.
+- Product task `PCR-001-S01B1-R5` is frozen on product-code base
+  `312feda1aeaafb5d1aecffd61a7fbcdcbd7ee3c6` with the exact paths and checks in
+  the task register.
+- Existing unrelated dirty UI and local-runtime paths remain excluded.
+- The next authorized action is a TDD RED in the contract or migration tests.
