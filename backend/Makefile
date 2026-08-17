@@ -1,26 +1,31 @@
 GO ?= go
 BASE_REF ?= codex/multica-six-domain-baseline
+RACE_PACKAGES ?= ./...
 
 .PHONY: fmt-check test test-race vet policy-check generated-clean check run
 
 fmt-check:
-	@test -z "$$($(GO)fmt -l $$(find . -name '*.go' -not -path './rpc/pb/*'))" || \
-		( $(GO)fmt -l $$(find . -name '*.go' -not -path './rpc/pb/*'); exit 1 )
+	$(GO) run ./cmd/backend-check fmt
 
 test:
 	$(GO) test ./...
 
+ifeq ($(OS),Windows_NT)
 test-race:
-	$(GO) test -race ./...
+	pwsh -NoProfile -File ./ci/test-race.ps1 $(RACE_PACKAGES)
+else
+test-race:
+	$(GO) test -race $(RACE_PACKAGES)
+endif
 
 vet:
 	$(GO) vet ./...
 
 policy-check:
-	BASE_REF="$(BASE_REF)" ./ci/check-policy.sh
+	$(GO) run ./cmd/backend-check policy "$(BASE_REF)"
 
 generated-clean:
-	@git diff --exit-code -- rpc/pb rpc/openapi >/dev/null
+	$(GO) run ./cmd/backend-check generated
 
 check: fmt-check policy-check generated-clean vet test
 

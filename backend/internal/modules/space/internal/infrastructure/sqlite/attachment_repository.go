@@ -12,16 +12,24 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-type AttachmentRepository struct{ db *sql.DB }
+type AttachmentRepository struct {
+	db        *sql.DB
+	writeSlot chan struct{}
+}
 
 func NewAttachmentRepository(db *sql.DB) (*AttachmentRepository, error) {
 	if db == nil {
 		return nil, errors.New("space sqlite database is required")
 	}
-	return &AttachmentRepository{db: db}, nil
+	return &AttachmentRepository{db: db, writeSlot: make(chan struct{}, 1)}, nil
 }
 
 func (r *AttachmentRepository) Create(ctx context.Context, value application.StoredAttachment, bind func(contract.AttachmentExecutor) error) (err error) {
+	release, err := r.acquireWriteSlot(ctx, "attachment creation")
+	if err != nil {
+		return err
+	}
+	defer release()
 	connection, err := r.writeConnection(ctx, "attachment creation")
 	if err != nil {
 		return err
@@ -65,6 +73,11 @@ func (r *AttachmentRepository) FindMany(ctx context.Context, ids []string) ([]ap
 }
 
 func (r *AttachmentRepository) Delete(ctx context.Context, value application.StoredAttachment, unbind func(contract.AttachmentExecutor) error) (err error) {
+	release, err := r.acquireWriteSlot(ctx, "attachment deletion")
+	if err != nil {
+		return err
+	}
+	defer release()
 	connection, err := r.writeConnection(ctx, "attachment deletion")
 	if err != nil {
 		return err
@@ -186,6 +199,15 @@ const (
 	attachmentWriteAcquireBudget  = 8 * time.Second
 	attachmentWriteAcquireRetries = 2
 )
+
+func (r *AttachmentRepository) acquireWriteSlot(ctx context.Context, label string) (func(), error) {
+	select {
+	case r.writeSlot <- struct{}{}:
+		return func() { <-r.writeSlot }, nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("wait for %s write slot: %w", label, ctx.Err())
+	}
+}
 
 func (r *AttachmentRepository) writeConnection(ctx context.Context, label string) (*sql.Conn, error) {
 	acquireContext, cancel := context.WithTimeout(ctx, attachmentWriteAcquireBudget)

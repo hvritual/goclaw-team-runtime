@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v2`
-- Registry status: `PCR-S01B-3 candidate committed; verification blocked`
-- Registry revision: `r007`
+- Plan-Version: `v4`
+- Registry status: `PCR-S01B-4 active`
+- Registry revision: `r009`
 - Updated: `2026-08-17`
 
 ## Frozen policy bundle
@@ -14,6 +14,8 @@
 | `backend/AGENTS.md` | `fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209` |
 | `plan_v1.md` | `4351025652e88083b8ceb25a72488e9d568a445a5f0e3a8793650393086ad0b5` |
 | `plan_v2.md` | `af0486c7625067b2b25de163271ba6f4be153c74331488eb57d9c42ab69ffd30` |
+| `plan_v3.md` | `81cd93e56ff9d2d4c34e1e23133235395b7fcf1fb99e82b49aaf5bf993e2afe8` |
+| `plan_v4.md` | `9f663571e5850f0e03d6ca8fc3551a23e99dc4a7d84e6dfaccd2cc257c9b9191` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -452,12 +454,132 @@ indexed and may not be hidden or weakened.
 - Human Customer acceptance remains outstanding; independent review remains
   deferred to S01B-4 and `PCR-S01B-4` is inactive.
 
+## PCR-001-S01B3R-R8
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B3R-R8`
+- Task-Revision: `r008`
+- Work-Item: `PCR-S01B-3R`
+- Status: `customer-accepted`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `deferred to PCR-S01B-4`
+- Base commit: `ab2b49088b108f771045a090b473a8e235dfa09e`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v3`
+- Plan hash: `81cd93e56ff9d2d4c34e1e23133235395b7fcf1fb99e82b49aaf5bf993e2afe8`
+- Policy bundle: frozen hashes above
+
+### Objective
+
+Repair the Windows race loader, Windows `make check`, and the two indexed
+attachment concurrency failures without changing S01B product behavior.
+
+### Exact allowed paths
+
+- `backend/Makefile`
+- `backend/cmd/backend-check/main.go` (new)
+- `backend/cmd/backend-check/main_test.go` (new)
+- `backend/ci/test-race.ps1` (new)
+- `backend/internal/modules/space/internal/infrastructure/sqlite/attachment_repository.go`
+- `backend/internal/modules/space/internal/infrastructure/sqlite/attachment_repository_test.go`
+- `backend/internal/bootstrap/issue_attachment_runtime_test.go`
+- `backend/docs/plans/product-capability-roadmap/plan.md`
+- `backend/docs/plans/product-capability-roadmap/plan_v3.md` (new)
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No migration, public contract, feature API, frontend, Desktop, Control Plane,
+generated, permanent host configuration, unrelated dirty, or `server/**` path
+is authorized. A required path outside this list stops implementation.
+
+### Frozen acceptance and verification
+
+The acceptance criteria, ordered steps, commands, risks, and rollback in
+`plan_v3.md` are frozen without exception. Race and attachment failures may not
+be retried, hidden, skipped, quarantined, or weakened into passing evidence.
+
+### Current evidence
+
+- The two pre-existing intermittent attachment tests passed their single RED
+  probes, so they were not treated as deterministic TDD RED evidence.
+- New deterministic tests failed before implementation because a queued writer
+  consumed a second SQLite connection; cancellation also remained blocked in
+  SQLite busy handling for about five seconds.
+- The minimal repair adds one context-aware attachment write slot per repository
+  before connection acquisition. Create and delete retain their existing
+  transaction, rollback, binding, cleanup, and event boundaries.
+- Repository busy/cancellation/serialization tests pass ten consecutive counts;
+  the twelve-upload Bootstrap regression passes ten consecutive counts.
+- `go test ./... -count=1`, `make check`, `go mod verify`, Backend-check tests,
+  formatting, policy, generated-output, vet, diff, and empty `server/**` checks
+  pass.
+- The frozen five-package race command executes and passes with the already
+  installed Scoop GCC 15.2 selected process-locally. No `0xc0000139` waiver is
+  used and no permanent PATH change is made.
+- No migration, public contract, product flag, frontend, Desktop, Control Plane,
+  generated output, unrelated dirty, or `server/**` path changed.
+- Human Customer accepted the repair on 2026-08-17. No commit, push, merge, or
+  independent review is claimed, and S01B-4 remains inactive.
+
 ## Queue rules
 
-- No task after PCR-S01B-3 may be enqueued until r007 closes and the next task
-  revision freezes its exact base, paths, checks, and active-step pointer.
+- No task after PCR-S01B-3R may execute until the next task revision freezes its
+  exact base, paths, checks, and active-step pointer. Customer Acceptance closes
+  r008 but does not activate PCR-S01B-4.
 - A task status in this file is not a substitute for the active-step pointer in
   `plan.md`; both must agree.
 - A base, plan hash, policy hash, or allowed-path mismatch stops execution.
 - Completion by the assignee is not independent acceptance.
 - Customer Acceptance is not delegated to this register.
+
+## PCR-001-S01B4-R9
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B4-R9`
+- Task-Revision: `r009`
+- Work-Item: `PCR-S01B-4`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `authorized read-only reviewer, not yet assigned`
+- Base commit: `ab2b49088b108f771045a090b473a8e235dfa09e`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v4`
+- Plan hash: `9f663571e5850f0e03d6ca8fc3551a23e99dc4a7d84e6dfaccd2cc257c9b9191`
+- Policy bundle: frozen hashes above
+
+### Objective
+
+Commit the accepted r008 repair, verify the complete Release 0 candidate,
+obtain independent read-only review, and close Release 0 without activating
+Release 1.
+
+### Exact allowed paths
+
+- `backend/Makefile`
+- `backend/cmd/backend-check/main.go`
+- `backend/cmd/backend-check/main_test.go`
+- `backend/ci/test-race.ps1`
+- `backend/internal/modules/space/internal/infrastructure/sqlite/attachment_repository.go`
+- `backend/internal/modules/space/internal/infrastructure/sqlite/attachment_repository_test.go`
+- `backend/docs/plans/product-capability-roadmap/plan.md`
+- `backend/docs/plans/product-capability-roadmap/plan_v3.md`
+- `backend/docs/plans/product-capability-roadmap/plan_v4.md`
+- `backend/docs/plans/product-capability-roadmap/story-map.md`
+- `backend/docs/plans/product-capability-roadmap/task-register.md`
+- `backend/docs/plans/product-capability-roadmap/journal.md`
+
+No other product, frontend, Desktop, Control Plane, generated, unrelated dirty,
+or `server/**` path is authorized.
+
+### Frozen acceptance and verification
+
+Sections 5 through 9 of `plan_v4.md` are frozen without exception. The first
+commit explicitly stages only the accepted repair and activation records. All
+deterministic gates run on that committed candidate before independent review.
+Any independent `BLOCK`, scope drift, policy drift, or newly required code path
+stops closure and requires a new approved plan version.
+
+### Authority
+
+The Human Customer stated `批准后续动作，按目标持续推进完成 Release 0 — Authority
+and safety foundation` on 2026-08-17. This authorizes v4/r009, the scoped Git
+commits, and an independent read-only reviewer. It does not authorize push,
+merge, deployment, Release 1 activation, or out-of-plan defect repair.

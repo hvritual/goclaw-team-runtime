@@ -415,3 +415,92 @@ Known limitations, blockers, and next action
 - PCR-S01B-3 remains verification-blocked pending Human Customer disposition
   of the r007 gates. Independent review remains deferred to S01B-4, which is
   not active.
+
+## 2026-08-17 — J016 — v3 approved and PCR-S01B-3R activated
+
+- Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v3`.
+- Activated `PCR-001-S01B3R-R8` on base
+  `ab2b49088b108f771045a090b473a8e235dfa09e`.
+- The repair scope is limited to cross-platform Backend checks, process-local
+  Windows race compiler selection, Space attachment write contention, their
+  tests, and roadmap evidence.
+- Read-only discovery confirmed the current PATH selects MinGW-w64 GCC 8.1
+  from `E:\mingw64\bin`; a race probe compiled with that toolchain exits with
+  Windows loader code `0xc0000139`. A process-local PATH selecting the already
+  installed Scoop GCC 15.2 starts the race binary; no race test PASS is yet
+  claimed.
+- The current Backend Makefile uses Unix `find`, `test`, environment assignment,
+  and `/dev/null` syntax that is incompatible with the Windows `cmd.exe` shell.
+- The Space attachment repository currently combines a five-second SQLite busy
+  wait and retries inside an eight-second acquisition budget while concurrent
+  writers consume multiple connections. The two retained failing tests remain
+  the required RED evidence; the exact repair will be test-driven.
+- No product, host, frontend, generated, unrelated dirty, or `server/**` path
+  has changed. The next action is the frozen one-shot attachment RED commands.
+
+## 2026-08-17 — J017 — PCR-S01B-3R technical gates passed
+
+- Each indexed attachment regression was run once before production changes.
+  Both passed on that single run, confirming their intermittent nature and
+  making them unsuitable as deterministic TDD RED evidence by themselves.
+- Added deterministic RED tests proving a queued attachment writer consumed a
+  second SQLite connection while the first owned the transaction. The
+  cancellation case also remained inside SQLite busy handling for about five
+  seconds before returning; both reported maximum in-use connections 2 instead
+  of 1.
+- Added the minimal context-aware repository write slot before attachment
+  connection acquisition. Queued creates/deletes no longer consume competing
+  connections, cancellation remains authoritative, and the existing finite
+  SQLite retry budget is reserved for writers outside the attachment repository.
+- Added a Go Backend-check command for platform-neutral formatting, policy, and
+  generated-output gates. Its TDD coverage includes CRLF/LF equivalence, real
+  formatting drift, generated RPC exclusion, server path rejection, and Go AST
+  import detection without string-literal false positives.
+- Updated `make fmt-check`, `make policy-check`, and `make generated-clean` to
+  use the same Go checker on Windows and Unix. `make check` now executes and
+  passes on Windows rather than stopping in the wrapper.
+- Added a Windows race runner with a tested resolve-only path. It selects the
+  highest-version installed PATH compiler, prepends only that directory in its
+  child process, and leaves permanent user/system PATH unchanged.
+- Verification passed:
+  - attachment repository busy/cancellation/serialization tests, count 10;
+  - same-Issue twelve-upload Bootstrap regression, count 10;
+  - full `go test ./... -count=1`;
+  - `make check` including format, policy, generated, vet, and full tests;
+  - `go mod verify`;
+  - the frozen five-package `make test-race`, all five packages green using
+    Scoop GCC 15.2 with no loader failure;
+  - `git diff --check` and empty tracked/untracked `server/**` scope.
+- Policy hashes remain unchanged. Existing UI/local-runtime dirty paths were
+  preserved and excluded. No commit, push, merge, Customer Acceptance, or
+  independent review is claimed; S01B-4 remains inactive.
+
+## 2026-08-17 — J018 — PCR-S01B-3R Customer Accepted
+
+- Human Customer stated `审核通过` after reviewing the completed v3 repair and
+  its technical evidence.
+- `PCR-S01B-3R` and task revision `r008` are closed as Customer Accepted.
+- The acceptance covers the Windows race-loader repair, cross-platform
+  `make check`, and the two retained attachment concurrency failures under the
+  evidence recorded in J017.
+- No new verification result, independent review, commit, push, merge, or S01B-4
+  activation is inferred. S01B-4 remains inactive pending a separately frozen
+  task, base/policy revalidation, and active-step update.
+
+## 2026-08-17 — J019 — v4 approved and PCR-S01B-4 activated
+
+- Human Customer stated `批准后续动作，按目标持续推进完成 Release 0 — Authority
+  and safety foundation` after receiving the exact v4/r009 scope, exclusions,
+  stop conditions, and independent-review request.
+- Approved immutable `plan_v4.md` and froze `PCR-001-S01B4-R9` on base
+  `ab2b49088b108f771045a090b473a8e235dfa09e` with unchanged policy hashes.
+- Activated `PCR-S01B-4` as the sole roadmap step. Release 1 remains inactive.
+- Authorized actions are limited to committing the accepted r008 candidate,
+  running integrated deterministic evidence on the same committed candidate,
+  obtaining independent read-only review, and recording Release 0 closure if
+  every gate passes.
+- Existing UI, local-runtime, code-to-product, and other unrelated dirty paths
+  remain excluded. `server/**` remains read-only. Push, merge, deployment, and
+  repair of a newly discovered defect are not authorized.
+- No candidate commit, new verification result, independent verdict, or Release
+  0 completion is claimed by this activation record.
