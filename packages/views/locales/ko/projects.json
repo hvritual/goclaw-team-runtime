@@ -164,7 +164,6 @@
     },
     "node": {
       "revision": "리비전 {{count}}",
-      "assignees_one": "담당자 {{count}}명",
       "assignees_other": "담당자 {{count}}명"
     },
     "governance": {

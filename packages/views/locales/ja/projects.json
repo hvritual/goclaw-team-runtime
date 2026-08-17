@@ -164,7 +164,6 @@
     },
     "node": {
       "revision": "リビジョン {{count}}",
-      "assignees_one": "担当者 {{count}} 人",
       "assignees_other": "担当者 {{count}} 人"
     },
     "governance": {

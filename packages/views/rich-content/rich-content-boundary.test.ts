@@ -106,7 +106,7 @@ describe("RichContent import boundary", () => {
     const TIPTAP_NODEVIEW = "editor/extensions/code-block-view.tsx";
 
     const offenders = sourceFiles([...PRODUCT_SURFACES, "common", "editor"])
-      .filter(({ path }) => path !== TIPTAP_NODEVIEW)
+      .filter(({ path }) => path.replace(/\\/g, "/") !== TIPTAP_NODEVIEW)
       .filter(({ text }) =>
         /(?:lang|language)\w*\s*===\s*["'](?:mermaid|html)["']/.test(text),
       )

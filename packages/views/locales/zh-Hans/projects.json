@@ -164,7 +164,6 @@
     },
     "node": {
       "revision": "修订 {{count}}",
-      "assignees_one": "{{count}} 位负责人",
       "assignees_other": "{{count}} 位负责人"
     },
     "governance": {
