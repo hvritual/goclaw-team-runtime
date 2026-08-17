@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ import (
 
 func TestGovernanceRepositoryReplaysCommittedMutationWithoutRepeatingEffects(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +57,7 @@ func TestGovernanceRepositoryReplaysCommittedMutationWithoutRepeatingEffects(t *
 
 func TestGovernanceRepositoryRejectsSameKeyWithDifferentHash(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +220,7 @@ func TestGovernanceRepositoryRejectsMutationWithoutPolicyPreparation(t *testing.
 
 func TestGovernanceRepositoryClaimsWithLeaseAndRejectsStaleToken(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +280,7 @@ func TestGovernanceRepositoryClaimsWithLeaseAndRejectsStaleToken(t *testing.T) {
 
 func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +312,7 @@ func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *test
 		t.Fatalf("retry diagnostics = %+v", diagnostics)
 	}
 
-	restarted, err := NewGovernanceRepository(Config{DB: db})
+	restarted, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,7 +349,7 @@ func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *test
 
 func TestGovernanceRepositoryRejectsStaleObservedLeaseWithoutChangingRow(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +381,7 @@ func TestGovernanceRepositoryRejectsStaleObservedLeaseWithoutChangingRow(t *test
 
 func TestGovernanceRepositoryCompleteTupleDoesNotModifySiblingWithSameEventID(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +411,7 @@ func TestGovernanceRepositoryCompleteTupleDoesNotModifySiblingWithSameEventID(t 
 
 func TestGovernanceRepositoryDeadLetterReplayUsesCompleteTuple(t *testing.T) {
 	db := openGovernanceTestDB(t)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -437,7 +438,7 @@ func TestGovernanceRepositoryDeadLetterReplayUsesCompleteTuple(t *testing.T) {
 func TestGovernanceRepositoryEmptyClaimDoesNotAcquireWriteLock(t *testing.T) {
 	db := openGovernanceTestDB(t)
 	db.SetMaxOpenConns(2)
-	repository, err := NewGovernanceRepository(Config{DB: db})
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,6 +456,139 @@ func TestGovernanceRepositoryEmptyClaimDoesNotAcquireWriteLock(t *testing.T) {
 	events, err := repository.ClaimOutbox(ctx, time.Unix(2, 0).UTC(), 100, time.Minute, "claim-1")
 	if err != nil || len(events) != 0 {
 		t.Fatalf("empty claim = %+v, %v", events, err)
+	}
+}
+
+func TestGovernanceRepositoryMissingEventPolicyDoesNotClaimReadyRow(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableAt := time.Unix(10, 0).UTC()
+	insertReadyOutboxTestRow(t, db, availableAt, "event-1", "task:created")
+	if _, err := repository.ClaimOutbox(context.Background(), availableAt.Add(time.Second), 1, time.Minute, "claim-1"); !errors.Is(err, contract.ErrGovernanceUnavailable) {
+		t.Fatalf("claim error = %v, want governance unavailable", err)
+	}
+	assertOutboxRowState(t, db, availableAt, "event-1", contract.OutboxReady, 0)
+}
+
+func TestGovernanceRepositoryMissingEventPolicyDoesNotReplayDeadLetter(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableAt := time.Unix(10, 0).UTC()
+	insertDeadOutboxTestRow(t, db, availableAt, "event-1")
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: availableAt, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := repository.ReplayOutbox(context.Background(), identity, availableAt.Add(time.Minute)); !errors.Is(err, contract.ErrGovernanceUnavailable) {
+		t.Fatalf("replay error = %v, want governance unavailable", err)
+	}
+	assertOutboxRowState(t, db, availableAt, "event-1", contract.OutboxDeadLetter, 4)
+}
+
+func TestGovernanceRepositoryUnknownPolicyAbortsClaimBatchWithoutChangingRows(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalidAt := time.Unix(10, 0).UTC()
+	validAt := invalidAt.Add(time.Second)
+	insertReadyOutboxTestRow(t, db, invalidAt, "event-invalid", "task:unknown")
+	insertReadyOutboxTestRow(t, db, validAt, "event-valid", "task:created")
+	if _, err := repository.ClaimOutbox(context.Background(), validAt.Add(time.Second), 2, time.Minute, "claim-1"); !errors.Is(err, contract.ErrGovernanceUnavailable) {
+		t.Fatalf("claim error = %v, want governance unavailable", err)
+	}
+	assertOutboxRowState(t, db, invalidAt, "event-invalid", contract.OutboxReady, 0)
+	assertOutboxRowState(t, db, validAt, "event-valid", contract.OutboxReady, 0)
+}
+
+func TestGovernanceRepositoryInvalidReadyPayloadCannotBeClaimedOrChanged(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "unversioned", payload: `{"id":"legacy"}`},
+		{name: "secret-bearing", payload: `{"version":"governance-outbox-v1","data":{"id":"Basic:dXNlcjpwYXNz"}}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := openGovernanceTestDB(t)
+			repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			availableAt := time.Unix(10, 0).UTC()
+			insertReadyOutboxTestRow(t, db, availableAt, "event-1", "task:created")
+			if _, err := db.Exec(`UPDATE workspace_outbox_events SET payload_json=? WHERE id='event-1'`, test.payload); err != nil {
+				t.Fatal(err)
+			}
+			before := readOutboxTestRow(t, db, availableAt, "event-1")
+			if _, err := repository.ClaimOutbox(context.Background(), availableAt.Add(time.Second), 1, time.Minute, "claim-1"); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
+				t.Fatalf("claim error = %v, want invalid governance mutation", err)
+			}
+			after := readOutboxTestRow(t, db, availableAt, "event-1")
+			if before != after {
+				t.Fatalf("invalid ready row changed\nbefore: %s\nafter:  %s", before, after)
+			}
+		})
+	}
+}
+
+func TestGovernanceRepositoryUnknownPolicyDeadLetterCannotReplay(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableAt := time.Unix(10, 0).UTC()
+	insertDeadOutboxTestRowWithEventType(t, db, availableAt, "event-1", "task:unknown")
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: availableAt, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := repository.ReplayOutbox(context.Background(), identity, availableAt.Add(time.Minute)); !errors.Is(err, contract.ErrGovernanceUnavailable) {
+		t.Fatalf("replay error = %v, want governance unavailable", err)
+	}
+	assertOutboxRowState(t, db, availableAt, "event-1", contract.OutboxDeadLetter, 4)
+}
+
+func TestGovernanceRepositoryUnversionedDeadLetterCannotReplay(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableAt := time.Unix(10, 0).UTC()
+	insertDeadOutboxTestRow(t, db, availableAt, "event-1")
+	if _, err := db.Exec(`UPDATE workspace_outbox_events SET payload_json='{"id":"legacy"}' WHERE id='event-1'`); err != nil {
+		t.Fatal(err)
+	}
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: availableAt, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := repository.ReplayOutbox(context.Background(), identity, availableAt.Add(time.Minute)); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
+		t.Fatalf("replay error = %v, want invalid governance mutation", err)
+	}
+	assertOutboxRowState(t, db, availableAt, "event-1", contract.OutboxDeadLetter, 4)
+}
+
+func TestGovernanceRepositorySecretBearingDeadLetterCannotReplayOrChange(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db}, WithGovernanceEventPolicies(repositoryGovernanceProvider{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableAt := time.Unix(10, 0).UTC()
+	insertDeadOutboxTestRow(t, db, availableAt, "event-1")
+	if _, err := db.Exec(`UPDATE workspace_outbox_events SET payload_json=? WHERE id='event-1'`,
+		`{"version":"governance-outbox-v1","data":{"id":"Basic:dXNlcjpwYXNz"}}`); err != nil {
+		t.Fatal(err)
+	}
+	before := readOutboxTestRow(t, db, availableAt, "event-1")
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: availableAt, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := repository.ReplayOutbox(context.Background(), identity, availableAt.Add(time.Minute)); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
+		t.Fatalf("replay error = %v, want invalid governance mutation", err)
+	}
+	after := readOutboxTestRow(t, db, availableAt, "event-1")
+	if before != after {
+		t.Fatalf("invalid dead-letter row changed\nbefore: %s\nafter:  %s", before, after)
 	}
 }
 
@@ -526,6 +660,16 @@ func (repositoryGovernanceProvider) ResolveGovernancePolicy(_ context.Context, w
 	}, nil
 }
 
+func (repositoryGovernanceProvider) ResolveGovernanceEventPolicy(_ context.Context, eventType, aggregateKind string) (application.GovernanceEventPolicy, error) {
+	if eventType != "task:created" || aggregateKind != "task" {
+		return application.GovernanceEventPolicy{}, contract.ErrGovernanceUnavailable
+	}
+	return application.GovernanceEventPolicy{
+		EventType: eventType, AggregateKind: aggregateKind,
+		Schema: application.EnvelopeSchema{"id": {Kind: application.SafeIdentifier, MaxLength: 64, Required: true}},
+	}, nil
+}
+
 func assertGovernanceRowCount(t *testing.T, db *sql.DB, table string, want int) {
 	t.Helper()
 	var got int
@@ -557,14 +701,58 @@ func insertInflightOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time
 	}
 }
 
+func insertReadyOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time, eventID, eventType string) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO workspace_outbox_events(
+		state, available_at, workspace_id, id, event_type, aggregate_kind, aggregate_id, aggregate_revision,
+		payload_json, actor_type, actor_id, attempt_count, created_at)
+		VALUES ('ready', ?, 'workspace-1', ?, ?, 'task', 'task-1', 1,
+		'{"version":"governance-outbox-v1","data":{"id":"task-1"}}', 'member', 'user-1', 0, ?)`,
+		availableAt.Format(time.RFC3339Nano), eventID, eventType, availableAt.Format(time.RFC3339Nano))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertOutboxRowState(t *testing.T, db *sql.DB, availableAt time.Time, eventID string, wantState contract.OutboxState, wantAttempts int) {
+	t.Helper()
+	var state string
+	var attempts int
+	var claim sql.NullString
+	if err := db.QueryRow(`SELECT state, attempt_count, claim_token FROM workspace_outbox_events WHERE available_at=? AND workspace_id='workspace-1' AND id=?`,
+		availableAt.Format(time.RFC3339Nano), eventID).Scan(&state, &attempts, &claim); err != nil {
+		t.Fatal(err)
+	}
+	if state != string(wantState) || attempts != wantAttempts || claim.Valid {
+		t.Fatalf("row state=%s attempts=%d claim=%v", state, attempts, claim)
+	}
+}
+
+func readOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time, eventID string) string {
+	t.Helper()
+	var state, payload, lastError string
+	var attempts int
+	var claim, lease sql.NullString
+	if err := db.QueryRow(`SELECT state, payload_json, attempt_count, COALESCE(last_error_code, ''), claim_token, lease_expires_at
+		FROM workspace_outbox_events WHERE available_at=? AND workspace_id='workspace-1' AND id=?`,
+		availableAt.Format(time.RFC3339Nano), eventID).Scan(&state, &payload, &attempts, &lastError, &claim, &lease); err != nil {
+		t.Fatal(err)
+	}
+	return fmt.Sprintf("%s|%s|%d|%s|%t:%s|%t:%s", state, payload, attempts, lastError, claim.Valid, claim.String, lease.Valid, lease.String)
+}
+
 func insertDeadOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time, eventID string) {
+	insertDeadOutboxTestRowWithEventType(t, db, availableAt, eventID, "task:created")
+}
+
+func insertDeadOutboxTestRowWithEventType(t *testing.T, db *sql.DB, availableAt time.Time, eventID, eventType string) {
 	t.Helper()
 	_, err := db.Exec(`INSERT INTO workspace_outbox_events(
 		state, available_at, workspace_id, id, event_type, aggregate_kind, aggregate_id, aggregate_revision,
 		payload_json, actor_type, actor_id, attempt_count, last_error_code, created_at)
-		VALUES ('dead_letter', ?, 'workspace-1', ?, 'task:created', 'task', 'task-1', 1,
+		VALUES ('dead_letter', ?, 'workspace-1', ?, ?, 'task', 'task-1', 1,
 		'{"version":"governance-outbox-v1","data":{"id":"task-1"}}', 'member', 'user-1', 4, 'publish_failed', ?)`,
-		availableAt.Format(time.RFC3339Nano), eventID, availableAt.Format(time.RFC3339Nano))
+		availableAt.Format(time.RFC3339Nano), eventID, eventType, availableAt.Format(time.RFC3339Nano))
 	if err != nil {
 		t.Fatal(err)
 	}

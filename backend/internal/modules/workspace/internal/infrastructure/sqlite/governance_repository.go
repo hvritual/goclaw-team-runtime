@@ -33,9 +33,16 @@ func WithGovernanceFailureHook(hook func(GovernancePhase) error) GovernanceRepos
 	}
 }
 
+func WithGovernanceEventPolicies(provider application.GovernanceEventPolicyProvider) GovernanceRepositoryOption {
+	return func(repository *GovernanceRepository) {
+		repository.eventPolicies = provider
+	}
+}
+
 type GovernanceRepository struct {
-	db          *sql.DB
-	failureHook func(GovernancePhase) error
+	db            *sql.DB
+	failureHook   func(GovernancePhase) error
+	eventPolicies application.GovernanceEventPolicyProvider
 }
 
 func NewGovernanceRepository(config Config, options ...GovernanceRepositoryOption) (*GovernanceRepository, error) {
@@ -153,6 +160,9 @@ func (r *GovernanceRepository) ClaimOutbox(ctx context.Context, now time.Time, l
 	if now.IsZero() || lease <= 0 || claimToken == "" {
 		return nil, fmt.Errorf("%w: invalid outbox claim", contract.ErrInvalidGovernanceMutation)
 	}
+	if r.eventPolicies == nil {
+		return nil, contract.ErrGovernanceUnavailable
+	}
 	if limit <= 0 {
 		limit = 100
 	}
@@ -212,6 +222,11 @@ func (r *GovernanceRepository) ClaimOutbox(ctx context.Context, now time.Time, l
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate outbox claims: %w", err)
+	}
+	for _, event := range events {
+		if err := application.ValidateGovernanceEventPolicy(ctx, r.eventPolicies, event); err != nil {
+			return nil, err
+		}
 	}
 
 	leaseExpiresAt := now.Add(lease).UTC()
@@ -286,7 +301,42 @@ func (r *GovernanceRepository) ReplayOutbox(ctx context.Context, identity contra
 	if err := identity.Validate(); err != nil || identity.State != contract.OutboxDeadLetter || availableAt.IsZero() {
 		return fmt.Errorf("%w: invalid outbox replay", contract.ErrInvalidGovernanceMutation)
 	}
-	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
+	if r.eventPolicies == nil {
+		return contract.ErrGovernanceUnavailable
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquire outbox replay connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err := connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return fmt.Errorf("configure outbox replay connection: %w", err)
+	}
+	if _, err := connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return fmt.Errorf("begin outbox replay: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	event, err := scanOutboxEvent(connection.QueryRowContext(ctx, `SELECT state, available_at, workspace_id, id, event_type,
+		aggregate_kind, aggregate_id, aggregate_revision, payload_json, actor_type, actor_id, attempt_count,
+		claim_token, lease_expires_at, last_error_code, created_at, delivered_at
+		FROM workspace_outbox_events
+		WHERE state=? AND available_at=? AND workspace_id=? AND id=?`,
+		identity.State, identity.AvailableAt.UTC().Format(time.RFC3339Nano), identity.WorkspaceID, identity.ID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return contract.ErrOutboxClaimConflict
+	}
+	if err != nil {
+		return err
+	}
+	if err := application.ValidateGovernanceEventPolicy(ctx, r.eventPolicies, event); err != nil {
+		return err
+	}
+	result, err := connection.ExecContext(ctx, `UPDATE workspace_outbox_events
 		SET state='ready', available_at=?, attempt_count=0, claim_token=NULL, lease_expires_at=NULL,
 			last_error_code=NULL, delivered_at=NULL
 		WHERE state=? AND available_at=? AND workspace_id=? AND id=?`,
@@ -295,7 +345,14 @@ func (r *GovernanceRepository) ReplayOutbox(ctx context.Context, identity contra
 	if err != nil {
 		return fmt.Errorf("replay dead-letter outbox event: %w", err)
 	}
-	return requireOneOutboxRow(result)
+	if err := requireOneOutboxRow(result); err != nil {
+		return err
+	}
+	if _, err := connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return fmt.Errorf("commit outbox replay: %w", err)
+	}
+	committed = true
+	return nil
 }
 
 func (r *GovernanceRepository) ReadOutboxDiagnostics(ctx context.Context, workspaceID string, now time.Time) (contract.OutboxDiagnostics, error) {

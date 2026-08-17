@@ -47,7 +47,7 @@ func NewSQLiteGovernanceOutbox(module *Module, config SqlitePersistenceConfig, d
 		dependencies.HTTPIdentity == nil || dependencies.HTTPUserIdentity == nil {
 		return nil, contract.ErrGovernanceUnavailable
 	}
-	repository, err := persistence.NewGovernanceRepository(config)
+	repository, err := persistence.NewGovernanceRepository(config, persistence.WithGovernanceEventPolicies(dependencies.EventPolicies))
 	if err != nil {
 		return nil, err
 	}

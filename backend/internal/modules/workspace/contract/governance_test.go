@@ -150,6 +150,19 @@ func TestGovernanceEnvelopesRejectLegacyWrongVersionAndExtraTopLevelFields(t *te
 	}
 }
 
+func TestForbiddenGovernanceMaterialRejectsBasicAuthorizationPrecisely(t *testing.T) {
+	for _, forbidden := range []string{"Basic dXNlcjpwYXNz", "Basic:dXNlcjpwYXNz", "basic:fixture"} {
+		if !ContainsForbiddenGovernanceMaterial(forbidden) {
+			t.Errorf("%q was not rejected", forbidden)
+		}
+	}
+	for _, allowed := range []string{"basic-plan", "basics", "basic"} {
+		if ContainsForbiddenGovernanceMaterial(allowed) {
+			t.Errorf("%q was rejected", allowed)
+		}
+	}
+}
+
 func TestGovernanceStableErrors(t *testing.T) {
 	for _, err := range []error{
 		ErrRevisionConflict,

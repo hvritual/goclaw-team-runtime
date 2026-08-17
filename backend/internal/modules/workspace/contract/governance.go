@@ -226,6 +226,11 @@ func validateGovernanceEnvelope(raw json.RawMessage, version string) error {
 
 func ContainsForbiddenGovernanceMaterial(value string) bool {
 	lower := strings.ToLower(value)
+	for _, authorization := range []string{"basic ", "basic:"} {
+		if strings.Contains(lower, authorization) {
+			return true
+		}
+	}
 	for _, forbidden := range []string{
 		"authorization", "bearer", "credential", "password", "passwd", "secret",
 		"token", "cookie", "api-key", "api_key", "apikey", "prompt", "archive",

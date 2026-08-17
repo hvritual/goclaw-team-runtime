@@ -87,7 +87,7 @@ func (s *OutboxService) DispatchOnce(ctx context.Context) (int, error) {
 		if err := event.Validate(); err != nil {
 			return 0, err
 		}
-		if err := validateGovernanceEventPolicy(ctx, s.eventPolicies, event); err != nil {
+		if err := ValidateGovernanceEventPolicy(ctx, s.eventPolicies, event); err != nil {
 			return 0, err
 		}
 		claimIdentity, err := event.ClaimIdentity()

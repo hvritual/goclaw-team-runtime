@@ -15,11 +15,9 @@ type GovernanceRequest struct {
 	Command        contract.MutationCommand
 	RequestFields  map[string]any
 	ResponseStatus int
-	ResponseBody   json.RawMessage
 	ResponseFields map[string]any
 	AuditID        string
 	OccurredAt     time.Time
-	AuditMetadata  map[string]string
 	AuditFields    map[string]any
 	Outbox         []OutboxDraft
 }
@@ -27,7 +25,6 @@ type GovernanceRequest struct {
 type OutboxDraft struct {
 	ID        string
 	EventType string
-	Payload   json.RawMessage
 	Fields    map[string]any
 }
 

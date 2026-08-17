@@ -77,7 +77,7 @@ type GovernanceEventPolicyProvider interface {
 	ResolveGovernanceEventPolicy(context.Context, string, string) (GovernanceEventPolicy, error)
 }
 
-func validateGovernanceEventPolicy(ctx context.Context, provider GovernanceEventPolicyProvider, event contract.OutboxEvent) error {
+func ValidateGovernanceEventPolicy(ctx context.Context, provider GovernanceEventPolicyProvider, event contract.OutboxEvent) error {
 	if provider == nil {
 		return contract.ErrGovernanceUnavailable
 	}
@@ -103,6 +103,7 @@ func resolveGovernancePolicy(ctx context.Context, provider GovernancePolicyProvi
 	if err != nil {
 		return contract.MutationIdentity{}, GovernanceActionPolicy{}, fmt.Errorf("resolve governance policy: %w", err)
 	}
+	policy = cloneGovernanceActionPolicy(policy)
 	if err := policy.validate(); err != nil || policy.Action != action || policy.ResourceKind != resourceKind {
 		return contract.MutationIdentity{}, GovernanceActionPolicy{}, contract.ErrGovernanceUnavailable
 	}
@@ -110,6 +111,35 @@ func resolveGovernancePolicy(ctx context.Context, provider GovernancePolicyProvi
 		return contract.MutationIdentity{}, GovernanceActionPolicy{}, contract.ErrGovernanceUnavailable
 	}
 	return identity, policy, nil
+}
+
+func cloneGovernanceActionPolicy(policy GovernanceActionPolicy) GovernanceActionPolicy {
+	clone := GovernanceActionPolicy{
+		Action:        policy.Action,
+		ResourceKind:  policy.ResourceKind,
+		RequestSchema: cloneGovernanceEnvelopeSchema(policy.RequestSchema),
+		ReplaySchema:  cloneGovernanceEnvelopeSchema(policy.ReplaySchema),
+		AuditSchema:   cloneGovernanceEnvelopeSchema(policy.AuditSchema),
+	}
+	if policy.EventSchemas != nil {
+		clone.EventSchemas = make(map[string]EnvelopeSchema, len(policy.EventSchemas))
+		for eventType, schema := range policy.EventSchemas {
+			clone.EventSchemas[eventType] = cloneGovernanceEnvelopeSchema(schema)
+		}
+	}
+	return clone
+}
+
+func cloneGovernanceEnvelopeSchema(schema EnvelopeSchema) EnvelopeSchema {
+	if schema == nil {
+		return nil
+	}
+	clone := make(EnvelopeSchema, len(schema))
+	for name, rule := range schema {
+		rule.EnumValues = append([]string(nil), rule.EnumValues...)
+		clone[name] = rule
+	}
+	return clone
 }
 
 var safeIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]*$`)

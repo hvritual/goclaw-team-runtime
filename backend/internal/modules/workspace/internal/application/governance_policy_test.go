@@ -29,6 +29,24 @@ func TestPreparedGovernanceMutationHasNoCallerWritableFields(t *testing.T) {
 	}
 }
 
+func TestGovernanceInputsExposeNoUnrestrictedRawEnvelopeFields(t *testing.T) {
+	for _, candidate := range []struct {
+		value     any
+		forbidden map[string]struct{}
+	}{
+		{value: GovernanceRequest{}, forbidden: map[string]struct{}{"ResponseBody": {}, "AuditMetadata": {}}},
+		{value: OutboxDraft{}, forbidden: map[string]struct{}{"Payload": {}}},
+	} {
+		typeOfCandidate := reflect.TypeOf(candidate.value)
+		for index := 0; index < typeOfCandidate.NumField(); index++ {
+			field := typeOfCandidate.Field(index)
+			if _, forbidden := candidate.forbidden[field.Name]; forbidden {
+				t.Fatalf("%s still exposes unrestricted field %s", typeOfCandidate.Name(), field.Name)
+			}
+		}
+	}
+}
+
 func TestPreparedGovernanceMutationGettersDoNotExposeEnvelopeStorage(t *testing.T) {
 	policy := taskGovernancePolicy()
 	policy.RequestSchema["id"] = SafeFieldRule{Kind: SafeIdentifier, MaxLength: 64, Required: true}
@@ -57,6 +75,35 @@ func TestPreparedGovernanceMutationGettersDoNotExposeEnvelopeStorage(t *testing.
 	outbox[0].Payload[0] = '['
 	if prepared.Result().ResponseBody[0] != '{' || prepared.Audit().Metadata[0] != '{' || prepared.Outbox()[0].Payload[0] != '{' {
 		t.Fatal("getter mutation changed prepared envelope storage")
+	}
+}
+
+func TestPreparedGovernanceMutationFreezesResolvedPolicySnapshot(t *testing.T) {
+	policy := taskGovernancePolicy()
+	provider := governancePolicyProviderStub{
+		identity: contract.MutationIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "user-1", RequestID: "request-1"},
+		policy:   policy,
+	}
+	prepared, err := NewGovernanceService(provider).PrepareContext(context.Background(), GovernanceRequest{
+		Identity:       contract.MutationIdentity{WorkspaceID: "workspace-1", RequestID: "request-1"},
+		Command:        contract.MutationCommand{Action: "workspace.task.create", ResourceKind: "task", ResourceID: "task-1"},
+		RequestFields:  map[string]any{"id": "task-1", "status": "todo"},
+		ResponseStatus: 201,
+		ResponseFields: map[string]any{"id": "task-1"},
+		AuditID:        "audit-1",
+		OccurredAt:     time.Unix(1, 0).UTC(),
+		AuditFields:    map[string]any{"status": "todo"},
+		Outbox:         []OutboxDraft{{ID: "event-1", EventType: "task:created", Fields: map[string]any{"id": "task-1"}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy.ReplaySchema["id"] = SafeFieldRule{Kind: SafeBoolean, Required: true}
+	policy.EventSchemas["task:created"]["id"] = SafeFieldRule{Kind: SafeBoolean, Required: true}
+	auditRule := policy.AuditSchema["status"]
+	auditRule.EnumValues[0] = "changed"
+	if err := prepared.Validate(); err != nil {
+		t.Fatalf("provider mutation changed prepared policy: %v", err)
 	}
 }
 
