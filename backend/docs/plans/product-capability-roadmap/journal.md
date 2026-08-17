@@ -599,3 +599,19 @@ Known limitations, blockers, and next action
 - Per v5, independent `BLOCK` stops closure and cannot be repaired inside r010.
   `PCR-S01B-5` is review-blocked, Release 0 is incomplete, Release 1 is inactive,
   and a new approved plan/task is required before further product edits.
+
+## 2026-08-17 — J023 — v6/r011 approved and PCR-S01B-6 activated
+
+- Human Customer explicitly stated `PRODUCT-CAPABILITY-ROADMAP-001 v6 / r011`
+  after receiving the exact raw-input, Basic guard, validate-before-claim/replay,
+  immutable-policy, evidence, exclusion, and stop boundaries.
+- Approved immutable `plan_v6.md`, froze `PCR-001-S01B6-R11` on base
+  `f93eca764bb464245ef096429701aa0a856f0c56`, and retained unchanged CLAUDE and
+  Backend policy hashes.
+- Activated `PCR-S01B-6` as the sole roadmap step. Release 0 remains incomplete
+  and Release 1 remains inactive.
+- The repair is limited to the exact Section 6 paths and RED/GREEN order. It may
+  not add schema, mutate retained invalid rows, activate a capability, touch
+  `server/**`, or include existing UI/local-runtime/code-to-product dirty paths.
+- No implementation, verification, independent PASS, push, merge, deployment,
+  or Release 0 completion is claimed by this activation record.

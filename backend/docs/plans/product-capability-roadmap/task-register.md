@@ -667,3 +667,39 @@ push, merge, deployment, or Release 1.
   by claim or replay before exact policy validation.
 - Per v5, r010 cannot repair a post-gate independent block. A new approved plan
   version and task revision are required. Release 0 remains incomplete.
+
+## PCR-001-S01B6-R11
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B6-R11`
+- Task-Revision: `r011`
+- Work-Item: `PCR-S01B-6`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `f93eca764bb464245ef096429701aa0a856f0c56`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v6`
+- Plan hash: `1cd1c9a68626fe6c2c70037059b0327a4fa10f37a9853cc9ced4fa7ec32a1849`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/1cd1c9a68626fe6c2c70037059b0327a4fa10f37a9853cc9ced4fa7ec32a1849`
+
+### Objective
+
+Close the three v5 independent-review blocks and policy snapshot debt without
+changing schema or activating Release 1, then produce a new Release 0 candidate.
+
+### Frozen execution and acceptance
+
+- Execute Sections 5.1 through 5.6 of `plan_v6.md` using RED/GREEN TDD.
+- Remove unrestricted raw inputs; never silently ignore or filter them.
+- Validate exact event policy before the first claim/replay write; invalid rows
+  remain unchanged and an invalid claim batch fails atomically.
+- No schema, external data, frontend, Control Plane, generated, unrelated dirty,
+  or `server/**` modification is authorized.
+- Any required path outside Section 6 or any independent `BLOCK` stops closure
+  and requires a new approved plan/task.
+
+### Authority
+
+The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v6 /
+r011` on 2026-08-17. This activates only `PCR-S01B-6`; it does not authorize
+push, merge, deployment, Release 1, schema changes, or external data handling.
