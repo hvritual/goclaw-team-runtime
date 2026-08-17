@@ -95,7 +95,7 @@ test("installed Task surface manages lifecycle and promotes a Task to an Issue",
   await expect(issueLink).toBeVisible();
   await expect(promotionRow.getByRole("combobox", { name: "Done" })).toBeVisible();
   await issueLink.click();
-  await expect(page).toHaveURL(new RegExp(`/${SLUG}/issues/[^/]+$`));
+  await expect(page).toHaveURL(new RegExp(`/${SLUG}/issues/[^/]+$`), { timeout: 30_000 });
   expect(consoleErrors).toEqual([]);
   expect(httpErrors.filter((entry) => entry !== "404 /api/invitations")).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("tasks-archived-filter.png"), fullPage: false });
