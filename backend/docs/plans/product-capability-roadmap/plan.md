@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v10.md](plan_v10.md).
+The approved execution snapshot is [plan_v11.md](plan_v11.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `10`
-- Active step: `PCR-S02A verification repair`
-- Status: `Release 1 active; PCR-S02A/r015 verification repair authorized`
+- Approved version: `11`
+- Active step: `PCR-S02A Desktop verification repair`
+- Status: `Release 1 active; PCR-S02A/r016 Desktop verification repair authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `906580292e6fbcd9a0d866cae796d0b67cfd975d`
+- Active task base commit: `2aac82e742932ddcda2ab6fa1387a9960a530974`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -62,6 +62,14 @@ failures. The Human Customer approved the follow-up scope on 2026-08-18.
 r014 verification-blocked, and authorizes only the root-script, dead-locale-key,
 and Windows boundary-test repairs required to rerun the frozen gates. S02B and
 later stories remain inactive.
+
+v10 candidate `2aac82e` repaired the stale root filters and all four captured
+Views failures: focused Views passed 131/131 and root typecheck passed across
+the current graph. Root test then reached Desktop and exposed a transformed
+shebang syntax failure plus an incomplete ignored Electron installation. The
+Human Customer's continued follow-up authority activates v11/r016 from exact
+`2aac82e` for only the Desktop script line and cache-only dependency recovery.
+S02B and later stories remain inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

@@ -732,3 +732,19 @@ Known limitations, blockers, and next action
   later Release 1 stories remain inactive.
 - No repair implementation, deterministic PASS, S02A closure, push, merge,
   deployment, or Release 1 completion is claimed here.
+
+## 2026-08-18 — J029 — v11/r016 Desktop verification repair activated
+
+- v10 candidate `2aac82e` passes its focused Views gate 131/131 and root
+  typecheck across the current workspace graph.
+- Root test now reaches Desktop and exposes two new deterministic blockers:
+  Vitest cannot evaluate the retained package-script shebang after Vite
+  transformation, and the ignored Electron package lacks `path.txt/dist`.
+- All package script call sites explicitly use `node scripts/package.mjs`.
+  Electron 39.8.7's exact Windows x64 archive already exists in the local
+  cache; no network fallback is authorized.
+- The Human Customer approved continued follow-up actions through Release 1.
+  Immutable v11 freezes exact base `2aac82e`, marks r015
+  verification-blocked, and establishes r016 as the sole active task.
+- S02B and later stories remain inactive. No repair PASS, S02A closure, push,
+  merge, deployment, or Release 1 completion is claimed here.

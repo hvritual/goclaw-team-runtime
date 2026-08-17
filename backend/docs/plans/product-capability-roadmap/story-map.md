@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v10`
-- Status: `Release 1 active; PCR-S02A verification repair is the sole active story`
+- Plan-Version: `v11`
+- Status: `Release 1 active; PCR-S02A Desktop verification repair is the sole active story`
 
 ## Delivery policy
 
@@ -60,7 +60,7 @@ Acceptance scenarios:
 
 ### PCR-S02A — Manage tasks
 
-Status: `active verification repair under PRODUCT-CAPABILITY-ROADMAP-001 v10 / r015`
+Status: `active Desktop verification repair under PRODUCT-CAPABILITY-ROADMAP-001 v11 / r016`
 
 As a member, I can create, view, filter, reorder, edit, complete, cancel, archive,
 and restore tasks in my workspace.

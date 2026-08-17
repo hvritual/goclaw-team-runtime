@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v10`
-- Registry status: `Release 1 active; PCR-001-S02A-R15 is the sole active task`
-- Registry revision: `r015`
+- Plan-Version: `v11`
+- Registry status: `Release 1 active; PCR-001-S02A-R16 is the sole active task`
+- Registry revision: `r016`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -22,6 +22,7 @@
 | `plan_v8.md` | `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b` |
 | `plan_v9.md` | `50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035` |
 | `plan_v10.md` | `444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171` |
+| `plan_v11.md` | `6177497d7d7e78b4d0b74b282245e01a50a8f737c9838a22b2ede1a17c4cb9b5` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -882,7 +883,7 @@ release tags, external systems, mobile, or `server/**` changes.
 - Task-ID: `PCR-001-S02A-R15`
 - Task-Revision: `r015`
 - Work-Item: `PCR-S02A`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `906580292e6fbcd9a0d866cae796d0b67cfd975d`
@@ -910,3 +911,40 @@ S02A without changing Task product behavior or activating S02B.
 - r014 is verification-blocked; r015 is the sole active task.
 - The Human Customer approved the follow-up scope on 2026-08-18.
 - No verification repair or closure PASS is claimed at activation.
+
+### Verification outcome
+
+- v10 focused Views tests pass 131/131 and root typecheck passes across the
+  current workspace graph at candidate `2aac82e`.
+- Root test reaches Desktop but deterministically fails on a transformed
+  shebang and incomplete ignored Electron binary state. v10 excludes both, so
+  r015 is verification-blocked rather than waived and is superseded by r016.
+
+## PCR-001-S02A-R16
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02A-R16`
+- Task-Revision: `r016`
+- Work-Item: `PCR-S02A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `2aac82e742932ddcda2ab6fa1387a9960a530974`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v11`
+- Plan hash: `6177497d7d7e78b4d0b74b282245e01a50a8f737c9838a22b2ede1a17c4cb9b5`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/6177497d7d7e78b4d0b74b282245e01a50a8f737c9838a22b2ede1a17c4cb9b5`
+
+### Objective and acceptance
+
+- Remove only the redundant Desktop package-script shebang and reconstruct the
+  locked Electron runtime from the already-present local cache.
+- Focused Desktop tests, root typecheck/test, backend full/race, exact Task
+  browser acceptance, scope checks, and fresh independent review must pass.
+- Any network fallback or additional tracked path stops execution.
+- S02A closure does not activate S02B or complete Release 1.
+
+### Activation evidence
+
+- Exact base is `2aac82e`; r015 is verification-blocked and r016 is sole active.
+- Locked Electron 39.8.7 archive exists in the local cache.
+- No repair, verification PASS, or closure is claimed at activation.
