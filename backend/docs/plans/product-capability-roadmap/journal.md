@@ -659,3 +659,34 @@ Known limitations, blockers, and next action
   prior-plan amendment.
 - Release 0 remains incomplete at activation. Release 1 remains inactive and no
   Release 1 task is active.
+
+## 2026-08-18 — J026 — v8 independent PASS and Release 0 closed
+
+- Fixed activation candidate `872b5ebe35e1d12a488e389a713d377a4c1663cc`
+  has exact parent `14908b9e53a73330c0cde3fe8a3f602635906858`.
+  The range contains one commit and exactly the five paths authorized by
+  `plan_v8.md` Section 6.
+- Deterministic v8 evidence passed:
+  - exact base resolution, direct parent, ancestry, and r013 trailers;
+  - SHA256 for `CLAUDE.md`, `backend/AGENTS.md`, and immutable `plan_v8.md`;
+  - zero diff in `plan_v1.md` through `plan_v7.md`;
+  - mechanical task enumeration with exactly one pre-closure active entry,
+    r013, while r011 and r012 were review-blocked;
+  - roadmap relative links, diff checks, exact five-document scope, preserved
+    unrelated dirty paths, and empty tracked/staged/untracked `server/**` scope;
+  - Workspace governance contract, application, SQLite repository, Workspace
+    composition, and Bootstrap focused packages, count 1.
+- Fresh independent read-only review returned `SPEC PASS`. It confirmed the
+  verified product candidate `4d60e50d9c03a68b2723b427506ea7db64d90d90`
+  remains unchanged and retained all implementation/code-quality PASS evidence.
+  It also independently passed v8 authority uniqueness, immutable history,
+  exact scope, traceability, Release 0 readiness, and Release 1 inactivity.
+- Non-blocking record debt remains: the historical r011/r012 `Independent
+  reviewer` summary fields still use their original required-review wording,
+  while their status and appended outcome sections accurately record the
+  review blocks. This does not grant active authority and is not changed during
+  closure.
+- `PCR-001-S01B8-R13` and Release 0 — Authority and safety foundation are
+  complete. Mechanical post-closure active-task count is zero. Release 1
+  remains inactive; no Release 1 task, product change, push, merge, or
+  deployment is authorized by this closure.

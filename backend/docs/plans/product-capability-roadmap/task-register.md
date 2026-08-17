@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v8`
-- Registry status: `PCR-S01B-8 sole authority active; Release 0 incomplete; Release 1 inactive`
+- Registry status: `Release 0 complete; Release 1 inactive; no active task`
 - Registry revision: `r013`
 - Updated: `2026-08-18`
 
@@ -771,9 +771,9 @@ Release 1.
 - Task-ID: `PCR-001-S01B8-R13`
 - Task-Revision: `r013`
 - Work-Item: `PCR-S01B-8`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after exact v8 evidence verification`
+- Independent reviewer: `SPEC PASS on activation 872b5ebe35e1d12a488e389a713d377a4c1663cc`
 - Base commit: `14908b9e53a73330c0cde3fe8a3f602635906858`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v8`
 - Plan hash: `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b`
@@ -801,3 +801,18 @@ r013` on 2026-08-18. This authorizes only single-authority documentation repair,
 read-only verification, independent review, and Release 0 closure records after
 PASS; it does not authorize product changes, push, merge, deployment, or
 Release 1.
+
+### Independent review and closure outcome
+
+- Activation `872b5ebe35e1d12a488e389a713d377a4c1663cc` has direct parent
+  `14908b9e53a73330c0cde3fe8a3f602635906858`; its range is one commit and
+  exactly the five Section 6 documentation paths.
+- Mechanical enumeration found exactly one active task before closure: r013.
+  r011 and r012 were review-blocked; all prior immutable plans were unchanged.
+- Plan pointer, story map, task register, and journal agreed on authority and
+  Release state. Hashes, trailers, links, diff checks, focused tests, unrelated
+  dirty exclusions, and `server/**` all passed.
+- Independent review returned `SPEC PASS` across implementation, quality,
+  authority/traceability, scope, Release 0 readiness, and Release 1 inactivity.
+- r013 and Release 0 are complete. Release 1 remains inactive and no task is
+  active after closure.

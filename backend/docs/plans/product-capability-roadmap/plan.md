@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v8.md](plan_v8.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `8`
-- Active step: `PCR-S01B-8`
-- Status: `v8/r013 single-authority closure active; Release 0 incomplete; Release 1 inactive`
+- Active step: `none`
+- Status: `Release 0 complete; Release 1 inactive`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
 - Active task base commit: `14908b9e53a73330c0cde3fe8a3f602635906858`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -41,9 +41,10 @@ Independent v7 review passed base, ancestry, immutable-history, product,
 five-path scope, hashes, links, tests, dirty exclusions, and `server/**`, but
 blocked closure because r011 and r012 were both marked active in the task
 register. The Human Customer explicitly approved documentation-only
-`PRODUCT-CAPABILITY-ROADMAP-001 v8 / r013` on 2026-08-18. v8 marks r011 and
-r012 review-blocked and establishes r013 as the sole active authority. Release
-0 remains incomplete until fresh independent PASS; Release 1 remains inactive.
+`PRODUCT-CAPABILITY-ROADMAP-001 v8 / r013` on 2026-08-18. v8 marked r011 and
+r012 review-blocked and established r013 as the sole pre-closure authority.
+Fresh independent review returned `SPEC PASS`; r013 and Release 0 are complete.
+Release 1 remains inactive with no active task.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

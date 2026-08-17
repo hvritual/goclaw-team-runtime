@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v8`
-- Status: `PCR-S01B-8 sole authority active; Release 0 incomplete; Release 1 inactive`
+- Status: `Release 0 complete; Release 1 inactive; no active Release 1 story`
 
 ## Delivery policy
 
