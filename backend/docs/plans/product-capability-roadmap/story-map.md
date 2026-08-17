@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v13`
-- Status: `Release 1 active; PCR-S02A accepted and no story active`
+- Plan-Version: `v14`
+- Status: `Release 1 active; PCR-S02B is the sole active story`
 
 ## Delivery policy
 
@@ -70,7 +70,7 @@ empty and denied states, concurrent edit conflicts, and restart persistence.
 
 ### PCR-S02B — Promote a task to an Issue
 
-Status: `inactive; dependency satisfied, pending a new versioned plan`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v14 / r019`
 
 As a member, I can explicitly promote a task into an Issue without creating
 duplicates on retry.

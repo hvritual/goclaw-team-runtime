@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v13`
-- Registry status: `Release 1 active; PCR-S02A complete and no task active`
-- Registry revision: `r018`
+- Plan-Version: `v14`
+- Registry status: `Release 1 active; PCR-001-S02B-R19 is the sole active task`
+- Registry revision: `r019`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1030,3 +1030,26 @@ S02A without changing Task product behavior or activating S02B.
   S02A closure readiness.
 - r018 and PCR-S02A are complete. Release 1 remains active with no active task;
   S02B awaits a new versioned plan.
+
+## PCR-001-S02B-R19
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02B-R19`
+- Task-Revision: `r019`
+- Work-Item: `PCR-S02B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v14`
+- Plan hash: `a2517baf25a3e4312c12f5abee9ec7917ae972a16802915ced9e9cd0b0f6fb27`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/a2517baf25a3e4312c12f5abee9ec7917ae972a16802915ced9e9cd0b0f6fb27`
+
+### Objective and acceptance
+
+- Install explicit, idempotent Task-to-Issue promotion with an immutable source
+  link and optional atomic completion.
+- Prove exact replay, body conflict, revision/authorization denial, concurrent
+  single winner, rollback, restart, no later synchronization, shared UI, and
+  clean installed-browser acceptance.
+- S03A and all later stories remain inactive.

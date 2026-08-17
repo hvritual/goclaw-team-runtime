@@ -801,3 +801,25 @@ Known limitations, blockers, and next action
 - r018 and PCR-S02A are `complete-independent-reviewed`. Release 1 remains
   active with no active task. S02B's dependency is satisfied but it remains
   inactive until a new versioned plan is activated.
+
+## 2026-08-18 — J033 — v14/r019 approved and PCR-S02B activated
+
+- Exact base `3262232c5000ed449b89d98901535cd58b42a48d` records S02A as
+  complete-independent-reviewed with zero active tasks before activation.
+- Three bounded read-only discovery rounds reached dependency closure with no
+  retrievable blocker or human-owned decision. The frozen route is
+  `POST /api/tasks/{id}/promote` with revision and idempotency contracts.
+- Existing evidence has a mutable Task `issue_id`, independent Issue creation
+  transaction, Issue number allocator, and reusable governance transaction, but
+  no promotion service, immutable promotion link, HTTP route, client mutation,
+  shared UI affordance, or installed acceptance.
+- The Human Customer's standing direction to complete Release 1 activates
+  immutable v14/r019 for PCR-S02B only. S03A and later stories remain inactive.
+- v14 freezes an additive 000012 migration, one governed `BEGIN IMMEDIATE`
+  promotion transaction, trusted authorization, snapshot copy, optional atomic
+  completion, strict client schema, shared Web/Desktop UI, restart/browser
+  evidence, and fresh independent review.
+- Existing dirty UI, generated protobuf, local-runtime, code-to-product, and UI
+  artifacts are excluded. `server/**` remains permanently read-only.
+- No S02B implementation, verification PASS, independent review, push, merge,
+  deployment, S03A activation, or Release 1 completion is claimed here.

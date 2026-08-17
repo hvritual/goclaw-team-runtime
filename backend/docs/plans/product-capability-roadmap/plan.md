@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v13.md](plan_v13.md).
+The approved execution snapshot is [plan_v14.md](plan_v14.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `13`
-- Active step: `none; PCR-S02A accepted and PCR-S02B awaits a new plan`
-- Status: `Release 1 active; PCR-S02A complete-independent-reviewed`
+- Approved version: `14`
+- Active step: `PCR-S02B promote a Task to an Issue`
+- Status: `Release 1 active; PCR-S02B/r019 authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `8f94d69db72e18719b7ed4315e7d74901b1f5945`
+- Active task base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -90,6 +90,11 @@ full/race, exact clean-candidate Task Playwright acceptance, scope and dirty
 blob checks, and fresh independent review. r018 and PCR-S02A are complete.
 Release 1 remains active, but no task is active; PCR-S02B remains inactive until
 a new versioned plan is activated.
+
+The Human Customer's standing direction to complete Release 1 activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v14 / r019` from exact S02A closure `3262232`.
+Only PCR-S02B Task-to-Issue promotion is active. S03A and all later stories
+remain inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not
