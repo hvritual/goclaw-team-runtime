@@ -33,6 +33,12 @@ func WithTodoCreateGovernance(ctx context.Context, idempotencyKey, requestFinger
 	})
 }
 
+func WithTodoReorderGovernance(ctx context.Context, idempotencyKey, requestFingerprint string) context.Context {
+	return context.WithValue(ctx, todoGovernanceCommandKey{}, TodoGovernanceCommand{
+		Action: TaskActionReorder, IdempotencyKey: strings.TrimSpace(idempotencyKey), RequestFingerprint: strings.TrimSpace(requestFingerprint),
+	})
+}
+
 func TodoGovernanceActionFromContext(ctx context.Context) (string, bool) {
 	command, ok := TodoGovernanceCommandFromContext(ctx)
 	return command.Action, ok
@@ -79,6 +85,8 @@ func installedTaskGovernancePolicy(action, resourceKind string) GovernanceAction
 	requestSchema := taskGovernanceStateSchema()
 	if action == TaskActionCreate {
 		requestSchema = EnvelopeSchema{"fingerprint": {Kind: SafeIdentifier, MaxLength: 64, Required: true}}
+	} else if action == TaskActionReorder {
+		requestSchema = EnvelopeSchema{"fingerprint": {Kind: SafeSHA256, Required: true}}
 	}
 	return GovernanceActionPolicy{
 		Action: action, ResourceKind: resourceKind,

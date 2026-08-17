@@ -217,6 +217,7 @@ message ReorderTodoItem {
 message ReorderTodosRequest {
   string workspace_id = 1;
   repeated ReorderTodoItem items = 2;
+  string idempotency_key = 3;
 }
 
 message ReorderTodosResponse {

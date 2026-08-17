@@ -40,6 +40,7 @@ describe("task API boundary", () => {
     await expect(client.updateTask("task-1", { status: "in_progress", expected_revision: 1 })).resolves.toMatchObject({ revision: 2 });
     await expect(client.reorderTasks({ items: [{ id: "task-1", position: 20, expected_revision: 1 }] })).resolves.toHaveLength(1);
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ status: "in_progress", expected_revision: 1 }));
+    expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get("Idempotency-Key")).toBeTruthy();
   });
 
   it("fails closed for malformed mutation responses and degrades malformed lists", async () => {

@@ -110,10 +110,21 @@ func TestSQLiteRuntimeServesInstalledTaskSlice(t *testing.T) {
 	if err := json.Unmarshal(assigned.Body.Bytes(), &assignedBody); err != nil {
 		t.Fatal(err)
 	}
-	reordered := runtimeRequest(runtime, http.MethodPost, "/api/tasks/reorder", `{"items":[{"id":"`+assignedBody.ID+`","position":10,"expected_revision":1},{"id":"`+task.ID+`","position":20,"expected_revision":5}]}`, headers)
+	headers["Idempotency-Key"] = "reorder-tasks"
+	reorderBody := `{"items":[{"id":"` + assignedBody.ID + `","position":10,"expected_revision":1},{"id":"` + task.ID + `","position":20,"expected_revision":5}]}`
+	reordered := runtimeRequest(runtime, http.MethodPost, "/api/tasks/reorder", reorderBody, headers)
 	if reordered.Code != http.StatusOK || !containsJSON(reordered.Body.Bytes(), `"revision":2`, `"revision":6`) {
 		t.Fatalf("reorder = %d %s", reordered.Code, reordered.Body.String())
 	}
+	replayedReorder := runtimeRequest(runtime, http.MethodPost, "/api/tasks/reorder", reorderBody, headers)
+	if replayedReorder.Code != http.StatusOK || replayedReorder.Body.String() != reordered.Body.String() {
+		t.Fatalf("reorder replay = %d %s, want %s", replayedReorder.Code, replayedReorder.Body.String(), reordered.Body.String())
+	}
+	conflictingReorder := runtimeRequest(runtime, http.MethodPost, "/api/tasks/reorder", `{"items":[{"id":"`+assignedBody.ID+`","position":30,"expected_revision":2}]}`, headers)
+	if conflictingReorder.Code != http.StatusConflict || !containsJSON(conflictingReorder.Body.Bytes(), `"code":"idempotency_conflict"`) {
+		t.Fatalf("reorder idempotency conflict = %d %s", conflictingReorder.Code, conflictingReorder.Body.String())
+	}
+	headers["Idempotency-Key"] = "reorder-stale"
 	failedReorder := runtimeRequest(runtime, http.MethodPost, "/api/tasks/reorder", `{"items":[{"id":"`+assignedBody.ID+`","position":30,"expected_revision":2},{"id":"`+task.ID+`","position":40,"expected_revision":5}]}`, headers)
 	if failedReorder.Code != http.StatusConflict || !containsJSON(failedReorder.Body.Bytes(), `"current_revision":6`) {
 		t.Fatalf("failed reorder = %d %s", failedReorder.Code, failedReorder.Body.String())
@@ -128,7 +139,7 @@ func TestSQLiteRuntimeServesInstalledTaskSlice(t *testing.T) {
 	}
 	for table, want := range map[string]int{
 		"workspace_resource_revisions":   3,
-		"workspace_mutation_idempotency": 2,
+		"workspace_mutation_idempotency": 3,
 		"workspace_audit_entries":        8,
 		"workspace_outbox_events":        8,
 	} {

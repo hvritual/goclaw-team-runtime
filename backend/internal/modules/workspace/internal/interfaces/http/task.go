@@ -40,6 +40,10 @@ func (h *TaskHandler) reorder(ctx kratoshttp.Context) error {
 	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
 		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
 	}
+	idempotencyKey := ctx.Request().Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		return writeError(ctx, http.StatusBadRequest, "idempotency key is required")
+	}
 	var input struct {
 		Items []struct {
 			ID               string  `json:"id"`
@@ -50,7 +54,7 @@ func (h *TaskHandler) reorder(ctx kratoshttp.Context) error {
 	if err := decodeJSON(ctx.Request().Body, &input); err != nil {
 		return writeError(ctx, http.StatusBadRequest, "invalid request body")
 	}
-	request := contract.ReorderTodosRequest{WorkspaceId: identity.WorkspaceID, Items: make([]contract.ReorderTodoItem, len(input.Items))}
+	request := contract.ReorderTodosRequest{WorkspaceId: identity.WorkspaceID, IdempotencyKey: idempotencyKey, Items: make([]contract.ReorderTodoItem, len(input.Items))}
 	for index, item := range input.Items {
 		request.Items[index] = contract.ReorderTodoItem{TodoId: item.ID, Position: item.Position, ExpectedRevision: item.ExpectedRevision}
 	}

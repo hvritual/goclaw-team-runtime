@@ -221,16 +221,17 @@ func todoEventForAction(action string) (string, bool) {
 
 func (r *todoRepository) Reorder(ctx context.Context, workspaceID string, updates []application.TodoPositionUpdate, now time.Time) (values []todoDomain.Todo, err error) {
 	if r.governance != nil {
-		action, ok := application.TodoGovernanceActionFromContext(ctx)
-		if !ok || action != application.TaskActionReorder {
+		commandContext, ok := application.TodoGovernanceCommandFromContext(ctx)
+		if !ok || commandContext.Action != application.TaskActionReorder || commandContext.IdempotencyKey == "" || commandContext.RequestFingerprint == "" {
 			return nil, contract.ErrGovernanceUnavailable
 		}
+		action := commandContext.Action
 		batchID := uuid.NewString()
 		fields := map[string]any{"id": batchID, "revision": int64(1), "status": "reordered"}
 		prepared, prepareErr := r.governanceService.PrepareContext(ctx, application.GovernanceRequest{
 			Identity:       contract.MutationIdentity{WorkspaceID: workspaceID, RequestID: uuid.NewString()},
-			Command:        contract.MutationCommand{Action: action, ResourceKind: "task_order", ResourceID: batchID, ExpectedRevision: 0},
-			RequestFields:  fields,
+			Command:        contract.MutationCommand{Action: action, ResourceKind: "task_order", ResourceID: batchID, ExpectedRevision: 0, IdempotencyKey: commandContext.IdempotencyKey},
+			RequestFields:  map[string]any{"fingerprint": commandContext.RequestFingerprint},
 			ResponseStatus: httpStatusOK,
 			ResponseFields: fields,
 			AuditID:        uuid.NewString(),
@@ -243,11 +244,28 @@ func (r *todoRepository) Reorder(ctx context.Context, workspaceID string, update
 		if prepareErr != nil {
 			return nil, prepareErr
 		}
-		_, executeErr := r.governance.Execute(ctx, prepared, func(ctx context.Context, connection *sql.Conn) error {
+		result, executeErr := r.governance.Execute(ctx, prepared, func(ctx context.Context, connection *sql.Conn) error {
 			values, err = r.reorderWithConnection(ctx, connection, workspaceID, updates, now)
 			return err
 		})
-		return values, executeErr
+		if executeErr != nil || !result.Replayed {
+			return values, executeErr
+		}
+		values = make([]todoDomain.Todo, 0, len(updates))
+		for _, update := range updates {
+			value, findErr := r.FindByID(ctx, workspaceID, update.TodoID)
+			if findErr != nil {
+				return nil, fmt.Errorf("load replayed reordered Task: %w", findErr)
+			}
+			values = append(values, value)
+		}
+		sort.Slice(values, func(i, j int) bool {
+			if values[i].Position == values[j].Position {
+				return values[i].ID < values[j].ID
+			}
+			return values[i].Position < values[j].Position
+		})
+		return values, nil
 	}
 	connection, err := r.db.Conn(ctx)
 	if err != nil {

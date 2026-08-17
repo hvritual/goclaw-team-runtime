@@ -1194,11 +1194,12 @@ func (x *ReorderTodoItem) GetExpectedRevision() int64 {
 }
 
 type ReorderTodosRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Items         []*ReorderTodoItem     `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId    string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Items          []*ReorderTodoItem     `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReorderTodosRequest) Reset() {
@@ -1243,6 +1244,13 @@ func (x *ReorderTodosRequest) GetItems() []*ReorderTodoItem {
 		return x.Items
 	}
 	return nil
+}
+
+func (x *ReorderTodosRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 type ReorderTodosResponse struct {
@@ -1428,10 +1436,11 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\x0fReorderTodoItem\x12\x17\n" +
 	"\atodo_id\x18\x01 \x01(\tR\x06todoId\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x01R\bposition\x12+\n" +
-	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"m\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x96\x01\n" +
 	"\x13ReorderTodosRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x123\n" +
-	"\x05items\x18\x02 \x03(\v2\x1d.workspace.v1.ReorderTodoItemR\x05items\"@\n" +
+	"\x05items\x18\x02 \x03(\v2\x1d.workspace.v1.ReorderTodoItemR\x05items\x12'\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\"@\n" +
 	"\x14ReorderTodosResponse\x12(\n" +
 	"\x05todos\x18\x01 \x03(\v2\x12.workspace.v1.TodoR\x05todos2\x86\n" +
 	"\n" +

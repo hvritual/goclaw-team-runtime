@@ -1607,6 +1607,7 @@ export class ApiClient {
   async reorderTasks(data: ReorderTasksRequest): Promise<Task[]> {
     const raw = await this.fetch<unknown>("/api/tasks/reorder", {
       method: "POST",
+      headers: { "Idempotency-Key": createSafeId() },
       body: JSON.stringify(data),
     });
     const parsed = reorderedTasksSchema.safeParse(raw);

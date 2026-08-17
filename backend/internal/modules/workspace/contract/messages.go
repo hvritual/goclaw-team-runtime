@@ -109,8 +109,9 @@ type ReorderTodoItem struct {
 }
 
 type ReorderTodosRequest struct {
-	WorkspaceId string            `json:"workspaceId,omitempty"`
-	Items       []ReorderTodoItem `json:"items,omitempty"`
+	WorkspaceId    string            `json:"workspaceId,omitempty"`
+	Items          []ReorderTodoItem `json:"items,omitempty"`
+	IdempotencyKey string            `json:"idempotencyKey,omitempty"`
 }
 
 type ReorderTodosResponse struct {

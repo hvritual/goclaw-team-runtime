@@ -12,17 +12,18 @@ import (
 )
 
 type todoRepositoryStub struct {
-	value        todoDomain.Todo
-	values       []todoDomain.Todo
-	query        TodoListQuery
-	findErr      error
-	createErr    error
-	updateErr    error
-	createCalls  int
-	findCalls    int
-	listCalls    int
-	updateCalls  int
-	reorderCalls int
+	value          todoDomain.Todo
+	values         []todoDomain.Todo
+	query          TodoListQuery
+	findErr        error
+	createErr      error
+	updateErr      error
+	createCalls    int
+	findCalls      int
+	listCalls      int
+	updateCalls    int
+	reorderCalls   int
+	reorderCommand TodoGovernanceCommand
 }
 
 func (s *todoRepositoryStub) Create(_ context.Context, value todoDomain.Todo) (todoDomain.Todo, error) {
@@ -48,8 +49,9 @@ func (s *todoRepositoryStub) Update(_ context.Context, value todoDomain.Todo) er
 	return s.updateErr
 }
 
-func (s *todoRepositoryStub) Reorder(_ context.Context, _ string, updates []TodoPositionUpdate, now time.Time) ([]todoDomain.Todo, error) {
+func (s *todoRepositoryStub) Reorder(ctx context.Context, _ string, updates []TodoPositionUpdate, now time.Time) ([]todoDomain.Todo, error) {
 	s.reorderCalls++
+	s.reorderCommand, _ = TodoGovernanceCommandFromContext(ctx)
 	values := make([]todoDomain.Todo, 0, len(updates))
 	for _, update := range updates {
 		value := s.value
@@ -159,10 +161,10 @@ func TestTodoUseCaseGetsListsAndHidesWorkspaceMisses(t *testing.T) {
 	if err != nil || listed.Total != 1 || len(listed.Todos) != 1 {
 		t.Fatalf("ListTodos() = %+v, %v", listed, err)
 	}
-	if repository.query.WorkspaceID != "workspace-1" || repository.query.ProjectID == nil || *repository.query.ProjectID != "project-1" || repository.query.Status != "todo" || repository.query.Limit != 100 {
+	if repository.query.WorkspaceID != "workspace-1" || repository.query.ProjectID == nil || *repository.query.ProjectID != "project-1" || repository.query.Status != "todo" || repository.query.Limit != 50 {
 		t.Fatalf("list query = %+v", repository.query)
 	}
-	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Limit: 250}); err != nil || repository.query.Limit != 200 {
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Limit: 250}); err != nil || repository.query.Limit != 100 {
 		t.Fatalf("bounded list query/error = %+v/%v", repository.query, err)
 	}
 	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Limit: -1}); !errors.Is(err, contract.ErrInvalidTodo) {
@@ -235,8 +237,8 @@ func TestTodoUseCaseReordersWorkspaceTasksWithRevisionChecks(t *testing.T) {
 	ctx := contract.WithWorkspaceActor(context.Background(), "member", "member-1")
 
 	result, err := service.ReorderTodos(ctx, contract.ReorderTodosRequest{
-		WorkspaceId: "workspace-1",
-		Items:       []contract.ReorderTodoItem{{TodoId: "todo-1", Position: 20, ExpectedRevision: 1}},
+		WorkspaceId: "workspace-1", IdempotencyKey: "reorder-1",
+		Items: []contract.ReorderTodoItem{{TodoId: "todo-1", Position: 20, ExpectedRevision: 1}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -246,6 +248,12 @@ func TestTodoUseCaseReordersWorkspaceTasksWithRevisionChecks(t *testing.T) {
 	}
 	if len(authorizer.permissions) != 2 || authorizer.permissions[0] != contract.PermissionTaskRead || authorizer.permissions[1] != contract.PermissionTaskUpdateOwn {
 		t.Fatalf("reorder permissions = %v", authorizer.permissions)
+	}
+	if repository.reorderCommand.IdempotencyKey != "reorder-1" || len(repository.reorderCommand.RequestFingerprint) != 64 {
+		t.Fatalf("reorder governance command = %+v", repository.reorderCommand)
+	}
+	if _, err := service.ReorderTodos(ctx, contract.ReorderTodosRequest{WorkspaceId: "workspace-1", Items: []contract.ReorderTodoItem{{TodoId: "todo-1", Position: 20, ExpectedRevision: 1}}}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("missing idempotency key error = %v", err)
 	}
 }
 

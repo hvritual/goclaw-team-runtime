@@ -18,8 +18,8 @@ import (
 var ErrTodoRecordNotFound = errors.New("todo record not found")
 
 const (
-	DefaultTodoListLimit = 100
-	MaxTodoListLimit     = 200
+	DefaultTodoListLimit = 50
+	MaxTodoListLimit     = 100
 )
 
 type TodoListQuery struct {
@@ -276,7 +276,8 @@ func (s *TodoUseCase) RestoreTodo(ctx context.Context, request contract.RestoreT
 
 func (s *TodoUseCase) ReorderTodos(ctx context.Context, request contract.ReorderTodosRequest) (contract.ReorderTodosResponse, error) {
 	workspaceID := strings.TrimSpace(request.WorkspaceId)
-	if workspaceID == "" || len(request.Items) == 0 {
+	idempotencyKey := strings.TrimSpace(request.IdempotencyKey)
+	if workspaceID == "" || len(request.Items) == 0 || idempotencyKey == "" {
 		return contract.ReorderTodosResponse{}, fmt.Errorf("%w: workspace id and reorder items are required", contract.ErrInvalidTodo)
 	}
 	if err := s.authorizer.AuthorizeWorkspace(ctx, workspaceID, contract.PermissionTaskRead); err != nil {
@@ -302,7 +303,11 @@ func (s *TodoUseCase) ReorderTodos(ctx context.Context, request contract.Reorder
 		}
 		updates = append(updates, TodoPositionUpdate{TodoID: todoID, Position: item.Position, ExpectedRevision: item.ExpectedRevision})
 	}
-	values, err := s.repository.Reorder(WithTodoGovernanceAction(ctx, TaskActionReorder), workspaceID, updates, s.now())
+	fingerprint, err := todoReorderFingerprint(updates)
+	if err != nil {
+		return contract.ReorderTodosResponse{}, fmt.Errorf("fingerprint Todo reorder: %w", err)
+	}
+	values, err := s.repository.Reorder(WithTodoReorderGovernance(ctx, idempotencyKey, fingerprint), workspaceID, updates, s.now())
 	if err != nil {
 		return contract.ReorderTodosResponse{}, err
 	}
@@ -311,6 +316,15 @@ func (s *TodoUseCase) ReorderTodos(ctx context.Context, request contract.Reorder
 		result[index] = todoToContract(values[index])
 	}
 	return contract.ReorderTodosResponse{Todos: result}, nil
+}
+
+func todoReorderFingerprint(updates []TodoPositionUpdate) (string, error) {
+	payload, err := json.Marshal(updates)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (s *TodoUseCase) updateTodo(ctx context.Context, request contract.UpdateTodoRequest) (contract.UpdateTodoResponse, error) {

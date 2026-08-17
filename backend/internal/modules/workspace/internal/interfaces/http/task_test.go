@@ -101,7 +101,7 @@ func TestTaskListUsesTrustedWorkspaceAndSnakeCaseResponse(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("list = %d %s", response.Code, response.Body.String())
 	}
-	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" || service.listRequest.Limit != 200 {
+	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" || service.listRequest.Limit != 100 {
 		t.Fatalf("list request = %+v", service.listRequest)
 	}
 	body := strings.TrimSpace(response.Body.String())
@@ -124,7 +124,7 @@ func TestTaskListDefaultsAndValidatesLimit(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/tasks", nil))
-	if response.Code != http.StatusOK || service.listRequest.Limit != 100 {
+	if response.Code != http.StatusOK || service.listRequest.Limit != 50 {
 		t.Fatalf("default list = %d request=%+v", response.Code, service.listRequest)
 	}
 
@@ -255,16 +255,37 @@ func TestTaskReorderUsesTrustedWorkspaceAndExpectedRevisions(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodPost, "/api/tasks/reorder", strings.NewReader(`{"items":[{"id":"task-1","position":30,"expected_revision":2}]}`))
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "reorder-1")
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("reorder = %d %s", response.Code, response.Body.String())
 	}
-	if service.reorderRequest.WorkspaceId != "workspace-1" || len(service.reorderRequest.Items) != 1 || service.reorderRequest.Items[0].TodoId != "task-1" || service.reorderRequest.Items[0].ExpectedRevision != 2 {
+	if service.reorderRequest.WorkspaceId != "workspace-1" || service.reorderRequest.IdempotencyKey != "reorder-1" || len(service.reorderRequest.Items) != 1 || service.reorderRequest.Items[0].TodoId != "task-1" || service.reorderRequest.Items[0].ExpectedRevision != 2 {
 		t.Fatalf("reorder request = %+v", service.reorderRequest)
 	}
 	if !strings.Contains(response.Body.String(), `"position":30`) || !strings.Contains(response.Body.String(), `"revision":3`) {
 		t.Fatalf("reorder body = %s", response.Body.String())
+	}
+}
+
+func TestTaskReorderRequiresIdempotencyKey(t *testing.T) {
+	service := &recordingTaskService{}
+	server := kratoshttp.NewServer()
+	NewTaskHandler(
+		service,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		},
+		func(*http.Request) (string, error) { return "member-1", nil },
+		func(*http.Request) error { return nil },
+	).Register(server)
+	request := httptest.NewRequest(http.MethodPost, "/api/tasks/reorder", strings.NewReader(`{"items":[{"id":"task-1","position":30,"expected_revision":2}]}`))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+	if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != `{"error":"idempotency key is required"}` {
+		t.Fatalf("missing idempotency key = %d %s", response.Code, response.Body.String())
 	}
 }
