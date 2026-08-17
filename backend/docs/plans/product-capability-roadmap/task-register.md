@@ -1,10 +1,10 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v7`
-- Registry status: `PCR-S01B-7 authority closure active; Release 0 incomplete; Release 1 inactive`
-- Registry revision: `r012`
-- Updated: `2026-08-17`
+- Plan-Version: `v8`
+- Registry status: `PCR-S01B-8 sole authority active; Release 0 incomplete; Release 1 inactive`
+- Registry revision: `r013`
+- Updated: `2026-08-18`
 
 ## Frozen policy bundle
 
@@ -19,6 +19,7 @@
 | `plan_v5.md` | `ab5b81056f26f842a1b4fa08d626928b6cfb802dfae9a2bf4e3c0f305c019e69` |
 | `plan_v6.md` | `1cd1c9a68626fe6c2c70037059b0327a4fa10f37a9853cc9ced4fa7ec32a1849` |
 | `plan_v7.md` | `c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152` |
+| `plan_v8.md` | `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -676,7 +677,7 @@ push, merge, deployment, or Release 1.
 - Task-ID: `PCR-001-S01B6-R11`
 - Task-Revision: `r011`
 - Work-Item: `PCR-S01B-6`
-- Status: `active`
+- Status: `independent-review-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `f93eca764bb464245ef096429701aa0a856f0c56`
@@ -723,7 +724,7 @@ push, merge, deployment, Release 1, schema changes, or external data handling.
 - Task-ID: `PCR-001-S01B7-R12`
 - Task-Revision: `r012`
 - Work-Item: `PCR-S01B-7`
-- Status: `active`
+- Status: `independent-review-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after exact v7 evidence verification`
 - Base commit: `4d60e50d9c03a68b2723b427506ea7db64d90d90`
@@ -751,6 +752,52 @@ Release 0 without changing the verified product candidate.
 
 The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v7 /
 r012` on 2026-08-17. This authorizes only documentation authority repair,
+read-only verification, independent review, and Release 0 closure records after
+PASS; it does not authorize product changes, push, merge, deployment, or
+Release 1.
+
+### Independent review outcome
+
+- v7 base/object/parent/ancestry, immutable v6 preservation, unchanged product
+  candidate, exact five-path scope, trailers, hashes, links, focused tests,
+  dirty exclusions, `server/**`, and Release 1 inactivity all passed.
+- Review blocked authority uniqueness because r011 and r012 were simultaneously
+  marked active. This could let a recovery process resume obsolete v6 authority.
+- Per v7, Release 0 remains incomplete and repair requires a new approved plan.
+
+## PCR-001-S01B8-R13
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B8-R13`
+- Task-Revision: `r013`
+- Work-Item: `PCR-S01B-8`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after exact v8 evidence verification`
+- Base commit: `14908b9e53a73330c0cde3fe8a3f602635906858`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v8`
+- Plan hash: `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b`
+
+### Objective
+
+Restore exactly one active task authority, obtain fresh independent review, and
+close Release 0 without changing the verified product candidate.
+
+### Frozen execution and acceptance
+
+- Execute Sections 5.1 through 5.4 of `plan_v8.md` in order.
+- r011 and r012 remain review-blocked; r013 is the only active task before
+  closure and no task remains active after closure.
+- Modify only the five documentation paths in Section 6; prior plans and product
+  code remain unchanged.
+- Any independent BLOCK stops closure and requires a new approved plan/task.
+- Release 1 remains inactive through activation and closure.
+
+### Authority
+
+The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v8 /
+r013` on 2026-08-18. This authorizes only single-authority documentation repair,
 read-only verification, independent review, and Release 0 closure records after
 PASS; it does not authorize product changes, push, merge, deployment, or
 Release 1.

@@ -637,3 +637,25 @@ Known limitations, blockers, and next action
   authorize product/test/schema/runtime/frontend/Control Plane/`server/**`
   changes, push, merge, deployment, external data, or prior-plan amendment.
 - Release 0 remains incomplete at activation and Release 1 remains inactive.
+
+## 2026-08-18 — J025 — v8/r013 approved and single authority activated
+
+- v7 activation `14908b9e53a73330c0cde3fe8a3f602635906858`
+  passed exact base/parent/ancestry, immutable-history, five-path scope, policy
+  hash, trailer, link, focused-test, dirty-exclusion, and `server/**` checks.
+- Independent v7 review passed implementation, quality, scope, and Release 1
+  boundaries but returned one authority BLOCK: task entries r011 and r012 were
+  both marked active even though the registry header and journal claimed one
+  active authority. Release 0 was not closed under v7.
+- The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v8 /
+  r013` on 2026-08-18. Immutable `plan_v8.md` starts from exact v7 activation
+  `14908b9e53a73330c0cde3fe8a3f602635906858`.
+- r011 and r012 are now `independent-review-blocked`; `PCR-S01B-8`/r013 is the
+  sole active roadmap authority. Prior immutable plans remain untouched.
+- v8/r013 is documentation-only and limited to five exact roadmap paths,
+  read-only verification, fresh independent review, and closure records after
+  PASS. It does not authorize product/test/schema/runtime/frontend/Control
+  Plane/`server/**` changes, push, merge, deployment, external data, or
+  prior-plan amendment.
+- Release 0 remains incomplete at activation. Release 1 remains inactive and no
+  Release 1 task is active.
