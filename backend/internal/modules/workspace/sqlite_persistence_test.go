@@ -119,6 +119,29 @@ func TestTaskCursorSigningKeyIsSecretAndPersistsAcrossRestart(t *testing.T) {
 	}
 }
 
+func TestTaskCursorSigningDownRemovesCatalogAndCanReapply(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "task-cursor-signing-down")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadOrCreateTaskCursorSigningKey(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := executeTaskCursorSigningDownForTest(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	var catalogCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000011_task_cursor_signing.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 0 {
+		t.Fatalf("task cursor signing catalog count = %d, %v", catalogCount, err)
+	}
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadOrCreateTaskCursorSigningKey(context.Background(), db); err != nil {
+		t.Fatalf("load key after reapply: %v", err)
+	}
+}
+
 func TestWorkspaceGovernanceDownRejectsEveryNonEmptyGovernanceTableAtomically(t *testing.T) {
 	cases := map[string]string{
 		"resource revisions": `INSERT INTO workspace_resource_revisions(workspace_id,resource_kind,resource_id,revision,updated_at) VALUES('workspace-1','task','task-1',1,'2026-08-17T00:00:00Z')`,
@@ -202,6 +225,22 @@ func TestTaskLifecycleDownRejectsArchivedTaskAtomically(t *testing.T) {
 
 func executeTaskLifecycleDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000010_task_lifecycle.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func executeTaskCursorSigningDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000011_task_cursor_signing.down.sql")
 	if err != nil {
 		return err
 	}
