@@ -11,6 +11,7 @@ const (
 	StatusInProgress = "in_progress"
 	StatusDone       = "done"
 	StatusCancelled  = "cancelled"
+	StatusArchived   = "archived"
 
 	PriorityUrgent = "urgent"
 	PriorityHigh   = "high"
@@ -25,10 +26,12 @@ var ErrInvalid = errors.New("invalid todo")
 // this aggregate.
 type Todo struct {
 	ID, WorkspaceID, Title, Description, Status, Priority string
+	RestoreStatus                                         string
 	ProjectID, IssueID, AssigneeType, AssigneeID          *string
 	CreatorType, CreatorID                                string
 	Position                                              float64
-	StartDate, DueDate, CompletedAt                       *time.Time
+	Revision                                              int64
+	StartDate, DueDate, CompletedAt, ArchivedAt           *time.Time
 	CreatedAt, UpdatedAt                                  time.Time
 }
 
@@ -58,7 +61,7 @@ func New(id, workspaceID, title, description, status, priority string, projectID
 		Status: status, Priority: priority, ProjectID: copyCleanString(projectID),
 		IssueID: copyCleanString(issueID), AssigneeType: copyCleanString(assigneeType),
 		AssigneeID: copyCleanString(assigneeID), CreatorType: creatorType,
-		CreatorID: creatorID, Position: position, StartDate: copyTime(startDate),
+		CreatorID: creatorID, Position: position, Revision: 1, StartDate: copyTime(startDate),
 		DueDate: copyTime(dueDate), CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
 	}
 	value.ID = strings.TrimSpace(value.ID)
@@ -79,6 +82,9 @@ func New(id, workspaceID, title, description, status, priority string, projectID
 }
 
 func Rehydrate(value Todo) (Todo, error) {
+	if value.Revision == 0 {
+		value.Revision = 1
+	}
 	value.ID = strings.TrimSpace(value.ID)
 	value.WorkspaceID = strings.TrimSpace(value.WorkspaceID)
 	value.Title = strings.TrimSpace(value.Title)
@@ -91,6 +97,7 @@ func Rehydrate(value Todo) (Todo, error) {
 	value.StartDate = copyTime(value.StartDate)
 	value.DueDate = copyTime(value.DueDate)
 	value.CompletedAt = copyTime(value.CompletedAt)
+	value.ArchivedAt = copyTime(value.ArchivedAt)
 	value.CreatedAt = value.CreatedAt.UTC()
 	value.UpdatedAt = value.UpdatedAt.UTC()
 	if err := value.validate(true); err != nil {
@@ -108,6 +115,9 @@ func (t Todo) Apply(patch Patch, now time.Time) (Todo, error) {
 		next.Description = *patch.Description
 	}
 	if patch.Status != nil {
+		if !validTransition(t.Status, *patch.Status) {
+			return Todo{}, ErrInvalid
+		}
 		next.Status = *patch.Status
 	}
 	if patch.Priority != nil {
@@ -151,6 +161,7 @@ func (t Todo) Apply(patch Patch, now time.Time) (Todo, error) {
 		}
 	}
 	next.UpdatedAt = now.UTC()
+	next.Revision++
 	return next, nil
 }
 
@@ -158,11 +169,45 @@ func (t Todo) WithStatus(status string, now time.Time) (Todo, error) {
 	return t.Apply(Patch{Status: &status}, now)
 }
 
+func (t Todo) Archive(now time.Time) (Todo, error) {
+	if t.Status != StatusDone && t.Status != StatusCancelled {
+		return Todo{}, ErrInvalid
+	}
+	next := t
+	next.RestoreStatus = t.Status
+	next.Status = StatusArchived
+	archivedAt := now.UTC()
+	next.ArchivedAt = &archivedAt
+	next.UpdatedAt = archivedAt
+	next.Revision++
+	return next, nil
+}
+
+func (t Todo) Restore(now time.Time) (Todo, error) {
+	if t.Status != StatusArchived || t.RestoreStatus != StatusDone && t.RestoreStatus != StatusCancelled {
+		return Todo{}, ErrInvalid
+	}
+	next := t
+	next.Status = t.RestoreStatus
+	next.RestoreStatus = ""
+	next.ArchivedAt = nil
+	next.UpdatedAt = now.UTC()
+	next.Revision++
+	return next, nil
+}
+
 func (t Todo) validate(requireCreator bool) error {
-	if t.ID == "" || t.WorkspaceID == "" || t.Title == "" || !ValidStatus(t.Status) || !ValidPriority(t.Priority) {
+	if t.ID == "" || t.WorkspaceID == "" || t.Title == "" || t.Revision < 1 || !ValidStatus(t.Status) || !ValidPriority(t.Priority) {
 		return ErrInvalid
 	}
 	if (t.AssigneeType == nil) != (t.AssigneeID == nil) {
+		return ErrInvalid
+	}
+	if t.Status == StatusArchived {
+		if t.ArchivedAt == nil || t.RestoreStatus != StatusDone && t.RestoreStatus != StatusCancelled {
+			return ErrInvalid
+		}
+	} else if t.ArchivedAt != nil || t.RestoreStatus != "" {
 		return ErrInvalid
 	}
 	if t.AssigneeType != nil && !validActorType(*t.AssigneeType) {
@@ -176,8 +221,22 @@ func (t Todo) validate(requireCreator bool) error {
 
 func ValidStatus(status string) bool {
 	switch status {
-	case StatusTodo, StatusInProgress, StatusDone, StatusCancelled:
+	case StatusTodo, StatusInProgress, StatusDone, StatusCancelled, StatusArchived:
 		return true
+	default:
+		return false
+	}
+}
+
+func validTransition(from, to string) bool {
+	if from == to {
+		return true
+	}
+	switch from {
+	case StatusTodo:
+		return to == StatusInProgress || to == StatusCancelled
+	case StatusInProgress:
+		return to == StatusDone || to == StatusCancelled
 	default:
 		return false
 	}

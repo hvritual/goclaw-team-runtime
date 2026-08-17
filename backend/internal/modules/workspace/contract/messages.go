@@ -46,18 +46,19 @@ type CreateProjectResponse struct {
 }
 
 type CreateTodoRequest struct {
-	WorkspaceId  string  `json:"workspaceId,omitempty"`
-	Title        string  `json:"title,omitempty"`
-	Description  string  `json:"description,omitempty"`
-	ProjectId    *string `json:"projectId,omitempty"`
-	IssueId      *string `json:"issueId,omitempty"`
-	AssigneeType *string `json:"assigneeType,omitempty"`
-	AssigneeId   *string `json:"assigneeId,omitempty"`
-	Status       string  `json:"status,omitempty"`
-	Priority     string  `json:"priority,omitempty"`
-	Position     float64 `json:"position,omitempty"`
-	StartDate    *string `json:"startDate,omitempty"`
-	DueDate      *string `json:"dueDate,omitempty"`
+	IdempotencyKey string  `json:"-"`
+	WorkspaceId    string  `json:"workspaceId,omitempty"`
+	Title          string  `json:"title,omitempty"`
+	Description    string  `json:"description,omitempty"`
+	ProjectId      *string `json:"projectId,omitempty"`
+	IssueId        *string `json:"issueId,omitempty"`
+	AssigneeType   *string `json:"assigneeType,omitempty"`
+	AssigneeId     *string `json:"assigneeId,omitempty"`
+	Status         string  `json:"status,omitempty"`
+	Priority       string  `json:"priority,omitempty"`
+	Position       float64 `json:"position,omitempty"`
+	StartDate      *string `json:"startDate,omitempty"`
+	DueDate        *string `json:"dueDate,omitempty"`
 }
 
 type CreateTodoResponse struct {
@@ -83,11 +84,37 @@ type DeleteProjectResponse struct {
 }
 
 type DeleteTodoRequest struct {
-	WorkspaceId string `json:"workspaceId,omitempty"`
-	TodoId      string `json:"todoId,omitempty"`
+	WorkspaceId      string `json:"workspaceId,omitempty"`
+	TodoId           string `json:"todoId,omitempty"`
+	ExpectedRevision int64  `json:"expectedRevision,omitempty"`
 }
 
 type DeleteTodoResponse struct {
+}
+
+type RestoreTodoRequest struct {
+	WorkspaceId      string `json:"workspaceId,omitempty"`
+	TodoId           string `json:"todoId,omitempty"`
+	ExpectedRevision int64  `json:"expectedRevision,omitempty"`
+}
+
+type RestoreTodoResponse struct {
+	Todo *Todo `json:"todo,omitempty"`
+}
+
+type ReorderTodoItem struct {
+	TodoId           string  `json:"todoId,omitempty"`
+	Position         float64 `json:"position,omitempty"`
+	ExpectedRevision int64   `json:"expectedRevision,omitempty"`
+}
+
+type ReorderTodosRequest struct {
+	WorkspaceId string            `json:"workspaceId,omitempty"`
+	Items       []ReorderTodoItem `json:"items,omitempty"`
+}
+
+type ReorderTodosResponse struct {
+	Todos []Todo `json:"todos,omitempty"`
 }
 
 type GetIssueRequest struct {
@@ -332,24 +359,27 @@ type SearchProjectsResponse struct {
 type Struct = map[string]any
 
 type Todo struct {
-	Id           string  `json:"id,omitempty"`
-	WorkspaceId  string  `json:"workspaceId,omitempty"`
-	Title        string  `json:"title,omitempty"`
-	Description  string  `json:"description,omitempty"`
-	Status       string  `json:"status,omitempty"`
-	ProjectId    *string `json:"projectId,omitempty"`
-	IssueId      *string `json:"issueId,omitempty"`
-	AssigneeType *string `json:"assigneeType,omitempty"`
-	AssigneeId   *string `json:"assigneeId,omitempty"`
-	CreatedAt    string  `json:"createdAt,omitempty"`
-	UpdatedAt    string  `json:"updatedAt,omitempty"`
-	Priority     string  `json:"priority,omitempty"`
-	CreatorType  string  `json:"creatorType,omitempty"`
-	CreatorId    string  `json:"creatorId,omitempty"`
-	Position     float64 `json:"position,omitempty"`
-	StartDate    *string `json:"startDate,omitempty"`
-	DueDate      *string `json:"dueDate,omitempty"`
-	CompletedAt  *string `json:"completedAt,omitempty"`
+	Id            string  `json:"id,omitempty"`
+	WorkspaceId   string  `json:"workspaceId,omitempty"`
+	Title         string  `json:"title,omitempty"`
+	Description   string  `json:"description,omitempty"`
+	Status        string  `json:"status,omitempty"`
+	ProjectId     *string `json:"projectId,omitempty"`
+	IssueId       *string `json:"issueId,omitempty"`
+	AssigneeType  *string `json:"assigneeType,omitempty"`
+	AssigneeId    *string `json:"assigneeId,omitempty"`
+	CreatedAt     string  `json:"createdAt,omitempty"`
+	UpdatedAt     string  `json:"updatedAt,omitempty"`
+	Priority      string  `json:"priority,omitempty"`
+	CreatorType   string  `json:"creatorType,omitempty"`
+	CreatorId     string  `json:"creatorId,omitempty"`
+	Position      float64 `json:"position,omitempty"`
+	Revision      int64   `json:"revision,omitempty"`
+	StartDate     *string `json:"startDate,omitempty"`
+	DueDate       *string `json:"dueDate,omitempty"`
+	CompletedAt   *string `json:"completedAt,omitempty"`
+	ArchivedAt    *string `json:"archivedAt,omitempty"`
+	RestoreStatus string  `json:"restoreStatus,omitempty"`
 }
 
 type UpdateIssueRequest struct {
@@ -397,19 +427,20 @@ type UpdateProjectResponse struct {
 }
 
 type UpdateTodoRequest struct {
-	WorkspaceId  string   `json:"workspaceId,omitempty"`
-	TodoId       string   `json:"todoId,omitempty"`
-	ProjectId    *string  `json:"projectId,omitempty"`
-	IssueId      *string  `json:"issueId,omitempty"`
-	Title        *string  `json:"title,omitempty"`
-	Description  *string  `json:"description,omitempty"`
-	Status       *string  `json:"status,omitempty"`
-	Priority     *string  `json:"priority,omitempty"`
-	AssigneeType *string  `json:"assigneeType,omitempty"`
-	AssigneeId   *string  `json:"assigneeId,omitempty"`
-	Position     *float64 `json:"position,omitempty"`
-	StartDate    *string  `json:"startDate,omitempty"`
-	DueDate      *string  `json:"dueDate,omitempty"`
+	WorkspaceId      string   `json:"workspaceId,omitempty"`
+	TodoId           string   `json:"todoId,omitempty"`
+	ProjectId        *string  `json:"projectId,omitempty"`
+	IssueId          *string  `json:"issueId,omitempty"`
+	Title            *string  `json:"title,omitempty"`
+	Description      *string  `json:"description,omitempty"`
+	Status           *string  `json:"status,omitempty"`
+	Priority         *string  `json:"priority,omitempty"`
+	AssigneeType     *string  `json:"assigneeType,omitempty"`
+	AssigneeId       *string  `json:"assigneeId,omitempty"`
+	Position         *float64 `json:"position,omitempty"`
+	StartDate        *string  `json:"startDate,omitempty"`
+	DueDate          *string  `json:"dueDate,omitempty"`
+	ExpectedRevision int64    `json:"expectedRevision,omitempty"`
 }
 
 type UpdateTodoResponse struct {
@@ -417,9 +448,10 @@ type UpdateTodoResponse struct {
 }
 
 type UpdateTodoStatusRequest struct {
-	WorkspaceId string `json:"workspaceId,omitempty"`
-	TodoId      string `json:"todoId,omitempty"`
-	Status      string `json:"status,omitempty"`
+	WorkspaceId      string `json:"workspaceId,omitempty"`
+	TodoId           string `json:"todoId,omitempty"`
+	Status           string `json:"status,omitempty"`
+	ExpectedRevision int64  `json:"expectedRevision,omitempty"`
 }
 
 type UpdateTodoStatusResponse struct {

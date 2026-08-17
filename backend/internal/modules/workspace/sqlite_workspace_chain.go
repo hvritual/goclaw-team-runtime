@@ -47,7 +47,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue deletion SQLite persistence: %w", err)
 	}
-	todos, err := persistence.NewTodoRepository(config)
+	todos, err := persistence.NewGovernedTodoRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo SQLite persistence: %w", err)
 	}
@@ -186,6 +186,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newTaskHTTPExtension(todoService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newIssueCollaborationExtension(
 			issueCollaborationService,
 			dependencies.HTTPIdentity,

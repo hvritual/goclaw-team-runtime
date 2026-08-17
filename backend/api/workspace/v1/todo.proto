@@ -18,7 +18,7 @@ service TodoService {
 
   rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.create"
+      permission_code: "workspace.task.create"
       permission_name: "Create todo"
       resource: "workspace.todo"
       action: "create"
@@ -27,7 +27,7 @@ service TodoService {
   }
   rpc GetTodo(GetTodoRequest) returns (GetTodoResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.get"
+      permission_code: "workspace.task.read"
       permission_name: "Get todo"
       resource: "workspace.todo"
       action: "get"
@@ -35,7 +35,7 @@ service TodoService {
   }
   rpc ListTodos(ListTodosRequest) returns (ListTodosResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.list"
+      permission_code: "workspace.task.read"
       permission_name: "List todos"
       resource: "workspace.todo"
       action: "list"
@@ -43,7 +43,7 @@ service TodoService {
   }
   rpc UpdateTodo(UpdateTodoRequest) returns (UpdateTodoResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.update"
+      permission_code: "workspace.task.update_own"
       permission_name: "Update todo"
       resource: "workspace.todo"
       action: "update"
@@ -52,7 +52,7 @@ service TodoService {
   }
   rpc UpdateTodoStatus(UpdateTodoStatusRequest) returns (UpdateTodoStatusResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.update_status"
+      permission_code: "workspace.task.update_own"
       permission_name: "Update todo status"
       resource: "workspace.todo"
       action: "update_status"
@@ -61,12 +61,31 @@ service TodoService {
   }
   rpc DeleteTodo(DeleteTodoRequest) returns (DeleteTodoResponse) {
     option (annotations.v1.access) = {
-      permission_code: "workspace.todo.delete"
+      permission_code: "workspace.task.update_own"
       permission_name: "Delete todo"
       resource: "workspace.todo"
       action: "delete"
       audit: true
       idempotent: true
+    };
+  }
+  rpc RestoreTodo(RestoreTodoRequest) returns (RestoreTodoResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.task.update_own"
+      permission_name: "Restore todo"
+      resource: "workspace.todo"
+      action: "restore"
+      audit: true
+      idempotent: true
+    };
+  }
+  rpc ReorderTodos(ReorderTodosRequest) returns (ReorderTodosResponse) {
+    option (annotations.v1.access) = {
+      permission_code: "workspace.task.update_own"
+      permission_name: "Reorder tasks"
+      resource: "workspace.task"
+      action: "reorder"
+      audit: true
     };
   }
 }
@@ -93,6 +112,9 @@ message Todo {
   optional string start_date = 16;
   optional string due_date = 17;
   optional string completed_at = 18;
+  int64 revision = 19;
+  optional string archived_at = 20;
+  string restore_status = 21;
 }
 
 message CreateTodoRequest {
@@ -149,6 +171,7 @@ message UpdateTodoRequest {
   optional double position = 11;
   optional string start_date = 12;
   optional string due_date = 13;
+  int64 expected_revision = 14;
 }
 
 message UpdateTodoResponse {
@@ -159,6 +182,7 @@ message UpdateTodoStatusRequest {
   string workspace_id = 1;
   string todo_id = 2;
   string status = 3;
+  int64 expected_revision = 4;
 }
 
 message UpdateTodoStatusResponse {
@@ -168,6 +192,32 @@ message UpdateTodoStatusResponse {
 message DeleteTodoRequest {
   string workspace_id = 1;
   string todo_id = 2;
+  int64 expected_revision = 3;
 }
 
 message DeleteTodoResponse {}
+
+message RestoreTodoRequest {
+  string workspace_id = 1;
+  string todo_id = 2;
+  int64 expected_revision = 3;
+}
+
+message RestoreTodoResponse {
+  Todo todo = 1;
+}
+
+message ReorderTodoItem {
+  string todo_id = 1;
+  double position = 2;
+  int64 expected_revision = 3;
+}
+
+message ReorderTodosRequest {
+  string workspace_id = 1;
+  repeated ReorderTodoItem items = 2;
+}
+
+message ReorderTodosResponse {
+  repeated Todo todos = 1;
+}

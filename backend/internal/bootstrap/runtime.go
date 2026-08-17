@@ -99,6 +99,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	config.RoadmapCapabilityProvider = installedRuntimeCapabilities{next: config.RoadmapCapabilityProvider}
 
 	ephemeralAttachmentRoot := ""
 	if strings.TrimSpace(config.AttachmentRoot) == "" && strings.TrimSpace(config.SQLitePath) == ":memory:" {
@@ -141,6 +142,22 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		governance:              governance,
 		ephemeralAttachmentRoot: ephemeralAttachmentRoot,
 	}, nil
+}
+
+type installedRuntimeCapabilities struct {
+	next workspacecontract.RoadmapCapabilityProvider
+}
+
+func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission string) bool {
+	switch permission {
+	case workspacecontract.PermissionTaskRead,
+		workspacecontract.PermissionTaskCreate,
+		workspacecontract.PermissionTaskUpdateOwn,
+		workspacecontract.PermissionTaskManageWorkspace:
+		return true
+	default:
+		return p.next != nil && p.next.RoadmapCapabilityInstalled(permission)
+	}
 }
 
 func registerConfigRoute(server *kratoshttp.Server, version string, issueMetadataEnabled, issueCreateEnabled, issueAttachmentsEnabled bool, roadmapProvider workspacecontract.RoadmapCapabilityProvider) {

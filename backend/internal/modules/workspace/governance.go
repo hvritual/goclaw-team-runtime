@@ -25,6 +25,10 @@ func NewGovernanceService() GovernanceService {
 	return application.NewGovernanceService()
 }
 
+func NewTaskGovernancePolicyProvider() GovernanceEventPolicyProvider {
+	return application.TaskGovernancePolicyProvider{}
+}
+
 func NewSQLiteGovernance(config SqlitePersistenceConfig, options ...SQLiteGovernanceOption) (*SQLiteGovernance, error) {
 	return persistence.NewGovernanceRepository(config, options...)
 }

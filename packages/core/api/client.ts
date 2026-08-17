@@ -99,10 +99,12 @@ import type {
   ProjectRequirementLinkRequest,
   ProjectRequirementCreateIssueRequest,
 } from "../types";
+import type { ReorderTasksRequest } from "../types/task";
+import { EMPTY_TASK_LIST, reorderedTasksSchema, taskListSchema, taskSchema } from "../tasks/schema";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
 import { type Logger, noopLogger } from "../logger";
-import { createRequestId } from "../utils";
+import { createRequestId, createSafeId } from "../utils";
 import { getCurrentSlug, getCurrentWsId } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
 import {
@@ -1553,29 +1555,63 @@ export class ApiClient {
     if (params?.issue_id) search.set("issue_id", params.issue_id);
     if (params?.status) search.set("status", params.status);
     const query = search.toString();
-    return this.fetch(`/api/tasks${query ? `?${query}` : ""}`);
+    const raw = await this.fetch<unknown>(`/api/tasks${query ? `?${query}` : ""}`);
+    return parseWithFallback(raw, taskListSchema, EMPTY_TASK_LIST, { endpoint: "GET /api/tasks" });
   }
 
   async getTask(id: string): Promise<Task> {
-    return this.fetch(`/api/tasks/${id}`);
+    const raw = await this.fetch<unknown>(`/api/tasks/${id}`);
+    const parsed = taskSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task response");
+    return parsed.data;
   }
 
   async createTask(data: CreateTaskRequest): Promise<Task> {
-    return this.fetch("/api/tasks", {
+    const raw = await this.fetch<unknown>("/api/tasks", {
       method: "POST",
+      headers: { "Idempotency-Key": createSafeId() },
       body: JSON.stringify(data),
     });
+    const parsed = taskSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task response");
+    return parsed.data;
   }
 
   async updateTask(id: string, data: UpdateTaskRequest): Promise<Task> {
-    return this.fetch(`/api/tasks/${id}`, {
+    const raw = await this.fetch<unknown>(`/api/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+    const parsed = taskSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task response");
+    return parsed.data;
   }
 
-  async deleteTask(id: string): Promise<void> {
-    await this.fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  async deleteTask(id: string, expectedRevision: number): Promise<void> {
+    await this.fetch(`/api/tasks/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+  }
+
+  async restoreTask(id: string, expectedRevision: number): Promise<Task> {
+    const raw = await this.fetch<unknown>(`/api/tasks/${id}/restore`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+    const parsed = taskSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task response");
+    return parsed.data;
+  }
+
+  async reorderTasks(data: ReorderTasksRequest): Promise<Task[]> {
+    const raw = await this.fetch<unknown>("/api/tasks/reorder", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    const parsed = reorderedTasksSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task reorder response");
+    return parsed.data.tasks;
   }
 
   async listKnowledge(params?: {

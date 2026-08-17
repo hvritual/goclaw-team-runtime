@@ -149,7 +149,7 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 		WorkspaceId: "workspace-1", Title: "  Ship migration  ", ProjectId: &projectID, IssueId: &issueID,
 		AssigneeType: &assigneeType, AssigneeId: &assigneeID,
 	})
-	if err != nil || createdTodo.Todo == nil || createdTodo.Todo.Status != "todo" || createdTodo.Todo.Title != "Ship migration" {
+	if err != nil || createdTodo.Todo == nil || createdTodo.Todo.Status != "todo" || createdTodo.Todo.Title != "Ship migration" || createdTodo.Todo.Revision != 1 {
 		t.Fatalf("CreateTodo() = %+v, %v", createdTodo.Todo, err)
 	}
 	if createdTodo.Todo.IssueId == nil || *createdTodo.Todo.IssueId != "issue-1" || createdTodo.Todo.CreatorId != "member-1" {
@@ -170,28 +170,36 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 	if err != nil || listedTodos.Total != 2 || len(listedTodos.Todos) != 2 || listedTodos.Todos[0].Id != "todo-2" {
 		t.Fatalf("ListTodos() = %+v, %v", listedTodos, err)
 	}
-	updatedTitle, done, high, empty := "Updated Todo", "done", "high", ""
+	updatedTitle, inProgress, high, empty := "Updated Todo", "in_progress", "high", ""
 	startDate := "2026-08-04T01:02:03+08:00"
 	updatedTodo, err := module.TodoLocal().UpdateTodo(ctx, contract.UpdateTodoRequest{
 		WorkspaceId: "workspace-1", TodoId: "todo-1", Title: &updatedTitle,
-		Status: &done, Priority: &high, ProjectId: &empty, IssueId: &empty,
-		AssigneeId: &empty, StartDate: &startDate,
+		Status: &inProgress, Priority: &high, ProjectId: &empty, IssueId: &empty,
+		AssigneeId: &empty, StartDate: &startDate, ExpectedRevision: 1,
 	})
-	if err != nil || updatedTodo.Todo == nil || updatedTodo.Todo.Status != "done" || updatedTodo.Todo.CompletedAt == nil || updatedTodo.Todo.ProjectId != nil || updatedTodo.Todo.AssigneeId != nil {
+	if err != nil || updatedTodo.Todo == nil || updatedTodo.Todo.Status != "in_progress" || updatedTodo.Todo.CompletedAt != nil || updatedTodo.Todo.ProjectId != nil || updatedTodo.Todo.AssigneeId != nil || updatedTodo.Todo.Revision != 2 {
 		t.Fatalf("UpdateTodo() = %+v, %v", updatedTodo.Todo, err)
 	}
-	updatedTodoStatus, err := module.TodoLocal().UpdateTodoStatus(ctx, contract.UpdateTodoStatusRequest{WorkspaceId: "workspace-1", TodoId: "todo-1", Status: "in_progress"})
-	if err != nil || updatedTodoStatus.Todo == nil || updatedTodoStatus.Todo.Status != "in_progress" || updatedTodoStatus.Todo.CompletedAt != nil {
+	updatedTodoStatus, err := module.TodoLocal().UpdateTodoStatus(ctx, contract.UpdateTodoStatusRequest{WorkspaceId: "workspace-1", TodoId: "todo-1", Status: "done", ExpectedRevision: 2})
+	if err != nil || updatedTodoStatus.Todo == nil || updatedTodoStatus.Todo.Status != "done" || updatedTodoStatus.Todo.CompletedAt == nil || updatedTodoStatus.Todo.Revision != 3 {
 		t.Fatalf("UpdateTodoStatus() = %+v, %v", updatedTodoStatus.Todo, err)
 	}
 	if _, err := module.TodoLocal().GetTodo(ctx, contract.GetTodoRequest{WorkspaceId: "workspace-2", TodoId: "todo-1"}); !errors.Is(err, contract.ErrTodoNotFound) {
 		t.Fatalf("cross-workspace GetTodo error = %v", err)
 	}
-	if _, err := module.TodoLocal().DeleteTodo(ctx, contract.DeleteTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-2"}); err != nil {
+	if _, err := module.TodoLocal().DeleteTodo(ctx, contract.DeleteTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-1", ExpectedRevision: 3}); err != nil {
 		t.Fatalf("DeleteTodo() error = %v", err)
 	}
-	if _, err := module.TodoLocal().DeleteTodo(ctx, contract.DeleteTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-2"}); !errors.Is(err, contract.ErrTodoNotFound) {
-		t.Fatalf("repeated DeleteTodo error = %v", err)
+	archivedTodo, err := module.TodoLocal().GetTodo(ctx, contract.GetTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-1"})
+	if err != nil || archivedTodo.Todo == nil || archivedTodo.Todo.Status != "archived" || archivedTodo.Todo.Revision != 4 || archivedTodo.Todo.ArchivedAt == nil {
+		t.Fatalf("archived Todo = %+v, %v", archivedTodo.Todo, err)
+	}
+	restoredTodo, err := module.TodoLocal().RestoreTodo(ctx, contract.RestoreTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-1", ExpectedRevision: 4})
+	if err != nil || restoredTodo.Todo == nil || restoredTodo.Todo.Status != "done" || restoredTodo.Todo.Revision != 5 || restoredTodo.Todo.ArchivedAt != nil {
+		t.Fatalf("RestoreTodo() = %+v, %v", restoredTodo.Todo, err)
+	}
+	if _, err := module.TodoLocal().RestoreTodo(ctx, contract.RestoreTodoRequest{WorkspaceId: "workspace-1", TodoId: "todo-1", ExpectedRevision: 5}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("repeated RestoreTodo error = %v", err)
 	}
 	foreignIssue := "issue-foreign"
 	if _, err := module.TodoLocal().CreateTodo(ctx, contract.CreateTodoRequest{WorkspaceId: "workspace-1", Title: "bad", IssueId: &foreignIssue}); !errors.Is(err, contract.ErrIssueNotFound) {
@@ -276,8 +284,9 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 	}
 
 	var todoStatus, settingValue, agentIDs string
-	if err := db.QueryRow(`SELECT status FROM workspace_todos WHERE id = 'todo-1'`).Scan(&todoStatus); err != nil || todoStatus != "in_progress" {
-		t.Fatalf("persisted Todo status = %q, %v", todoStatus, err)
+	var todoRevision int64
+	if err := db.QueryRow(`SELECT status, revision FROM workspace_todos WHERE id = 'todo-1'`).Scan(&todoStatus, &todoRevision); err != nil || todoStatus != "done" || todoRevision != 5 {
+		t.Fatalf("persisted Todo status/revision = %q/%d, %v", todoStatus, todoRevision, err)
 	}
 	if err := db.QueryRow(`SELECT value FROM workspace_settings WHERE workspace_id = 'workspace-1' AND key = 'notifications'`).Scan(&settingValue); err != nil || settingValue != `{"email":true}` {
 		t.Fatalf("persisted setting = %q, %v", settingValue, err)
@@ -335,12 +344,17 @@ func TestSqliteWorkspaceChainGRPCContracts(t *testing.T) {
 	if err != nil || listedTodos.Total != 1 {
 		t.Fatalf("gRPC ListTodos() = %+v, %v", listedTodos, err)
 	}
-	done := "done"
-	updatedTodo, err := todos.UpdateTodo(ctx, contract.UpdateTodoRequest{WorkspaceId: "workspace-1", TodoId: createdTodo.Todo.Id, Status: &done})
-	if err != nil || updatedTodo.Todo == nil || updatedTodo.Todo.CompletedAt == nil {
+	inProgress := "in_progress"
+	updatedTodo, err := todos.UpdateTodo(ctx, contract.UpdateTodoRequest{WorkspaceId: "workspace-1", TodoId: createdTodo.Todo.Id, Status: &inProgress, ExpectedRevision: 1})
+	if err != nil || updatedTodo.Todo == nil || updatedTodo.Todo.Status != inProgress {
 		t.Fatalf("gRPC UpdateTodo() = %+v, %v", updatedTodo.Todo, err)
 	}
-	if _, err := todos.DeleteTodo(ctx, contract.DeleteTodoRequest{WorkspaceId: "workspace-1", TodoId: createdTodo.Todo.Id}); err != nil {
+	done := "done"
+	completedTodo, err := todos.UpdateTodoStatus(ctx, contract.UpdateTodoStatusRequest{WorkspaceId: "workspace-1", TodoId: createdTodo.Todo.Id, Status: done, ExpectedRevision: 2})
+	if err != nil || completedTodo.Todo == nil || completedTodo.Todo.CompletedAt == nil {
+		t.Fatalf("gRPC UpdateTodoStatus() = %+v, %v", completedTodo.Todo, err)
+	}
+	if _, err := todos.DeleteTodo(ctx, contract.DeleteTodoRequest{WorkspaceId: "workspace-1", TodoId: createdTodo.Todo.Id, ExpectedRevision: 3}); err != nil {
 		t.Fatalf("gRPC DeleteTodo() error = %v", err)
 	}
 	updatedIssue, err := NewIssueGRPCClient(connection).UpdateIssueStatus(ctx, contract.UpdateIssueStatusRequest{WorkspaceId: "workspace-1", IssueId: "WSP-1", Status: "done"})

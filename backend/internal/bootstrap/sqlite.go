@@ -71,7 +71,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships(), roadmapProvider: config.RoadmapCapabilityProvider}
+	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships(), roadmapProvider: config.RoadmapCapabilityProvider, db: db}
 	selection, err := workspace.NewSqliteWorkspaceSelection(workspace.SqlitePersistenceConfig{DB: db}, memberships)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -131,7 +131,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	governance, err := workspace.NewSQLiteGovernanceOutbox(workspaceModule, workspace.SqlitePersistenceConfig{DB: db}, workspace.GovernanceOutboxDependencies{
 		Sink:             realtimeOutboxSink{events: realtimeHub},
 		Authorizer:       memberships,
-		EventPolicies:    denyAllGovernanceEventPolicies{},
+		EventPolicies:    workspace.NewTaskGovernancePolicyProvider(),
 		Memberships:      memberships,
 		HTTPIdentity:     workspaceIdentity,
 		HTTPUserIdentity: authModule.ResolveHTTPUserID,
@@ -167,12 +167,6 @@ func (s realtimeOutboxSink) Publish(_ context.Context, event contract.OutboxEven
 		"payload":            payload,
 	}, event.ActorID, event.ActorType)
 	return nil
-}
-
-type denyAllGovernanceEventPolicies struct{}
-
-func (denyAllGovernanceEventPolicies) ResolveGovernanceEventPolicy(context.Context, string, string) (workspace.GovernanceEventPolicy, error) {
-	return workspace.GovernanceEventPolicy{}, contract.ErrGovernanceUnavailable
 }
 
 type spaceAttachmentReader struct {
@@ -255,6 +249,7 @@ func normalizeRetainedIssueMemberActors(ctx context.Context, db *sql.DB) (err er
 type authMembershipAdapter struct {
 	reader          authcontract.WorkspaceMembershipReader
 	roadmapProvider contract.RoadmapCapabilityProvider
+	db              *sql.DB
 }
 
 func (a authMembershipAdapter) ListForUser(ctx context.Context, userID string) ([]contract.WorkspaceMembership, error) {
@@ -335,6 +330,14 @@ func (a authMembershipAdapter) AuthorizeWorkspace(ctx context.Context, workspace
 }
 
 func (a authMembershipAdapter) ActorBelongsToWorkspace(ctx context.Context, workspaceID, actorType, actorID string) (bool, error) {
+	if actorType == "agent" {
+		if a.db == nil {
+			return false, nil
+		}
+		var found bool
+		err := a.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM workspace_project_actor_relations WHERE workspace_id=? AND actor_type='agent' AND actor_id=? LIMIT 1)`, workspaceID, actorID).Scan(&found)
+		return found, err
+	}
 	if actorType != "member" {
 		return false, nil
 	}

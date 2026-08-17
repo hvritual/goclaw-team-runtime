@@ -125,7 +125,6 @@ func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *tes
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"tasks",
 		"issue_search",
 		"project_search",
 		"pin_reorder",
@@ -151,6 +150,9 @@ func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *tes
 		if enabled {
 			t.Errorf("uninstalled feature flag %q = true, want false", capability)
 		}
+	}
+	if !body.FeatureFlags["tasks"] {
+		t.Error("tasks flag = false after the installed S02A runtime")
 	}
 }
 

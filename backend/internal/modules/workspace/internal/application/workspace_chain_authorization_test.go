@@ -15,7 +15,10 @@ import (
 
 type todoRepositoryCounter struct{ calls int }
 
-func (r *todoRepositoryCounter) Create(context.Context, todoDomain.Todo) error { r.calls++; return nil }
+func (r *todoRepositoryCounter) Create(_ context.Context, value todoDomain.Todo) (todoDomain.Todo, error) {
+	r.calls++
+	return value, nil
+}
 func (r *todoRepositoryCounter) FindByID(context.Context, string, string) (todoDomain.Todo, error) {
 	r.calls++
 	return todoDomain.Todo{}, nil
@@ -28,7 +31,10 @@ func (r *todoRepositoryCounter) Update(context.Context, todoDomain.Todo) error {
 	r.calls++
 	return nil
 }
-func (r *todoRepositoryCounter) Delete(context.Context, string, string) error { r.calls++; return nil }
+func (r *todoRepositoryCounter) Reorder(context.Context, string, []TodoPositionUpdate, time.Time) ([]todoDomain.Todo, error) {
+	r.calls++
+	return nil, nil
+}
 
 type issueRepositoryCounter struct{ calls int }
 

@@ -23,7 +23,7 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 9 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 10 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
@@ -117,6 +117,68 @@ func TestWorkspaceGovernanceDownRemovesOnlyEmptyTablesAndCatalogEntry(t *testing
 	assertGovernanceTablesAndCatalog(t, db, 0, 0)
 }
 
+func TestTaskLifecycleDownRemovesEmptyLifecycleColumnsAndCatalogEntry(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "task-lifecycle-down-empty")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := executeTaskLifecycleDownForTest(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	for _, column := range []string{"revision", "restore_status", "archived_at"} {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('workspace_todos') WHERE name=?`, column).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("column %s count = %d, %v", column, count, err)
+		}
+	}
+	var catalogCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000010_task_lifecycle.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 0 {
+		t.Fatalf("task lifecycle catalog count = %d, %v", catalogCount, err)
+	}
+}
+
+func TestTaskLifecycleDownRejectsArchivedTaskAtomically(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "task-lifecycle-down-archived")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_todos(
+		id,workspace_id,title,status,created_at,updated_at,priority,creator_type,creator_id,
+		revision,restore_status,archived_at
+	) VALUES('task-1','workspace-1','Archived','archived','2026-08-18T00:00:00Z',
+		'2026-08-18T00:00:00Z','none','member','member-1',2,'cancelled','2026-08-18T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := executeTaskLifecycleDownForTest(context.Background(), db); err == nil {
+		t.Fatal("task lifecycle down succeeded with archived data")
+	}
+	var status string
+	var revision int64
+	if err := db.QueryRow(`SELECT status,revision FROM workspace_todos WHERE id='task-1'`).Scan(&status, &revision); err != nil || status != "archived" || revision != 2 {
+		t.Fatalf("retained task = %s/%d, %v", status, revision, err)
+	}
+	var catalogCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000010_task_lifecycle.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
+		t.Fatalf("retained task lifecycle catalog count = %d, %v", catalogCount, err)
+	}
+}
+
+func executeTaskLifecycleDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000010_task_lifecycle.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func executeWorkspaceGovernanceDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000009_workspace_governance.down.sql")
 	if err != nil {
@@ -173,7 +235,7 @@ func applyWorkspaceMigrationsBeforeGovernance(t *testing.T, db *sql.DB) {
 		t.Fatal(err)
 	}
 	for _, migrationPath := range paths {
-		if strings.Contains(migrationPath, "000009_workspace_governance") {
+		if strings.Contains(migrationPath, "000009_workspace_governance") || strings.Contains(migrationPath, "000010_task_lifecycle") {
 			continue
 		}
 		migration, err := sqliteMigrationFiles.ReadFile(migrationPath)

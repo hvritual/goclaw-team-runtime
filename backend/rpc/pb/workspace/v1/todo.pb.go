@@ -45,6 +45,9 @@ type Todo struct {
 	StartDate     *string `protobuf:"bytes,16,opt,name=start_date,json=startDate,proto3,oneof" json:"start_date,omitempty"`
 	DueDate       *string `protobuf:"bytes,17,opt,name=due_date,json=dueDate,proto3,oneof" json:"due_date,omitempty"`
 	CompletedAt   *string `protobuf:"bytes,18,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	Revision      int64   `protobuf:"varint,19,opt,name=revision,proto3" json:"revision,omitempty"`
+	ArchivedAt    *string `protobuf:"bytes,20,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	RestoreStatus string  `protobuf:"bytes,21,opt,name=restore_status,json=restoreStatus,proto3" json:"restore_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,6 +204,27 @@ func (x *Todo) GetDueDate() string {
 func (x *Todo) GetCompletedAt() string {
 	if x != nil && x.CompletedAt != nil {
 		return *x.CompletedAt
+	}
+	return ""
+}
+
+func (x *Todo) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *Todo) GetArchivedAt() string {
+	if x != nil && x.ArchivedAt != nil {
+		return *x.ArchivedAt
+	}
+	return ""
+}
+
+func (x *Todo) GetRestoreStatus() string {
+	if x != nil {
+		return x.RestoreStatus
 	}
 	return ""
 }
@@ -598,22 +622,23 @@ func (x *ListTodosResponse) GetTotal() int32 {
 }
 
 type UpdateTodoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	TodoId        string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
-	ProjectId     *string                `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
-	IssueId       *string                `protobuf:"bytes,4,opt,name=issue_id,json=issueId,proto3,oneof" json:"issue_id,omitempty"`
-	Title         *string                `protobuf:"bytes,5,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Status        *string                `protobuf:"bytes,7,opt,name=status,proto3,oneof" json:"status,omitempty"`
-	Priority      *string                `protobuf:"bytes,8,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
-	AssigneeType  *string                `protobuf:"bytes,9,opt,name=assignee_type,json=assigneeType,proto3,oneof" json:"assignee_type,omitempty"`
-	AssigneeId    *string                `protobuf:"bytes,10,opt,name=assignee_id,json=assigneeId,proto3,oneof" json:"assignee_id,omitempty"`
-	Position      *float64               `protobuf:"fixed64,11,opt,name=position,proto3,oneof" json:"position,omitempty"`
-	StartDate     *string                `protobuf:"bytes,12,opt,name=start_date,json=startDate,proto3,oneof" json:"start_date,omitempty"`
-	DueDate       *string                `protobuf:"bytes,13,opt,name=due_date,json=dueDate,proto3,oneof" json:"due_date,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	TodoId           string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
+	ProjectId        *string                `protobuf:"bytes,3,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
+	IssueId          *string                `protobuf:"bytes,4,opt,name=issue_id,json=issueId,proto3,oneof" json:"issue_id,omitempty"`
+	Title            *string                `protobuf:"bytes,5,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Description      *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Status           *string                `protobuf:"bytes,7,opt,name=status,proto3,oneof" json:"status,omitempty"`
+	Priority         *string                `protobuf:"bytes,8,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	AssigneeType     *string                `protobuf:"bytes,9,opt,name=assignee_type,json=assigneeType,proto3,oneof" json:"assignee_type,omitempty"`
+	AssigneeId       *string                `protobuf:"bytes,10,opt,name=assignee_id,json=assigneeId,proto3,oneof" json:"assignee_id,omitempty"`
+	Position         *float64               `protobuf:"fixed64,11,opt,name=position,proto3,oneof" json:"position,omitempty"`
+	StartDate        *string                `protobuf:"bytes,12,opt,name=start_date,json=startDate,proto3,oneof" json:"start_date,omitempty"`
+	DueDate          *string                `protobuf:"bytes,13,opt,name=due_date,json=dueDate,proto3,oneof" json:"due_date,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,14,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateTodoRequest) Reset() {
@@ -737,6 +762,13 @@ func (x *UpdateTodoRequest) GetDueDate() string {
 	return ""
 }
 
+func (x *UpdateTodoRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
 type UpdateTodoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Todo          *Todo                  `protobuf:"bytes,1,opt,name=todo,proto3" json:"todo,omitempty"`
@@ -782,12 +814,13 @@ func (x *UpdateTodoResponse) GetTodo() *Todo {
 }
 
 type UpdateTodoStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	TodoId        string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
-	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	TodoId           string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
+	Status           string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateTodoStatusRequest) Reset() {
@@ -841,6 +874,13 @@ func (x *UpdateTodoStatusRequest) GetStatus() string {
 	return ""
 }
 
+func (x *UpdateTodoStatusRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
 type UpdateTodoStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Todo          *Todo                  `protobuf:"bytes,1,opt,name=todo,proto3" json:"todo,omitempty"`
@@ -886,11 +926,12 @@ func (x *UpdateTodoStatusResponse) GetTodo() *Todo {
 }
 
 type DeleteTodoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	TodoId        string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	TodoId           string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DeleteTodoRequest) Reset() {
@@ -937,6 +978,13 @@ func (x *DeleteTodoRequest) GetTodoId() string {
 	return ""
 }
 
+func (x *DeleteTodoRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
 type DeleteTodoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -973,11 +1021,271 @@ func (*DeleteTodoResponse) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{12}
 }
 
+type RestoreTodoRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	TodoId           string                 `protobuf:"bytes,2,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RestoreTodoRequest) Reset() {
+	*x = RestoreTodoRequest{}
+	mi := &file_workspace_v1_todo_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreTodoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreTodoRequest) ProtoMessage() {}
+
+func (x *RestoreTodoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_todo_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreTodoRequest.ProtoReflect.Descriptor instead.
+func (*RestoreTodoRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RestoreTodoRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RestoreTodoRequest) GetTodoId() string {
+	if x != nil {
+		return x.TodoId
+	}
+	return ""
+}
+
+func (x *RestoreTodoRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type RestoreTodoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Todo          *Todo                  `protobuf:"bytes,1,opt,name=todo,proto3" json:"todo,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestoreTodoResponse) Reset() {
+	*x = RestoreTodoResponse{}
+	mi := &file_workspace_v1_todo_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestoreTodoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestoreTodoResponse) ProtoMessage() {}
+
+func (x *RestoreTodoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_todo_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestoreTodoResponse.ProtoReflect.Descriptor instead.
+func (*RestoreTodoResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RestoreTodoResponse) GetTodo() *Todo {
+	if x != nil {
+		return x.Todo
+	}
+	return nil
+}
+
+type ReorderTodoItem struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	TodoId           string                 `protobuf:"bytes,1,opt,name=todo_id,json=todoId,proto3" json:"todo_id,omitempty"`
+	Position         float64                `protobuf:"fixed64,2,opt,name=position,proto3" json:"position,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ReorderTodoItem) Reset() {
+	*x = ReorderTodoItem{}
+	mi := &file_workspace_v1_todo_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderTodoItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderTodoItem) ProtoMessage() {}
+
+func (x *ReorderTodoItem) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_todo_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderTodoItem.ProtoReflect.Descriptor instead.
+func (*ReorderTodoItem) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ReorderTodoItem) GetTodoId() string {
+	if x != nil {
+		return x.TodoId
+	}
+	return ""
+}
+
+func (x *ReorderTodoItem) GetPosition() float64 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+func (x *ReorderTodoItem) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type ReorderTodosRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Items         []*ReorderTodoItem     `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderTodosRequest) Reset() {
+	*x = ReorderTodosRequest{}
+	mi := &file_workspace_v1_todo_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderTodosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderTodosRequest) ProtoMessage() {}
+
+func (x *ReorderTodosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_todo_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderTodosRequest.ProtoReflect.Descriptor instead.
+func (*ReorderTodosRequest) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ReorderTodosRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ReorderTodosRequest) GetItems() []*ReorderTodoItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+type ReorderTodosResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Todos         []*Todo                `protobuf:"bytes,1,rep,name=todos,proto3" json:"todos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReorderTodosResponse) Reset() {
+	*x = ReorderTodosResponse{}
+	mi := &file_workspace_v1_todo_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReorderTodosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReorderTodosResponse) ProtoMessage() {}
+
+func (x *ReorderTodosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_workspace_v1_todo_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReorderTodosResponse.ProtoReflect.Descriptor instead.
+func (*ReorderTodosResponse) Descriptor() ([]byte, []int) {
+	return file_workspace_v1_todo_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ReorderTodosResponse) GetTodos() []*Todo {
+	if x != nil {
+		return x.Todos
+	}
+	return nil
+}
+
 var File_workspace_v1_todo_proto protoreflect.FileDescriptor
 
 const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\n" +
-	"\x17workspace/v1/todo.proto\x12\fworkspace.v1\x1a\x1bannotations/v1/access.proto\"\xac\x05\n" +
+	"\x17workspace/v1/todo.proto\x12\fworkspace.v1\x1a\x1bannotations/v1/access.proto\"\xa5\x06\n" +
 	"\x04Todo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x14\n" +
@@ -1003,14 +1311,19 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\n" +
 	"start_date\x18\x10 \x01(\tH\x04R\tstartDate\x88\x01\x01\x12\x1e\n" +
 	"\bdue_date\x18\x11 \x01(\tH\x05R\adueDate\x88\x01\x01\x12&\n" +
-	"\fcompleted_at\x18\x12 \x01(\tH\x06R\vcompletedAt\x88\x01\x01B\r\n" +
+	"\fcompleted_at\x18\x12 \x01(\tH\x06R\vcompletedAt\x88\x01\x01\x12\x1a\n" +
+	"\brevision\x18\x13 \x01(\x03R\brevision\x12$\n" +
+	"\varchived_at\x18\x14 \x01(\tH\aR\n" +
+	"archivedAt\x88\x01\x01\x12%\n" +
+	"\x0erestore_status\x18\x15 \x01(\tR\rrestoreStatusB\r\n" +
 	"\v_project_idB\v\n" +
 	"\t_issue_idB\x10\n" +
 	"\x0e_assignee_typeB\x0e\n" +
 	"\f_assignee_idB\r\n" +
 	"\v_start_dateB\v\n" +
 	"\t_due_dateB\x0f\n" +
-	"\r_completed_at\"\xf0\x03\n" +
+	"\r_completed_atB\x0e\n" +
+	"\f_archived_at\"\xf0\x03\n" +
 	"\x11CreateTodoRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -1051,7 +1364,7 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\t_issue_id\"S\n" +
 	"\x11ListTodosResponse\x12(\n" +
 	"\x05todos\x18\x01 \x03(\v2\x12.workspace.v1.TodoR\x05todos\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"\xe1\x04\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\"\x8e\x05\n" +
 	"\x11UpdateTodoRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\atodo_id\x18\x02 \x01(\tR\x06todoId\x12\"\n" +
@@ -1070,7 +1383,8 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\n" +
 	"start_date\x18\f \x01(\tH\tR\tstartDate\x88\x01\x01\x12\x1e\n" +
 	"\bdue_date\x18\r \x01(\tH\n" +
-	"R\adueDate\x88\x01\x01B\r\n" +
+	"R\adueDate\x88\x01\x01\x12+\n" +
+	"\x11expected_revision\x18\x0e \x01(\x03R\x10expectedRevisionB\r\n" +
 	"\v_project_idB\v\n" +
 	"\t_issue_idB\b\n" +
 	"\x06_titleB\x0e\n" +
@@ -1083,34 +1397,56 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\v_start_dateB\v\n" +
 	"\t_due_date\"<\n" +
 	"\x12UpdateTodoResponse\x12&\n" +
-	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"m\n" +
+	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"\x9a\x01\n" +
 	"\x17UpdateTodoStatusRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\atodo_id\x18\x02 \x01(\tR\x06todoId\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"B\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12+\n" +
+	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"B\n" +
 	"\x18UpdateTodoStatusResponse\x12&\n" +
-	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"O\n" +
+	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"|\n" +
 	"\x11DeleteTodoRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\atodo_id\x18\x02 \x01(\tR\x06todoId\"\x14\n" +
-	"\x12DeleteTodoResponse2\xbb\a\n" +
+	"\atodo_id\x18\x02 \x01(\tR\x06todoId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"\x14\n" +
+	"\x12DeleteTodoResponse\"}\n" +
+	"\x12RestoreTodoRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\atodo_id\x18\x02 \x01(\tR\x06todoId\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"=\n" +
+	"\x13RestoreTodoResponse\x12&\n" +
+	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"s\n" +
+	"\x0fReorderTodoItem\x12\x17\n" +
+	"\atodo_id\x18\x01 \x01(\tR\x06todoId\x12\x1a\n" +
+	"\bposition\x18\x02 \x01(\x01R\bposition\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x03R\x10expectedRevision\"m\n" +
+	"\x13ReorderTodosRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x123\n" +
+	"\x05items\x18\x02 \x03(\v2\x1d.workspace.v1.ReorderTodoItemR\x05items\"@\n" +
+	"\x14ReorderTodosResponse\x12(\n" +
+	"\x05todos\x18\x01 \x03(\v2\x12.workspace.v1.TodoR\x05todos2\x86\n" +
+	"\n" +
 	"\vTodoService\x12\x93\x01\n" +
 	"\n" +
 	"CreateTodo\x12\x1f.workspace.v1.CreateTodoRequest\x1a .workspace.v1.CreateTodoResponse\"B\xd2\xf3\x18>\n" +
-	"\x15workspace.todo.create\x12\vCreate todo\x1a\x0eworkspace.todo\"\x06create@\x01\x12\x7f\n" +
-	"\aGetTodo\x12\x1c.workspace.v1.GetTodoRequest\x1a\x1d.workspace.v1.GetTodoResponse\"7\xd2\xf3\x183\n" +
-	"\x12workspace.todo.get\x12\bGet todo\x1a\x0eworkspace.todo\"\x03get\x12\x89\x01\n" +
+	"\x15workspace.task.create\x12\vCreate todo\x1a\x0eworkspace.todo\"\x06create@\x01\x12\x80\x01\n" +
+	"\aGetTodo\x12\x1c.workspace.v1.GetTodoRequest\x1a\x1d.workspace.v1.GetTodoResponse\"8\xd2\xf3\x184\n" +
+	"\x13workspace.task.read\x12\bGet todo\x1a\x0eworkspace.todo\"\x03get\x12\x89\x01\n" +
 	"\tListTodos\x12\x1e.workspace.v1.ListTodosRequest\x1a\x1f.workspace.v1.ListTodosResponse\";\xd2\xf3\x187\n" +
-	"\x13workspace.todo.list\x12\n" +
-	"List todos\x1a\x0eworkspace.todo\"\x04list\x12\x93\x01\n" +
+	"\x13workspace.task.read\x12\n" +
+	"List todos\x1a\x0eworkspace.todo\"\x04list\x12\x97\x01\n" +
 	"\n" +
-	"UpdateTodo\x12\x1f.workspace.v1.UpdateTodoRequest\x1a .workspace.v1.UpdateTodoResponse\"B\xd2\xf3\x18>\n" +
-	"\x15workspace.todo.update\x12\vUpdate todo\x1a\x0eworkspace.todo\"\x06update@\x01\x12\xba\x01\n" +
-	"\x10UpdateTodoStatus\x12%.workspace.v1.UpdateTodoStatusRequest\x1a&.workspace.v1.UpdateTodoStatusResponse\"W\xd2\xf3\x18S\n" +
-	"\x1cworkspace.todo.update_status\x12\x12Update todo status\x1a\x0eworkspace.todo\"\rupdate_status@\x01\x12\x95\x01\n" +
+	"UpdateTodo\x12\x1f.workspace.v1.UpdateTodoRequest\x1a .workspace.v1.UpdateTodoResponse\"F\xd2\xf3\x18B\n" +
+	"\x19workspace.task.update_own\x12\vUpdate todo\x1a\x0eworkspace.todo\"\x06update@\x01\x12\xb7\x01\n" +
+	"\x10UpdateTodoStatus\x12%.workspace.v1.UpdateTodoStatusRequest\x1a&.workspace.v1.UpdateTodoStatusResponse\"T\xd2\xf3\x18P\n" +
+	"\x19workspace.task.update_own\x12\x12Update todo status\x1a\x0eworkspace.todo\"\rupdate_status@\x01\x12\x99\x01\n" +
 	"\n" +
-	"DeleteTodo\x12\x1f.workspace.v1.DeleteTodoRequest\x1a .workspace.v1.DeleteTodoResponse\"D\xd2\xf3\x18@\n" +
-	"\x15workspace.todo.delete\x12\vDelete todo\x1a\x0eworkspace.todo\"\x06delete@\x01H\x01\x1a\x1e\xca\xf3\x18\x1a\n" +
+	"DeleteTodo\x12\x1f.workspace.v1.DeleteTodoRequest\x1a .workspace.v1.DeleteTodoResponse\"H\xd2\xf3\x18D\n" +
+	"\x19workspace.task.update_own\x12\vDelete todo\x1a\x0eworkspace.todo\"\x06delete@\x01H\x01\x12\x9e\x01\n" +
+	"\vRestoreTodo\x12 .workspace.v1.RestoreTodoRequest\x1a!.workspace.v1.RestoreTodoResponse\"J\xd2\xf3\x18F\n" +
+	"\x19workspace.task.update_own\x12\fRestore todo\x1a\x0eworkspace.todo\"\arestore@\x01H\x01\x12\xa0\x01\n" +
+	"\fReorderTodos\x12!.workspace.v1.ReorderTodosRequest\x1a\".workspace.v1.ReorderTodosResponse\"I\xd2\xf3\x18E\n" +
+	"\x19workspace.task.update_own\x12\rReorder tasks\x1a\x0eworkspace.task\"\areorder@\x01\x1a\x1e\xca\xf3\x18\x1a\n" +
 	"\tworkspace\x12\tWorkspace\x1a\x02v1B?Z=github.com/hvritual/workspace/rpc/pb/workspace/v1;workspacev1b\x06proto3"
 
 var (
@@ -1125,7 +1461,7 @@ func file_workspace_v1_todo_proto_rawDescGZIP() []byte {
 	return file_workspace_v1_todo_proto_rawDescData
 }
 
-var file_workspace_v1_todo_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_workspace_v1_todo_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_workspace_v1_todo_proto_goTypes = []any{
 	(*Todo)(nil),                     // 0: workspace.v1.Todo
 	(*CreateTodoRequest)(nil),        // 1: workspace.v1.CreateTodoRequest
@@ -1140,6 +1476,11 @@ var file_workspace_v1_todo_proto_goTypes = []any{
 	(*UpdateTodoStatusResponse)(nil), // 10: workspace.v1.UpdateTodoStatusResponse
 	(*DeleteTodoRequest)(nil),        // 11: workspace.v1.DeleteTodoRequest
 	(*DeleteTodoResponse)(nil),       // 12: workspace.v1.DeleteTodoResponse
+	(*RestoreTodoRequest)(nil),       // 13: workspace.v1.RestoreTodoRequest
+	(*RestoreTodoResponse)(nil),      // 14: workspace.v1.RestoreTodoResponse
+	(*ReorderTodoItem)(nil),          // 15: workspace.v1.ReorderTodoItem
+	(*ReorderTodosRequest)(nil),      // 16: workspace.v1.ReorderTodosRequest
+	(*ReorderTodosResponse)(nil),     // 17: workspace.v1.ReorderTodosResponse
 }
 var file_workspace_v1_todo_proto_depIdxs = []int32{
 	0,  // 0: workspace.v1.CreateTodoResponse.todo:type_name -> workspace.v1.Todo
@@ -1147,23 +1488,30 @@ var file_workspace_v1_todo_proto_depIdxs = []int32{
 	0,  // 2: workspace.v1.ListTodosResponse.todos:type_name -> workspace.v1.Todo
 	0,  // 3: workspace.v1.UpdateTodoResponse.todo:type_name -> workspace.v1.Todo
 	0,  // 4: workspace.v1.UpdateTodoStatusResponse.todo:type_name -> workspace.v1.Todo
-	1,  // 5: workspace.v1.TodoService.CreateTodo:input_type -> workspace.v1.CreateTodoRequest
-	3,  // 6: workspace.v1.TodoService.GetTodo:input_type -> workspace.v1.GetTodoRequest
-	5,  // 7: workspace.v1.TodoService.ListTodos:input_type -> workspace.v1.ListTodosRequest
-	7,  // 8: workspace.v1.TodoService.UpdateTodo:input_type -> workspace.v1.UpdateTodoRequest
-	9,  // 9: workspace.v1.TodoService.UpdateTodoStatus:input_type -> workspace.v1.UpdateTodoStatusRequest
-	11, // 10: workspace.v1.TodoService.DeleteTodo:input_type -> workspace.v1.DeleteTodoRequest
-	2,  // 11: workspace.v1.TodoService.CreateTodo:output_type -> workspace.v1.CreateTodoResponse
-	4,  // 12: workspace.v1.TodoService.GetTodo:output_type -> workspace.v1.GetTodoResponse
-	6,  // 13: workspace.v1.TodoService.ListTodos:output_type -> workspace.v1.ListTodosResponse
-	8,  // 14: workspace.v1.TodoService.UpdateTodo:output_type -> workspace.v1.UpdateTodoResponse
-	10, // 15: workspace.v1.TodoService.UpdateTodoStatus:output_type -> workspace.v1.UpdateTodoStatusResponse
-	12, // 16: workspace.v1.TodoService.DeleteTodo:output_type -> workspace.v1.DeleteTodoResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	0,  // 5: workspace.v1.RestoreTodoResponse.todo:type_name -> workspace.v1.Todo
+	15, // 6: workspace.v1.ReorderTodosRequest.items:type_name -> workspace.v1.ReorderTodoItem
+	0,  // 7: workspace.v1.ReorderTodosResponse.todos:type_name -> workspace.v1.Todo
+	1,  // 8: workspace.v1.TodoService.CreateTodo:input_type -> workspace.v1.CreateTodoRequest
+	3,  // 9: workspace.v1.TodoService.GetTodo:input_type -> workspace.v1.GetTodoRequest
+	5,  // 10: workspace.v1.TodoService.ListTodos:input_type -> workspace.v1.ListTodosRequest
+	7,  // 11: workspace.v1.TodoService.UpdateTodo:input_type -> workspace.v1.UpdateTodoRequest
+	9,  // 12: workspace.v1.TodoService.UpdateTodoStatus:input_type -> workspace.v1.UpdateTodoStatusRequest
+	11, // 13: workspace.v1.TodoService.DeleteTodo:input_type -> workspace.v1.DeleteTodoRequest
+	13, // 14: workspace.v1.TodoService.RestoreTodo:input_type -> workspace.v1.RestoreTodoRequest
+	16, // 15: workspace.v1.TodoService.ReorderTodos:input_type -> workspace.v1.ReorderTodosRequest
+	2,  // 16: workspace.v1.TodoService.CreateTodo:output_type -> workspace.v1.CreateTodoResponse
+	4,  // 17: workspace.v1.TodoService.GetTodo:output_type -> workspace.v1.GetTodoResponse
+	6,  // 18: workspace.v1.TodoService.ListTodos:output_type -> workspace.v1.ListTodosResponse
+	8,  // 19: workspace.v1.TodoService.UpdateTodo:output_type -> workspace.v1.UpdateTodoResponse
+	10, // 20: workspace.v1.TodoService.UpdateTodoStatus:output_type -> workspace.v1.UpdateTodoStatusResponse
+	12, // 21: workspace.v1.TodoService.DeleteTodo:output_type -> workspace.v1.DeleteTodoResponse
+	14, // 22: workspace.v1.TodoService.RestoreTodo:output_type -> workspace.v1.RestoreTodoResponse
+	17, // 23: workspace.v1.TodoService.ReorderTodos:output_type -> workspace.v1.ReorderTodosResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_workspace_v1_todo_proto_init() }
@@ -1181,7 +1529,7 @@ func file_workspace_v1_todo_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_workspace_v1_todo_proto_rawDesc), len(file_workspace_v1_todo_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

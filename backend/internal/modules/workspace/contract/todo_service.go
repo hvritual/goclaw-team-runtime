@@ -15,4 +15,6 @@ type TodoService interface {
 	UpdateTodo(context.Context, UpdateTodoRequest) (UpdateTodoResponse, error)
 	UpdateTodoStatus(context.Context, UpdateTodoStatusRequest) (UpdateTodoStatusResponse, error)
 	DeleteTodo(context.Context, DeleteTodoRequest) (DeleteTodoResponse, error)
+	RestoreTodo(context.Context, RestoreTodoRequest) (RestoreTodoResponse, error)
+	ReorderTodos(context.Context, ReorderTodosRequest) (ReorderTodosResponse, error)
 }

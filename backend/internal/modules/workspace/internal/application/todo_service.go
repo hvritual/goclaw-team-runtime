@@ -30,3 +30,11 @@ func (s *TodoService) UpdateTodo(ctx context.Context, request contract.UpdateTod
 func (s *TodoService) DeleteTodo(ctx context.Context, request contract.DeleteTodoRequest) (contract.DeleteTodoResponse, error) {
 	return contract.DeleteTodoResponse{}, contract.ErrTodoNotImplemented
 }
+
+func (s *TodoService) RestoreTodo(ctx context.Context, request contract.RestoreTodoRequest) (contract.RestoreTodoResponse, error) {
+	return contract.RestoreTodoResponse{}, contract.ErrTodoNotImplemented
+}
+
+func (s *TodoService) ReorderTodos(ctx context.Context, request contract.ReorderTodosRequest) (contract.ReorderTodosResponse, error) {
+	return contract.ReorderTodosResponse{}, contract.ErrTodoNotImplemented
+}

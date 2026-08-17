@@ -52,6 +52,11 @@ func TestTodoPatchPreservesClearsAndCompletes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	inProgress := StatusInProgress
+	value, err = value.Apply(Patch{Status: &inProgress}, createdAt.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
 	now := createdAt.Add(2 * time.Hour)
 	done := StatusDone
 	empty := ""
@@ -77,7 +82,15 @@ func TestTodoPatchPreservesClearsAndCompletes(t *testing.T) {
 		t.Fatalf("same done transition = %+v, %v", updatedAgain, err)
 	}
 	cancelled := StatusCancelled
-	cancelledValue, err := updatedAgain.Apply(Patch{Status: &cancelled, ProjectID: StringChange{Set: true, Value: &empty}}, later)
+	if _, err := updatedAgain.Apply(Patch{Status: &cancelled}, later); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("done -> cancelled error = %v, want %v", err, ErrInvalid)
+	}
+	cancelCandidate, err := New("todo-2", "workspace-1", "Cancel", "", StatusInProgress, PriorityNone,
+		&projectID, nil, nil, nil, "member", "member-1", 2, nil, nil, createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelledValue, err := cancelCandidate.Apply(Patch{Status: &cancelled, ProjectID: StringChange{Set: true, Value: &empty}}, later)
 	if err != nil || cancelledValue.CompletedAt != nil {
 		t.Fatalf("non-done status must clear completion: %+v, %v", cancelledValue, err)
 	}
@@ -104,6 +117,72 @@ func TestTodoPatchRejectsInvalidPartialValuesAndCopiesPointers(t *testing.T) {
 	assigneeType = "member"
 	if updated.AssigneeType == nil || *updated.AssigneeType != "agent" {
 		t.Fatalf("assignee pointer leaked: %+v", updated.AssigneeType)
+	}
+}
+
+func TestTodoRejectsLifecycleJumps(t *testing.T) {
+	createdAt := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
+	value, err := New("todo-1", "workspace-1", "Title", "", StatusTodo, PriorityNone, nil, nil, nil, nil, "member", "member-1", 0, nil, nil, createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := StatusDone
+	if _, err := value.Apply(Patch{Status: &done}, createdAt.Add(time.Minute)); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("todo -> done error = %v, want %v", err, ErrInvalid)
+	}
+}
+
+func TestTodoRevisionAdvancesOnChange(t *testing.T) {
+	createdAt := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
+	value, err := New("todo-1", "workspace-1", "Title", "", StatusTodo, PriorityNone, nil, nil, nil, nil, "member", "member-1", 0, nil, nil, createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Revision != 1 {
+		t.Fatalf("created revision = %d, want 1", value.Revision)
+	}
+
+	title := "Updated"
+	updated, err := value.Apply(Patch{Title: &title}, createdAt.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Revision != 2 {
+		t.Fatalf("updated revision = %d, want 2", updated.Revision)
+	}
+}
+
+func TestTodoArchiveRestorePreservesTerminalState(t *testing.T) {
+	createdAt := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
+	value, err := New("todo-1", "workspace-1", "Title", "", StatusInProgress, PriorityNone, nil, nil, nil, nil, "member", "member-1", 0, nil, nil, createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := StatusDone
+	value, err = value.Apply(Patch{Status: &done}, createdAt.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	completedAt := value.CompletedAt
+
+	archived, err := value.Archive(createdAt.Add(2 * time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if archived.Status != StatusArchived || archived.RestoreStatus != StatusDone || archived.ArchivedAt == nil || archived.Revision != value.Revision+1 {
+		t.Fatalf("archived task = %+v", archived)
+	}
+
+	restored, err := archived.Restore(createdAt.Add(3 * time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Status != StatusDone || restored.RestoreStatus != "" || restored.ArchivedAt != nil || restored.Revision != archived.Revision+1 {
+		t.Fatalf("restored task = %+v", restored)
+	}
+	if restored.CompletedAt == nil || completedAt == nil || !restored.CompletedAt.Equal(*completedAt) {
+		t.Fatalf("completed_at changed during archive/restore: before=%v after=%v", completedAt, restored.CompletedAt)
 	}
 }
 

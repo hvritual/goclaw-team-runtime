@@ -35,4 +35,12 @@ func (c *TodoClient) DeleteTodo(ctx context.Context, request contract.DeleteTodo
 	return c.service.DeleteTodo(ctx, request)
 }
 
+func (c *TodoClient) RestoreTodo(ctx context.Context, request contract.RestoreTodoRequest) (contract.RestoreTodoResponse, error) {
+	return c.service.RestoreTodo(ctx, request)
+}
+
+func (c *TodoClient) ReorderTodos(ctx context.Context, request contract.ReorderTodosRequest) (contract.ReorderTodosResponse, error) {
+	return c.service.ReorderTodos(ctx, request)
+}
+
 var _ contract.TodoService = (*TodoClient)(nil)

@@ -2,6 +2,7 @@
 package proto
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
@@ -114,12 +115,74 @@ func (s *TodoServer) DeleteTodo(ctx context.Context, request *workspacev1.Delete
 	return response, nil
 }
 
+func (s *TodoServer) RestoreTodo(ctx context.Context, request *workspacev1.RestoreTodoRequest) (*workspacev1.RestoreTodoResponse, error) {
+	var input contract.RestoreTodoRequest
+	if err := decodeTodoProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.RestoreTodo(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &workspacev1.RestoreTodoResponse{}
+	if err := encodeTodoContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *TodoServer) ReorderTodos(ctx context.Context, request *workspacev1.ReorderTodosRequest) (*workspacev1.ReorderTodosResponse, error) {
+	var input contract.ReorderTodosRequest
+	if err := decodeTodoProto(request, &input); err != nil {
+		return nil, err
+	}
+	result, err := s.service.ReorderTodos(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	response := &workspacev1.ReorderTodosResponse{}
+	if err := encodeTodoContract(result, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func decodeTodoProto(input proto.Message, output any) error {
 	data, err := protojson.Marshal(input)
 	if err != nil {
 		return err
 	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var intermediate any
+	if err := decoder.Decode(&intermediate); err != nil {
+		return err
+	}
+	normalizeTodoInt64JSON(intermediate)
+	data, err = json.Marshal(intermediate)
+	if err != nil {
+		return err
+	}
 	return json.Unmarshal(data, output)
+}
+
+func normalizeTodoInt64JSON(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, item := range typed {
+			if key == "revision" || key == "expectedRevision" {
+				if text, ok := item.(string); ok {
+					typed[key] = json.Number(text)
+					continue
+				}
+			}
+			normalizeTodoInt64JSON(item)
+		}
+	case []any:
+		for _, item := range typed {
+			normalizeTodoInt64JSON(item)
+		}
+	}
 }
 
 func encodeTodoContract(input any, output proto.Message) error {

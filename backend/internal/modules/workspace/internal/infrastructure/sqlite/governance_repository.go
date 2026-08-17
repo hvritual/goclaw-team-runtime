@@ -501,6 +501,18 @@ func loadResourceRevision(ctx context.Context, connection *sql.Conn, prepared ap
 		identity.WorkspaceID, command.ResourceKind, command.ResourceID,
 	).Scan(&revision)
 	if errors.Is(err, sql.ErrNoRows) {
+		command := prepared.Command()
+		identity := prepared.Identity()
+		if command.ResourceKind == "task" {
+			var taskRevision int64
+			taskErr := connection.QueryRowContext(ctx, `SELECT revision FROM workspace_todos WHERE workspace_id=? AND id=?`, identity.WorkspaceID, command.ResourceID).Scan(&taskRevision)
+			if taskErr == nil {
+				return taskRevision, nil
+			}
+			if !errors.Is(taskErr, sql.ErrNoRows) && !strings.Contains(strings.ToLower(taskErr.Error()), "no such table") {
+				return 0, fmt.Errorf("read Task resource revision: %w", taskErr)
+			}
+		}
 		return 0, nil
 	}
 	if err != nil {
