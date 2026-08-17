@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v4`
-- Status: `PCR-S01B-4 independent-review-blocked; Release 0 incomplete`
+- Plan-Version: `v5`
+- Status: `PCR-S01B-5 repair active; Release 0 incomplete`
 
 ## Delivery policy
 

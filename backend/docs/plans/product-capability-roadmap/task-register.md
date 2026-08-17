@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v4`
-- Registry status: `PCR-S01B-4 independent-review-blocked; Release 0 incomplete`
-- Registry revision: `r009`
+- Plan-Version: `v5`
+- Registry status: `PCR-S01B-5 active; Release 0 incomplete`
+- Registry revision: `r010`
 - Updated: `2026-08-17`
 
 ## Frozen policy bundle
@@ -16,6 +16,7 @@
 | `plan_v2.md` | `af0486c7625067b2b25de163271ba6f4be153c74331488eb57d9c42ab69ffd30` |
 | `plan_v3.md` | `81cd93e56ff9d2d4c34e1e23133235395b7fcf1fb99e82b49aaf5bf993e2afe8` |
 | `plan_v4.md` | `9f663571e5850f0e03d6ca8fc3551a23e99dc4a7d84e6dfaccd2cc257c9b9191` |
+| `plan_v5.md` | `ab5b81056f26f842a1b4fa08d626928b6cfb802dfae9a2bf4e3c0f305c019e69` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -611,3 +612,45 @@ merge, deployment, Release 1 activation, or out-of-plan defect repair.
   `server/**` boundary passed their reviewed subdimensions.
 - Per v4, any `SPEC BLOCK` prevents closure. Release 0 remains incomplete and
   product repair requires a new approved plan version and frozen task revision.
+
+## PCR-001-S01B5-R10
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B5-R10`
+- Task-Revision: `r010`
+- Work-Item: `PCR-S01B-5`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `0218ecbe5457f1afb716780ad44306e5b1b3b075`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v5`
+- Plan hash: `ab5b81056f26f842a1b4fa08d626928b6cfb802dfae9a2bf4e3c0f305c019e69`
+- Policy bundle: frozen hashes above
+
+### Objective
+
+Repair all five S01B-4 independent-review blocks under the frozen v5 design,
+then produce a new Release 0 candidate for deterministic and independent
+acceptance.
+
+### Exact allowed paths
+
+The exact writable path list is Section 6 of `plan_v5.md`. It is incorporated
+into r010 without expansion. No up migration, public API, capability behavior,
+frontend, Desktop, Control Plane, generated, unrelated dirty, or `server/**`
+path is authorized.
+
+### Frozen execution and acceptance
+
+- Execute Sections 5.1 through 5.6 in order using RED/GREEN TDD.
+- Sections 3, 7, and 8 are frozen design, acceptance, and verification.
+- Retain and fail closed on legacy unversioned rows; do not clean, backfill,
+  publish, or delete them.
+- Any required path outside Section 6, non-empty data action, up-schema change,
+  or independent `BLOCK` stops execution and requires a new approved plan.
+
+### Authority
+
+The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v5 /
+r010` on 2026-08-17. This activates `PCR-S01B-5` only and does not authorize
+push, merge, deployment, or Release 1.

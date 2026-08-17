@@ -544,3 +544,21 @@ Known limitations, blockers, and next action
 - Per plan v4, `SPEC BLOCK` stops closure and forbids in-plan product repair.
   `PCR-S01B-4` is independent-review-blocked, Release 0 is incomplete, and
   Release 1 remains inactive pending a separately approved plan/task.
+
+## 2026-08-17 — J021 — v5/r010 approved and PCR-S01B-5 activated
+
+- Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v5 /
+  r010` after receiving the proposed authority, canonical hash, safe envelope,
+  complete claim tuple, legacy-row, and empty-only down defaults.
+- Approved immutable `plan_v5.md` and froze `PCR-001-S01B5-R10` on base
+  `0218ecbe5457f1afb716780ad44306e5b1b3b075` with unchanged policy hashes.
+- Activated `PCR-S01B-5` as the sole roadmap step. Release 0 remains incomplete
+  and Release 1 remains inactive.
+- The repair may touch only Section 6 paths and must use failing tests before
+  production changes. It adds no table, column, index, up migration, public API,
+  frontend, Desktop, Control Plane, generated output, or capability behavior.
+- Retained legacy governance rows may only fail closed; no cleanup, rewrite,
+  migration, publication, or deletion is authorized.
+- Existing UI/local-runtime/code-to-product dirty paths remain excluded and
+  `server/**` remains read-only. No repair or verification result is claimed by
+  this activation record.
