@@ -122,11 +122,15 @@ func TestSQLiteRuntimeServesInstalledTaskSlice(t *testing.T) {
 	if unchanged.Code != http.StatusOK || !containsJSON(unchanged.Body.Bytes(), `"position":10`, `"revision":2`) {
 		t.Fatalf("reorder rollback = %d %s", unchanged.Code, unchanged.Body.String())
 	}
+	afterReorderUpdate := runtimeRequest(runtime, http.MethodPatch, "/api/tasks/"+task.ID, `{"title":"Ship S02A after reorder","expected_revision":6}`, headers)
+	if afterReorderUpdate.Code != http.StatusOK || !containsJSON(afterReorderUpdate.Body.Bytes(), `"title":"Ship S02A after reorder"`, `"revision":7`) {
+		t.Fatalf("update after reorder = %d %s", afterReorderUpdate.Code, afterReorderUpdate.Body.String())
+	}
 	for table, want := range map[string]int{
 		"workspace_resource_revisions":   3,
 		"workspace_mutation_idempotency": 2,
-		"workspace_audit_entries":        7,
-		"workspace_outbox_events":        7,
+		"workspace_audit_entries":        8,
+		"workspace_outbox_events":        8,
 	} {
 		var count int
 		if err := runtime.Database().QueryRow(`SELECT COUNT(*) FROM ` + table + ` WHERE workspace_id='workspace-one'`).Scan(&count); err != nil || count != want {
@@ -135,7 +139,7 @@ func TestSQLiteRuntimeServesInstalledTaskSlice(t *testing.T) {
 	}
 
 	listed := runtimeRequest(runtime, http.MethodGet, "/api/tasks", "", headers)
-	if listed.Code != http.StatusOK || !containsJSON(listed.Body.Bytes(), `"total":2`, `"title":"Ship S02A"`, `"workspace_id":"workspace-one"`) {
+	if listed.Code != http.StatusOK || !containsJSON(listed.Body.Bytes(), `"total":2`, `"title":"Ship S02A after reorder"`, `"workspace_id":"workspace-one"`) {
 		t.Fatalf("list = %d %s", listed.Code, listed.Body.String())
 	}
 }

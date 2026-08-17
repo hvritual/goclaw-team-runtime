@@ -233,7 +233,7 @@ func (r *todoRepository) Reorder(ctx context.Context, workspaceID string, update
 			OccurredAt:     now.UTC(),
 			AuditFields:    fields,
 			Outbox: []application.OutboxDraft{{
-				ID: uuid.NewString(), EventType: "task:reordered", Fields: fields,
+				ID: uuid.NewString(), EventType: "task:updated", Fields: fields,
 			}},
 		})
 		if prepareErr != nil {
@@ -290,6 +290,14 @@ func (r *todoRepository) reorderWithConnection(ctx context.Context, connection *
 		}
 		if updateErr = requireTodoAffected(result); updateErr != nil {
 			return nil, updateErr
+		}
+		if r.governance != nil {
+			if _, updateErr = connection.ExecContext(ctx, `INSERT INTO workspace_resource_revisions
+				(workspace_id,resource_kind,resource_id,revision,updated_at) VALUES(?,?,?,?,?)
+				ON CONFLICT(workspace_id,resource_kind,resource_id) DO UPDATE SET revision=excluded.revision,updated_at=excluded.updated_at`,
+				workspaceID, "task", update.TodoID, update.ExpectedRevision+1, updatedAt); updateErr != nil {
+				return nil, fmt.Errorf("persist reordered Task revision: %w", updateErr)
+			}
 		}
 		current.Position = update.Position
 		current.UpdatedAt = now.UTC()

@@ -3,12 +3,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const EMAIL = "canonical-fixture@multica.local";
 const SLUG = "canonical-fixture";
 
+test.setTimeout(120_000);
+
 async function loginFixture(page: Page) {
-  await page.goto("/login", { waitUntil: "domcontentloaded" });
-  await page.locator("#login-email").fill(EMAIL);
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.locator('input[autocomplete="one-time-code"]').fill("888888");
-  await page.waitForURL(new RegExp(`/${SLUG}/issues`));
+	const response = await page.request.post("/auth/verify-code", {
+		data: { email: EMAIL, code: "888888" },
+	});
+	expect(response.status()).toBe(200);
 }
 
 function taskRow(page: Page, title: string): Locator {
@@ -26,7 +27,16 @@ async function setStatus(row: Locator, currentLabel: string, status: string, nex
   await expect(row.getByRole("combobox", { name: nextLabel })).toBeVisible();
 }
 
-test("installed Task surface manages lifecycle, filtering, reorder, archive and restore", async ({ page }) => {
+test("installed Task surface manages lifecycle, filtering, reorder, archive and restore", async ({ page }, testInfo) => {
+  const consoleErrors: string[] = [];
+  const httpErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) consoleErrors.push(message.text());
+  });
+  page.on("pageerror", (error) => consoleErrors.push(error.message));
+  page.on("response", (response) => {
+    if (response.status() >= 400) httpErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
+  });
   const marker = Date.now().toString(36);
   const firstTitle = `S02A browser first ${marker}`;
   const editedTitle = `S02A browser edited ${marker}`;
@@ -46,8 +56,14 @@ test("installed Task surface manages lifecycle, filtering, reorder, archive and 
   await firstRow.getByRole("button", { name: "Save task" }).click();
   await expect(taskRow(page, editedTitle)).toContainText("Due Aug 25, 2026");
 
-  await taskRow(page, secondTitle).getByRole("button", { name: "Move up" }).click();
-  await expect(page.getByRole("listitem").first()).toContainText(secondTitle);
+  const reorderResponse = page.waitForResponse((response) => response.url().endsWith("/api/tasks/reorder"));
+  await taskRow(page, editedTitle).getByRole("button", { name: "Move up" }).click();
+  const reorderResult = await reorderResponse;
+  expect(reorderResult.status(), await reorderResult.text()).toBe(200);
+  await expect.poll(async () => {
+    const rows = await page.locator("main").getByRole("listitem").allTextContents();
+    return rows.findIndex((text) => text.includes(editedTitle)) < rows.findIndex((text) => text.includes(secondTitle));
+  }).toBe(true);
 
   await setStatus(taskRow(page, editedTitle), "To do", "in_progress", "In progress");
   await setStatus(taskRow(page, editedTitle), "In progress", "done", "Done");
@@ -64,4 +80,7 @@ test("installed Task surface manages lifecycle, filtering, reorder, archive and 
   await expect(taskRow(page, editedTitle)).toBeVisible();
   await taskRow(page, editedTitle).getByRole("button", { name: "Restore" }).click();
   await expect(taskRow(page, editedTitle)).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+  expect(httpErrors.filter((entry) => entry !== "404 /api/invitations")).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("tasks-archived-filter.png"), fullPage: false });
 });

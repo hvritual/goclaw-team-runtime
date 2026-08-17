@@ -170,7 +170,7 @@ export function TasksPage() {
                     {task.due_date ? <span>{t(($) => $.due, { date: dueDateFormatter.format(new Date(task.due_date)) })}</span> : null}
                   </div>
                   {task.status !== "archived" ? (
-                    <details className="mt-2 text-xs">
+                    <details key={`${task.id}:${task.revision}`} className="mt-2 text-xs">
                       <summary className="cursor-pointer text-muted-foreground">{t(($) => $.edit)}</summary>
                       <form
                         className="mt-2 grid gap-2 sm:grid-cols-2"
