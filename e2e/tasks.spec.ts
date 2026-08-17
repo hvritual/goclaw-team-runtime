@@ -27,7 +27,7 @@ async function setStatus(row: Locator, currentLabel: string, status: string, nex
   await expect(row.getByRole("combobox", { name: nextLabel })).toBeVisible();
 }
 
-test("installed Task surface manages lifecycle, filtering, reorder, archive and restore", async ({ page }, testInfo) => {
+test("installed Task surface manages lifecycle and promotes a Task to an Issue", async ({ page }, testInfo) => {
   const consoleErrors: string[] = [];
   const httpErrors: string[] = [];
   page.on("console", (message) => {
@@ -41,6 +41,7 @@ test("installed Task surface manages lifecycle, filtering, reorder, archive and 
   const firstTitle = `S02A browser first ${marker}`;
   const editedTitle = `S02A browser edited ${marker}`;
   const secondTitle = `S02A browser second ${marker}`;
+  const promotionTitle = `S02B browser promotion ${marker}`;
 
   await loginFixture(page);
   await page.goto(`/${SLUG}/tasks`, { waitUntil: "domcontentloaded" });
@@ -80,6 +81,21 @@ test("installed Task surface manages lifecycle, filtering, reorder, archive and 
   await expect(taskRow(page, editedTitle)).toBeVisible();
   await taskRow(page, editedTitle).getByRole("button", { name: "Restore" }).click();
   await expect(taskRow(page, editedTitle)).toHaveCount(0);
+
+  await page.getByLabel("Filter tasks by status").selectOption("");
+  await createTask(page, promotionTitle);
+  await setStatus(taskRow(page, promotionTitle), "To do", "in_progress", "In progress");
+  const promotionRow = taskRow(page, promotionTitle);
+  await promotionRow.getByRole("checkbox", { name: "Complete task after promotion" }).check();
+  const promoteResponse = page.waitForResponse((response) => response.url().endsWith("/promote"));
+  await promotionRow.getByRole("button", { name: "Promote to issue" }).click();
+  const promoteResult = await promoteResponse;
+  expect(promoteResult.status(), await promoteResult.text()).toBe(201);
+  const issueLink = promotionRow.getByRole("link", { name: /^ONE-\d+$/ });
+  await expect(issueLink).toBeVisible();
+  await expect(promotionRow.getByRole("combobox", { name: "Done" })).toBeVisible();
+  await issueLink.click();
+  await expect(page).toHaveURL(new RegExp(`/${SLUG}/issues/[^/]+$`));
   expect(consoleErrors).toEqual([]);
   expect(httpErrors.filter((entry) => entry !== "404 /api/invitations")).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("tasks-archived-filter.png"), fullPage: false });
