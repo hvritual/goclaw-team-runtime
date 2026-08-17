@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v4`
-- Status: `PCR-S01B-4 active; Release 0 closure in progress`
+- Status: `PCR-S01B-4 independent-review-blocked; Release 0 incomplete`
 
 ## Delivery policy
 

@@ -504,3 +504,43 @@ Known limitations, blockers, and next action
   repair of a newly discovered defect are not authorized.
 - No candidate commit, new verification result, independent verdict, or Release
   0 completion is claimed by this activation record.
+
+## 2026-08-17 — J020 — candidate verified; independent review blocked closure
+
+- Explicitly staged and audited the twelve v4/r009 paths, with no `server/**`
+  or unrelated dirty path, then created candidate commit `b24661f`.
+- The first commit message contained every required trace field but separated
+  them into individual paragraphs, so Git's trailer parser returned none. The
+  commit was immediately amended without changing its tree; final candidate
+  `5062e84a65a3ce3114a0d2d54013d37f746836c6` exposes all required trailers.
+- Deterministic evidence on the candidate passed:
+  - application, Workspace SQLite, HTTP, Workspace composition, and Bootstrap
+    packages, each count 1;
+  - attachment busy/cancellation/serialization regressions, count 10;
+  - twelve-upload Bootstrap concurrency regression, count 10;
+  - Backend-check tests and full `go test ./... -count=1`;
+  - `go vet ./...`, `go mod verify`, `make fmt-check`, and `make check`;
+  - frozen five-package race with process-local Scoop GCC 15.2 and no loader
+    waiver;
+  - supplemental S01A contract/Bootstrap focused tests and race, replacing the
+    historical loader limitation with current green evidence;
+  - candidate allowlist, machine-readable trailers, roadmap relative links,
+    diff checks, preserved unrelated dirty paths, and empty `server/**` scope.
+- After deterministic checks, an independent read-only reviewer examined
+  `3876791^..5062e84` against `s01b-foundation-design.md`, plans v2/v4, code, and
+  tests. Overall verdict: `SPEC BLOCK`.
+- The reviewer and primary-agent verification found five frozen-contract gaps:
+  1. mutation preparation has no fail-closed action/resource authority map;
+  2. request replay trusts a supplied digest instead of computing versioned
+     canonical JSON plus action SHA-256;
+  3. replay/audit/outbox envelopes permit secret-bearing values or unrestricted
+     JSON despite the frozen secret-free allowlist contract;
+  4. outbox transitions use the claim-time clock and only workspace/event/token,
+     allowing an expired lease or duplicate event identity to mutate state;
+  5. the governance down migration unconditionally deletes non-empty evidence.
+- Existing tests do not cover those negative scenarios. Transaction rollback,
+  diagnostics authorization/redaction, bounded retry/dead-letter/restart,
+  readiness, migration up policy, exact scope, and `server/**` passed review.
+- Per plan v4, `SPEC BLOCK` stops closure and forbids in-plan product repair.
+  `PCR-S01B-4` is independent-review-blocked, Release 0 is incomplete, and
+  Release 1 remains inactive pending a separately approved plan/task.

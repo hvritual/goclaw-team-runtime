@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v4`
-- Registry status: `PCR-S01B-4 active`
+- Registry status: `PCR-S01B-4 independent-review-blocked; Release 0 incomplete`
 - Registry revision: `r009`
 - Updated: `2026-08-17`
 
@@ -537,9 +537,9 @@ be retried, hidden, skipped, quarantined, or weakened into passing evidence.
 - Task-ID: `PCR-001-S01B4-R9`
 - Task-Revision: `r009`
 - Work-Item: `PCR-S01B-4`
-- Status: `active`
+- Status: `independent-review-blocked`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `authorized read-only reviewer, not yet assigned`
+- Independent reviewer: `Codex independent read-only reviewer; SPEC BLOCK`
 - Base commit: `ab2b49088b108f771045a090b473a8e235dfa09e`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v4`
 - Plan hash: `9f663571e5850f0e03d6ca8fc3551a23e99dc4a7d84e6dfaccd2cc257c9b9191`
@@ -583,3 +583,31 @@ The Human Customer stated `批准后续动作，按目标持续推进完成 Rele
 and safety foundation` on 2026-08-17. This authorizes v4/r009, the scoped Git
 commits, and an independent read-only reviewer. It does not authorize push,
 merge, deployment, Release 1 activation, or out-of-plan defect repair.
+
+### Current evidence and disposition
+
+- Candidate commit `5062e84a65a3ce3114a0d2d54013d37f746836c6`
+  contains exactly the twelve v4/r009 paths and machine-readable traceability
+  trailers. Its tree is identical to the pre-audit candidate `b24661f`.
+- All frozen deterministic gates passed on that candidate: focused S01A/S01B
+  tests, five S01B packages, ten-count attachment contention and concurrent
+  upload regressions, full Backend tests, vet, module verification, Make checks,
+  five-package race, supplemental S01A race, diff, links, and `server/**` scope.
+- Independent contract review examined `3876791^..5062e84` after deterministic
+  checks and returned `SPEC BLOCK` in five areas:
+  1. unknown action/resource mappings are not rejected by a server-side
+     authority registry;
+  2. idempotency trusts a caller-provided hash instead of computing the frozen
+     versioned canonical JSON SHA-256 projection;
+  3. replay, audit-value, and outbox payload validation does not enforce the
+     frozen version/allowlist/forbidden-value secret boundary;
+  4. outbox acknowledgement/failure accepts claim-time timestamps and partial
+     identity instead of a current lease check plus the complete PK tuple;
+  5. migration 000009 down SQL drops non-empty governance evidence tables.
+- The primary agent reproduced each finding against the frozen design and
+  candidate source. Existing tests omit all five negative cases.
+- Transaction atomicity/rollback, HTTP diagnostics authorization/redaction,
+  retry/dead-letter/restart/readiness behavior, candidate scope, and the
+  `server/**` boundary passed their reviewed subdimensions.
+- Per v4, any `SPEC BLOCK` prevents closure. Release 0 remains incomplete and
+  product repair requires a new approved plan version and frozen task revision.
