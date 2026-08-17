@@ -91,7 +91,7 @@ test("installed Task surface manages lifecycle and promotes a Task to an Issue",
   await promotionRow.getByRole("button", { name: "Promote to issue" }).click();
   const promoteResult = await promoteResponse;
   expect(promoteResult.status(), await promoteResult.text()).toBe(201);
-  const issueLink = promotionRow.getByRole("link", { name: /^ONE-\d+$/ });
+  const issueLink = promotionRow.getByRole("link", { name: /^CAN-\d+$/ });
   await expect(issueLink).toBeVisible();
   await expect(promotionRow.getByRole("combobox", { name: "Done" })).toBeVisible();
   await issueLink.click();
