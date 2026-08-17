@@ -615,3 +615,25 @@ Known limitations, blockers, and next action
   `server/**`, or include existing UI/local-runtime/code-to-product dirty paths.
 - No implementation, verification, independent PASS, push, merge, deployment,
   or Release 0 completion is claimed by this activation record.
+
+## 2026-08-17 — J024 — v7/r012 approved and authority closure activated
+
+- Candidate `4d60e50d9c03a68b2723b427506ea7db64d90d90` passed all v6 product,
+  deterministic, race, attachment-concurrency, policy, scope, and `server/**`
+  gates. Fresh independent review passed implementation SPEC and code quality.
+- That review returned one authority/traceability BLOCK: immutable
+  `plan_v6.md` declares nonexistent base
+  `f93eca77c3450109b7328441812d63710f179521`, while Git, the v6 task record,
+  plan pointer, and J023 use actual base
+  `f93eca764bb464245ef096429701aa0a856f0c56`.
+- The mismatch is retained as historical evidence; `plan_v6.md` is not amended
+  or reinterpreted. Release 0 was not closed under v6.
+- The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v7 /
+  r012` on 2026-08-17. Immutable `plan_v7.md` starts from exact verified
+  candidate `4d60e50d9c03a68b2723b427506ea7db64d90d90` and activates
+  `PCR-S01B-7` as the sole roadmap step.
+- v7/r012 is documentation-only: five exact roadmap paths, read-only evidence,
+  fresh independent review, and closure records after PASS. It does not
+  authorize product/test/schema/runtime/frontend/Control Plane/`server/**`
+  changes, push, merge, deployment, external data, or prior-plan amendment.
+- Release 0 remains incomplete at activation and Release 1 remains inactive.

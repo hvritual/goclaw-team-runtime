@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v5`
-- Registry status: `PCR-S01B-5 active; Release 0 incomplete`
-- Registry revision: `r010`
+- Plan-Version: `v7`
+- Registry status: `PCR-S01B-7 authority closure active; Release 0 incomplete; Release 1 inactive`
+- Registry revision: `r012`
 - Updated: `2026-08-17`
 
 ## Frozen policy bundle
@@ -17,6 +17,8 @@
 | `plan_v3.md` | `81cd93e56ff9d2d4c34e1e23133235395b7fcf1fb99e82b49aaf5bf993e2afe8` |
 | `plan_v4.md` | `9f663571e5850f0e03d6ca8fc3551a23e99dc4a7d84e6dfaccd2cc257c9b9191` |
 | `plan_v5.md` | `ab5b81056f26f842a1b4fa08d626928b6cfb802dfae9a2bf4e3c0f305c019e69` |
+| `plan_v6.md` | `1cd1c9a68626fe6c2c70037059b0327a4fa10f37a9853cc9ced4fa7ec32a1849` |
+| `plan_v7.md` | `c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -703,3 +705,52 @@ changing schema or activating Release 1, then produce a new Release 0 candidate.
 The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v6 /
 r011` on 2026-08-17. This activates only `PCR-S01B-6`; it does not authorize
 push, merge, deployment, Release 1, schema changes, or external data handling.
+
+### Independent review outcome
+
+- Candidate `4d60e50d9c03a68b2723b427506ea7db64d90d90` passed every v6
+  implementation, deterministic, race, attachment-concurrency, policy, scope,
+  and `server/**` gate.
+- Independent review passed implementation SPEC and code quality but blocked
+  authority/traceability because immutable `plan_v6.md` names nonexistent base
+  `f93eca77c3450109b7328441812d63710f179521` instead of the actual registered
+  base `f93eca764bb464245ef096429701aa0a856f0c56`.
+- Per v6, Release 0 remains incomplete and repair requires a new approved plan.
+
+## PCR-001-S01B7-R12
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S01B7-R12`
+- Task-Revision: `r012`
+- Work-Item: `PCR-S01B-7`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after exact v7 evidence verification`
+- Base commit: `4d60e50d9c03a68b2723b427506ea7db64d90d90`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v7`
+- Plan hash: `c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152`
+
+### Objective
+
+Repair only the immutable v6 authority-record mismatch through a new internally
+consistent approved snapshot, obtain fresh independent review, and close
+Release 0 without changing the verified product candidate.
+
+### Frozen execution and acceptance
+
+- Execute Sections 5.1 through 5.4 of `plan_v7.md` in order.
+- Modify only the five documentation paths in Section 6; prior immutable plans
+  remain byte-for-byte unchanged.
+- Candidate `4d60e50` is the exact base and no product/test/schema/runtime change
+  is authorized.
+- Any independent BLOCK stops closure and requires a new approved plan/task.
+- Release 1 remains inactive through activation and closure.
+
+### Authority
+
+The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v7 /
+r012` on 2026-08-17. This authorizes only documentation authority repair,
+read-only verification, independent review, and Release 0 closure records after
+PASS; it does not authorize product changes, push, merge, deployment, or
+Release 1.
