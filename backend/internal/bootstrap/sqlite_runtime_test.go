@@ -117,6 +117,45 @@ func TestSQLiteRuntimeCloseIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSQLiteRuntimeStartsAndStopsGovernanceOutbox(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{
+		Name: "backend-test", Version: "test",
+		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath: filepath.Join(t.TempDir(), "governance-runtime.db"), WorkspaceDependencies: FailClosedWorkspaceDependencies(),
+	})
+	if runtime.governance == nil || !runtime.governance.Running() {
+		t.Fatal("governance outbox worker is not running")
+	}
+	assertProbe(t, runtime, "/readyz", http.StatusOK, "ready")
+	if err := runtime.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.governance.Running() {
+		t.Fatal("governance outbox worker remained running after runtime close")
+	}
+}
+
+func TestRealtimeOutboxSinkPreservesStableDeliveryIdentity(t *testing.T) {
+	recorder := &outboxEventRecorder{}
+	sink := realtimeOutboxSink{events: recorder}
+	event := workspacecontract.OutboxEvent{
+		State: workspacecontract.OutboxInflight, AvailableAt: time.Unix(1, 0).UTC(), WorkspaceID: "workspace-1", ID: "event-1",
+		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
+		Payload: json.RawMessage(`{"id":"task-1"}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		ClaimToken: "claim-1", LeaseExpiresAt: timePointerBootstrap(time.Unix(61, 0).UTC()), CreatedAt: time.Unix(1, 0).UTC(),
+	}
+	if err := sink.Publish(context.Background(), event); err != nil {
+		t.Fatal(err)
+	}
+	if recorder.eventType != "task:created" || recorder.workspaceID != "workspace-1" {
+		t.Fatalf("published target = %s %s", recorder.workspaceID, recorder.eventType)
+	}
+	payload, ok := recorder.payload.(map[string]any)
+	if !ok || payload["event_id"] != "event-1" || payload["aggregate_revision"] != int64(7) {
+		t.Fatalf("published payload = %#v", recorder.payload)
+	}
+}
+
 func TestSQLiteRuntimeStopClosesDatabase(t *testing.T) {
 	runtime := newRuntimeForConfig(t, Config{
 		Name: "backend-test", Version: "test",
@@ -280,3 +319,15 @@ func assertProbe(t *testing.T, runtime *Runtime, path string, status int, state 
 		t.Fatalf("%s body = %#v, %v", path, body, err)
 	}
 }
+
+type outboxEventRecorder struct {
+	workspaceID string
+	eventType   string
+	payload     any
+}
+
+func (r *outboxEventRecorder) Publish(workspaceID, eventType string, payload any, _, _ string) {
+	r.workspaceID, r.eventType, r.payload = workspaceID, eventType, payload
+}
+
+func timePointerBootstrap(value time.Time) *time.Time { return &value }

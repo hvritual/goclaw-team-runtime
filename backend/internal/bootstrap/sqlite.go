@@ -22,11 +22,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Application, *canonicalrealtime.Hub, error) {
+func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Application, *canonicalrealtime.Hub, *workspace.GovernanceOutbox, error) {
 	path := strings.TrimSpace(config.SQLitePath)
 	if path != ":memory:" && !strings.HasPrefix(path, "file:") {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return nil, nil, nil, fmt.Errorf("create Canonical SQLite directory: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("create Canonical SQLite directory: %w", err)
 		}
 	}
 	dataSource := path
@@ -39,7 +39,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	}
 	db, err := sql.Open("sqlite", dataSource)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("open Canonical SQLite database: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("open Canonical SQLite database: %w", err)
 	}
 	if path == ":memory:" {
 		db.SetMaxOpenConns(1)
@@ -53,28 +53,28 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		}
 	}()
 	if _, err := db.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
-		return nil, nil, nil, fmt.Errorf("configure Canonical SQLite database: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("configure Canonical SQLite database: %w", err)
 	}
 	if err := workspace.MigrateSqlite(ctx, db); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	if err := auth.MigrateSqlite(ctx, db); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	if err := space.MigrateSqlite(ctx, db); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	if err := normalizeRetainedIssueMemberActors(ctx, db); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	authModule, err := auth.NewWithSqliteLocalAuth(auth.SqlitePersistenceConfig{DB: db}, config.LocalAuth)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	memberships := authMembershipAdapter{reader: authModule.WorkspaceMemberships(), roadmapProvider: config.RoadmapCapabilityProvider}
 	selection, err := workspace.NewSqliteWorkspaceSelection(workspace.SqlitePersistenceConfig{DB: db}, memberships)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	workspaceDependencies := config.WorkspaceDependencies
 	workspaceDependencies.Authorizer = memberships
@@ -91,7 +91,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	workspaceDependencies.IssueAttachmentsEnabled = config.IssueAttachmentsEnabled
 	attachmentRelations, err := workspace.NewSQLiteAttachmentRelations(db)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	attachmentRoot := strings.TrimSpace(config.AttachmentRoot)
 	if attachmentRoot == "" {
@@ -114,7 +114,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		HTTPEnabled: capabilityEnabled(config.IssueAttachmentsEnabled),
 	})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	workspaceDependencies.Assets = spaceAttachmentReader{service: spaceModule.Attachments()}
 	workspaceDependencies.IssueAttachments = spaceIssueAttachmentProjection{service: spaceModule.Attachments()}
@@ -126,10 +126,43 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		workspaceDependencies,
 	)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
+	}
+	governance, err := workspace.NewSQLiteGovernanceOutbox(workspaceModule, workspace.SqlitePersistenceConfig{DB: db}, workspace.GovernanceOutboxDependencies{
+		Sink:             realtimeOutboxSink{events: realtimeHub},
+		Authorizer:       memberships,
+		Memberships:      memberships,
+		HTTPIdentity:     workspaceIdentity,
+		HTTPUserIdentity: authModule.ResolveHTTPUserID,
+		Now:              workspaceDependencies.Now,
+	})
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("configure Workspace governance outbox: %w", err)
 	}
 	failed = false
-	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemmodule.New()), realtimeHub, nil
+	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemmodule.New()), realtimeHub, governance, nil
+}
+
+type realtimeOutboxSink struct {
+	events contract.WorkspaceEventPublisher
+}
+
+func (s realtimeOutboxSink) Publish(_ context.Context, event contract.OutboxEvent) error {
+	if s.events == nil {
+		return contract.ErrGovernanceUnavailable
+	}
+	var payload any
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return fmt.Errorf("decode outbox payload: %w", err)
+	}
+	s.events.Publish(event.WorkspaceID, event.EventType, map[string]any{
+		"event_id":           event.ID,
+		"aggregate_kind":     event.AggregateKind,
+		"aggregate_id":       event.AggregateID,
+		"aggregate_revision": event.AggregateRevision,
+		"payload":            payload,
+	}, event.ActorID, event.ActorType)
+	return nil
 }
 
 type spaceAttachmentReader struct {

@@ -145,6 +145,256 @@ func (r *GovernanceRepository) afterPhase(phase GovernancePhase) error {
 	return nil
 }
 
+func (r *GovernanceRepository) ClaimOutbox(ctx context.Context, now time.Time, limit int, lease time.Duration, claimToken string) (events []contract.OutboxEvent, err error) {
+	claimToken = strings.TrimSpace(claimToken)
+	if now.IsZero() || lease <= 0 || claimToken == "" {
+		return nil, fmt.Errorf("%w: invalid outbox claim", contract.ErrInvalidGovernanceMutation)
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	nowText := now.UTC().Format(time.RFC3339Nano)
+	var available bool
+	if err := r.db.QueryRowContext(ctx, `SELECT EXISTS(
+		SELECT 1 FROM workspace_outbox_events
+		WHERE ((state IN ('ready','retry_wait') AND available_at <= ?)
+			OR (state='inflight' AND lease_expires_at <= ?))
+		LIMIT 1)`, nowText, nowText).Scan(&available); err != nil {
+		return nil, fmt.Errorf("check outbox claim availability: %w", err)
+	}
+	if !available {
+		return []contract.OutboxEvent{}, nil
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquire outbox claim connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return nil, fmt.Errorf("configure outbox claim connection: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return nil, fmt.Errorf("begin outbox claim: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+
+	rows, err := connection.QueryContext(ctx, `SELECT state, available_at, workspace_id, id, event_type,
+		aggregate_kind, aggregate_id, aggregate_revision, payload_json, actor_type, actor_id, attempt_count,
+		claim_token, lease_expires_at, last_error_code, created_at, delivered_at
+		FROM workspace_outbox_events
+		WHERE ((state IN ('ready','retry_wait') AND available_at <= ?)
+			OR (state='inflight' AND lease_expires_at <= ?))
+		ORDER BY available_at, workspace_id, id LIMIT ?`, nowText, nowText, limit)
+	if err != nil {
+		return nil, fmt.Errorf("select outbox claims: %w", err)
+	}
+	for rows.Next() {
+		event, scanErr := scanOutboxEvent(rows)
+		if scanErr != nil {
+			_ = rows.Close()
+			return nil, scanErr
+		}
+		events = append(events, event)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close outbox claims: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate outbox claims: %w", err)
+	}
+
+	leaseExpiresAt := now.Add(lease).UTC()
+	for index := range events {
+		event := &events[index]
+		result, err := connection.ExecContext(ctx, `UPDATE workspace_outbox_events
+			SET state='inflight', claim_token=?, lease_expires_at=?, attempt_count=attempt_count+1
+			WHERE state=? AND available_at=? AND workspace_id=? AND id=?`,
+			claimToken, leaseExpiresAt.Format(time.RFC3339Nano), event.State,
+			event.AvailableAt.UTC().Format(time.RFC3339Nano), event.WorkspaceID, event.ID)
+		if err != nil {
+			return nil, fmt.Errorf("claim outbox event: %w", err)
+		}
+		if err := requireOneOutboxRow(result); err != nil {
+			return nil, err
+		}
+		event.State = contract.OutboxInflight
+		event.ClaimToken = claimToken
+		event.LeaseExpiresAt = &leaseExpiresAt
+		event.AttemptCount++
+	}
+	if _, err = connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return nil, fmt.Errorf("commit outbox claim: %w", err)
+	}
+	committed = true
+	return events, nil
+}
+
+func (r *GovernanceRepository) MarkOutboxDelivered(ctx context.Context, workspaceID, eventID, claimToken string, deliveredAt time.Time) error {
+	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || strings.TrimSpace(claimToken) == "" || deliveredAt.IsZero() {
+		return fmt.Errorf("%w: invalid outbox delivery", contract.ErrInvalidGovernanceMutation)
+	}
+	deliveredText := deliveredAt.UTC().Format(time.RFC3339Nano)
+	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
+		SET state='delivered', claim_token=NULL, lease_expires_at=NULL, delivered_at=?, last_error_code=NULL
+		WHERE workspace_id=? AND id=? AND state='inflight' AND claim_token=? AND lease_expires_at>?`,
+		deliveredText, workspaceID, eventID, claimToken, deliveredText)
+	if err != nil {
+		return fmt.Errorf("mark outbox delivered: %w", err)
+	}
+	if err := requireOneOutboxRow(result); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *GovernanceRepository) MarkOutboxFailed(ctx context.Context, workspaceID, eventID, claimToken string, failedAt, retryAt time.Time, errorCode string, dead bool) error {
+	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || strings.TrimSpace(claimToken) == "" ||
+		failedAt.IsZero() || retryAt.IsZero() || strings.TrimSpace(errorCode) == "" {
+		return fmt.Errorf("%w: invalid outbox failure", contract.ErrInvalidGovernanceMutation)
+	}
+	state := contract.OutboxRetryWait
+	if dead {
+		state = contract.OutboxDeadLetter
+	}
+	failedText := failedAt.UTC().Format(time.RFC3339Nano)
+	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
+		SET state=?, available_at=?, claim_token=NULL, lease_expires_at=NULL, last_error_code=?, delivered_at=NULL
+		WHERE workspace_id=? AND id=? AND state='inflight' AND claim_token=? AND lease_expires_at>?`,
+		state, retryAt.UTC().Format(time.RFC3339Nano), errorCode, workspaceID, eventID, claimToken, failedText)
+	if err != nil {
+		return fmt.Errorf("mark outbox failed: %w", err)
+	}
+	return requireOneOutboxRow(result)
+}
+
+func (r *GovernanceRepository) ReplayOutbox(ctx context.Context, workspaceID, eventID string, availableAt time.Time) error {
+	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || availableAt.IsZero() {
+		return fmt.Errorf("%w: invalid outbox replay", contract.ErrInvalidGovernanceMutation)
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
+		SET state='ready', available_at=?, attempt_count=0, claim_token=NULL, lease_expires_at=NULL,
+			last_error_code=NULL, delivered_at=NULL
+		WHERE workspace_id=? AND id=? AND state='dead_letter'`,
+		availableAt.UTC().Format(time.RFC3339Nano), workspaceID, eventID)
+	if err != nil {
+		return fmt.Errorf("replay dead-letter outbox event: %w", err)
+	}
+	return requireOneOutboxRow(result)
+}
+
+func (r *GovernanceRepository) ReadOutboxDiagnostics(ctx context.Context, workspaceID string, now time.Time) (contract.OutboxDiagnostics, error) {
+	if strings.TrimSpace(workspaceID) == "" || now.IsZero() {
+		return contract.OutboxDiagnostics{}, fmt.Errorf("%w: invalid governance diagnostics request", contract.ErrInvalidGovernanceMutation)
+	}
+	var diagnostics contract.OutboxDiagnostics
+	var oldestReady, oldestLease, lastDelivered sql.NullString
+	err := r.db.QueryRowContext(ctx, `SELECT
+		COALESCE(SUM(CASE WHEN state='ready' THEN 1 ELSE 0 END), 0),
+		MIN(CASE WHEN state='ready' THEN available_at END),
+		COALESCE(SUM(CASE WHEN state='inflight' THEN 1 ELSE 0 END), 0),
+		MIN(CASE WHEN state='inflight' THEN lease_expires_at END),
+		COALESCE(SUM(CASE WHEN state='retry_wait' THEN 1 ELSE 0 END), 0),
+		COALESCE(SUM(CASE WHEN state='dead_letter' THEN 1 ELSE 0 END), 0),
+		MAX(CASE WHEN state='delivered' THEN delivered_at END)
+		FROM workspace_outbox_events WHERE workspace_id=?`, workspaceID).Scan(
+		&diagnostics.ReadyCount, &oldestReady, &diagnostics.InflightCount, &oldestLease,
+		&diagnostics.RetryWaitCount, &diagnostics.DeadLetterCount, &lastDelivered)
+	if err != nil {
+		return contract.OutboxDiagnostics{}, fmt.Errorf("read governance diagnostics: %w", err)
+	}
+	if diagnostics.OldestReadyAge, err = outboxAge(now, oldestReady); err != nil {
+		return contract.OutboxDiagnostics{}, err
+	}
+	if diagnostics.OldestLeaseAge, err = outboxAge(now, oldestLease); err != nil {
+		return contract.OutboxDiagnostics{}, err
+	}
+	if value, parseErr := parseNullableOutboxTime(lastDelivered); parseErr != nil {
+		return contract.OutboxDiagnostics{}, parseErr
+	} else if value != nil {
+		diagnostics.LastSuccessfulDelivery = *value
+	}
+	diagnostics.SchemaVersion = "000009_workspace_governance"
+	return diagnostics, diagnostics.Validate()
+}
+
+func outboxAge(now time.Time, value sql.NullString) (time.Duration, error) {
+	parsed, err := parseNullableOutboxTime(value)
+	if err != nil || parsed == nil {
+		return 0, err
+	}
+	age := now.UTC().Sub(parsed.UTC())
+	if age < 0 {
+		return 0, nil
+	}
+	return age, nil
+}
+
+type outboxRowScanner interface {
+	Scan(...any) error
+}
+
+func scanOutboxEvent(scanner outboxRowScanner) (contract.OutboxEvent, error) {
+	var event contract.OutboxEvent
+	var state, availableAt, payload, createdAt string
+	var claimToken, leaseExpiresAt, lastErrorCode, deliveredAt sql.NullString
+	if err := scanner.Scan(&state, &availableAt, &event.WorkspaceID, &event.ID, &event.EventType,
+		&event.AggregateKind, &event.AggregateID, &event.AggregateRevision, &payload, &event.ActorType, &event.ActorID,
+		&event.AttemptCount, &claimToken, &leaseExpiresAt, &lastErrorCode, &createdAt, &deliveredAt); err != nil {
+		return contract.OutboxEvent{}, fmt.Errorf("scan outbox event: %w", err)
+	}
+	event.State = contract.OutboxState(state)
+	event.Payload = json.RawMessage(payload)
+	var err error
+	if event.AvailableAt, err = time.Parse(time.RFC3339Nano, availableAt); err != nil {
+		return contract.OutboxEvent{}, fmt.Errorf("parse outbox available time: %w", err)
+	}
+	if event.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); err != nil {
+		return contract.OutboxEvent{}, fmt.Errorf("parse outbox created time: %w", err)
+	}
+	event.ClaimToken = claimToken.String
+	event.LastErrorCode = lastErrorCode.String
+	if event.LeaseExpiresAt, err = parseNullableOutboxTime(leaseExpiresAt); err != nil {
+		return contract.OutboxEvent{}, err
+	}
+	if event.DeliveredAt, err = parseNullableOutboxTime(deliveredAt); err != nil {
+		return contract.OutboxEvent{}, err
+	}
+	if err := event.Validate(); err != nil {
+		return contract.OutboxEvent{}, fmt.Errorf("validate stored outbox event: %w", err)
+	}
+	return event, nil
+}
+
+func parseNullableOutboxTime(value sql.NullString) (*time.Time, error) {
+	if !value.Valid {
+		return nil, nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, value.String)
+	if err != nil {
+		return nil, fmt.Errorf("parse outbox timestamp: %w", err)
+	}
+	return &parsed, nil
+}
+
+func requireOneOutboxRow(result sql.Result) error {
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read outbox transition result: %w", err)
+	}
+	if rows != 1 {
+		return contract.ErrOutboxClaimConflict
+	}
+	return nil
+}
+
 func validatePreparedGovernanceMutation(prepared application.PreparedGovernanceMutation) error {
 	if err := prepared.Identity.Validate(); err != nil {
 		return err

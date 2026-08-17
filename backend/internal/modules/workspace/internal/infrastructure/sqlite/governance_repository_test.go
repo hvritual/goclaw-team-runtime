@@ -197,6 +197,142 @@ func TestGovernanceRepositoryRejectsCrossWorkspacePreparedEnvelope(t *testing.T)
 	assertGovernanceRowCount(t, db, "test_domain_mutations", 0)
 }
 
+func TestGovernanceRepositoryClaimsWithLeaseAndRejectsStaleToken(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "command-1", strings.Repeat("a", 64))
+	if _, err := repository.Execute(context.Background(), prepared, insertTestDomainMutation("task-1")); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(2, 0).UTC()
+	claimed, err := repository.ClaimOutbox(context.Background(), now, 100, time.Minute, "claim-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(claimed) != 1 {
+		t.Fatalf("claimed = %d, want 1", len(claimed))
+	}
+	event := claimed[0]
+	if event.ID != "event-1" || event.AggregateRevision != 1 || event.State != contract.OutboxInflight || event.ClaimToken != "claim-1" || event.AttemptCount != 1 {
+		t.Fatalf("claimed event = %+v", event)
+	}
+	if event.LeaseExpiresAt == nil || !event.LeaseExpiresAt.Equal(now.Add(time.Minute)) {
+		t.Fatalf("lease = %v", event.LeaseExpiresAt)
+	}
+	second, err := repository.ClaimOutbox(context.Background(), now.Add(30*time.Second), 100, time.Minute, "claim-2")
+	if err != nil || len(second) != 0 {
+		t.Fatalf("claim before expiry = %+v, %v", second, err)
+	}
+	reclaimed, err := repository.ClaimOutbox(context.Background(), now.Add(61*time.Second), 100, time.Minute, "claim-2")
+	if err != nil || len(reclaimed) != 1 {
+		t.Fatalf("claim after expiry = %+v, %v", reclaimed, err)
+	}
+	if reclaimed[0].ID != event.ID || reclaimed[0].AggregateRevision != event.AggregateRevision || reclaimed[0].AttemptCount != 2 {
+		t.Fatalf("reclaimed event = %+v", reclaimed[0])
+	}
+	if err := repository.MarkOutboxDelivered(context.Background(), "workspace-1", "event-1", "claim-1", now.Add(62*time.Second)); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+		t.Fatalf("stale delivery error = %v", err)
+	}
+	if err := repository.MarkOutboxDelivered(context.Background(), "workspace-1", "event-1", "claim-2", now.Add(62*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var state, claim sql.NullString
+	var delivered sql.NullString
+	if err := db.QueryRow(`SELECT state, claim_token, delivered_at FROM workspace_outbox_events WHERE workspace_id='workspace-1' AND id='event-1'`).Scan(&state, &claim, &delivered); err != nil {
+		t.Fatal(err)
+	}
+	if state.String != string(contract.OutboxDelivered) || claim.Valid || !delivered.Valid {
+		t.Fatalf("stored delivery = state:%v claim:%v delivered:%v", state, claim, delivered)
+	}
+}
+
+func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "command-1", strings.Repeat("a", 64))
+	if _, err := repository.Execute(context.Background(), prepared, insertTestDomainMutation("task-1")); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(2, 0).UTC()
+	claimed, err := repository.ClaimOutbox(context.Background(), now, 100, time.Minute, "claim-1")
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("first claim = %+v, %v", claimed, err)
+	}
+	retryAt := now.Add(time.Minute)
+	if err := repository.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-1", now, retryAt, "publish_failed", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-1", now, retryAt, "publish_failed", false); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+		t.Fatalf("stale retry error = %v", err)
+	}
+	diagnostics, err := repository.ReadOutboxDiagnostics(context.Background(), "workspace-1", retryAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diagnostics.RetryWaitCount != 1 || diagnostics.SchemaVersion == "" {
+		t.Fatalf("retry diagnostics = %+v", diagnostics)
+	}
+
+	restarted, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reclaimed, err := restarted.ClaimOutbox(context.Background(), retryAt, 100, time.Minute, "claim-2")
+	if err != nil || len(reclaimed) != 1 || reclaimed[0].ID != "event-1" || reclaimed[0].AggregateRevision != 1 {
+		t.Fatalf("restart claim = %+v, %v", reclaimed, err)
+	}
+	if err := restarted.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-2", retryAt, retryAt, "publish_failed", true); err != nil {
+		t.Fatal(err)
+	}
+	diagnostics, err = restarted.ReadOutboxDiagnostics(context.Background(), "workspace-1", retryAt)
+	if err != nil || diagnostics.DeadLetterCount != 1 {
+		t.Fatalf("dead-letter diagnostics = %+v, %v", diagnostics, err)
+	}
+	if err := restarted.ReplayOutbox(context.Background(), "workspace-1", "event-1", retryAt.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	var attempt int
+	var eventID string
+	var revision int64
+	if err := db.QueryRow(`SELECT state, attempt_count, id, aggregate_revision FROM workspace_outbox_events WHERE workspace_id='workspace-1'`).Scan(&state, &attempt, &eventID, &revision); err != nil {
+		t.Fatal(err)
+	}
+	if state != string(contract.OutboxReady) || attempt != 0 || eventID != "event-1" || revision != 1 {
+		t.Fatalf("replayed row = state:%s attempt:%d id:%s revision:%d", state, attempt, eventID, revision)
+	}
+}
+
+func TestGovernanceRepositoryEmptyClaimDoesNotAcquireWriteLock(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	db.SetMaxOpenConns(2)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	if _, err := writer.ExecContext(context.Background(), `BEGIN IMMEDIATE`); err != nil {
+		t.Fatal(err)
+	}
+	defer writer.ExecContext(context.Background(), `ROLLBACK`)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	events, err := repository.ClaimOutbox(ctx, time.Unix(2, 0).UTC(), 100, time.Minute, "claim-1")
+	if err != nil || len(events) != 0 {
+		t.Fatalf("empty claim = %+v, %v", events, err)
+	}
+}
+
 func openGovernanceTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	path := filepath.ToSlash(filepath.Join(t.TempDir(), "governance.db"))

@@ -85,6 +85,7 @@ type Runtime struct {
 	grpcServer              *kratosgrpc.Server
 	db                      *sql.DB
 	realtime                *canonicalrealtime.Hub
+	governance              *workspace.GovernanceOutbox
 	ephemeralAttachmentRoot string
 	closeOnce               sync.Once
 	closeErr                error
@@ -107,7 +108,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		}
 		config.AttachmentRoot, ephemeralAttachmentRoot = root, root
 	}
-	db, application, realtimeHub, err := newSQLiteApplication(context.Background(), config)
+	db, application, realtimeHub, governance, err := newSQLiteApplication(context.Background(), config)
 	if err != nil {
 		if ephemeralAttachmentRoot != "" {
 			_ = os.RemoveAll(ephemeralAttachmentRoot)
@@ -119,7 +120,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 	application.RegisterHTTP(httpServer)
 	realtimeHub.RegisterHTTP(httpServer)
 	application.RegisterGRPC(grpcServer)
-	registerHealthRoutes(httpServer, db)
+	registerHealthRoutes(httpServer, db, governance)
 	registerConfigRoute(httpServer, config.Version, capabilityEnabled(config.IssueMetadataEnabled), capabilityEnabled(config.IssueCreateEnabled), capabilityEnabled(config.IssueAttachmentsEnabled), config.RoadmapCapabilityProvider)
 
 	app := kratos.New(
@@ -129,6 +130,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		kratos.StopTimeout(5*time.Second),
 		kratos.Server(httpServer, grpcServer),
 	)
+	governance.Start()
 	return &Runtime{
 		application:             application,
 		app:                     app,
@@ -136,6 +138,7 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		grpcServer:              grpcServer,
 		db:                      db,
 		realtime:                realtimeHub,
+		governance:              governance,
 		ephemeralAttachmentRoot: ephemeralAttachmentRoot,
 	}, nil
 }
@@ -194,13 +197,16 @@ func roadmapFeatureFlags(provider workspacecontract.RoadmapCapabilityProvider) m
 
 func capabilityEnabled(value *bool) bool { return value == nil || *value }
 
-func registerHealthRoutes(server *kratoshttp.Server, db *sql.DB) {
+func registerHealthRoutes(server *kratoshttp.Server, db *sql.DB, governance *workspace.GovernanceOutbox) {
 	router := server.Route("/")
 	router.GET("/healthz", func(ctx kratoshttp.Context) error {
 		return ctx.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 	router.GET("/readyz", func(ctx kratoshttp.Context) error {
 		if err := db.PingContext(ctx.Request().Context()); err != nil {
+			return ctx.JSON(http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		}
+		if governance == nil || governance.Ready(ctx.Request().Context()) != nil {
 			return ctx.JSON(http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
 		}
 		return ctx.JSON(http.StatusOK, map[string]string{"status": "ready"})
@@ -226,8 +232,13 @@ func (r *Runtime) Stop() error {
 // Close releases the product database. It is safe to call more than once.
 func (r *Runtime) Close() error {
 	r.closeOnce.Do(func() {
+		if r.governance != nil {
+			r.closeErr = r.governance.Close()
+		}
 		if r.realtime != nil {
-			_ = r.realtime.Close()
+			if err := r.realtime.Close(); r.closeErr == nil && err != nil {
+				r.closeErr = err
+			}
 		}
 		if r.db != nil {
 			r.closeErr = r.db.Close()
