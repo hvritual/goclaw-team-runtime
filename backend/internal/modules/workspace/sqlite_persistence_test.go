@@ -23,12 +23,35 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 11 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 12 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
 	if err := db.QueryRow(`SELECT name FROM workspaces WHERE id='workspace-1'`).Scan(&workspaceName); err != nil || workspaceName != "Acme" {
 		t.Fatalf("retained workspace = %q, %v", workspaceName, err)
+	}
+}
+
+func TestTaskIssuePromotionMigrationInstallsImmutableLink(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "task-issue-promotion")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`INSERT INTO workspaces(id,name,slug,issue_prefix,created_at,updated_at) VALUES('workspace-1','Acme','acme','ACM','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
+		`INSERT INTO workspace_todos(id,workspace_id,title,status,creator_type,creator_id,created_at,updated_at) VALUES('task-1','workspace-1','Promote me','todo','member','member-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
+		`INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,created_at,updated_at) VALUES('issue-1','workspace-1',1,'ACM-1','Promoted','todo','none','member','member-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
+		`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-2','2026-08-18T00:00:00Z')`); err == nil {
+		t.Fatal("duplicate source Task error = nil")
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-2','issue-1','2026-08-18T00:00:00Z')`); err == nil {
+		t.Fatal("duplicate promoted Issue error = nil")
 	}
 }
 
@@ -221,6 +244,61 @@ func TestTaskLifecycleDownRejectsArchivedTaskAtomically(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000010_task_lifecycle.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
 		t.Fatalf("retained task lifecycle catalog count = %d, %v", catalogCount, err)
 	}
+}
+
+func TestTaskIssuePromotionDownRequiresEmptyTable(t *testing.T) {
+	t.Run("empty table rolls back", func(t *testing.T) {
+		db := openUnmigratedWorkspaceDB(t, "task-promotion-down-empty")
+		if err := MigrateSqlite(context.Background(), db); err != nil {
+			t.Fatal(err)
+		}
+		if err := executeTaskIssuePromotionDownForTest(context.Background(), db); err != nil {
+			t.Fatal(err)
+		}
+		var tableCount, catalogCount int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='workspace_task_issue_promotions'`).Scan(&tableCount); err != nil || tableCount != 0 {
+			t.Fatalf("promotion table count = %d, %v", tableCount, err)
+		}
+		if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000012_task_issue_promotion.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 0 {
+			t.Fatalf("promotion catalog count = %d, %v", catalogCount, err)
+		}
+	})
+
+	t.Run("populated table is retained", func(t *testing.T) {
+		db := openUnmigratedWorkspaceDB(t, "task-promotion-down-populated")
+		if err := MigrateSqlite(context.Background(), db); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z')`); err != nil {
+			t.Fatal(err)
+		}
+		if err := executeTaskIssuePromotionDownForTest(context.Background(), db); err == nil {
+			t.Fatal("promotion down succeeded with retained link")
+		}
+		var linkCount, catalogCount int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_task_issue_promotions`).Scan(&linkCount); err != nil || linkCount != 1 {
+			t.Fatalf("retained promotion links = %d, %v", linkCount, err)
+		}
+		if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000012_task_issue_promotion.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
+			t.Fatalf("retained promotion catalog count = %d, %v", catalogCount, err)
+		}
+	})
+}
+
+func executeTaskIssuePromotionDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000012_task_issue_promotion.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func executeTaskLifecycleDownForTest(ctx context.Context, db *sql.DB) error {
