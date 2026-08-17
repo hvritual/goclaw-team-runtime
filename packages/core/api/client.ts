@@ -1594,10 +1594,11 @@ export class ApiClient {
   }
 
   async promoteTask(id: string, data: PromoteTaskRequest): Promise<PromoteTaskResponse> {
+    const { idempotency_key: idempotencyKey, ...body } = data;
     const raw = await this.fetch<unknown>(`/api/tasks/${id}/promote`, {
       method: "POST",
-      headers: { "Idempotency-Key": createSafeId() },
-      body: JSON.stringify(data),
+      headers: { "Idempotency-Key": idempotencyKey?.trim() || createSafeId() },
+      body: JSON.stringify(body),
     });
     const parsed = taskPromotionResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid task promotion response");

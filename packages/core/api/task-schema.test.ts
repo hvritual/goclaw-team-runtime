@@ -94,14 +94,14 @@ describe("task API boundary", () => {
     const response = { task: { ...TASK, issue_id: "issue-1", revision: 2 }, issue: ISSUE, source_task_id: "task-1" };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(response), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ ...response, source_task_id: "" }), { status: 201 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...response, issue: { ...ISSUE, unexpected: "value" } }), { status: 201 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:8000");
 
-    await expect(client.promoteTask("task-1", { expected_revision: 1, complete_task: true })).resolves.toEqual(response);
+    await expect(client.promoteTask("task-1", { expected_revision: 1, complete_task: true, idempotency_key: "promotion-retry-key" })).resolves.toEqual(response);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("http://localhost:8000/api/tasks/task-1/promote");
     expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ expected_revision: 1, complete_task: true }));
-    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBeTruthy();
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBe("promotion-retry-key");
 
     await expect(client.promoteTask("task-1", { expected_revision: 1 })).rejects.toThrow("Invalid task promotion response");
   });

@@ -61,6 +61,8 @@ export interface ReorderTasksRequest {
 
 export interface PromoteTaskRequest extends TaskRevisionRequest {
   complete_task?: boolean;
+  /** Client-only retry identity; ApiClient sends it as a header, never JSON. */
+  idempotency_key?: string;
 }
 
 export interface PromoteTaskResponse {

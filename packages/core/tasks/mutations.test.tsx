@@ -21,14 +21,16 @@ function wrapper(queryClient: QueryClient) {
 
 describe("Task mutation cache invalidation", () => {
   let queryClient: QueryClient;
+  let promoteTask: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    promoteTask = vi.fn().mockResolvedValue({});
     setApiInstance({
       createTask: vi.fn().mockResolvedValue({}),
       updateTask: vi.fn().mockResolvedValue({}),
       deleteTask: vi.fn().mockResolvedValue({}),
-      promoteTask: vi.fn().mockResolvedValue({}),
+      promoteTask,
     } as unknown as ApiClient);
   });
 
@@ -65,5 +67,22 @@ describe("Task mutation cache invalidation", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: taskKeys.detail("workspace-1", "task-1") });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: taskKeys.all("workspace-1") });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: issueKeys.all("workspace-1") });
+  });
+
+  it("retains one promotion key across failure and rotates it after success", async () => {
+    promoteTask.mockRejectedValueOnce(new Error("response lost")).mockResolvedValue({});
+    const promote = renderHook(() => usePromoteTask(), { wrapper: wrapper(queryClient) });
+    const command = { id: "task-1", expected_revision: 1, complete_task: true };
+
+    await act(async () => {
+      await expect(promote.result.current.mutateAsync(command)).rejects.toThrow("response lost");
+      await promote.result.current.mutateAsync(command);
+      await promote.result.current.mutateAsync(command);
+    });
+
+    const firstKey = promoteTask.mock.calls[0]?.[1]?.idempotency_key;
+    expect(firstKey).toBeTruthy();
+    expect(promoteTask.mock.calls[1]?.[1]?.idempotency_key).toBe(firstKey);
+    expect(promoteTask.mock.calls[2]?.[1]?.idempotency_key).not.toBe(firstKey);
   });
 });

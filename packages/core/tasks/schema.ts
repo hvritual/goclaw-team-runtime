@@ -49,7 +49,7 @@ const promotedIssueSchema = IssueSchema.extend({
   priority: z.enum(["urgent", "high", "medium", "low", "none"]),
   assignee_type: z.enum(["member", "agent"]).nullable(),
   creator_type: z.enum(["member", "agent"]),
-}).transform((issue) => issue as Issue);
+}).strict().transform((issue) => issue as Issue);
 
 export const taskPromotionResponseSchema = z.object({
   task: taskSchema,
