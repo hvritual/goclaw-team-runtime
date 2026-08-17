@@ -2,7 +2,11 @@ package application
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -100,6 +104,7 @@ func newTodoApplicationService(t *testing.T, repository *todoRepositoryStub, aut
 		actors,
 		func(context.Context) (string, error) { return "todo-new", nil },
 		func() time.Time { return now },
+		[]byte("test-only-task-cursor-signing-key"),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -207,6 +212,16 @@ func TestTodoUseCasePaginatesWithFilterBoundOpaqueCursor(t *testing.T) {
 	}
 	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Cursor: "manufactured"}); !errors.Is(err, contract.ErrInvalidTodo) {
 		t.Fatalf("malformed cursor error = %v", err)
+	}
+	parts := strings.Split(cursor, ".")
+	payload, decodeErr := base64.RawURLEncoding.DecodeString(parts[0])
+	if decodeErr != nil {
+		t.Fatal(decodeErr)
+	}
+	checksum := sha256.Sum256(payload)
+	forged := parts[0] + "." + hex.EncodeToString(checksum[:])
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Status: "todo", Cursor: forged}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("client-manufactured cursor error = %v", err)
 	}
 }
 

@@ -3,6 +3,7 @@ package application
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -62,13 +63,14 @@ type TodoUseCase struct {
 	actors     contract.WorkspaceActorReader
 	newID      ProjectIDGenerator
 	now        Clock
+	cursorKey  []byte
 }
 
-func NewTodoUseCase(repository TodoRepository, projects ProjectRepository, issues IssueReferenceRepository, authorizer contract.WorkspaceAccessAuthorizer, actors contract.WorkspaceActorReader, newID ProjectIDGenerator, now Clock) (*TodoUseCase, error) {
-	if repository == nil || projects == nil || issues == nil || authorizer == nil || actors == nil || newID == nil || now == nil {
+func NewTodoUseCase(repository TodoRepository, projects ProjectRepository, issues IssueReferenceRepository, authorizer contract.WorkspaceAccessAuthorizer, actors contract.WorkspaceActorReader, newID ProjectIDGenerator, now Clock, cursorKey []byte) (*TodoUseCase, error) {
+	if repository == nil || projects == nil || issues == nil || authorizer == nil || actors == nil || newID == nil || now == nil || len(cursorKey) < 32 {
 		return nil, errors.New("Todo dependencies are required")
 	}
-	return &TodoUseCase{repository: repository, projects: projects, issues: issues, authorizer: authorizer, actors: actors, newID: newID, now: now}, nil
+	return &TodoUseCase{repository: repository, projects: projects, issues: issues, authorizer: authorizer, actors: actors, newID: newID, now: now, cursorKey: append([]byte(nil), cursorKey...)}, nil
 }
 
 func (s *TodoUseCase) CreateTodo(ctx context.Context, request contract.CreateTodoRequest) (contract.CreateTodoResponse, error) {
@@ -194,7 +196,7 @@ func (s *TodoUseCase) ListTodos(ctx context.Context, request contract.ListTodosR
 	if err != nil {
 		return contract.ListTodosResponse{}, fmt.Errorf("hash Todo list filters: %w", err)
 	}
-	cursor, err := decodeTodoListCursor(request.Cursor, filterHash)
+	cursor, err := decodeTodoListCursor(request.Cursor, filterHash, s.cursorKey)
 	if err != nil {
 		return contract.ListTodosResponse{}, fmt.Errorf("%w: %w", contract.ErrInvalidTodo, contract.ErrInvalidTodoCursor)
 	}
@@ -212,7 +214,7 @@ func (s *TodoUseCase) ListTodos(ctx context.Context, request contract.ListTodosR
 	var nextCursor *string
 	if len(values) > limit {
 		values = values[:limit]
-		encoded, encodeErr := encodeTodoListCursor(filterHash, values[len(values)-1])
+		encoded, encodeErr := encodeTodoListCursor(filterHash, values[len(values)-1], s.cursorKey)
 		if encodeErr != nil {
 			return contract.ListTodosResponse{}, fmt.Errorf("encode Todo list cursor: %w", encodeErr)
 		}
@@ -249,7 +251,7 @@ func todoListFilterHash(workspaceID string, projectID, issueID *string, status s
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func encodeTodoListCursor(filterHash string, value todoDomain.Todo) (string, error) {
+func encodeTodoListCursor(filterHash string, value todoDomain.Todo, key []byte) (string, error) {
 	payload, err := json.Marshal(todoListCursorPayload{
 		Version: todoListCursorVersion, FilterHash: filterHash, Position: value.Position,
 		CreatedAt: value.CreatedAt.UTC().Format(time.RFC3339Nano), ID: value.ID,
@@ -257,11 +259,12 @@ func encodeTodoListCursor(filterHash string, value todoDomain.Todo) (string, err
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(payload)
-	return base64.RawURLEncoding.EncodeToString(payload) + "." + hex.EncodeToString(sum[:]), nil
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write(payload)
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-func decodeTodoListCursor(raw, filterHash string) (*TodoListCursor, error) {
+func decodeTodoListCursor(raw, filterHash string, key []byte) (*TodoListCursor, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, nil
@@ -277,8 +280,13 @@ func decodeTodoListCursor(raw, filterHash string) (*TodoListCursor, error) {
 	if err != nil {
 		return nil, contract.ErrInvalidTodo
 	}
-	sum := sha256.Sum256(payload)
-	if !strings.EqualFold(parts[1], hex.EncodeToString(sum[:])) {
+	signature, err := hex.DecodeString(parts[1])
+	if err != nil {
+		return nil, contract.ErrInvalidTodo
+	}
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write(payload)
+	if !hmac.Equal(signature, mac.Sum(nil)) {
 		return nil, contract.ErrInvalidTodo
 	}
 	var decoded todoListCursorPayload

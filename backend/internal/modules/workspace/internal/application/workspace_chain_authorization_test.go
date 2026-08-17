@@ -117,7 +117,7 @@ func TestWorkspaceChainAuthorizesBeforePersistence(t *testing.T) {
 
 	todos := &todoRepositoryCounter{}
 	issues := &issueRepositoryCounter{}
-	todoService, err := NewTodoUseCase(todos, projects, issues, denied, actors, newID, time.Now)
+	todoService, err := NewTodoUseCase(todos, projects, issues, denied, actors, newID, time.Now, []byte("test-only-task-cursor-signing-key"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,7 +23,7 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 10 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 11 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
@@ -79,6 +79,43 @@ func TestWorkspaceGovernanceRowsPersistAcrossRestart(t *testing.T) {
 	var revision int64
 	if err := restarted.QueryRow(`SELECT revision FROM workspace_resource_revisions WHERE workspace_id='workspace-1' AND resource_kind='task' AND resource_id='task-1'`).Scan(&revision); err != nil || revision != 3 {
 		t.Fatalf("retained revision = %d, %v", revision, err)
+	}
+}
+
+func TestTaskCursorSigningKeyIsSecretAndPersistsAcrossRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "task-cursor-key.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	first, err := loadOrCreateTaskCursorSigningKey(context.Background(), db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 32 {
+		t.Fatalf("signing key length = %d", len(first))
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	restarted, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = restarted.Close() })
+	if err := MigrateSqlite(context.Background(), restarted); err != nil {
+		t.Fatal(err)
+	}
+	second, err := loadOrCreateTaskCursorSigningKey(context.Background(), restarted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(second) != string(first) {
+		t.Fatal("task cursor signing key changed across restart")
 	}
 }
 
@@ -235,7 +272,8 @@ func applyWorkspaceMigrationsBeforeGovernance(t *testing.T, db *sql.DB) {
 		t.Fatal(err)
 	}
 	for _, migrationPath := range paths {
-		if strings.Contains(migrationPath, "000009_workspace_governance") || strings.Contains(migrationPath, "000010_task_lifecycle") {
+		version := migrationPath[len(SqliteMigrationDir())+1:]
+		if version >= "000009_" {
 			continue
 		}
 		migration, err := sqliteMigrationFiles.ReadFile(migrationPath)
@@ -245,7 +283,6 @@ func applyWorkspaceMigrationsBeforeGovernance(t *testing.T, db *sql.DB) {
 		if _, err := tx.Exec(string(migration)); err != nil {
 			t.Fatalf("apply %s: %v", migrationPath, err)
 		}
-		version := migrationPath[len(SqliteMigrationDir())+1:]
 		if _, err := tx.Exec(`INSERT INTO workspace_schema_migrations(version) VALUES(?)`, version); err != nil {
 			t.Fatal(err)
 		}

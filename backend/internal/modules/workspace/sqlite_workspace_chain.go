@@ -97,8 +97,12 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Issue catalog application: %w", err)
 	}
+	taskCursorSigningKey, err := loadOrCreateTaskCursorSigningKey(context.Background(), config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("configure Task cursor signing: %w", err)
+	}
 
-	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now)
+	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now, taskCursorSigningKey)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo application: %w", err)
 	}
