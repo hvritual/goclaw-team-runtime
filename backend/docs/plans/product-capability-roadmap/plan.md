@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v11.md](plan_v11.md).
+The approved execution snapshot is [plan_v12.md](plan_v12.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `11`
-- Active step: `PCR-S02A Desktop verification repair`
-- Status: `Release 1 active; PCR-S02A/r016 Desktop verification repair authorized`
+- Approved version: `12`
+- Active step: `PCR-S02A root parallel-test repair`
+- Status: `Release 1 active; PCR-S02A/r017 root parallel-test repair authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `2aac82e742932ddcda2ab6fa1387a9960a530974`
+- Active task base commit: `3c030b4a6f8e9d47e1029d3c3245733768644415`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -70,6 +70,14 @@ shebang syntax failure plus an incomplete ignored Electron installation. The
 Human Customer's continued follow-up authority activates v11/r016 from exact
 `2aac82e` for only the Desktop script line and cache-only dependency recovery.
 S02B and later stories remain inactive.
+
+v11 focused Desktop checks passed 30/30 and 4/4 after the package-module and
+cache-only Electron repairs. Root test then executed the Desktop suite and
+showed only three real-Git integration cases timing out at the default five
+seconds under full-workspace parallel load; the isolated file remains 30/30.
+Continued follow-up authority activates v12/r017 from exact `3c030b4` solely to
+assign those three tests a 15-second parallel-load budget without changing
+assertions or product code.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

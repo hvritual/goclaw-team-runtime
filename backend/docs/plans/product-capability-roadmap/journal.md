@@ -748,3 +748,16 @@ Known limitations, blockers, and next action
   verification-blocked, and establishes r016 as the sole active task.
 - S02B and later stories remain inactive. No repair PASS, S02A closure, push,
   merge, deployment, or Release 1 completion is claimed here.
+
+## 2026-08-18 — J030 — v12/r017 root parallel-test repair activated
+
+- v11 package-module and cache-only Electron repairs make the focused Desktop
+  tests pass 30/30 and 4/4.
+- Root test executes Desktop but three `deriveVersion` cases that create real
+  temporary Git repositories exceed Vitest's default five seconds under
+  full-workspace parallel load. The same file passes 30/30 in isolation.
+- Continued Customer authority activates immutable v12 from exact `3c030b4`.
+  Only explicit 15-second timeouts on those three tests are allowed; assertions,
+  production behavior, retry count, and all other tests remain unchanged.
+- r016 is verification-blocked; r017 is the sole active task. S02B and later
+  stories remain inactive, and no r017 PASS or S02A closure is claimed.

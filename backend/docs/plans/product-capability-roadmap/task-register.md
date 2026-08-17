@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v11`
-- Registry status: `Release 1 active; PCR-001-S02A-R16 is the sole active task`
-- Registry revision: `r016`
+- Plan-Version: `v12`
+- Registry status: `Release 1 active; PCR-001-S02A-R17 is the sole active task`
+- Registry revision: `r017`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -23,6 +23,7 @@
 | `plan_v9.md` | `50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035` |
 | `plan_v10.md` | `444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171` |
 | `plan_v11.md` | `6177497d7d7e78b4d0b74b282245e01a50a8f737c9838a22b2ede1a17c4cb9b5` |
+| `plan_v12.md` | `138219e9cc6710919b96b10332b5c56fbf287f1ee8430f2d1615df991efcbf32` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -926,7 +927,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02A-R16`
 - Task-Revision: `r016`
 - Work-Item: `PCR-S02A`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `2aac82e742932ddcda2ab6fa1387a9960a530974`
@@ -948,3 +949,38 @@ S02A without changing Task product behavior or activating S02B.
 - Exact base is `2aac82e`; r015 is verification-blocked and r016 is sole active.
 - Locked Electron 39.8.7 archive exists in the local cache.
 - No repair, verification PASS, or closure is claimed at activation.
+
+### Verification outcome
+
+- Focused package and endpoint tests pass 30/30 and 4/4 after v11 repair.
+- Root test reaches Desktop but three real-Git cases exceed the default
+  five-second limit only under full-workspace parallel load. r016 is therefore
+  verification-blocked and superseded by the narrowly scoped r017.
+
+## PCR-001-S02A-R17
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02A-R17`
+- Task-Revision: `r017`
+- Work-Item: `PCR-S02A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `3c030b4a6f8e9d47e1029d3c3245733768644415`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v12`
+- Plan hash: `138219e9cc6710919b96b10332b5c56fbf287f1ee8430f2d1615df991efcbf32`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/138219e9cc6710919b96b10332b5c56fbf287f1ee8430f2d1615df991efcbf32`
+
+### Objective and acceptance
+
+- Give only the three process-heavy real-Git package tests an explicit
+  15-second timeout; preserve every assertion and command.
+- Root typecheck/test, backend full/race, exact Task browser acceptance, scope
+  checks, and fresh independent review must pass before S02A closure.
+- S02B and later Release 1 stories remain inactive.
+
+### Activation evidence
+
+- Exact base is `3c030b4`; r016 is verification-blocked and r017 is sole active.
+- Isolated package tests pass 30/30; root-parallel timeout is the captured RED.
+- No r017 implementation or closure PASS is claimed at activation.
