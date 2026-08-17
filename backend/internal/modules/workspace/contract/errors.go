@@ -8,6 +8,7 @@ var (
 	ErrInvalidProjectActorRelation  = errors.New("invalid project actor relation")
 	ErrActorOutsideWorkspace        = errors.New("actor does not belong to workspace")
 	ErrInvalidTodo                  = errors.New("invalid todo")
+	ErrInvalidTodoCursor            = errors.New("invalid cursor")
 	ErrTodoNotFound                 = errors.New("todo not found")
 	ErrWorkspaceActorRequired       = errors.New("workspace actor is required")
 	ErrWorkspacePermissionDenied    = errors.New("insufficient workspace role")

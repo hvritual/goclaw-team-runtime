@@ -216,6 +216,7 @@ func (h *TaskHandler) list(ctx kratoshttp.Context) error {
 		IssueId:     optionalTaskQuery(query.Get("issue_id")),
 		Status:      query.Get("status"),
 		Limit:       int32(limit),
+		Cursor:      query.Get("cursor"),
 	})
 	if err != nil {
 		return h.writeError(ctx, err)
@@ -224,7 +225,7 @@ func (h *TaskHandler) list(ctx kratoshttp.Context) error {
 	for index := range result.Todos {
 		items[index] = taskToResponse(result.Todos[index])
 	}
-	return ctx.JSON(http.StatusOK, map[string]any{"tasks": items, "total": result.Total})
+	return ctx.JSON(http.StatusOK, map[string]any{"tasks": items, "total": result.Total, "next_cursor": result.NextCursor})
 }
 
 func (h *TaskHandler) resolveIdentity(ctx kratoshttp.Context) (contract.WorkspaceHTTPIdentity, bool) {
@@ -266,6 +267,9 @@ func (h *TaskHandler) writeError(ctx kratoshttp.Context, err error) error {
 	}
 	if errors.Is(err, contract.ErrTodoNotFound) || errors.Is(err, contract.ErrActorOutsideWorkspace) {
 		return writeError(ctx, http.StatusNotFound, "task not found")
+	}
+	if errors.Is(err, contract.ErrInvalidTodoCursor) {
+		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidTodoCursor.Error())
 	}
 	if errors.Is(err, contract.ErrInvalidTodo) {
 		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidTodo.Error())

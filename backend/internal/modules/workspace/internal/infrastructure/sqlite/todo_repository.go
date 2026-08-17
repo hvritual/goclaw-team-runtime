@@ -110,10 +110,14 @@ func (r *todoRepository) List(ctx context.Context, query application.TodoListQue
 		clauses = append(clauses, "status=?")
 		args = append(args, query.Status)
 	}
+	if query.Cursor != nil {
+		clauses = append(clauses, `(position > ? OR (position = ? AND created_at < ?) OR (position = ? AND created_at = ? AND id > ?))`)
+		args = append(args, query.Cursor.Position, query.Cursor.Position, query.Cursor.CreatedAt, query.Cursor.Position, query.Cursor.CreatedAt, query.Cursor.ID)
+	}
 	if query.Limit < 1 || query.Limit > application.MaxTodoListLimit {
 		return nil, fmt.Errorf("list Workspace Todos: invalid limit")
 	}
-	args = append(args, query.Limit)
+	args = append(args, query.Limit+1)
 	rows, err := r.db.QueryContext(ctx, todoSelect+` WHERE `+strings.Join(clauses, " AND ")+` ORDER BY position ASC, created_at DESC, id ASC LIMIT ?`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list Workspace Todos: %w", err)

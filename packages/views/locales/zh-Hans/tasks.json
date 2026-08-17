@@ -9,6 +9,8 @@
   "error": "任务加载失败",
   "conflict": "任务已在其他位置更新，请刷新后重试。",
   "mutation_error": "任务更改无法保存。",
+  "load_more": "加载更多任务",
+  "loading_more": "正在加载更多任务",
   "filter_label": "按状态筛选任务",
   "all_statuses": "全部状态",
   "agent": "Agent {{id}}",

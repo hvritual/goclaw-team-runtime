@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { taskDetailOptions, taskKeys, taskListOptions } from "./queries";
+import { taskDetailOptions, taskInfiniteListOptions, taskKeys, taskListOptions } from "./queries";
 
 describe("task queries", () => {
   it("scopes list and detail keys to the workspace", () => {
@@ -20,6 +20,9 @@ describe("task queries", () => {
     expect(taskDetailOptions("workspace-a", "").enabled).toBe(false);
     expect(taskListOptions("workspace-a").queryKey).toEqual(
       taskKeys.list("workspace-a"),
+    );
+    expect(taskInfiniteListOptions("workspace-a").queryKey).toEqual(
+      taskKeys.infiniteList("workspace-a"),
     );
   });
 });

@@ -1,12 +1,15 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"time"
@@ -28,6 +31,13 @@ type TodoListQuery struct {
 	IssueID     *string
 	Status      string
 	Limit       int
+	Cursor      *TodoListCursor
+}
+
+type TodoListCursor struct {
+	Position  float64
+	CreatedAt string
+	ID        string
 }
 
 type TodoRepository interface {
@@ -178,21 +188,112 @@ func (s *TodoUseCase) ListTodos(ctx context.Context, request contract.ListTodosR
 	if limit > MaxTodoListLimit {
 		limit = MaxTodoListLimit
 	}
+	projectID := cleanOptionalString(request.ProjectId)
+	issueID := cleanOptionalString(request.IssueId)
+	filterHash, err := todoListFilterHash(workspaceID, projectID, issueID, status)
+	if err != nil {
+		return contract.ListTodosResponse{}, fmt.Errorf("hash Todo list filters: %w", err)
+	}
+	cursor, err := decodeTodoListCursor(request.Cursor, filterHash)
+	if err != nil {
+		return contract.ListTodosResponse{}, fmt.Errorf("%w: %w", contract.ErrInvalidTodo, contract.ErrInvalidTodoCursor)
+	}
 	values, err := s.repository.List(ctx, TodoListQuery{
 		WorkspaceID: workspaceID,
-		ProjectID:   cleanOptionalString(request.ProjectId),
-		IssueID:     cleanOptionalString(request.IssueId),
+		ProjectID:   projectID,
+		IssueID:     issueID,
 		Status:      status,
 		Limit:       limit,
+		Cursor:      cursor,
 	})
 	if err != nil {
 		return contract.ListTodosResponse{}, fmt.Errorf("list Todos: %w", err)
+	}
+	var nextCursor *string
+	if len(values) > limit {
+		values = values[:limit]
+		encoded, encodeErr := encodeTodoListCursor(filterHash, values[len(values)-1])
+		if encodeErr != nil {
+			return contract.ListTodosResponse{}, fmt.Errorf("encode Todo list cursor: %w", encodeErr)
+		}
+		nextCursor = &encoded
 	}
 	result := make([]contract.Todo, len(values))
 	for index, value := range values {
 		result[index] = todoToContract(value)
 	}
-	return contract.ListTodosResponse{Todos: result, Total: int32(len(result))}, nil
+	return contract.ListTodosResponse{Todos: result, Total: int32(len(result)), NextCursor: nextCursor}, nil
+}
+
+const todoListCursorVersion = "task-list-v1"
+
+type todoListCursorPayload struct {
+	Version    string  `json:"v"`
+	FilterHash string  `json:"f"`
+	Position   float64 `json:"p"`
+	CreatedAt  string  `json:"c"`
+	ID         string  `json:"i"`
+}
+
+func todoListFilterHash(workspaceID string, projectID, issueID *string, status string) (string, error) {
+	payload, err := json.Marshal(struct {
+		WorkspaceID string  `json:"workspace_id"`
+		ProjectID   *string `json:"project_id"`
+		IssueID     *string `json:"issue_id"`
+		Status      string  `json:"status"`
+	}{workspaceID, projectID, issueID, status})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func encodeTodoListCursor(filterHash string, value todoDomain.Todo) (string, error) {
+	payload, err := json.Marshal(todoListCursorPayload{
+		Version: todoListCursorVersion, FilterHash: filterHash, Position: value.Position,
+		CreatedAt: value.CreatedAt.UTC().Format(time.RFC3339Nano), ID: value.ID,
+	})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(payload)
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + hex.EncodeToString(sum[:]), nil
+}
+
+func decodeTodoListCursor(raw, filterHash string) (*TodoListCursor, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	if len(raw) > 2048 {
+		return nil, contract.ErrInvalidTodo
+	}
+	parts := strings.Split(raw, ".")
+	if len(parts) != 2 {
+		return nil, contract.ErrInvalidTodo
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, contract.ErrInvalidTodo
+	}
+	sum := sha256.Sum256(payload)
+	if !strings.EqualFold(parts[1], hex.EncodeToString(sum[:])) {
+		return nil, contract.ErrInvalidTodo
+	}
+	var decoded todoListCursorPayload
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&decoded); err != nil || decoded.Version != todoListCursorVersion || decoded.FilterHash != filterHash || strings.TrimSpace(decoded.ID) == "" || decoded.CreatedAt == "" || math.IsNaN(decoded.Position) || math.IsInf(decoded.Position, 0) {
+		return nil, contract.ErrInvalidTodo
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return nil, contract.ErrInvalidTodo
+	}
+	if _, err := time.Parse(time.RFC3339Nano, decoded.CreatedAt); err != nil {
+		return nil, contract.ErrInvalidTodo
+	}
+	return &TodoListCursor{Position: decoded.Position, CreatedAt: decoded.CreatedAt, ID: strings.TrimSpace(decoded.ID)}, nil
 }
 
 func (s *TodoUseCase) UpdateTodo(ctx context.Context, request contract.UpdateTodoRequest) (contract.UpdateTodoResponse, error) {

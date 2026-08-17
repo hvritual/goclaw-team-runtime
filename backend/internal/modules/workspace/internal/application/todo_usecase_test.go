@@ -183,6 +183,33 @@ func TestTodoUseCaseGetsListsAndHidesWorkspaceMisses(t *testing.T) {
 	}
 }
 
+func TestTodoUseCasePaginatesWithFilterBoundOpaqueCursor(t *testing.T) {
+	first := newTodoApplicationValue(t)
+	second := first
+	second.ID = "todo-2"
+	second.Position = 20
+	second.CreatedAt = first.CreatedAt.Add(-time.Minute)
+	repository := &todoRepositoryStub{values: []todoDomain.Todo{first, second}}
+	service := newTodoApplicationService(t, repository, &accessAuthorizerStub{}, &actorReaderStub{belongs: true}, &todoIssueRepositoryStub{}, time.Now())
+
+	page, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Status: "todo", Limit: 1})
+	if err != nil || len(page.Todos) != 1 || page.NextCursor == nil || *page.NextCursor == "" || repository.query.Limit != 1 {
+		t.Fatalf("first page/query = %+v/%+v, %v", page, repository.query, err)
+	}
+	cursor := *page.NextCursor
+	repository.values = []todoDomain.Todo{second}
+	page, err = service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Status: "todo", Limit: 1, Cursor: cursor})
+	if err != nil || len(page.Todos) != 1 || repository.query.Cursor == nil || repository.query.Cursor.ID != "todo-1" {
+		t.Fatalf("second page/query = %+v/%+v, %v", page, repository.query, err)
+	}
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Status: "done", Cursor: cursor}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("cross-filter cursor error = %v", err)
+	}
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Cursor: "manufactured"}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("malformed cursor error = %v", err)
+	}
+}
+
 func TestTodoUseCaseFullUpdateClearAndStatusCompatibility(t *testing.T) {
 	now := time.Date(2026, 8, 3, 4, 0, 0, 0, time.UTC)
 	repository := &todoRepositoryStub{value: newTodoApplicationValue(t)}

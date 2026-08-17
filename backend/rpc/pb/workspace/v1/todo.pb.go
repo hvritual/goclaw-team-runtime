@@ -508,6 +508,7 @@ type ListTodosRequest struct {
 	IssueId       *string                `protobuf:"bytes,3,opt,name=issue_id,json=issueId,proto3,oneof" json:"issue_id,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor        string                 `protobuf:"bytes,6,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -577,10 +578,18 @@ func (x *ListTodosRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *ListTodosRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
 type ListTodosResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Todos         []*Todo                `protobuf:"bytes,1,rep,name=todos,proto3" json:"todos,omitempty"`
 	Total         int32                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	NextCursor    *string                `protobuf:"bytes,3,opt,name=next_cursor,json=nextCursor,proto3,oneof" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -627,6 +636,13 @@ func (x *ListTodosResponse) GetTotal() int32 {
 		return x.Total
 	}
 	return 0
+}
+
+func (x *ListTodosResponse) GetNextCursor() string {
+	if x != nil && x.NextCursor != nil {
+		return *x.NextCursor
+	}
+	return ""
 }
 
 type UpdateTodoRequest struct {
@@ -1369,19 +1385,23 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\atodo_id\x18\x02 \x01(\tR\x06todoId\"9\n" +
 	"\x0fGetTodoResponse\x12&\n" +
-	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"\xc3\x01\n" +
+	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"\xdb\x01\n" +
 	"\x10ListTodosRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\"\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tH\x00R\tprojectId\x88\x01\x01\x12\x1e\n" +
 	"\bissue_id\x18\x03 \x01(\tH\x01R\aissueId\x88\x01\x01\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
-	"\x05limit\x18\x05 \x01(\x05R\x05limitB\r\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x06 \x01(\tR\x06cursorB\r\n" +
 	"\v_project_idB\v\n" +
-	"\t_issue_id\"S\n" +
+	"\t_issue_id\"\x89\x01\n" +
 	"\x11ListTodosResponse\x12(\n" +
 	"\x05todos\x18\x01 \x03(\v2\x12.workspace.v1.TodoR\x05todos\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"\x8e\x05\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total\x12$\n" +
+	"\vnext_cursor\x18\x03 \x01(\tH\x00R\n" +
+	"nextCursor\x88\x01\x01B\x0e\n" +
+	"\f_next_cursor\"\x8e\x05\n" +
 	"\x11UpdateTodoRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\atodo_id\x18\x02 \x01(\tR\x06todoId\x12\"\n" +
@@ -1540,6 +1560,7 @@ func file_workspace_v1_todo_proto_init() {
 	file_workspace_v1_todo_proto_msgTypes[0].OneofWrappers = []any{}
 	file_workspace_v1_todo_proto_msgTypes[1].OneofWrappers = []any{}
 	file_workspace_v1_todo_proto_msgTypes[5].OneofWrappers = []any{}
+	file_workspace_v1_todo_proto_msgTypes[6].OneofWrappers = []any{}
 	file_workspace_v1_todo_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

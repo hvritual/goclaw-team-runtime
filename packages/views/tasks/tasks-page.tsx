@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { AlertCircle, Archive, ArrowDown, ArrowUp, CheckSquare2, Loader2, Plus, RotateCcw } from "lucide-react";
 import type { TaskActorType, TaskStatus } from "@multica/core/types/task";
 import { useWorkspaceId } from "@multica/core/hooks";
 import {
-  taskListOptions,
+  taskInfiniteListOptions,
   useCreateTask,
   useDeleteTask,
   useRestoreTask,
@@ -41,8 +41,8 @@ export function TasksPage() {
   const { t } = useT("tasks");
   const workspaceId = useWorkspaceId();
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
-  const taskQuery = useQuery(
-    taskListOptions(workspaceId, statusFilter ? { status: statusFilter } : undefined),
+  const taskQuery = useInfiniteQuery(
+    taskInfiniteListOptions(workspaceId, statusFilter ? { status: statusFilter } : undefined),
   );
   const tasks = taskQuery.data ?? [];
   const createTask = useCreateTask();
@@ -137,6 +137,7 @@ export function TasksPage() {
             {t(($) => $.empty)}
           </div>
         ) : (
+          <>
           <ul className="divide-y rounded-lg border bg-card">
             {tasks.map((task, index) => (
               <li key={task.id} className="flex items-center gap-3 p-3">
@@ -217,6 +218,19 @@ export function TasksPage() {
               </li>
             ))}
           </ul>
+          {taskQuery.hasNextPage ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full"
+              disabled={taskQuery.isFetchingNextPage}
+              onClick={() => taskQuery.fetchNextPage()}
+            >
+              {taskQuery.isFetchingNextPage ? <Loader2 className="size-4 animate-spin" /> : null}
+              {taskQuery.isFetchingNextPage ? t(($) => $.loading_more) : t(($) => $.load_more)}
+            </Button>
+          ) : null}
+          </>
         )}
       </main>
     </div>

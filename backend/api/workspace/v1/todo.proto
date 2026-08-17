@@ -151,11 +151,13 @@ message ListTodosRequest {
   optional string issue_id = 3;
   string status = 4;
   int32 limit = 5;
+  string cursor = 6;
 }
 
 message ListTodosResponse {
   repeated Todo todos = 1;
   int32 total = 2;
+  optional string next_cursor = 3;
 }
 
 message UpdateTodoRequest {

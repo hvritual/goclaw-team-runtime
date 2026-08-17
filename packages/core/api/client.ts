@@ -1549,11 +1549,15 @@ export class ApiClient {
     project_id?: string;
     issue_id?: string;
     status?: string;
+    limit?: number;
+    cursor?: string;
   }): Promise<ListTasksResponse> {
     const search = new URLSearchParams();
     if (params?.project_id) search.set("project_id", params.project_id);
     if (params?.issue_id) search.set("issue_id", params.issue_id);
     if (params?.status) search.set("status", params.status);
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.cursor) search.set("cursor", params.cursor);
     const query = search.toString();
     const raw = await this.fetch<unknown>(`/api/tasks${query ? `?${query}` : ""}`);
     return parseWithFallback(raw, taskListSchema, EMPTY_TASK_LIST, { endpoint: "GET /api/tasks" });

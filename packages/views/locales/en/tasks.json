@@ -9,6 +9,8 @@
   "error": "Tasks could not be loaded",
   "conflict": "Task changed elsewhere. Refresh and try again.",
   "mutation_error": "Task change could not be saved.",
+  "load_more": "Load more tasks",
+  "loading_more": "Loading more tasks",
   "filter_label": "Filter tasks by status",
   "all_statuses": "All statuses",
   "agent": "Agent {{id}}",

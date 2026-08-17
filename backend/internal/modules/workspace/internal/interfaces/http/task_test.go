@@ -64,11 +64,12 @@ func (s *recordingTaskService) UpdateTodo(_ context.Context, request contract.Up
 
 func (s *recordingTaskService) ListTodos(_ context.Context, request contract.ListTodosRequest) (contract.ListTodosResponse, error) {
 	s.listRequest = request
+	nextCursor := "opaque-next"
 	return contract.ListTodosResponse{Todos: []contract.Todo{{
 		Id: "task-1", WorkspaceId: "workspace-1", Title: "Ship", Status: "done",
 		Priority: "high", CreatorType: "member", CreatorId: "member-1", Revision: 3,
 		CreatedAt: "2026-08-18T00:00:00Z", UpdatedAt: "2026-08-18T00:01:00Z",
-	}}, Total: 1}, nil
+	}}, Total: 1, NextCursor: &nextCursor}, nil
 }
 
 func (s *recordingTaskService) CreateTodo(_ context.Context, request contract.CreateTodoRequest) (contract.CreateTodoResponse, error) {
@@ -93,7 +94,7 @@ func TestTaskListUsesTrustedWorkspaceAndSnakeCaseResponse(t *testing.T) {
 	)
 	handler.Register(server)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/tasks?status=done&limit=250", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/tasks?status=done&limit=250&cursor=opaque-current", nil)
 	request.Header.Set("X-Workspace-ID", "untrusted-workspace")
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, request)
@@ -101,11 +102,11 @@ func TestTaskListUsesTrustedWorkspaceAndSnakeCaseResponse(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("list = %d %s", response.Code, response.Body.String())
 	}
-	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" || service.listRequest.Limit != 100 {
+	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" || service.listRequest.Limit != 100 || service.listRequest.Cursor != "opaque-current" {
 		t.Fatalf("list request = %+v", service.listRequest)
 	}
 	body := strings.TrimSpace(response.Body.String())
-	if !strings.Contains(body, `"workspace_id":"workspace-1"`) || !strings.Contains(body, `"revision":3`) || strings.Contains(body, "workspaceId") {
+	if !strings.Contains(body, `"workspace_id":"workspace-1"`) || !strings.Contains(body, `"revision":3`) || !strings.Contains(body, `"next_cursor":"opaque-next"`) || strings.Contains(body, "workspaceId") {
 		t.Fatalf("list body = %s", body)
 	}
 }

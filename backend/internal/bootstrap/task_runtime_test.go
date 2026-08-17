@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -152,6 +153,30 @@ func TestSQLiteRuntimeServesInstalledTaskSlice(t *testing.T) {
 	listed := runtimeRequest(runtime, http.MethodGet, "/api/tasks", "", headers)
 	if listed.Code != http.StatusOK || !containsJSON(listed.Body.Bytes(), `"total":2`, `"title":"Ship S02A after reorder"`, `"workspace_id":"workspace-one"`) {
 		t.Fatalf("list = %d %s", listed.Code, listed.Body.String())
+	}
+	var firstPage struct {
+		Tasks []struct {
+			ID string `json:"id"`
+		} `json:"tasks"`
+		NextCursor *string `json:"next_cursor"`
+	}
+	paged := runtimeRequest(runtime, http.MethodGet, "/api/tasks?limit=1", "", headers)
+	if paged.Code != http.StatusOK || json.Unmarshal(paged.Body.Bytes(), &firstPage) != nil || len(firstPage.Tasks) != 1 || firstPage.NextCursor == nil {
+		t.Fatalf("first cursor page = %d %s", paged.Code, paged.Body.String())
+	}
+	var secondPage struct {
+		Tasks []struct {
+			ID string `json:"id"`
+		} `json:"tasks"`
+		NextCursor *string `json:"next_cursor"`
+	}
+	paged = runtimeRequest(runtime, http.MethodGet, "/api/tasks?limit=1&cursor="+url.QueryEscape(*firstPage.NextCursor), "", headers)
+	if paged.Code != http.StatusOK || json.Unmarshal(paged.Body.Bytes(), &secondPage) != nil || len(secondPage.Tasks) != 1 || secondPage.NextCursor != nil || secondPage.Tasks[0].ID == firstPage.Tasks[0].ID {
+		t.Fatalf("second cursor page = %d %s", paged.Code, paged.Body.String())
+	}
+	malformedCursor := runtimeRequest(runtime, http.MethodGet, "/api/tasks?cursor=manufactured", "", headers)
+	if malformedCursor.Code != http.StatusBadRequest || !containsJSON(malformedCursor.Body.Bytes(), `"error":"invalid cursor"`) {
+		t.Fatalf("malformed cursor = %d %s", malformedCursor.Code, malformedCursor.Body.String())
 	}
 }
 

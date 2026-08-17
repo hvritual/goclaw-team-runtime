@@ -247,11 +247,13 @@ type ListTodosRequest struct {
 	IssueId     *string `json:"issueId,omitempty"`
 	Status      string  `json:"status,omitempty"`
 	Limit       int32   `json:"limit,omitempty"`
+	Cursor      string  `json:"cursor,omitempty"`
 }
 
 type ListTodosResponse struct {
-	Todos []Todo `json:"todos,omitempty"`
-	Total int32  `json:"total,omitempty"`
+	Todos      []Todo  `json:"todos,omitempty"`
+	Total      int32   `json:"total,omitempty"`
+	NextCursor *string `json:"nextCursor,omitempty"`
 }
 
 type Project struct {

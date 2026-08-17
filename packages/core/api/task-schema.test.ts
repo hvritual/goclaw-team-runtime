@@ -30,17 +30,19 @@ describe("task API boundary", () => {
 
   it("parses list and mutation responses and sends revisions", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [TASK], total: 1 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [TASK], total: 1, next_cursor: "opaque-next" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ ...TASK, revision: 2, status: "in_progress" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [{ ...TASK, revision: 2, position: 20 }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:8000");
 
-    await expect(client.listTasks({ status: "todo" })).resolves.toEqual({ tasks: [TASK], total: 1 });
+    await expect(client.listTasks({ status: "todo", limit: 50, cursor: "opaque-current" })).resolves.toEqual({ tasks: [TASK], total: 1, next_cursor: "opaque-next" });
     await expect(client.updateTask("task-1", { status: "in_progress", expected_revision: 1 })).resolves.toMatchObject({ revision: 2 });
     await expect(client.reorderTasks({ items: [{ id: "task-1", position: 20, expected_revision: 1 }] })).resolves.toHaveLength(1);
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ status: "in_progress", expected_revision: 1 }));
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).get("Idempotency-Key")).toBeTruthy();
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("limit=50");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("cursor=opaque-current");
   });
 
   it("fails closed for malformed mutation responses and degrades malformed lists", async () => {
@@ -50,7 +52,7 @@ describe("task API boundary", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:8000");
 
-    await expect(client.listTasks()).resolves.toEqual({ tasks: [], total: 0 });
+    await expect(client.listTasks()).resolves.toEqual({ tasks: [], total: 0, next_cursor: null });
     await expect(client.updateTask("task-1", { title: "Changed", expected_revision: 1 })).rejects.toThrow("Invalid task response");
   });
 

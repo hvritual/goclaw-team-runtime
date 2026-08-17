@@ -34,8 +34,9 @@ export const taskSchema = z.object({
 export const taskListSchema = z.object({
   tasks: z.array(taskSchema),
   total: z.number().int().nonnegative(),
+  next_cursor: z.string().min(1).nullable(),
 }).strict();
 
 export const reorderedTasksSchema = z.object({ tasks: z.array(taskSchema) }).strict();
 
-export const EMPTY_TASK_LIST: ListTasksResponse = { tasks: [], total: 0 };
+export const EMPTY_TASK_LIST: ListTasksResponse = { tasks: [], total: 0, next_cursor: null };

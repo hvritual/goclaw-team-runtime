@@ -62,4 +62,5 @@ export interface ReorderTasksRequest {
 export interface ListTasksResponse {
   tasks: Task[];
   total: number;
+  next_cursor: string | null;
 }

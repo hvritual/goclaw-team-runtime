@@ -171,8 +171,12 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 		t.Fatalf("ListTodos() = %+v, %v", listedTodos, err)
 	}
 	limitedTodos, err := module.TodoLocal().ListTodos(ctx, contract.ListTodosRequest{WorkspaceId: "workspace-1", ProjectId: &projectID, Limit: 1})
-	if err != nil || limitedTodos.Total != 1 || len(limitedTodos.Todos) != 1 || limitedTodos.Todos[0].Id != "todo-2" {
+	if err != nil || limitedTodos.Total != 1 || len(limitedTodos.Todos) != 1 || limitedTodos.Todos[0].Id != "todo-2" || limitedTodos.NextCursor == nil {
 		t.Fatalf("ListTodos(limit=1) = %+v, %v", limitedTodos, err)
+	}
+	continuedTodos, err := module.TodoLocal().ListTodos(ctx, contract.ListTodosRequest{WorkspaceId: "workspace-1", ProjectId: &projectID, Limit: 1, Cursor: *limitedTodos.NextCursor})
+	if err != nil || continuedTodos.Total != 1 || len(continuedTodos.Todos) != 1 || continuedTodos.Todos[0].Id != "todo-1" || continuedTodos.NextCursor != nil {
+		t.Fatalf("ListTodos(cursor) = %+v, %v", continuedTodos, err)
 	}
 	updatedTitle, inProgress, high, empty := "Updated Todo", "in_progress", "high", ""
 	startDate := "2026-08-04T01:02:03+08:00"
