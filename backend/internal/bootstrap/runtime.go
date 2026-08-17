@@ -22,6 +22,8 @@ import (
 	canonicalrealtime "github.com/hvritual/workspace/internal/realtime"
 )
 
+const canonicalHTTPRequestTimeout = 30 * time.Second
+
 // Config defines the standalone backend process identity and listen addresses.
 type Config struct {
 	Name                      string
@@ -116,7 +118,10 @@ func NewRuntime(config Config, logger *slog.Logger) (*Runtime, error) {
 		}
 		return nil, err
 	}
-	httpServer := kratoshttp.NewServer(kratoshttp.Address(config.HTTPAddress))
+	httpServer := kratoshttp.NewServer(
+		kratoshttp.Address(config.HTTPAddress),
+		kratoshttp.Timeout(canonicalHTTPRequestTimeout),
+	)
 	grpcServer := kratosgrpc.NewServer(kratosgrpc.Address(config.GRPCAddress))
 	application.RegisterHTTP(httpServer)
 	realtimeHub.RegisterHTTP(httpServer)

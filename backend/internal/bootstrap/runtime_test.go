@@ -111,6 +111,29 @@ func TestRuntimeRegistersHealthAndModuleRoutes(t *testing.T) {
 	}
 }
 
+func TestRuntimeUsesExplicitHTTPTimeout(t *testing.T) {
+	runtime := newTestRuntime(t)
+	var remaining time.Duration
+	var hasDeadline bool
+	runtime.HTTPServer().HandleFunc("/__test/runtime-http-deadline", func(response http.ResponseWriter, request *http.Request) {
+		deadline, ok := request.Context().Deadline()
+		hasDeadline = ok
+		if ok {
+			remaining = time.Until(deadline)
+		}
+		response.WriteHeader(http.StatusNoContent)
+	})
+
+	response := httptest.NewRecorder()
+	runtime.HTTPServer().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/__test/runtime-http-deadline", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNoContent)
+	}
+	if !hasDeadline || remaining < 28*time.Second || remaining > 30*time.Second {
+		t.Fatalf("HTTP request deadline remaining = %v, want explicit 30s budget", remaining)
+	}
+}
+
 func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *testing.T) {
 	runtime := newTestRuntime(t)
 	response := httptest.NewRecorder()
