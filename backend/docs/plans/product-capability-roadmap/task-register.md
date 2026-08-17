@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v2`
-- Registry status: `PCR-S01B-2 accepted by Customer waiver; PCR-S01B-3 active`
+- Registry status: `PCR-S01B-3 candidate committed; verification blocked`
 - Registry revision: `r007`
 - Updated: `2026-08-17`
 
@@ -355,7 +355,7 @@ technical evidence remains unchanged and is not represented as a PASS.
 - Task-Revision: `r007`
 - Work-Item: `PCR-S01B-3`
 - Title: `Outbox delivery and governance diagnostics`
-- Status: `active`
+- Status: `candidate-committed-verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `deferred to PCR-S01B-4 by Human Customer confirmation`
 - Product-code base commit: `40d65ad`
@@ -421,6 +421,36 @@ git diff --name-only -- server
 Windows `0xc0000139` is not a race PASS. The Customer waiver closing r006 does
 not silently waive r007 verification. Existing attachment failures remain
 indexed and may not be hidden or weakened.
+
+### Current evidence
+
+- Product candidate commit: `f0d86d9`.
+- Focused Outbox/Governance tests pass for application, SQLite infrastructure,
+  HTTP, Workspace composition, and Bootstrap runtime.
+- Claim exclusivity, 60-second lease reclaim, stale-token rejection, default
+  batch 100/hard cap 500, four total attempts, deterministic jitter,
+  dead-letter, operator-authorized replay, restart persistence, and stable
+  crash-window redelivery pass.
+- Owner/admin-only diagnostics, workspace isolation, payload/audit redaction,
+  15-minute degradation reporting, explicit worker start/stop, readiness, and
+  stable realtime delivery identity pass.
+- Empty outbox polling is read-only and does not acquire a write lock.
+- Changed-file formatting, generated-output cleanliness, policy boundary, and
+  `go vet ./...` pass through direct Windows-compatible commands.
+- Technical closure remains blocked:
+  - the frozen race command exits with Windows loader code `0xc0000139` for all
+    five packages and is not a PASS;
+  - `make check` stops in the known Windows `fmt-check` wrapper;
+  - the complete Bootstrap package and full `go test ./...` reproduce
+    `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`
+    (attachment 500);
+  - full `go test ./...` also reproduces
+    `TestAttachmentRepositoryRetriesBusyWriteAcquisition`
+    (context deadline exceeded).
+- All roadmap product feature flags remain false. No migration, contract,
+  feature API, frontend, Control Plane, generated, or `server/**` path changed.
+- Human Customer acceptance remains outstanding; independent review remains
+  deferred to S01B-4 and `PCR-S01B-4` is inactive.
 
 ## Queue rules
 

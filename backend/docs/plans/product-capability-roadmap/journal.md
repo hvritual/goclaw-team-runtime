@@ -373,3 +373,45 @@ Known limitations, blockers, and next action
   enable a roadmap feature flag.
 - Existing unrelated UI and local-runtime changes remain excluded.
 - The next authorized product action is a TDD RED for SQLite outbox claiming.
+
+## 2026-08-17 — J015 — PCR-S01B-3 candidate committed; verification blocked
+
+- Product candidate commit: `f0d86d9`.
+- Added SQLite outbox transitions for bounded claim, 60-second lease reclaim,
+  token-guarded delivered/retry/dead-letter changes, owner-authorized replay,
+  and Workspace-scoped diagnostics.
+- Empty queues perform a read-only eligibility check and avoid
+  `BEGIN IMMEDIATE`, preventing the one-second worker poll from adding idle
+  writer contention to existing attachment paths.
+- Added an application dispatcher with default batch 100, hard cap 500,
+  initial delivery plus three retries, exponential minute backoff, injected
+  deterministic jitter, stable failure codes, and crash-window redelivery.
+- Added `GET /api/operations/governance` with owner/admin membership checks.
+  Its projection contains counts, durations, timestamps, schema version,
+  running/degraded state, and no event payload or audit content.
+- Added explicit Workspace worker lifecycle and Canonical composition. Runtime
+  starts and closes the worker, readiness checks database and dispatcher, and
+  the realtime sink carries stable event ID, aggregate identity, and revision.
+- TDD RED evidence included missing claim/ack methods, write-locking an empty
+  queue, missing retry/dead-letter/replay/diagnostics methods, missing
+  dispatcher types, missing HTTP handler, and missing Runtime lifecycle/sink.
+- GREEN evidence:
+  - all four frozen focused commands pass;
+  - the complete application, SQLite infrastructure, HTTP, and Workspace
+    packages pass;
+  - the complete Bootstrap package runs all S01B-3 tests successfully and only
+    reproduces the indexed attachment concurrency failure.
+- Direct Windows-compatible formatting, generated-clean, policy boundary, and
+  `go vet ./...` checks pass.
+- Outstanding verification:
+  - the frozen race command exits `0xc0000139` for all five packages and is not
+    a PASS;
+  - `make check` stops in the known Windows `fmt-check` wrapper;
+  - full `go test ./...` reproduces the existing Bootstrap concurrent
+    attachment upload 500 and Space SQLite busy-write deadline failure.
+- All roadmap feature flags remain false. No migration, public contract,
+  existing capability repository, feature API, frontend, Control Plane,
+  generated output, or `server/**` path was changed.
+- PCR-S01B-3 remains verification-blocked pending Human Customer disposition
+  of the r007 gates. Independent review remains deferred to S01B-4, which is
+  not active.
