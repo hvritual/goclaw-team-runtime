@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v13`
-- Registry status: `Release 1 active; PCR-001-S02A-R18 is the sole active task`
+- Registry status: `Release 1 active; PCR-S02A complete and no task active`
 - Registry revision: `r018`
 - Updated: `2026-08-18`
 
@@ -998,9 +998,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02A-R18`
 - Task-Revision: `r018`
 - Work-Item: `PCR-S02A`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after deterministic verification`
+- Independent reviewer: `PASS on bc1eed7; closure allowed`
 - Base commit: `8f94d69db72e18719b7ed4315e7d74901b1f5945`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v13`
 - Plan hash: `830ad1b5c189d356b074e1b84cde9ca220b587bb24e322186d38a9dad9806013`
@@ -1012,3 +1012,21 @@ S02A without changing Task product behavior or activating S02B.
 - Root typecheck/test, backend full/race, exact browser, scope, and independent
   review must pass before S02A closure.
 - S02B and all later stories remain inactive.
+
+### Verification and review outcome
+
+- Implementation candidate: `bc1eed7f1ccb92a0bd31a769403c8f7e5139cf21`.
+- Isolated Desktop package tests pass 30/30. Exact candidate root `pnpm test`
+  passes 5/5 Turbo tasks; clean-candidate Views passes 165 files and 1671 tests.
+- Exact candidate root `pnpm typecheck` passes 6/6 tasks. Backend `make check`
+  and real `make test-race` pass with MinGW GCC 15.2.0.
+- Detached clean-candidate installed Task lifecycle Playwright passes 1/1 with
+  Chrome, covering create, filter, reorder, archive, restore, and readback.
+- Scope checks pass: `server/**` is empty, the excluded Input blob remains
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`, and the only candidate dirt is
+  Next development-server configuration drift in the detached worktree.
+- Fresh independent review returned PASS for v10-v13 authority, exact repair
+  scope, unchanged assertions/retries/concurrency, deterministic evidence, and
+  S02A closure readiness.
+- r018 and PCR-S02A are complete. Release 1 remains active with no active task;
+  S02B awaits a new versioned plan.

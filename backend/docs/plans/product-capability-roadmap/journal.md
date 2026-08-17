@@ -773,3 +773,31 @@ Known limitations, blockers, and next action
   permitted.
 - r017 is verification-blocked and r018 is the sole active task. S02B and later
   stories remain inactive; no r018 PASS or S02A closure is claimed.
+
+## 2026-08-18 — J032 — v13/r018 and PCR-S02A closed
+
+- Candidate `bc1eed7f1ccb92a0bd31a769403c8f7e5139cf21` changes only the three
+  authorized real-Git timeout literals from 15 to 60 seconds after r018
+  activation. Assertions, commands, concurrency, retries, production behavior,
+  manifests, and lockfiles are unchanged.
+- Exact-candidate root `pnpm typecheck` passes 6/6 Turbo tasks. Exact detached
+  candidate root `pnpm test` passes 5/5 tasks in 3m35s; clean Views passes 165
+  files and 1671 tests. The isolated Desktop package file passes 30/30.
+- Backend `make check` and real `make test-race` pass; race uses MinGW GCC
+  15.2.0 without an environment waiver.
+- A detached `bc1eed7` runtime with a new migrated SQLite database and canonical
+  fixture passes installed Chrome Playwright `e2e/tasks.spec.ts` 1/1, covering
+  the Task lifecycle, filtering, reorder, archive, restore, and readback.
+- Scope verification passes: tracked/staged `server/**` diff is empty; excluded
+  shared Input remains blob `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  candidate-only Next configuration drift is not staged or copied back.
+- Candidate Web and backend process ancestry was resolved before cleanup; the
+  exact candidate processes were stopped and ports 3000, 8080, and 9080 are
+  closed.
+- Fresh independent read-only review returned PASS. It confirmed v10-v13
+  authority consistency, exact repair scope, safe explicit-Node shebang
+  removal, unchanged real-Git assertions/retries/concurrency, green evidence,
+  and permission to close S02A.
+- r018 and PCR-S02A are `complete-independent-reviewed`. Release 1 remains
+  active with no active task. S02B's dependency is satisfied but it remains
+  inactive until a new versioned plan is activated.

@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v13.md](plan_v13.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `13`
-- Active step: `PCR-S02A real-Git timeout correction`
-- Status: `Release 1 active; PCR-S02A/r018 real-Git timeout correction authorized`
+- Active step: `none; PCR-S02A accepted and PCR-S02B awaits a new plan`
+- Status: `Release 1 active; PCR-S02A complete-independent-reviewed`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
 - Active task base commit: `8f94d69db72e18719b7ed4315e7d74901b1f5945`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -84,6 +84,12 @@ still exceeded the frozen 15-second ceiling under full-workspace load. v13/r018
 starts from exact `8f94d69` and authorizes only raising the same three
 external-process test ceilings to 60 seconds. Assertions, concurrency, and
 retry behavior remain unchanged.
+
+v13 candidate `bc1eed7` passed isolated Desktop, root typecheck/test, backend
+full/race, exact clean-candidate Task Playwright acceptance, scope and dirty
+blob checks, and fresh independent review. r018 and PCR-S02A are complete.
+Release 1 remains active, but no task is active; PCR-S02B remains inactive until
+a new versioned plan is activated.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v13`
-- Status: `Release 1 active; PCR-S02A real-Git timeout correction is the sole active story`
+- Status: `Release 1 active; PCR-S02A accepted and no story active`
 
 ## Delivery policy
 
@@ -60,7 +60,7 @@ Acceptance scenarios:
 
 ### PCR-S02A — Manage tasks
 
-Status: `active real-Git timeout correction under PRODUCT-CAPABILITY-ROADMAP-001 v13 / r018`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v13 / r018`
 
 As a member, I can create, view, filter, reorder, edit, complete, cancel, archive,
 and restore tasks in my workspace.
@@ -70,7 +70,7 @@ empty and denied states, concurrent edit conflicts, and restart persistence.
 
 ### PCR-S02B — Promote a task to an Issue
 
-Status: `inactive; depends on accepted PCR-S02A`
+Status: `inactive; dependency satisfied, pending a new versioned plan`
 
 As a member, I can explicitly promote a task into an Issue without creating
 duplicates on retry.
