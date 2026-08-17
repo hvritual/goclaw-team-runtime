@@ -245,6 +245,7 @@ type ListTodosRequest struct {
 	ProjectId   *string `json:"projectId,omitempty"`
 	IssueId     *string `json:"issueId,omitempty"`
 	Status      string  `json:"status,omitempty"`
+	Limit       int32   `json:"limit,omitempty"`
 }
 
 type ListTodosResponse struct {

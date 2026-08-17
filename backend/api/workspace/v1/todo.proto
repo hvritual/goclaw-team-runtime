@@ -150,6 +150,7 @@ message ListTodosRequest {
   optional string project_id = 2;
   optional string issue_id = 3;
   string status = 4;
+  int32 limit = 5;
 }
 
 message ListTodosResponse {

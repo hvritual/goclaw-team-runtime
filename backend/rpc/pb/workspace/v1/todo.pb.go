@@ -507,6 +507,7 @@ type ListTodosRequest struct {
 	ProjectId     *string                `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3,oneof" json:"project_id,omitempty"`
 	IssueId       *string                `protobuf:"bytes,3,opt,name=issue_id,json=issueId,proto3,oneof" json:"issue_id,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -567,6 +568,13 @@ func (x *ListTodosRequest) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *ListTodosRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
 }
 
 type ListTodosResponse struct {
@@ -1353,13 +1361,14 @@ const file_workspace_v1_todo_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\atodo_id\x18\x02 \x01(\tR\x06todoId\"9\n" +
 	"\x0fGetTodoResponse\x12&\n" +
-	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"\xad\x01\n" +
+	"\x04todo\x18\x01 \x01(\v2\x12.workspace.v1.TodoR\x04todo\"\xc3\x01\n" +
 	"\x10ListTodosRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\"\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tH\x00R\tprojectId\x88\x01\x01\x12\x1e\n" +
 	"\bissue_id\x18\x03 \x01(\tH\x01R\aissueId\x88\x01\x01\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06statusB\r\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
+	"\x05limit\x18\x05 \x01(\x05R\x05limitB\r\n" +
 	"\v_project_idB\v\n" +
 	"\t_issue_id\"S\n" +
 	"\x11ListTodosResponse\x12(\n" +

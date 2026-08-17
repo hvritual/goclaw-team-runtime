@@ -159,8 +159,14 @@ func TestTodoUseCaseGetsListsAndHidesWorkspaceMisses(t *testing.T) {
 	if err != nil || listed.Total != 1 || len(listed.Todos) != 1 {
 		t.Fatalf("ListTodos() = %+v, %v", listed, err)
 	}
-	if repository.query.WorkspaceID != "workspace-1" || repository.query.ProjectID == nil || *repository.query.ProjectID != "project-1" || repository.query.Status != "todo" {
+	if repository.query.WorkspaceID != "workspace-1" || repository.query.ProjectID == nil || *repository.query.ProjectID != "project-1" || repository.query.Status != "todo" || repository.query.Limit != 100 {
 		t.Fatalf("list query = %+v", repository.query)
+	}
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Limit: 250}); err != nil || repository.query.Limit != 200 {
+		t.Fatalf("bounded list query/error = %+v/%v", repository.query, err)
+	}
+	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Limit: -1}); !errors.Is(err, contract.ErrInvalidTodo) {
+		t.Fatalf("negative limit error = %v", err)
 	}
 	if _, err := service.ListTodos(context.Background(), contract.ListTodosRequest{WorkspaceId: "workspace-1", Status: " todo "}); !errors.Is(err, contract.ErrInvalidTodo) {
 		t.Fatalf("space-padded status error = %v", err)
@@ -170,7 +176,7 @@ func TestTodoUseCaseGetsListsAndHidesWorkspaceMisses(t *testing.T) {
 	if !errors.Is(err, contract.ErrTodoNotFound) {
 		t.Fatalf("foreign GetTodo() error = %v", err)
 	}
-	if len(authorizer.permissions) != 4 || authorizer.permissions[0] != contract.PermissionTaskRead || authorizer.permissions[1] != contract.PermissionTaskRead || authorizer.permissions[2] != contract.PermissionTaskRead || authorizer.permissions[3] != contract.PermissionTaskRead {
+	if len(authorizer.permissions) != 6 || authorizer.permissions[0] != contract.PermissionTaskRead || authorizer.permissions[1] != contract.PermissionTaskRead || authorizer.permissions[2] != contract.PermissionTaskRead || authorizer.permissions[3] != contract.PermissionTaskRead || authorizer.permissions[4] != contract.PermissionTaskRead || authorizer.permissions[5] != contract.PermissionTaskRead {
 		t.Fatalf("permissions = %v", authorizer.permissions)
 	}
 }

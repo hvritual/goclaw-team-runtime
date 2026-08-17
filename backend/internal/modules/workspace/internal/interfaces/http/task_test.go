@@ -93,7 +93,7 @@ func TestTaskListUsesTrustedWorkspaceAndSnakeCaseResponse(t *testing.T) {
 	)
 	handler.Register(server)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/tasks?status=done", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/tasks?status=done&limit=250", nil)
 	request.Header.Set("X-Workspace-ID", "untrusted-workspace")
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, request)
@@ -101,12 +101,39 @@ func TestTaskListUsesTrustedWorkspaceAndSnakeCaseResponse(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("list = %d %s", response.Code, response.Body.String())
 	}
-	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" {
+	if service.listRequest.WorkspaceId != "workspace-1" || service.listRequest.Status != "done" || service.listRequest.Limit != 200 {
 		t.Fatalf("list request = %+v", service.listRequest)
 	}
 	body := strings.TrimSpace(response.Body.String())
 	if !strings.Contains(body, `"workspace_id":"workspace-1"`) || !strings.Contains(body, `"revision":3`) || strings.Contains(body, "workspaceId") {
 		t.Fatalf("list body = %s", body)
+	}
+}
+
+func TestTaskListDefaultsAndValidatesLimit(t *testing.T) {
+	service := &recordingTaskService{}
+	server := kratoshttp.NewServer()
+	handler := NewTaskHandler(
+		service,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		},
+		func(*http.Request) (string, error) { return "member-1", nil }, nil,
+	)
+	handler.Register(server)
+
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/tasks", nil))
+	if response.Code != http.StatusOK || service.listRequest.Limit != 100 {
+		t.Fatalf("default list = %d request=%+v", response.Code, service.listRequest)
+	}
+
+	for _, raw := range []string{"0", "-1", "invalid"} {
+		response = httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/tasks?limit="+raw, nil))
+		if response.Code != http.StatusBadRequest || strings.TrimSpace(response.Body.String()) != `{"error":"limit must be a positive integer"}` {
+			t.Fatalf("limit %q = %d %s", raw, response.Code, response.Body.String())
+		}
 	}
 }
 

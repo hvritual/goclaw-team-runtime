@@ -17,11 +17,17 @@ import (
 
 var ErrTodoRecordNotFound = errors.New("todo record not found")
 
+const (
+	DefaultTodoListLimit = 100
+	MaxTodoListLimit     = 200
+)
+
 type TodoListQuery struct {
 	WorkspaceID string
 	ProjectID   *string
 	IssueID     *string
 	Status      string
+	Limit       int
 }
 
 type TodoRepository interface {
@@ -162,11 +168,22 @@ func (s *TodoUseCase) ListTodos(ctx context.Context, request contract.ListTodosR
 	if status != "" && !todoDomain.ValidStatus(status) {
 		return contract.ListTodosResponse{}, fmt.Errorf("%w: invalid status", contract.ErrInvalidTodo)
 	}
+	limit := int(request.Limit)
+	if limit < 0 {
+		return contract.ListTodosResponse{}, fmt.Errorf("%w: limit must be a positive integer", contract.ErrInvalidTodo)
+	}
+	if limit == 0 {
+		limit = DefaultTodoListLimit
+	}
+	if limit > MaxTodoListLimit {
+		limit = MaxTodoListLimit
+	}
 	values, err := s.repository.List(ctx, TodoListQuery{
 		WorkspaceID: workspaceID,
 		ProjectID:   cleanOptionalString(request.ProjectId),
 		IssueID:     cleanOptionalString(request.IssueId),
 		Status:      status,
+		Limit:       limit,
 	})
 	if err != nil {
 		return contract.ListTodosResponse{}, fmt.Errorf("list Todos: %w", err)

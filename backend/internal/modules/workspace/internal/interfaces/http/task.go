@@ -3,9 +3,11 @@ package http
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
+	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 )
 
 type TaskHandler struct {
@@ -193,11 +195,23 @@ func (h *TaskHandler) list(ctx kratoshttp.Context) error {
 		return nil
 	}
 	query := ctx.Request().URL.Query()
+	limit := application.DefaultTodoListLimit
+	if raw := query.Get("limit"); raw != "" {
+		parsed, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || parsed < 1 {
+			return writeError(ctx, http.StatusBadRequest, "limit must be a positive integer")
+		}
+		limit = parsed
+		if limit > application.MaxTodoListLimit {
+			limit = application.MaxTodoListLimit
+		}
+	}
 	result, err := h.service.ListTodos(workspaceActorContext(ctx, identity), contract.ListTodosRequest{
 		WorkspaceId: identity.WorkspaceID,
 		ProjectId:   optionalTaskQuery(query.Get("project_id")),
 		IssueId:     optionalTaskQuery(query.Get("issue_id")),
 		Status:      query.Get("status"),
+		Limit:       int32(limit),
 	})
 	if err != nil {
 		return h.writeError(ctx, err)
