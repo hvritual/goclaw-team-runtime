@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -111,7 +112,11 @@ func (r *taskPromotionRepository) PromoteTask(ctx context.Context, command appli
 		if err != nil {
 			return err
 		}
-		if _, err := connection.ExecContext(ctx, `INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES(?,?,?,?)`, workspaceID, taskID, created.ID, command.OccurredAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		snapshot, err := encodeTaskPromotionSnapshot(application.TaskPromotionResult{Task: updated, Issue: created})
+		if err != nil {
+			return err
+		}
+		if _, err := connection.ExecContext(ctx, `INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES(?,?,?,?,?)`, workspaceID, taskID, created.ID, command.OccurredAt.UTC().Format(time.RFC3339Nano), snapshot); err != nil {
 			return fmt.Errorf("insert immutable Task promotion link: %w", err)
 		}
 		if err := (&todoRepository{}).updateWith(ctx, connection, updated); err != nil {
@@ -164,17 +169,45 @@ func (r *taskPromotionRepository) insertPromotedIssue(ctx context.Context, conne
 }
 
 func (r *taskPromotionRepository) loadPromotion(ctx context.Context, workspaceID, taskID string) (application.TaskPromotionResult, error) {
-	var issueID string
-	if err := r.db.QueryRowContext(ctx, `SELECT issue_id FROM workspace_task_issue_promotions WHERE workspace_id=? AND task_id=?`, workspaceID, taskID).Scan(&issueID); err != nil {
-		return application.TaskPromotionResult{}, fmt.Errorf("load replayed Task promotion link: %w", err)
+	var snapshot string
+	if err := r.db.QueryRowContext(ctx, `SELECT response_snapshot FROM workspace_task_issue_promotions WHERE workspace_id=? AND task_id=?`, workspaceID, taskID).Scan(&snapshot); err != nil {
+		return application.TaskPromotionResult{}, fmt.Errorf("load replayed Task promotion snapshot: %w", err)
 	}
-	task, err := scanTodo(r.db.QueryRowContext(ctx, todoSelect+` WHERE workspace_id=? AND id=?`, workspaceID, taskID))
+	result, err := decodeTaskPromotionSnapshot(snapshot)
 	if err != nil {
-		return application.TaskPromotionResult{}, fmt.Errorf("load replayed promoted Task: %w", err)
+		return application.TaskPromotionResult{}, err
 	}
-	issue, err := scanIssue(r.db.QueryRowContext(ctx, `SELECT `+issueColumns+` FROM workspace_issues WHERE workspace_id=? AND id=?`, workspaceID, issueID))
+	if result.Task.WorkspaceID != workspaceID || result.Task.ID != taskID || result.Task.IssueID == nil || result.Issue.WorkspaceID != workspaceID || result.Issue.ID != *result.Task.IssueID {
+		return application.TaskPromotionResult{}, errors.New("replayed Task promotion snapshot identity mismatch")
+	}
+	return result, nil
+}
+
+type taskPromotionSnapshot struct {
+	Task  todoDomain.Todo   `json:"task"`
+	Issue issueDomain.Issue `json:"issue"`
+}
+
+func encodeTaskPromotionSnapshot(result application.TaskPromotionResult) (string, error) {
+	encoded, err := json.Marshal(taskPromotionSnapshot{Task: result.Task, Issue: result.Issue})
 	if err != nil {
-		return application.TaskPromotionResult{}, fmt.Errorf("load replayed promoted Issue: %w", err)
+		return "", fmt.Errorf("encode Task promotion response snapshot: %w", err)
+	}
+	return string(encoded), nil
+}
+
+func decodeTaskPromotionSnapshot(encoded string) (application.TaskPromotionResult, error) {
+	var snapshot taskPromotionSnapshot
+	if err := json.Unmarshal([]byte(encoded), &snapshot); err != nil {
+		return application.TaskPromotionResult{}, fmt.Errorf("decode Task promotion response snapshot: %w", err)
+	}
+	task, err := todoDomain.Rehydrate(snapshot.Task)
+	if err != nil {
+		return application.TaskPromotionResult{}, fmt.Errorf("rehydrate replayed Task promotion snapshot: %w", err)
+	}
+	issue, err := issueDomain.Rehydrate(snapshot.Issue)
+	if err != nil {
+		return application.TaskPromotionResult{}, fmt.Errorf("rehydrate replayed Issue promotion snapshot: %w", err)
 	}
 	return application.TaskPromotionResult{Task: task, Issue: issue}, nil
 }

@@ -103,6 +103,13 @@ func TestTaskPromotionRepositoryCommitsAndReplaysOnePromotion(t *testing.T) {
 	if err != nil || retained.Title != "Renamed Task only" || retained.IssueID == nil || *retained.IssueID != "issue-1" {
 		t.Fatalf("independent later edits = %+v, %v", retained, err)
 	}
+	replayedAfterEdits, err := repository.PromoteTask(ctx, command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replayedAfterEdits.Task.Title != "Promote me" || replayedAfterEdits.Task.Revision != 2 || replayedAfterEdits.Issue.Title != "Promote me" {
+		t.Fatalf("replay after live edits = task %+v / Issue %+v", replayedAfterEdits.Task, replayedAfterEdits.Issue)
+	}
 	for table, want := range map[string]int{
 		"workspace_issues":                1,
 		"workspace_task_issue_promotions": 1,
@@ -221,6 +228,12 @@ func TestTaskPromotionRepositoryReplaysAfterDatabaseRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.Exec(`UPDATE workspace_todos SET title='Restart live Task',revision=3 WHERE id='task-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE workspace_issues SET title='Restart live Issue' WHERE id='issue-restart'`); err != nil {
+		t.Fatal(err)
+	}
 	var sequence int
 	var databaseName, databasePath string
 	if err := db.QueryRow(`PRAGMA database_list`).Scan(&sequence, &databaseName, &databasePath); err != nil {
@@ -242,7 +255,7 @@ func TestTaskPromotionRepositoryReplaysAfterDatabaseRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if replayed.Task.Revision != first.Task.Revision || replayed.Issue.Identifier != first.Issue.Identifier {
+	if replayed.Task.Revision != first.Task.Revision || replayed.Task.Title != first.Task.Title || replayed.Issue.Identifier != first.Issue.Identifier || replayed.Issue.Title != first.Issue.Title {
 		t.Fatalf("restart replay = %+v / %+v", replayed.Task, replayed.Issue)
 	}
 	assertTaskPromotionCounts(t, reopened, 1, 1, 1)

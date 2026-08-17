@@ -57,6 +57,24 @@ func TestSQLiteRuntimePromotesTaskToIssueExactlyOnce(t *testing.T) {
 	if replayed.Code != http.StatusCreated || replayed.Body.String() != promoted.Body.String() {
 		t.Fatalf("promotion replay = %d %s, want %s", replayed.Code, replayed.Body.String(), promoted.Body.String())
 	}
+	var promotion struct {
+		Issue struct {
+			ID string `json:"id"`
+		} `json:"issue"`
+	}
+	if err := json.Unmarshal(promoted.Body.Bytes(), &promotion); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.Database().Exec(`UPDATE workspace_todos SET title='Live Task edit' WHERE id=?`, task.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.Database().Exec(`UPDATE workspace_issues SET title='Live Issue edit' WHERE id=?`, promotion.Issue.ID); err != nil {
+		t.Fatal(err)
+	}
+	replayedAfterEdits := runtimeRequest(runtime, http.MethodPost, "/api/tasks/"+task.ID+"/promote", `{"expected_revision":2,"complete_task":true}`, headers)
+	if replayedAfterEdits.Code != http.StatusCreated || replayedAfterEdits.Body.String() != promoted.Body.String() {
+		t.Fatalf("promotion replay after live edits = %d %s, want %s", replayedAfterEdits.Code, replayedAfterEdits.Body.String(), promoted.Body.String())
+	}
 	conflict := runtimeRequest(runtime, http.MethodPost, "/api/tasks/"+task.ID+"/promote", `{"expected_revision":2,"complete_task":false}`, headers)
 	if conflict.Code != http.StatusConflict || !containsJSON(conflict.Body.Bytes(), `"code":"idempotency_conflict"`) {
 		t.Fatalf("promotion body conflict = %d %s", conflict.Code, conflict.Body.String())

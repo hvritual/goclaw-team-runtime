@@ -41,17 +41,23 @@ func TestTaskIssuePromotionMigrationInstallsImmutableLink(t *testing.T) {
 		`INSERT INTO workspaces(id,name,slug,issue_prefix,created_at,updated_at) VALUES('workspace-1','Acme','acme','ACM','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
 		`INSERT INTO workspace_todos(id,workspace_id,title,status,creator_type,creator_id,created_at,updated_at) VALUES('task-1','workspace-1','Promote me','todo','member','member-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
 		`INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,created_at,updated_at) VALUES('issue-1','workspace-1',1,'ACM-1','Promoted','todo','none','member','member-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
-		`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z')`,
+		`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z','{}')`,
 	} {
 		if _, err := db.Exec(statement); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-2','2026-08-18T00:00:00Z')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES('workspace-1','task-1','issue-2','2026-08-18T00:00:00Z','{}')`); err == nil {
 		t.Fatal("duplicate source Task error = nil")
 	}
-	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-2','issue-1','2026-08-18T00:00:00Z')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES('workspace-1','task-2','issue-1','2026-08-18T00:00:00Z','{}')`); err == nil {
 		t.Fatal("duplicate promoted Issue error = nil")
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-3','issue-3','2026-08-18T00:00:00Z')`); err == nil {
+		t.Fatal("missing response snapshot error = nil")
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES('workspace-1','task-4','issue-4','2026-08-18T00:00:00Z','not-json')`); err == nil {
+		t.Fatal("invalid response snapshot JSON error = nil")
 	}
 }
 
@@ -269,7 +275,7 @@ func TestTaskIssuePromotionDownRequiresEmptyTable(t *testing.T) {
 		if err := MigrateSqlite(context.Background(), db); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z')`); err != nil {
+		if _, err := db.Exec(`INSERT INTO workspace_task_issue_promotions(workspace_id,task_id,issue_id,created_at,response_snapshot) VALUES('workspace-1','task-1','issue-1','2026-08-18T00:00:00Z','{}')`); err != nil {
 			t.Fatal(err)
 		}
 		if err := executeTaskIssuePromotionDownForTest(context.Background(), db); err == nil {
