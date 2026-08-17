@@ -1,11 +1,11 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v15.md](plan_v15.md).
+The approved execution snapshot is [plan_v16.md](plan_v16.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `15`
-- Active step: `PCR-S02B independent-review remediation`
-- Status: `Release 1 active; PCR-S02B/r020 remediation authorized`
+- Approved version: `16`
+- Active step: `PCR-S02B deterministic-gate remediation`
+- Status: `Release 1 active; PCR-S02B/r021 verification repair authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
 - Active task base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -102,6 +102,16 @@ rows, Core callers could not reuse an idempotency key, and the nested promotion
 Issue schema remained loose. Continued Customer authority activates v15/r020
 from exact `36b18b4` solely for those three S02B remediations. S03A and later
 stories remain inactive.
+
+v15/r020 implemented those three remediations at exact candidate `e97c92b` and
+passed focused backend/Core/Views checks plus forced root frontend typecheck and
+tests. Backend full verification then reproduced an earlier attachment
+concurrency failure on both `36b18b4` and `e97c92b`: Kratos's implicit
+one-second HTTP request deadline cancels serialized atomic attachment writes
+before the repository's bounded lock budget. No-waiver v16/r021 starts from
+exact `e97c92b` and authorizes only an explicit 30-second Canonical Runtime HTTP
+budget, its transport contract test, and repeated complete S02B verification.
+S03A and later stories remain inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

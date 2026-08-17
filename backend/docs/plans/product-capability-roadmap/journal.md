@@ -842,3 +842,26 @@ Known limitations, blockers, and next action
 - r019 is `independent-review-blocked`; r020 is the sole active task. S02B is
   not complete, S03A and later stories remain inactive, and no push, merge,
   deployment, or Release 1 completion is claimed.
+
+## 2026-08-18 — J035 — v16/r021 deterministic-gate remediation activated
+
+- v15/r020 candidate `e97c92b23423a89d6d731ab8ba40ca9a80858b63`
+  passes focused backend/Core/Views checks, forced typecheck 6/6 with zero
+  cache, and forced root tests 5/5 with zero cache; Views passes 165 files and
+  1672 tests after verification TEMP is placed on F because C had insufficient
+  transient capacity.
+- Backend `make check` stops on the existing 12-writer attachment acceptance.
+  The focused test also fails on pre-r020 `36b18b4`. Temporary candidate-only
+  diagnostics expose `context deadline exceeded` while waiting for the
+  attachment write slot or committing; the diagnostic edit was removed and
+  the detached candidate tracked diff returned empty.
+- Local Kratos v3 source confirms `NewServer` defaults to a one-second request
+  timeout. That transport deadline is shorter than the attachment repository's
+  frozen eight-second acquisition budget and cancels otherwise serialized
+  atomic writes.
+- Continued Customer authority activates immutable v16/r021 from exact
+  `e97c92b`. Only an explicit 30-second Canonical Runtime HTTP timeout, its
+  transport contract test, and repeated S02B verification are authorized.
+- r020 is `verification-blocked`; r021 is the sole active task. No backend
+  gate PASS, S02B closure, S03A activation, push, merge, deployment, or Release
+  1 completion is claimed.

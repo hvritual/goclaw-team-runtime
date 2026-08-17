@@ -1069,7 +1069,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02B-R20`
 - Task-Revision: `r020`
 - Work-Item: `PCR-S02B`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `36b18b4afac2ca2ae65ced7ee329c726c0bed73b`
@@ -1085,3 +1085,41 @@ S02A without changing Task product behavior or activating S02B.
   reject unknown or malformed nested Issue response fields.
 - Re-run complete S02B verification and fresh independent review before
   closure. S03A and later stories remain inactive.
+
+### Verification outcome
+
+- Candidate `e97c92b23423a89d6d731ab8ba40ca9a80858b63` passes focused
+  backend/Core/Views checks, forced root typecheck 6/6 with zero cache, and
+  forced root tests 5/5 with zero cache; Views passes 165/165 files and
+  1672/1672 tests after TEMP is placed on F due C-volume capacity.
+- Backend `make check` reproducibly fails only
+  `TestSQLiteRuntimeConcurrentAttachmentUploadsLoseNoReferencesOrFiles`.
+  The same focused failure occurs on pre-r020 `36b18b4`; sanitized diagnostics
+  identify the implicit one-second Kratos HTTP request deadline cancelling
+  write-slot wait or commit contexts.
+- v15 requires full gates with no waiver. r020 is verification-blocked and
+  superseded for active execution only by v16/r021.
+
+## PCR-001-S02B-R21
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02B-R21`
+- Task-Revision: `r021`
+- Work-Item: `PCR-S02B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `e97c92b23423a89d6d731ab8ba40ca9a80858b63`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v16`
+- Plan hash: `3575657bbe68972b25691d2b9f077038b802a39e5ad730e07708cd215af63e5b`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/3575657bbe68972b25691d2b9f077038b802a39e5ad730e07708cd215af63e5b`
+
+### Objective and acceptance
+
+- Replace only the Canonical Runtime's implicit one-second Kratos HTTP request
+  budget with an explicit 30-second budget while preserving cancellation and
+  every attachment transaction invariant.
+- Prove the installed transport deadline contract and the unchanged 12-writer
+  attachment acceptance, then repeat all r020 deterministic, browser, scope,
+  cleanup, and independent-review gates without waiver.
+- S03A and all later stories remain inactive.

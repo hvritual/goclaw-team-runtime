@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v15`
-- Status: `Release 1 active; PCR-S02B remediation is the sole active story`
+- Plan-Version: `v16`
+- Status: `Release 1 active; PCR-S02B verification remediation is the sole active story`
 
 ## Delivery policy
 
@@ -70,7 +70,7 @@ empty and denied states, concurrent edit conflicts, and restart persistence.
 
 ### PCR-S02B — Promote a task to an Issue
 
-Status: `active remediation under PRODUCT-CAPABILITY-ROADMAP-001 v15 / r020; v14/r019 independent-review-blocked`
+Status: `active verification remediation under PRODUCT-CAPABILITY-ROADMAP-001 v16 / r021; v15/r020 verification-blocked; v14/r019 independent-review-blocked`
 
 As a member, I can explicitly promote a task into an Issue without creating
 duplicates on retry.
