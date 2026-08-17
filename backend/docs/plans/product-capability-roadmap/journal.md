@@ -690,3 +690,27 @@ Known limitations, blockers, and next action
   complete. Mechanical post-closure active-task count is zero. Release 1
   remains inactive; no Release 1 task, product change, push, merge, or
   deployment is authorized by this closure.
+
+## 2026-08-18 — J027 — v9/r014 approved and PCR-S02A activated
+
+- The current repository proves Release 0 complete at exact base
+  `628996378af6fbe12c27a916a624a5f5374a884f`; pre-activation active-task count
+  is zero and no Release 1 implementation commit exists.
+- Read-only discovery converged after two rounds with no remaining retrievable
+  blocker. Release 1 order is S02A, S02B, S03A, S03B, then S04; S02A is the
+  only dependency-valid next story.
+- Current evidence shows a composed Todo local/gRPC use case and SQLite
+  repository, but no installed `/api/tasks` HTTP handler, no Task response
+  schemas, no revision/archive/restore contract, and only a minimal shared view.
+  Internal presence is not treated as installed product acceptance.
+- The Human Customer directed continued approved actions through completion of
+  Release 1 on 2026-08-18. Immutable `plan_v9.md` narrows that authority to
+  `PCR-S02A` only and freezes r014 from exact base `6289963`.
+- v9 uses RED/GREEN TDD and requires the complete Task lifecycle, revision
+  conflicts, governance atomicity, HTTP/runtime installation, schema-parsed
+  shared client, shared Web/Desktop view, restart/browser evidence, full checks,
+  and fresh independent PASS.
+- Existing dirty/untracked UI, local-runtime, code-to-product, and generated UI
+  artifacts are excluded. `server/**` remains permanently read-only.
+- No S02A implementation, verification PASS, independent review, push, merge,
+  deployment, S02B activation, or Release 1 completion is claimed here.

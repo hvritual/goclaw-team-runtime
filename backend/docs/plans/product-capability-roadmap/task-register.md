@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v8`
-- Registry status: `Release 0 complete; Release 1 inactive; no active task`
-- Registry revision: `r013`
+- Plan-Version: `v9`
+- Registry status: `Release 1 active; PCR-001-S02A-R14 is the sole active task`
+- Registry revision: `r014`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -20,6 +20,7 @@
 | `plan_v6.md` | `1cd1c9a68626fe6c2c70037059b0327a4fa10f37a9853cc9ced4fa7ec32a1849` |
 | `plan_v7.md` | `c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152` |
 | `plan_v8.md` | `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b` |
+| `plan_v9.md` | `50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -816,3 +817,49 @@ Release 1.
   authority/traceability, scope, Release 0 readiness, and Release 1 inactivity.
 - r013 and Release 0 are complete. Release 1 remains inactive and no task is
   active after closure.
+
+## PCR-001-S02A-R14
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02A-R14`
+- Task-Revision: `r014`
+- Work-Item: `PCR-S02A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `628996378af6fbe12c27a916a624a5f5374a884f`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v9`
+- Plan hash: `50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035`
+
+### Objective
+
+Install the complete `PCR-S02A — Manage tasks` vertical slice through the
+Canonical Workspace runtime and shared Web/Desktop product surface. S02B and
+all later Release 1 stories remain inactive.
+
+### Frozen execution and acceptance
+
+- Execute `plan_v9.md` Sections 6.1 through 6.6 in order using RED/GREEN TDD.
+- Preserve the frozen Workspace authority, Task route family, permissions,
+  lifecycle, revision conflict, schema parsing, and governance invariants.
+- Modify only Section 4 paths and preserve every Section 5 exclusion.
+- Any required out-of-scope path, deterministic failure, independent `BLOCK`,
+  or `server/**` path stops closure and requires a new approved plan/task.
+- S02A completion does not activate S02B or complete Release 1.
+
+### Authority
+
+The Human Customer directed Codex to continue approved actions until Release 1
+is complete on 2026-08-18. This activates only v9/r014/PCR-S02A from exact base
+`6289963`; it does not authorize S02B, later stories, push, merge, deployment,
+release tags, external systems, mobile, or `server/**` changes.
+
+### Activation evidence
+
+- Release 0 closure at `6289963` is the direct frozen base.
+- Prior `plan_v1.md` through `plan_v8.md` remain immutable.
+- The pre-activation task count is zero; r014 becomes the sole active task.
+- Existing user/workspace dirty and untracked paths are recorded in v9 Section
+  5 and excluded from implementation.
+- Product verification and independent review are not yet claimed.

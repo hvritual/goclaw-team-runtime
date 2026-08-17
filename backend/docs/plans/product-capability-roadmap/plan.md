@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v8.md](plan_v8.md).
+The approved execution snapshot is [plan_v9.md](plan_v9.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `8`
-- Active step: `none`
-- Status: `Release 0 complete; Release 1 inactive`
+- Approved version: `9`
+- Active step: `PCR-S02A`
+- Status: `Release 1 active; PCR-S02A/r014 execution authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `14908b9e53a73330c0cde3fe8a3f602635906858`
+- Active task base commit: `628996378af6fbe12c27a916a624a5f5374a884f`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -44,7 +44,13 @@ register. The Human Customer explicitly approved documentation-only
 `PRODUCT-CAPABILITY-ROADMAP-001 v8 / r013` on 2026-08-18. v8 marked r011 and
 r012 review-blocked and established r013 as the sole pre-closure authority.
 Fresh independent review returned `SPEC PASS`; r013 and Release 0 are complete.
-Release 1 remains inactive with no active task.
+Release 1 remained inactive with no active task at that closure.
+
+The Human Customer directed continued approved execution through Release 1 on
+2026-08-18. `PRODUCT-CAPABILITY-ROADMAP-001 v9 / r014` starts from exact Release
+0 closure `6289963` and activates only `PCR-S02A — Manage tasks`. S02B and all
+later stories remain inactive. Product changes are limited to the exact v9
+scope, RED/GREEN order, deterministic evidence, and independent review gate.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

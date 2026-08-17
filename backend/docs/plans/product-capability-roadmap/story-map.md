@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v8`
-- Status: `Release 0 complete; Release 1 inactive; no active Release 1 story`
+- Plan-Version: `v9`
+- Status: `Release 1 active; PCR-S02A is the sole active story`
 
 ## Delivery policy
 
@@ -60,6 +60,8 @@ Acceptance scenarios:
 
 ### PCR-S02A — Manage tasks
 
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v9 / r014`
+
 As a member, I can create, view, filter, reorder, edit, complete, cancel, archive,
 and restore tasks in my workspace.
 
@@ -67,6 +69,8 @@ Acceptance scenarios cover member/agent assignees, due dates, stable ordering,
 empty and denied states, concurrent edit conflicts, and restart persistence.
 
 ### PCR-S02B — Promote a task to an Issue
+
+Status: `inactive; depends on accepted PCR-S02A`
 
 As a member, I can explicitly promote a task into an Issue without creating
 duplicates on retry.
