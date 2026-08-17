@@ -823,3 +823,22 @@ Known limitations, blockers, and next action
   artifacts are excluded. `server/**` remains permanently read-only.
 - No S02B implementation, verification PASS, independent review, push, merge,
   deployment, S03A activation, or Release 1 completion is claimed here.
+
+## 2026-08-18 — J034 — v15/r020 S02B review remediation activated
+
+- v14 candidate `36b18b4afac2ca2ae65ced7ee329c726c0bed73b` passed exact-candidate
+  typecheck, full tests, backend check/race, and installed Chrome promotion
+  acceptance. A transient unrelated navigation-test timeout was reproduced as
+  resource contention: focused 2/2 passed and a zero-cache full rerun with
+  concurrency 2 passed 5/5.
+- Fresh independent review returned BLOCK. Exact replay reloads mutable Task
+  and Issue rows after commit, Core callers cannot supply/reuse one
+  idempotency key, and the nested promotion Issue schema inherits loose unknown
+  field handling.
+- Continued Customer authority activates immutable v15/r020 from exact blocked
+  candidate `36b18b4`. Only response-snapshot persistence, same-command key
+  reuse, strict nested Issue parsing, their tests, and repeated verification
+  are authorized.
+- r019 is `independent-review-blocked`; r020 is the sole active task. S02B is
+  not complete, S03A and later stories remain inactive, and no push, merge,
+  deployment, or Release 1 completion is claimed.

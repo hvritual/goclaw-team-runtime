@@ -2,8 +2,8 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v14`
-- Registry status: `Release 1 active; PCR-001-S02B-R19 is the sole active task`
-- Registry revision: `r019`
+- Registry status: `Release 1 active; PCR-001-S02B-R20 is the sole active task`
+- Registry revision: `r020`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1037,7 +1037,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02B-R19`
 - Task-Revision: `r019`
 - Work-Item: `PCR-S02B`
-- Status: `active`
+- Status: `independent-review-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
@@ -1053,3 +1053,35 @@ S02A without changing Task product behavior or activating S02B.
   single winner, rollback, restart, no later synchronization, shared UI, and
   clean installed-browser acceptance.
 - S03A and all later stories remain inactive.
+
+### Independent review outcome
+
+- Candidate `36b18b4afac2ca2ae65ced7ee329c726c0bed73b` passed deterministic
+  and installed-browser checks but is not closable.
+- Review blocked exact replay after live-row edits, reusable client
+  idempotency keys, and strict nested Issue parsing.
+- r019 is superseded for active execution only by v15/r020; its implementation
+  and evidence remain immutable history.
+
+## PCR-001-S02B-R20
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02B-R20`
+- Task-Revision: `r020`
+- Work-Item: `PCR-S02B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `36b18b4afac2ca2ae65ced7ee329c726c0bed73b`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v15`
+- Plan hash: `f13b640a0c33aacfd47fe61bd2ae981acf4fc8781fcfe839f8814482e5881e02`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/f13b640a0c33aacfd47fe61bd2ae981acf4fc8781fcfe839f8814482e5881e02`
+
+### Objective and acceptance
+
+- Persist the originally committed promotion response outside safe governance
+  envelopes and replay it after later live-row edits or database reopen.
+- Preserve one explicit client idempotency key across same-command retry and
+  reject unknown or malformed nested Issue response fields.
+- Re-run complete S02B verification and fresh independent review before
+  closure. S03A and later stories remain inactive.

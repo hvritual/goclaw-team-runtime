@@ -1,11 +1,11 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v14.md](plan_v14.md).
+The approved execution snapshot is [plan_v15.md](plan_v15.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `14`
-- Active step: `PCR-S02B promote a Task to an Issue`
-- Status: `Release 1 active; PCR-S02B/r019 authorized`
+- Approved version: `15`
+- Active step: `PCR-S02B independent-review remediation`
+- Status: `Release 1 active; PCR-S02B/r020 remediation authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
 - Active task base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -95,6 +95,13 @@ The Human Customer's standing direction to complete Release 1 activates
 `PRODUCT-CAPABILITY-ROADMAP-001 v14 / r019` from exact S02A closure `3262232`.
 Only PCR-S02B Task-to-Issue promotion is active. S03A and all later stories
 remain inactive.
+
+v14 candidate `36b18b4` passed deterministic and installed-browser gates, but
+fresh independent review blocked closure because replay reloaded mutable live
+rows, Core callers could not reuse an idempotency key, and the nested promotion
+Issue schema remained loose. Continued Customer authority activates v15/r020
+from exact `36b18b4` solely for those three S02B remediations. S03A and later
+stories remain inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not
