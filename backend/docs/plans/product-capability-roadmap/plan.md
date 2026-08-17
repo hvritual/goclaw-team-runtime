@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v9.md](plan_v9.md).
+The approved execution snapshot is [plan_v10.md](plan_v10.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `9`
-- Active step: `PCR-S02A`
-- Status: `Release 1 active; PCR-S02A/r014 execution authorized`
+- Approved version: `10`
+- Active step: `PCR-S02A verification repair`
+- Status: `Release 1 active; PCR-S02A/r015 verification repair authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `628996378af6fbe12c27a916a624a5f5374a884f`
+- Active task base commit: `906580292e6fbcd9a0d866cae796d0b67cfd975d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -51,6 +51,17 @@ The Human Customer directed continued approved execution through Release 1 on
 0 closure `6289963` and activates only `PCR-S02A — Manage tasks`. S02B and all
 later stories remain inactive. Product changes are limited to the exact v9
 scope, RED/GREEN order, deterministic evidence, and independent review gate.
+
+S02A implementation candidate `9065802` passed backend checks, real race,
+focused/full Core checks, frontend typechecks, exact installed browser
+acceptance, and fresh independent review. Closure remained blocked because the
+frozen root commands referenced nonexistent package `@multica/mobile`, while
+direct Views execution exposed four deterministic verification-baseline
+failures. The Human Customer approved the follow-up scope on 2026-08-18.
+`PRODUCT-CAPABILITY-ROADMAP-001 v10 / r015` starts from exact `9065802`, marks
+r014 verification-blocked, and authorizes only the root-script, dead-locale-key,
+and Windows boundary-test repairs required to rerun the frozen gates. S02B and
+later stories remain inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

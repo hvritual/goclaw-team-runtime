@@ -714,3 +714,21 @@ Known limitations, blockers, and next action
   artifacts are excluded. `server/**` remains permanently read-only.
 - No S02A implementation, verification PASS, independent review, push, merge,
   deployment, S02B activation, or Release 1 completion is claimed here.
+
+## 2026-08-18 — J028 — v10/r015 verification repair activated
+
+- Exact candidate `9065802` contains the complete S02A product slice and passed
+  backend `make check`, real `make test-race`, Core 593/593, Task Views 8/8,
+  Core/Views/Web/Desktop typechecks, clean installed Playwright 1/1, and fresh
+  independent review.
+- S02A closure is not claimed because frozen root `pnpm typecheck` and
+  `pnpm test` reference nonexistent `@multica/mobile`; direct Views full tests
+  additionally expose three dead locale plural keys and one Windows path
+  separator mismatch in an already-documented exception.
+- The Human Customer approved follow-up actions on 2026-08-18. Immutable
+  `plan_v10.md` freezes exact base `9065802` and authorizes only those
+  verification-baseline repairs.
+- r014 becomes verification-blocked; r015 is the sole active task. S02B and all
+  later Release 1 stories remain inactive.
+- No repair implementation, deterministic PASS, S02A closure, push, merge,
+  deployment, or Release 1 completion is claimed here.

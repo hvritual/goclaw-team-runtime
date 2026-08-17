@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v9`
-- Registry status: `Release 1 active; PCR-001-S02A-R14 is the sole active task`
-- Registry revision: `r014`
+- Plan-Version: `v10`
+- Registry status: `Release 1 active; PCR-001-S02A-R15 is the sole active task`
+- Registry revision: `r015`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -21,6 +21,7 @@
 | `plan_v7.md` | `c20d41dc6d7b61830aacba2c378fd80e96ad958ed5604d239fda0687c2062152` |
 | `plan_v8.md` | `8c23420fd4fc5c6bc0ad12946a2c0ec6d3c71ec0ca95dbebc68cea262849c78b` |
 | `plan_v9.md` | `50f46e32ea3658ef87e903c12d840011b86be43edd9305e7244a687a3e53a035` |
+| `plan_v10.md` | `444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -824,7 +825,7 @@ Release 1.
 - Task-ID: `PCR-001-S02A-R14`
 - Task-Revision: `r014`
 - Work-Item: `PCR-S02A`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `628996378af6fbe12c27a916a624a5f5374a884f`
@@ -863,3 +864,49 @@ release tags, external systems, mobile, or `server/**` changes.
 - Existing user/workspace dirty and untracked paths are recorded in v9 Section
   5 and excluded from implementation.
 - Product verification and independent review are not yet claimed.
+
+### Verification outcome
+
+- S02A product implementation reached exact candidate `9065802` and passed
+  backend full checks, real race, Core 593/593, Task Views 8/8, four frontend
+  typechecks, clean-candidate installed Playwright 1/1, and fresh independent
+  review.
+- Frozen root verification remained deterministically blocked by the stale
+  nonexistent `@multica/mobile` filter; direct Views execution exposed four
+  verification-baseline failures. v9 requires a new task/plan rather than a
+  waiver, so r014 is verification-blocked and superseded by r015.
+
+## PCR-001-S02A-R15
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02A-R15`
+- Task-Revision: `r015`
+- Work-Item: `PCR-S02A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `906580292e6fbcd9a0d866cae796d0b67cfd975d`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v10`
+- Plan hash: `444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171`
+
+### Objective
+
+Repair only the deterministic repository verification baseline needed to close
+S02A without changing Task product behavior or activating S02B.
+
+### Frozen execution and acceptance
+
+- Execute `plan_v10.md` Sections 6 through 8 in order using the captured root
+  and Views failures as RED evidence.
+- Modify only v10 Section 4 paths and preserve all v10 Section 5 exclusions.
+- Root `pnpm typecheck`, root `pnpm test`, backend full/race checks, exact Task
+  browser acceptance, and fresh independent review must all pass.
+- S02A closure does not activate S02B or complete Release 1.
+
+### Activation evidence
+
+- Exact base `9065802` preserves the independently reviewed S02A product PASS.
+- r014 is verification-blocked; r015 is the sole active task.
+- The Human Customer approved the follow-up scope on 2026-08-18.
+- No verification repair or closure PASS is claimed at activation.
