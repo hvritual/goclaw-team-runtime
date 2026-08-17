@@ -51,6 +51,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo SQLite persistence: %w", err)
 	}
+	taskPromotions, err := persistence.NewTaskPromotionRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Task promotion SQLite persistence: %w", err)
+	}
 	knowledge, err := persistence.NewKnowledgeRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Knowledge SQLite persistence: %w", err)
@@ -105,6 +109,13 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now, taskCursorSigningKey)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Todo application: %w", err)
+	}
+	taskPromotionService, err := application.NewTaskPromotionUseCase(
+		taskPromotions, taskPromotions, dependencies.Authorizer, dependencies.Actors,
+		newID(dependencies.NewIssueID), now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Task promotion application: %w", err)
 	}
 	baseIssueService, err := application.NewIssueUseCase(
 		issues, projects, dependencies.Authorizer, dependencies.Actors, dependencies.Assets,
@@ -190,7 +201,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
-		module.extensions = append(module.extensions, newTaskHTTPExtension(todoService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+		module.extensions = append(module.extensions, newTaskHTTPExtension(todoService, taskPromotionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newIssueCollaborationExtension(
 			issueCollaborationService,
 			dependencies.HTTPIdentity,

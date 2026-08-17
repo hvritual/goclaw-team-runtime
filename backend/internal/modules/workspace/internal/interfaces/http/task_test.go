@@ -21,7 +21,19 @@ type recordingTaskService struct {
 	deleteRequest  contract.DeleteTodoRequest
 	restoreRequest contract.RestoreTodoRequest
 	reorderRequest contract.ReorderTodosRequest
+	promoteRequest contract.PromoteTaskRequest
 }
+
+func (s *recordingTaskService) PromoteTask(_ context.Context, request contract.PromoteTaskRequest) (contract.PromoteTaskResponse, error) {
+	s.promoteRequest = request
+	return contract.PromoteTaskResponse{
+		SourceTaskId: request.TaskId,
+		Task:         &contract.Todo{Id: request.TaskId, WorkspaceId: request.WorkspaceId, IssueId: stringPointer("issue-1"), Title: "Promoted", Status: "done", Priority: "high", CreatorType: "member", CreatorId: "member-1", Revision: request.ExpectedRevision + 1},
+		Issue:        &contract.Issue{Id: "issue-1", WorkspaceId: request.WorkspaceId, Number: 7, Identifier: "ONE-7", Title: "Promoted", Status: "todo", Priority: "high", CreatorType: "member", CreatorId: "member-1"},
+	}, nil
+}
+
+func stringPointer(value string) *string { return &value }
 
 func (s *recordingTaskService) ReorderTodos(_ context.Context, request contract.ReorderTodosRequest) (contract.ReorderTodosResponse, error) {
 	s.reorderRequest = request
@@ -183,6 +195,36 @@ func TestTaskCreateUsesTrustedWorkspaceAndReturns201(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"workspace_id":"workspace-1"`) || !strings.Contains(response.Body.String(), `"revision":1`) {
 		t.Fatalf("create body = %s", response.Body.String())
+	}
+}
+
+func TestTaskPromotionUsesTrustedWorkspaceRevisionAndIdempotency(t *testing.T) {
+	service := &recordingTaskService{}
+	server := kratoshttp.NewServer()
+	NewTaskHandler(
+		service,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		},
+		func(*http.Request) (string, error) { return "member-1", nil },
+		func(*http.Request) error { return nil },
+	).WithPromotion(service).Register(server)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/tasks/task-1/promote", strings.NewReader(`{"expected_revision":4,"complete_task":true}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "promote-task-1")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("promote = %d %s", response.Code, response.Body.String())
+	}
+	if service.promoteRequest.WorkspaceId != "workspace-1" || service.promoteRequest.TaskId != "task-1" || service.promoteRequest.ExpectedRevision != 4 || !service.promoteRequest.CompleteTask || service.promoteRequest.IdempotencyKey != "promote-task-1" {
+		t.Fatalf("promote request = %+v", service.promoteRequest)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"source_task_id":"task-1"`) || !strings.Contains(body, `"identifier":"ONE-7"`) || !strings.Contains(body, `"issue_id":"issue-1"`) {
+		t.Fatalf("promote body = %s", body)
 	}
 }
 

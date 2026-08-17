@@ -71,6 +71,7 @@ func (r *todoRepository) Create(ctx context.Context, value todoDomain.Todo) (tod
 
 type todoSQLExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 func (r *todoRepository) createWith(ctx context.Context, executor todoSQLExecutor, value todoDomain.Todo) error {
@@ -148,6 +149,14 @@ func (r *todoRepository) Update(ctx context.Context, value todoDomain.Todo) erro
 }
 
 func (r *todoRepository) updateWith(ctx context.Context, executor todoSQLExecutor, value todoDomain.Todo) error {
+	var promotedIssueID string
+	err := executor.QueryRowContext(ctx, `SELECT issue_id FROM workspace_task_issue_promotions WHERE workspace_id=? AND task_id=?`, value.WorkspaceID, value.ID).Scan(&promotedIssueID)
+	if err == nil && (value.IssueID == nil || *value.IssueID != promotedIssueID) {
+		return contract.ErrTaskAlreadyLinked
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("inspect immutable Task promotion link: %w", err)
+	}
 	result, err := executor.ExecContext(ctx, `UPDATE workspace_todos SET
 		project_id=?,issue_id=?,title=?,description=?,status=?,priority=?,assignee_type=?,assignee_id=?,
 		position=?,start_date=?,due_date=?,completed_at=?,updated_at=?,revision=?,restore_status=?,archived_at=?

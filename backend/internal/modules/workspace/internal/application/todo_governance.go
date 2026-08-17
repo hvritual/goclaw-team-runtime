@@ -73,7 +73,7 @@ func validTaskGovernanceBinding(action, resourceKind string) bool {
 		return resourceKind == "task_order"
 	}
 	switch action {
-	case TaskActionCreate, TaskActionUpdate, TaskActionArchive, TaskActionRestore:
+	case TaskActionCreate, TaskActionUpdate, TaskActionArchive, TaskActionRestore, TaskActionPromote:
 		return resourceKind == "task"
 	default:
 		return false
@@ -82,6 +82,18 @@ func validTaskGovernanceBinding(action, resourceKind string) bool {
 
 func installedTaskGovernancePolicy(action, resourceKind string) GovernanceActionPolicy {
 	eventType, _ := taskEventForAction(action)
+	if action == TaskActionPromote {
+		return GovernanceActionPolicy{
+			Action: action, ResourceKind: resourceKind,
+			RequestSchema: EnvelopeSchema{
+				"expected_revision": {Kind: SafeNonNegativeInteger, Required: true},
+				"complete_task":     {Kind: SafeBoolean, Required: true},
+			},
+			ReplaySchema: taskPromotionGovernanceSchema(),
+			AuditSchema:  taskPromotionGovernanceSchema(),
+			EventSchemas: map[string]EnvelopeSchema{eventType: taskGovernanceStateSchema()},
+		}
+	}
 	requestSchema := taskGovernanceStateSchema()
 	if action == TaskActionCreate {
 		requestSchema = EnvelopeSchema{"fingerprint": {Kind: SafeIdentifier, MaxLength: 64, Required: true}}
@@ -94,6 +106,16 @@ func installedTaskGovernancePolicy(action, resourceKind string) GovernanceAction
 		ReplaySchema:  taskGovernanceStateSchema(),
 		AuditSchema:   taskGovernanceStateSchema(),
 		EventSchemas:  map[string]EnvelopeSchema{eventType: taskGovernanceStateSchema()},
+	}
+}
+
+func taskPromotionGovernanceSchema() EnvelopeSchema {
+	return EnvelopeSchema{
+		"id":            {Kind: SafeIdentifier, MaxLength: 200, Required: true},
+		"issue_id":      {Kind: SafeIdentifier, MaxLength: 200, Required: true},
+		"revision":      {Kind: SafeNonNegativeInteger, Required: true},
+		"status":        {Kind: SafeEnum, Required: true, EnumValues: []string{"todo", "in_progress", "done", "cancelled"}},
+		"complete_task": {Kind: SafeBoolean, Required: true},
 	}
 }
 
@@ -120,13 +142,15 @@ func taskEventForAction(action string) (string, bool) {
 		return "task:updated", true
 	case TaskActionReorder:
 		return "task:updated", true
+	case TaskActionPromote:
+		return "task:updated", true
 	default:
 		return "", false
 	}
 }
 
 func taskActionForEvent(eventType string) (string, bool) {
-	for _, action := range []string{TaskActionCreate, TaskActionUpdate, TaskActionArchive, TaskActionRestore, TaskActionReorder} {
+	for _, action := range []string{TaskActionCreate, TaskActionUpdate, TaskActionArchive, TaskActionRestore, TaskActionReorder, TaskActionPromote} {
 		if candidate, _ := taskEventForAction(action); candidate == eventType {
 			return action, true
 		}

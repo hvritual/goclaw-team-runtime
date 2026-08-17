@@ -12,9 +12,15 @@ import (
 
 type TaskHandler struct {
 	service      contract.TodoService
+	promotion    contract.TaskPromotionService
 	identity     contract.WorkspaceHTTPIdentityResolver
 	authenticate func(*http.Request) (string, error)
 	mutation     func(*http.Request) error
+}
+
+func (h *TaskHandler) WithPromotion(service contract.TaskPromotionService) *TaskHandler {
+	h.promotion = service
+	return h
 }
 
 func NewTaskHandler(service contract.TodoService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error) *TaskHandler {
@@ -30,6 +36,46 @@ func (h *TaskHandler) Register(server *kratoshttp.Server) {
 	router.PATCH("/api/tasks/{id}", h.update)
 	router.DELETE("/api/tasks/{id}", h.archive)
 	router.POST("/api/tasks/{id}/restore", h.restore)
+	router.POST("/api/tasks/{id}/promote", h.promote)
+}
+
+func (h *TaskHandler) promote(ctx kratoshttp.Context) error {
+	identity, ok := h.resolveIdentity(ctx)
+	if !ok {
+		return nil
+	}
+	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	if h.promotion == nil {
+		return writeError(ctx, http.StatusServiceUnavailable, "task promotion is unavailable")
+	}
+	idempotencyKey := ctx.Request().Header.Get("Idempotency-Key")
+	if idempotencyKey == "" {
+		return writeError(ctx, http.StatusBadRequest, "idempotency key is required")
+	}
+	var input struct {
+		ExpectedRevision int64 `json:"expected_revision"`
+		CompleteTask     bool  `json:"complete_task"`
+	}
+	if err := decodeJSON(ctx.Request().Body, &input); err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid request body")
+	}
+	result, err := h.promotion.PromoteTask(workspaceActorContext(ctx, identity), contract.PromoteTaskRequest{
+		WorkspaceId: identity.WorkspaceID, TaskId: ctx.Vars().Get("id"),
+		ExpectedRevision: input.ExpectedRevision, CompleteTask: input.CompleteTask,
+		IdempotencyKey: idempotencyKey,
+	})
+	if err != nil {
+		return h.writeError(ctx, err)
+	}
+	if result.Task == nil || result.Issue == nil || result.SourceTaskId == "" {
+		return writeError(ctx, http.StatusInternalServerError, "task promotion failed")
+	}
+	return ctx.JSON(http.StatusCreated, map[string]any{
+		"task": taskToResponse(*result.Task), "issue": toPublicIssue(*result.Issue),
+		"source_task_id": result.SourceTaskId,
+	})
 }
 
 func (h *TaskHandler) reorder(ctx kratoshttp.Context) error {
@@ -262,6 +308,16 @@ func (h *TaskHandler) writeError(ctx kratoshttp.Context, err error) error {
 			"code": "idempotency_conflict", "error": contract.ErrIdempotencyConflict.Error(),
 		})
 	}
+	if errors.Is(err, contract.ErrTaskAlreadyLinked) {
+		return ctx.JSON(http.StatusConflict, map[string]any{
+			"code": "task_already_linked", "error": contract.ErrTaskAlreadyLinked.Error(),
+		})
+	}
+	if errors.Is(err, contract.ErrTaskPromotionConflict) {
+		return ctx.JSON(http.StatusConflict, map[string]any{
+			"code": "task_promotion_conflict", "error": contract.ErrTaskPromotionConflict.Error(),
+		})
+	}
 	if errors.Is(err, contract.ErrWorkspacePermissionDenied) {
 		return writeError(ctx, http.StatusForbidden, contract.ErrWorkspacePermissionDenied.Error())
 	}
@@ -273,6 +329,9 @@ func (h *TaskHandler) writeError(ctx kratoshttp.Context, err error) error {
 	}
 	if errors.Is(err, contract.ErrInvalidTodo) {
 		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidTodo.Error())
+	}
+	if errors.Is(err, contract.ErrInvalidTaskPromotion) {
+		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidTaskPromotion.Error())
 	}
 	return writeError(ctx, http.StatusInternalServerError, "task operation failed")
 }
