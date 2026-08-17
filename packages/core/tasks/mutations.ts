@@ -10,7 +10,7 @@ export function useCreateTask() {
   return useMutation({
     mutationFn: (request: CreateTaskRequest) => api.createTask(request),
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: taskKeys.list(workspaceId) }),
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(workspaceId) }),
   });
 }
 
@@ -26,7 +26,7 @@ export function useUpdateTask() {
       queryClient.invalidateQueries({
         queryKey: taskKeys.detail(workspaceId, variables.id),
       });
-      queryClient.invalidateQueries({ queryKey: taskKeys.list(workspaceId) });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(workspaceId) });
     },
   });
 }
@@ -38,7 +38,7 @@ export function useDeleteTask() {
     mutationFn: ({ id, expectedRevision }: { id: string; expectedRevision: number }) =>
       api.deleteTask(id, expectedRevision),
     onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: taskKeys.list(workspaceId) }),
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(workspaceId) }),
   });
 }
 
