@@ -19,6 +19,7 @@ import (
 type GovernanceOutboxDependencies struct {
 	Sink             contract.OutboxSink
 	Authorizer       contract.WorkspaceAccessAuthorizer
+	EventPolicies    application.GovernanceEventPolicyProvider
 	Memberships      contract.WorkspaceMembershipReader
 	HTTPIdentity     contract.WorkspaceHTTPIdentityResolver
 	HTTPUserIdentity func(*http.Request) (string, error)
@@ -42,7 +43,7 @@ type GovernanceOutbox struct {
 }
 
 func NewSQLiteGovernanceOutbox(module *Module, config SqlitePersistenceConfig, dependencies GovernanceOutboxDependencies) (*GovernanceOutbox, error) {
-	if module == nil || dependencies.Sink == nil || dependencies.Authorizer == nil || dependencies.Memberships == nil ||
+	if module == nil || dependencies.Sink == nil || dependencies.Authorizer == nil || dependencies.EventPolicies == nil || dependencies.Memberships == nil ||
 		dependencies.HTTPIdentity == nil || dependencies.HTTPUserIdentity == nil {
 		return nil, contract.ErrGovernanceUnavailable
 	}
@@ -55,7 +56,7 @@ func NewSQLiteGovernanceOutbox(module *Module, config SqlitePersistenceConfig, d
 	}
 	service, err := application.NewOutboxService(application.OutboxServiceConfig{
 		Repository: repository,
-		Sink:       dependencies.Sink, Authorizer: dependencies.Authorizer,
+		Sink:       dependencies.Sink, Authorizer: dependencies.Authorizer, EventPolicies: dependencies.EventPolicies,
 		Now: dependencies.Now, NewClaimToken: dependencies.NewClaimToken,
 		Jitter: dependencies.Jitter, BatchSize: dependencies.BatchSize,
 	})
@@ -110,11 +111,11 @@ func (g *GovernanceOutbox) ReadGovernanceDiagnostics(ctx context.Context, worksp
 	return g.service.ReadGovernanceDiagnostics(ctx, workspaceID)
 }
 
-func (g *GovernanceOutbox) Replay(ctx context.Context, workspaceID, eventID string) error {
+func (g *GovernanceOutbox) Replay(ctx context.Context, identity contract.OutboxRowIdentity) error {
 	if g == nil || g.service == nil {
 		return contract.ErrGovernanceUnavailable
 	}
-	return g.service.Replay(ctx, workspaceID, eventID)
+	return g.service.Replay(ctx, identity)
 }
 
 func (g *GovernanceOutbox) Ready(ctx context.Context) error {

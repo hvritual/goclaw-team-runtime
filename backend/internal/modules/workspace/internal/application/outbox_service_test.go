@@ -14,14 +14,15 @@ func TestOutboxServiceSchedulesDeterministicRetryWithinHardBatchCap(t *testing.T
 	repository := &outboxRepositoryStub{claimed: []contract.OutboxEvent{{
 		State: contract.OutboxInflight, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1",
 		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
-		Payload: []byte(`{"id":"task-1"}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
 		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(now.Add(time.Minute)), CreatedAt: now,
 	}}}
 	service, err := NewOutboxService(OutboxServiceConfig{
-		Repository: repository,
-		Sink:       outboxSinkStub{err: errors.New("downstream unavailable")},
-		Authorizer: outboxAuthorizerStub{},
-		Now:        func() time.Time { return now },
+		Repository:    repository,
+		Sink:          outboxSinkStub{err: errors.New("downstream unavailable")},
+		Authorizer:    outboxAuthorizerStub{},
+		EventPolicies: governanceEventPolicyStub{},
+		Now:           func() time.Time { return now },
 		NewClaimToken: func() string {
 			return "claim-1"
 		},
@@ -48,11 +49,11 @@ func TestOutboxServiceDeadLettersFourthFailedAttempt(t *testing.T) {
 	repository := &outboxRepositoryStub{claimed: []contract.OutboxEvent{{
 		State: contract.OutboxInflight, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1",
 		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
-		Payload: []byte(`{}`), ActorType: "member", ActorID: "member-1", AttemptCount: 4,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 4,
 		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(now.Add(time.Minute)), CreatedAt: now,
 	}}}
 	service, err := NewOutboxService(OutboxServiceConfig{
-		Repository: repository, Sink: outboxSinkStub{err: errors.New("failed")}, Authorizer: outboxAuthorizerStub{},
+		Repository: repository, Sink: outboxSinkStub{err: errors.New("failed")}, Authorizer: outboxAuthorizerStub{}, EventPolicies: governanceEventPolicyStub{},
 		Now: func() time.Time { return now }, NewClaimToken: func() string { return "claim-1" },
 	})
 	if err != nil {
@@ -71,11 +72,11 @@ func TestOutboxServiceMarksSuccessfulPublishDelivered(t *testing.T) {
 	repository := &outboxRepositoryStub{claimed: []contract.OutboxEvent{{
 		State: contract.OutboxInflight, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1",
 		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
-		Payload: []byte(`{}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
 		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(now.Add(time.Minute)), CreatedAt: now,
 	}}}
 	service, err := NewOutboxService(OutboxServiceConfig{
-		Repository: repository, Sink: outboxSinkStub{}, Authorizer: outboxAuthorizerStub{},
+		Repository: repository, Sink: outboxSinkStub{}, Authorizer: outboxAuthorizerStub{}, EventPolicies: governanceEventPolicyStub{},
 		Now: func() time.Time { return now }, NewClaimToken: func() string { return "claim-1" },
 	})
 	if err != nil {
@@ -89,18 +90,82 @@ func TestOutboxServiceMarksSuccessfulPublishDelivered(t *testing.T) {
 	}
 }
 
+func TestOutboxServiceUsesPostPublishClockAndCompleteClaimIdentity(t *testing.T) {
+	claimedAt := time.Unix(100, 0).UTC()
+	transitionedAt := claimedAt.Add(OutboxLeaseDuration + time.Second)
+	clockCalls := 0
+	repository := &outboxRepositoryStub{enforceCurrentLease: true, claimed: []contract.OutboxEvent{{
+		State: contract.OutboxInflight, AvailableAt: claimedAt, WorkspaceID: "workspace-1", ID: "event-1",
+		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(claimedAt.Add(OutboxLeaseDuration)), CreatedAt: claimedAt,
+	}}}
+	service, err := NewOutboxService(OutboxServiceConfig{
+		Repository: repository, Sink: outboxSinkStub{}, Authorizer: outboxAuthorizerStub{}, EventPolicies: governanceEventPolicyStub{},
+		Now: func() time.Time {
+			clockCalls++
+			if clockCalls == 1 {
+				return claimedAt
+			}
+			return transitionedAt
+		},
+		NewClaimToken: func() string { return "claim-1" },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.DispatchOnce(context.Background()); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+		t.Fatalf("dispatch error = %v, want expired claim conflict", err)
+	}
+	if !repository.transitionedAt.Equal(transitionedAt) {
+		t.Fatalf("transition time = %s, want %s", repository.transitionedAt, transitionedAt)
+	}
+	if repository.claimIdentity.State != contract.OutboxInflight ||
+		!repository.claimIdentity.AvailableAt.Equal(claimedAt) ||
+		repository.claimIdentity.WorkspaceID != "workspace-1" || repository.claimIdentity.ID != "event-1" ||
+		repository.claimIdentity.ClaimToken != "claim-1" ||
+		!repository.claimIdentity.LeaseExpiresAt.Equal(claimedAt.Add(OutboxLeaseDuration)) {
+		t.Fatalf("claim identity = %+v", repository.claimIdentity)
+	}
+}
+
+func TestOutboxServiceRejectsUnknownEventPolicyBeforePublish(t *testing.T) {
+	now := time.Unix(100, 0).UTC()
+	repository := &outboxRepositoryStub{claimed: []contract.OutboxEvent{{
+		State: contract.OutboxInflight, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1",
+		EventType: "unknown:event", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 1,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "user-1", AttemptCount: 1,
+		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(now.Add(OutboxLeaseDuration)), CreatedAt: now,
+	}}}
+	sink := &recordingOutboxSink{}
+	service, err := NewOutboxService(OutboxServiceConfig{
+		Repository: repository, Sink: sink, Authorizer: outboxAuthorizerStub{},
+		EventPolicies: governanceEventPolicyStub{err: contract.ErrGovernanceUnavailable},
+		Now:           func() time.Time { return now }, NewClaimToken: func() string { return "claim-1" },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.DispatchOnce(context.Background()); !errors.Is(err, contract.ErrGovernanceUnavailable) {
+		t.Fatalf("dispatch error = %v, want governance unavailable", err)
+	}
+	if len(sink.events) != 0 || repository.delivered || repository.failedCode != "" {
+		t.Fatalf("unknown policy escaped: events=%d delivered=%v failure=%q", len(sink.events), repository.delivered, repository.failedCode)
+	}
+}
+
 func TestOutboxServiceCrashWindowRedeliversStableEventIdentity(t *testing.T) {
 	now := time.Unix(100, 0).UTC()
 	event := contract.OutboxEvent{
 		State: contract.OutboxInflight, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1",
 		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
-		Payload: []byte(`{}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		Payload: []byte(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
 		ClaimToken: "claim-1", LeaseExpiresAt: timePointer(now.Add(time.Minute)), CreatedAt: now,
 	}
 	repository := &outboxRepositoryStub{claimed: []contract.OutboxEvent{event}, deliveryErr: errors.New("ack interrupted")}
 	sink := &recordingOutboxSink{}
 	service, err := NewOutboxService(OutboxServiceConfig{
-		Repository: repository, Sink: sink, Authorizer: outboxAuthorizerStub{},
+		Repository: repository, Sink: sink, Authorizer: outboxAuthorizerStub{}, EventPolicies: governanceEventPolicyStub{},
 		Now: func() time.Time { return now }, NewClaimToken: func() string { return "claim-1" },
 	})
 	if err != nil {
@@ -120,20 +185,21 @@ func TestOutboxServiceReplayRequiresOperatorAuthority(t *testing.T) {
 	now := time.Unix(100, 0).UTC()
 	repository := &outboxRepositoryStub{}
 	service, err := NewOutboxService(OutboxServiceConfig{
-		Repository: repository, Sink: outboxSinkStub{}, Authorizer: outboxAuthorizerStub{err: contract.ErrWorkspacePermissionDenied},
+		Repository: repository, Sink: outboxSinkStub{}, Authorizer: outboxAuthorizerStub{err: contract.ErrWorkspacePermissionDenied}, EventPolicies: governanceEventPolicyStub{},
 		Now: func() time.Time { return now }, NewClaimToken: func() string { return "claim-1" },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := service.Replay(context.Background(), "workspace-1", "event-1"); !errors.Is(err, contract.ErrWorkspacePermissionDenied) {
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: now, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := service.Replay(context.Background(), identity); !errors.Is(err, contract.ErrWorkspacePermissionDenied) {
 		t.Fatalf("denied replay error = %v", err)
 	}
 	if repository.replayed {
 		t.Fatal("denied replay reached repository")
 	}
 	service.authorizer = outboxAuthorizerStub{}
-	if err := service.Replay(context.Background(), "workspace-1", "event-1"); err != nil {
+	if err := service.Replay(context.Background(), identity); err != nil {
 		t.Fatal(err)
 	}
 	if !repository.replayed {
@@ -142,33 +208,44 @@ func TestOutboxServiceReplayRequiresOperatorAuthority(t *testing.T) {
 }
 
 type outboxRepositoryStub struct {
-	claimed       []contract.OutboxEvent
-	claimLimit    int
-	claimLease    time.Duration
-	delivered     bool
-	failedDead    bool
-	failedCode    string
-	retryAt       time.Time
-	diagnostics   contract.OutboxDiagnostics
-	diagnosticErr error
-	deliveryErr   error
-	replayed      bool
+	claimed             []contract.OutboxEvent
+	claimLimit          int
+	claimLease          time.Duration
+	delivered           bool
+	failedDead          bool
+	failedCode          string
+	retryAt             time.Time
+	diagnostics         contract.OutboxDiagnostics
+	diagnosticErr       error
+	deliveryErr         error
+	replayed            bool
+	transitionedAt      time.Time
+	claimIdentity       contract.OutboxClaimIdentity
+	enforceCurrentLease bool
 }
 
 func (s *outboxRepositoryStub) ClaimOutbox(_ context.Context, _ time.Time, limit int, lease time.Duration, _ string) ([]contract.OutboxEvent, error) {
 	s.claimLimit, s.claimLease = limit, lease
 	return s.claimed, nil
 }
-func (s *outboxRepositoryStub) MarkOutboxDelivered(context.Context, string, string, string, time.Time) error {
+func (s *outboxRepositoryStub) MarkOutboxDelivered(_ context.Context, identity contract.OutboxClaimIdentity, transitionedAt time.Time) error {
+	s.claimIdentity, s.transitionedAt = identity, transitionedAt
+	if s.enforceCurrentLease && !transitionedAt.Before(identity.LeaseExpiresAt) {
+		return contract.ErrOutboxClaimConflict
+	}
 	s.delivered = true
 	return s.deliveryErr
 }
-func (s *outboxRepositoryStub) MarkOutboxFailed(_ context.Context, _, _, _ string, _, retryAt time.Time, code string, dead bool) error {
+func (s *outboxRepositoryStub) MarkOutboxFailed(_ context.Context, identity contract.OutboxClaimIdentity, transitionedAt, retryAt time.Time, code string, dead bool) error {
+	s.claimIdentity, s.transitionedAt = identity, transitionedAt
+	if s.enforceCurrentLease && !transitionedAt.Before(identity.LeaseExpiresAt) {
+		return contract.ErrOutboxClaimConflict
+	}
 	s.retryAt, s.failedCode, s.failedDead = retryAt, code, dead
 	return nil
 }
 
-func (s *outboxRepositoryStub) ReplayOutbox(context.Context, string, string, time.Time) error {
+func (s *outboxRepositoryStub) ReplayOutbox(context.Context, contract.OutboxRowIdentity, time.Time) error {
 	s.replayed = true
 	return nil
 }
@@ -190,5 +267,17 @@ func (s *recordingOutboxSink) Publish(_ context.Context, event contract.OutboxEv
 type outboxAuthorizerStub struct{ err error }
 
 func (s outboxAuthorizerStub) AuthorizeWorkspace(context.Context, string, string) error { return s.err }
+
+type governanceEventPolicyStub struct{ err error }
+
+func (s governanceEventPolicyStub) ResolveGovernanceEventPolicy(_ context.Context, eventType, aggregateKind string) (GovernanceEventPolicy, error) {
+	if s.err != nil {
+		return GovernanceEventPolicy{}, s.err
+	}
+	return GovernanceEventPolicy{
+		EventType: eventType, AggregateKind: aggregateKind,
+		Schema: EnvelopeSchema{"id": {Kind: SafeIdentifier, MaxLength: 64, Required: true}},
+	}, nil
+}
 
 func timePointer(value time.Time) *time.Time { return &value }

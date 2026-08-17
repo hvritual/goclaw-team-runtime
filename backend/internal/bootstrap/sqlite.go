@@ -131,6 +131,7 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	governance, err := workspace.NewSQLiteGovernanceOutbox(workspaceModule, workspace.SqlitePersistenceConfig{DB: db}, workspace.GovernanceOutboxDependencies{
 		Sink:             realtimeOutboxSink{events: realtimeHub},
 		Authorizer:       memberships,
+		EventPolicies:    denyAllGovernanceEventPolicies{},
 		Memberships:      memberships,
 		HTTPIdentity:     workspaceIdentity,
 		HTTPUserIdentity: authModule.ResolveHTTPUserID,
@@ -151,6 +152,9 @@ func (s realtimeOutboxSink) Publish(_ context.Context, event contract.OutboxEven
 	if s.events == nil {
 		return contract.ErrGovernanceUnavailable
 	}
+	if err := event.Validate(); err != nil {
+		return err
+	}
 	var payload any
 	if err := json.Unmarshal(event.Payload, &payload); err != nil {
 		return fmt.Errorf("decode outbox payload: %w", err)
@@ -163,6 +167,12 @@ func (s realtimeOutboxSink) Publish(_ context.Context, event contract.OutboxEven
 		"payload":            payload,
 	}, event.ActorID, event.ActorType)
 	return nil
+}
+
+type denyAllGovernanceEventPolicies struct{}
+
+func (denyAllGovernanceEventPolicies) ResolveGovernanceEventPolicy(context.Context, string, string) (workspace.GovernanceEventPolicy, error) {
+	return workspace.GovernanceEventPolicy{}, contract.ErrGovernanceUnavailable
 }
 
 type spaceAttachmentReader struct {

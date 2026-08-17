@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ func TestGovernanceRepositoryReplaysCommittedMutationWithoutRepeatingEffects(t *
 	if first.ResourceRevision != 1 || first.Replayed {
 		t.Fatalf("first result = %+v", first)
 	}
-	if second.ResourceRevision != 1 || !second.Replayed || string(second.ResponseBody) != `{"id":"task-1"}` {
+	if second.ResourceRevision != 1 || !second.Replayed || string(second.ResponseBody) != `{"version":"governance-replay-v1","data":{"id":"task-1"}}` {
 		t.Fatalf("replayed result = %+v", second)
 	}
 	if applyCount != 1 {
@@ -72,6 +71,33 @@ func TestGovernanceRepositoryRejectsSameKeyWithDifferentHash(t *testing.T) {
 	assertGovernanceRowCount(t, db, "test_domain_mutations", 1)
 }
 
+func TestGovernanceRepositoryRejectsLegacyReplayEnvelopeWithoutRepeatingMutation(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "command-1", strings.Repeat("a", 64))
+	applyCount := 0
+	apply := func(ctx context.Context, connection *sql.Conn) error {
+		applyCount++
+		_, err := connection.ExecContext(ctx, `INSERT INTO test_domain_mutations(id) VALUES ('task-1')`)
+		return err
+	}
+	if _, err := repository.Execute(context.Background(), prepared, apply); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE workspace_mutation_idempotency SET response_body='{"id":"task-1"}'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.Execute(context.Background(), prepared, apply); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
+		t.Fatalf("legacy replay error = %v", err)
+	}
+	if applyCount != 1 {
+		t.Fatalf("domain apply count = %d, want 1", applyCount)
+	}
+}
+
 func TestGovernanceRepositorySerializesConcurrentExpectedRevision(t *testing.T) {
 	db := openGovernanceTestDB(t)
 	db.SetMaxOpenConns(4)
@@ -80,11 +106,9 @@ func TestGovernanceRepositorySerializesConcurrentExpectedRevision(t *testing.T) 
 		t.Fatal(err)
 	}
 	mutations := []application.PreparedGovernanceMutation{
-		prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.update", "command-a", strings.Repeat("a", 64)),
-		prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.update", "command-b", strings.Repeat("b", 64)),
+		prepareGovernanceTestMutationWithOptions(t, "workspace-1", "workspace.task.update", "command-a", strings.Repeat("a", 64), governanceMutationOptions{AuditID: "audit-1", EventID: "event-1"}),
+		prepareGovernanceTestMutationWithOptions(t, "workspace-1", "workspace.task.update", "command-b", strings.Repeat("b", 64), governanceMutationOptions{AuditID: "audit-2", EventID: "event-2"}),
 	}
-	mutations[1].Audit.ID = "audit-2"
-	mutations[1].Outbox[0].ID = "event-2"
 
 	errorsByMutation := make([]error, len(mutations))
 	var wait sync.WaitGroup
@@ -165,13 +189,11 @@ func TestGovernanceRepositoryScopesIdempotencyByWorkspaceAndAction(t *testing.T)
 	}
 	workspaceOne := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "shared-key", strings.Repeat("a", 64))
 	workspaceTwo := prepareGovernanceTestMutation(t, "workspace-2", "workspace.task.create", "shared-key", strings.Repeat("a", 64))
-	secondAction := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.update", "shared-key", strings.Repeat("a", 64))
-	secondAction.Command.ExpectedRevision = 1
-	secondAction.Result.ResourceRevision = 2
-	secondAction.Audit.ID = "audit-update"
-	secondAction.Audit.ResourceRevision = 2
-	secondAction.Outbox[0].ID = "event-update"
-	secondAction.Outbox[0].AggregateRevision = 2
+	secondAction := prepareGovernanceTestMutationWithOptions(t, "workspace-1", "workspace.task.update", "shared-key", strings.Repeat("a", 64), governanceMutationOptions{
+		ExpectedRevision: 1,
+		AuditID:          "audit-update",
+		EventID:          "event-update",
+	})
 
 	for index, mutation := range []application.PreparedGovernanceMutation{workspaceOne, workspaceTwo, secondAction} {
 		if _, err := repository.Execute(context.Background(), mutation, insertTestDomainMutation("isolated-"+string(rune('a'+index)))); err != nil {
@@ -183,15 +205,13 @@ func TestGovernanceRepositoryScopesIdempotencyByWorkspaceAndAction(t *testing.T)
 	assertGovernanceRowCount(t, db, "workspace_mutation_idempotency", 3)
 }
 
-func TestGovernanceRepositoryRejectsCrossWorkspacePreparedEnvelope(t *testing.T) {
+func TestGovernanceRepositoryRejectsMutationWithoutPolicyPreparation(t *testing.T) {
 	db := openGovernanceTestDB(t)
 	repository, err := NewGovernanceRepository(Config{DB: db})
 	if err != nil {
 		t.Fatal(err)
 	}
-	prepared := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "command-1", strings.Repeat("a", 64))
-	prepared.Outbox[0].WorkspaceID = "workspace-2"
-	if _, err := repository.Execute(context.Background(), prepared, insertTestDomainMutation("task-1")); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
+	if _, err := repository.Execute(context.Background(), application.PreparedGovernanceMutation{}, insertTestDomainMutation("task-1")); !errors.Is(err, contract.ErrInvalidGovernanceMutation) {
 		t.Fatalf("error = %v, want invalid governance mutation", err)
 	}
 	assertGovernanceRowCount(t, db, "test_domain_mutations", 0)
@@ -233,10 +253,18 @@ func TestGovernanceRepositoryClaimsWithLeaseAndRejectsStaleToken(t *testing.T) {
 	if reclaimed[0].ID != event.ID || reclaimed[0].AggregateRevision != event.AggregateRevision || reclaimed[0].AttemptCount != 2 {
 		t.Fatalf("reclaimed event = %+v", reclaimed[0])
 	}
-	if err := repository.MarkOutboxDelivered(context.Background(), "workspace-1", "event-1", "claim-1", now.Add(62*time.Second)); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+	staleIdentity, err := event.ClaimIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	currentIdentity, err := reclaimed[0].ClaimIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.MarkOutboxDelivered(context.Background(), staleIdentity, now.Add(62*time.Second)); !errors.Is(err, contract.ErrOutboxClaimConflict) {
 		t.Fatalf("stale delivery error = %v", err)
 	}
-	if err := repository.MarkOutboxDelivered(context.Background(), "workspace-1", "event-1", "claim-2", now.Add(62*time.Second)); err != nil {
+	if err := repository.MarkOutboxDelivered(context.Background(), currentIdentity, now.Add(62*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	var state, claim sql.NullString
@@ -264,11 +292,15 @@ func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *test
 	if err != nil || len(claimed) != 1 {
 		t.Fatalf("first claim = %+v, %v", claimed, err)
 	}
-	retryAt := now.Add(time.Minute)
-	if err := repository.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-1", now, retryAt, "publish_failed", false); err != nil {
+	firstClaim, err := claimed[0].ClaimIdentity()
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := repository.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-1", now, retryAt, "publish_failed", false); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+	retryAt := now.Add(time.Minute)
+	if err := repository.MarkOutboxFailed(context.Background(), firstClaim, now, retryAt, "publish_failed", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.MarkOutboxFailed(context.Background(), firstClaim, now, retryAt, "publish_failed", false); !errors.Is(err, contract.ErrOutboxClaimConflict) {
 		t.Fatalf("stale retry error = %v", err)
 	}
 	diagnostics, err := repository.ReadOutboxDiagnostics(context.Background(), "workspace-1", retryAt)
@@ -287,14 +319,19 @@ func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *test
 	if err != nil || len(reclaimed) != 1 || reclaimed[0].ID != "event-1" || reclaimed[0].AggregateRevision != 1 {
 		t.Fatalf("restart claim = %+v, %v", reclaimed, err)
 	}
-	if err := restarted.MarkOutboxFailed(context.Background(), "workspace-1", "event-1", "claim-2", retryAt, retryAt, "publish_failed", true); err != nil {
+	secondClaim, err := reclaimed[0].ClaimIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := restarted.MarkOutboxFailed(context.Background(), secondClaim, retryAt, retryAt, "publish_failed", true); err != nil {
 		t.Fatal(err)
 	}
 	diagnostics, err = restarted.ReadOutboxDiagnostics(context.Background(), "workspace-1", retryAt)
 	if err != nil || diagnostics.DeadLetterCount != 1 {
 		t.Fatalf("dead-letter diagnostics = %+v, %v", diagnostics, err)
 	}
-	if err := restarted.ReplayOutbox(context.Background(), "workspace-1", "event-1", retryAt.Add(time.Minute)); err != nil {
+	deadLetterIdentity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: retryAt, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := restarted.ReplayOutbox(context.Background(), deadLetterIdentity, retryAt.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 	var state string
@@ -306,6 +343,94 @@ func TestGovernanceRepositoryRetriesDeadLettersReplaysAndSurvivesRestart(t *test
 	}
 	if state != string(contract.OutboxReady) || attempt != 0 || eventID != "event-1" || revision != 1 {
 		t.Fatalf("replayed row = state:%s attempt:%d id:%s revision:%d", state, attempt, eventID, revision)
+	}
+}
+
+func TestGovernanceRepositoryRejectsStaleObservedLeaseWithoutChangingRow(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := prepareGovernanceTestMutation(t, "workspace-1", "workspace.task.create", "command-1", strings.Repeat("a", 64))
+	if _, err := repository.Execute(context.Background(), prepared, insertTestDomainMutation("task-1")); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(2, 0).UTC()
+	claimed, err := repository.ClaimOutbox(context.Background(), now, 1, time.Minute, "claim-1")
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("claim = %+v, %v", claimed, err)
+	}
+	identity, err := claimed[0].ClaimIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity.LeaseExpiresAt = identity.LeaseExpiresAt.Add(time.Second)
+	if err := repository.MarkOutboxDelivered(context.Background(), identity, now.Add(time.Second)); !errors.Is(err, contract.ErrOutboxClaimConflict) {
+		t.Fatalf("stale observed lease error = %v", err)
+	}
+	var state string
+	if err := db.QueryRow(`SELECT state FROM workspace_outbox_events WHERE workspace_id='workspace-1' AND id='event-1'`).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != string(contract.OutboxInflight) {
+		t.Fatalf("state = %s, want inflight", state)
+	}
+}
+
+func TestGovernanceRepositoryCompleteTupleDoesNotModifySiblingWithSameEventID(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableOne := time.Unix(10, 0).UTC()
+	availableTwo := availableOne.Add(time.Second)
+	lease := availableOne.Add(time.Minute)
+	insertInflightOutboxTestRow(t, db, availableOne, "event-1", "claim-1", lease)
+	insertInflightOutboxTestRow(t, db, availableTwo, "event-1", "claim-1", lease)
+	identity := contract.OutboxClaimIdentity{
+		OutboxRowIdentity: contract.OutboxRowIdentity{State: contract.OutboxInflight, AvailableAt: availableOne, WorkspaceID: "workspace-1", ID: "event-1"},
+		ClaimToken:        "claim-1", LeaseExpiresAt: lease,
+	}
+	if err := repository.MarkOutboxDelivered(context.Background(), identity, availableOne.Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var firstState, secondState string
+	if err := db.QueryRow(`SELECT state FROM workspace_outbox_events WHERE workspace_id=? AND id=? AND available_at=?`, "workspace-1", "event-1", availableOne.Format(time.RFC3339Nano)).Scan(&firstState); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT state FROM workspace_outbox_events WHERE workspace_id=? AND id=? AND available_at=?`, "workspace-1", "event-1", availableTwo.Format(time.RFC3339Nano)).Scan(&secondState); err != nil {
+		t.Fatal(err)
+	}
+	if firstState != string(contract.OutboxDelivered) || secondState != string(contract.OutboxInflight) {
+		t.Fatalf("states = first:%s second:%s", firstState, secondState)
+	}
+}
+
+func TestGovernanceRepositoryDeadLetterReplayUsesCompleteTuple(t *testing.T) {
+	db := openGovernanceTestDB(t)
+	repository, err := NewGovernanceRepository(Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	availableOne := time.Unix(10, 0).UTC()
+	availableTwo := availableOne.Add(time.Second)
+	insertDeadOutboxTestRow(t, db, availableOne, "event-1")
+	insertDeadOutboxTestRow(t, db, availableTwo, "event-1")
+	identity := contract.OutboxRowIdentity{State: contract.OutboxDeadLetter, AvailableAt: availableOne, WorkspaceID: "workspace-1", ID: "event-1"}
+	if err := repository.ReplayOutbox(context.Background(), identity, availableOne.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	var readyCount, deadCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_outbox_events WHERE state='ready'`).Scan(&readyCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_outbox_events WHERE state='dead_letter'`).Scan(&deadCount); err != nil {
+		t.Fatal(err)
+	}
+	if readyCount != 1 || deadCount != 1 {
+		t.Fatalf("ready=%d dead=%d", readyCount, deadCount)
 	}
 }
 
@@ -355,21 +480,50 @@ func openGovernanceTestDB(t *testing.T) *sql.DB {
 }
 
 func prepareGovernanceTestMutation(t *testing.T, workspaceID, action, key, hash string) application.PreparedGovernanceMutation {
+	return prepareGovernanceTestMutationWithOptions(t, workspaceID, action, key, hash, governanceMutationOptions{
+		AuditID: "audit-1",
+		EventID: "event-1",
+	})
+}
+
+type governanceMutationOptions struct {
+	ExpectedRevision int64
+	AuditID          string
+	EventID          string
+}
+
+func prepareGovernanceTestMutationWithOptions(t *testing.T, workspaceID, action, key, hash string, options governanceMutationOptions) application.PreparedGovernanceMutation {
 	t.Helper()
-	prepared, err := application.NewGovernanceService().Prepare(application.GovernanceRequest{
-		Identity:       contract.MutationIdentity{WorkspaceID: workspaceID, ActorType: "member", ActorID: "member-1", RequestID: "request-1"},
-		Command:        contract.MutationCommand{Action: action, ResourceKind: "task", ResourceID: "task-1", ExpectedRevision: 0, IdempotencyKey: key, RequestHash: hash},
+	service := application.NewGovernanceService(repositoryGovernanceProvider{})
+	prepared, err := service.PrepareContext(context.Background(), application.GovernanceRequest{
+		Identity:       contract.MutationIdentity{WorkspaceID: workspaceID, RequestID: "request-1"},
+		Command:        contract.MutationCommand{Action: action, ResourceKind: "task", ResourceID: "task-1", ExpectedRevision: options.ExpectedRevision, IdempotencyKey: key},
+		RequestFields:  map[string]any{"content_hash": hash},
 		ResponseStatus: 201,
-		ResponseBody:   json.RawMessage(`{"id":"task-1"}`),
-		AuditID:        "audit-1",
+		ResponseFields: map[string]any{"id": "task-1"},
+		AuditID:        options.AuditID,
 		OccurredAt:     time.Unix(1, 0).UTC(),
-		AuditMetadata:  map[string]string{"status": "todo"},
-		Outbox:         []application.OutboxDraft{{ID: "event-1", EventType: "task:created", Payload: json.RawMessage(`{"id":"task-1"}`)}},
+		AuditFields:    map[string]any{"status": "todo"},
+		Outbox:         []application.OutboxDraft{{ID: options.EventID, EventType: "task:created", Fields: map[string]any{"id": "task-1"}}},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return prepared
+}
+
+type repositoryGovernanceProvider struct{}
+
+func (repositoryGovernanceProvider) ResolveGovernancePolicy(_ context.Context, workspaceID, requestID, action, resourceKind string) (contract.MutationIdentity, application.GovernanceActionPolicy, error) {
+	return contract.MutationIdentity{WorkspaceID: workspaceID, ActorType: "member", ActorID: "user-1", RequestID: requestID}, application.GovernanceActionPolicy{
+		Action: action, ResourceKind: resourceKind,
+		RequestSchema: application.EnvelopeSchema{"content_hash": {Kind: application.SafeSHA256, Required: true}},
+		ReplaySchema:  application.EnvelopeSchema{"id": {Kind: application.SafeIdentifier, MaxLength: 64, Required: true}},
+		AuditSchema:   application.EnvelopeSchema{"status": {Kind: application.SafeEnum, EnumValues: []string{"todo", "done"}, Required: true}},
+		EventSchemas: map[string]application.EnvelopeSchema{
+			"task:created": {"id": {Kind: application.SafeIdentifier, MaxLength: 64, Required: true}},
+		},
+	}, nil
 }
 
 func assertGovernanceRowCount(t *testing.T, db *sql.DB, table string, want int) {
@@ -387,5 +541,31 @@ func insertTestDomainMutation(id string) DomainMutation {
 	return func(ctx context.Context, connection *sql.Conn) error {
 		_, err := connection.ExecContext(ctx, `INSERT INTO test_domain_mutations(id) VALUES (?)`, id)
 		return err
+	}
+}
+
+func insertInflightOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time, eventID, claimToken string, leaseExpiresAt time.Time) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO workspace_outbox_events(
+		state, available_at, workspace_id, id, event_type, aggregate_kind, aggregate_id, aggregate_revision,
+		payload_json, actor_type, actor_id, attempt_count, claim_token, lease_expires_at, created_at)
+		VALUES ('inflight', ?, 'workspace-1', ?, 'task:created', 'task', 'task-1', 1,
+		'{"version":"governance-outbox-v1","data":{"id":"task-1"}}', 'member', 'user-1', 1, ?, ?, ?)`,
+		availableAt.Format(time.RFC3339Nano), eventID, claimToken, leaseExpiresAt.Format(time.RFC3339Nano), availableAt.Format(time.RFC3339Nano))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func insertDeadOutboxTestRow(t *testing.T, db *sql.DB, availableAt time.Time, eventID string) {
+	t.Helper()
+	_, err := db.Exec(`INSERT INTO workspace_outbox_events(
+		state, available_at, workspace_id, id, event_type, aggregate_kind, aggregate_id, aggregate_revision,
+		payload_json, actor_type, actor_id, attempt_count, last_error_code, created_at)
+		VALUES ('dead_letter', ?, 'workspace-1', ?, 'task:created', 'task', 'task-1', 1,
+		'{"version":"governance-outbox-v1","data":{"id":"task-1"}}', 'member', 'user-1', 4, 'publish_failed', ?)`,
+		availableAt.Format(time.RFC3339Nano), eventID, availableAt.Format(time.RFC3339Nano))
+	if err != nil {
+		t.Fatal(err)
 	}
 }

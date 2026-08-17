@@ -58,6 +58,9 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 	if err := validatePreparedGovernanceMutation(prepared); err != nil {
 		return contract.MutationResult{}, err
 	}
+	command := prepared.Command()
+	audit := prepared.Audit()
+	outbox := prepared.Outbox()
 
 	connection, err := r.db.Conn(ctx)
 	if err != nil {
@@ -77,7 +80,7 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 		}
 	}()
 
-	if prepared.Command.IdempotencyKey != "" {
+	if command.IdempotencyKey != "" {
 		replayed, found, err := loadGovernanceReplay(ctx, connection, prepared)
 		if err != nil {
 			return contract.MutationResult{}, err
@@ -91,7 +94,7 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 	if err != nil {
 		return contract.MutationResult{}, err
 	}
-	if currentRevision != prepared.Command.ExpectedRevision {
+	if currentRevision != command.ExpectedRevision {
 		return contract.MutationResult{}, contract.RevisionConflictError{CurrentRevision: currentRevision}
 	}
 	if err := apply(ctx, connection); err != nil {
@@ -106,13 +109,13 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 	if err := r.afterPhase(GovernanceAfterRevision); err != nil {
 		return contract.MutationResult{}, err
 	}
-	if err := persistAuditRecord(ctx, connection, prepared.Audit); err != nil {
+	if err := persistAuditRecord(ctx, connection, audit); err != nil {
 		return contract.MutationResult{}, err
 	}
 	if err := r.afterPhase(GovernanceAfterAudit); err != nil {
 		return contract.MutationResult{}, err
 	}
-	for _, event := range prepared.Outbox {
+	for _, event := range outbox {
 		if err := persistOutboxEvent(ctx, connection, event); err != nil {
 			return contract.MutationResult{}, err
 		}
@@ -120,7 +123,7 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 	if err := r.afterPhase(GovernanceAfterOutbox); err != nil {
 		return contract.MutationResult{}, err
 	}
-	if prepared.Command.IdempotencyKey != "" {
+	if command.IdempotencyKey != "" {
 		if err := persistGovernanceReplay(ctx, connection, prepared); err != nil {
 			return contract.MutationResult{}, err
 		}
@@ -132,7 +135,7 @@ func (r *GovernanceRepository) Execute(ctx context.Context, prepared application
 		return contract.MutationResult{}, fmt.Errorf("commit governed mutation: %w", err)
 	}
 	committed = true
-	return prepared.Result, nil
+	return prepared.Result(), nil
 }
 
 func (r *GovernanceRepository) afterPhase(phase GovernancePhase) error {
@@ -237,15 +240,17 @@ func (r *GovernanceRepository) ClaimOutbox(ctx context.Context, now time.Time, l
 	return events, nil
 }
 
-func (r *GovernanceRepository) MarkOutboxDelivered(ctx context.Context, workspaceID, eventID, claimToken string, deliveredAt time.Time) error {
-	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || strings.TrimSpace(claimToken) == "" || deliveredAt.IsZero() {
+func (r *GovernanceRepository) MarkOutboxDelivered(ctx context.Context, identity contract.OutboxClaimIdentity, deliveredAt time.Time) error {
+	if err := identity.Validate(); err != nil || deliveredAt.IsZero() {
 		return fmt.Errorf("%w: invalid outbox delivery", contract.ErrInvalidGovernanceMutation)
 	}
 	deliveredText := deliveredAt.UTC().Format(time.RFC3339Nano)
 	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
 		SET state='delivered', claim_token=NULL, lease_expires_at=NULL, delivered_at=?, last_error_code=NULL
-		WHERE workspace_id=? AND id=? AND state='inflight' AND claim_token=? AND lease_expires_at>?`,
-		deliveredText, workspaceID, eventID, claimToken, deliveredText)
+		WHERE state=? AND available_at=? AND workspace_id=? AND id=?
+			AND claim_token=? AND lease_expires_at=? AND lease_expires_at>?`,
+		deliveredText, identity.State, identity.AvailableAt.UTC().Format(time.RFC3339Nano), identity.WorkspaceID, identity.ID,
+		identity.ClaimToken, identity.LeaseExpiresAt.UTC().Format(time.RFC3339Nano), deliveredText)
 	if err != nil {
 		return fmt.Errorf("mark outbox delivered: %w", err)
 	}
@@ -255,9 +260,8 @@ func (r *GovernanceRepository) MarkOutboxDelivered(ctx context.Context, workspac
 	return nil
 }
 
-func (r *GovernanceRepository) MarkOutboxFailed(ctx context.Context, workspaceID, eventID, claimToken string, failedAt, retryAt time.Time, errorCode string, dead bool) error {
-	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || strings.TrimSpace(claimToken) == "" ||
-		failedAt.IsZero() || retryAt.IsZero() || strings.TrimSpace(errorCode) == "" {
+func (r *GovernanceRepository) MarkOutboxFailed(ctx context.Context, identity contract.OutboxClaimIdentity, failedAt, retryAt time.Time, errorCode string, dead bool) error {
+	if err := identity.Validate(); err != nil || failedAt.IsZero() || retryAt.IsZero() || strings.TrimSpace(errorCode) == "" {
 		return fmt.Errorf("%w: invalid outbox failure", contract.ErrInvalidGovernanceMutation)
 	}
 	state := contract.OutboxRetryWait
@@ -267,23 +271,27 @@ func (r *GovernanceRepository) MarkOutboxFailed(ctx context.Context, workspaceID
 	failedText := failedAt.UTC().Format(time.RFC3339Nano)
 	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
 		SET state=?, available_at=?, claim_token=NULL, lease_expires_at=NULL, last_error_code=?, delivered_at=NULL
-		WHERE workspace_id=? AND id=? AND state='inflight' AND claim_token=? AND lease_expires_at>?`,
-		state, retryAt.UTC().Format(time.RFC3339Nano), errorCode, workspaceID, eventID, claimToken, failedText)
+		WHERE state=? AND available_at=? AND workspace_id=? AND id=?
+			AND claim_token=? AND lease_expires_at=? AND lease_expires_at>?`,
+		state, retryAt.UTC().Format(time.RFC3339Nano), errorCode,
+		identity.State, identity.AvailableAt.UTC().Format(time.RFC3339Nano), identity.WorkspaceID, identity.ID,
+		identity.ClaimToken, identity.LeaseExpiresAt.UTC().Format(time.RFC3339Nano), failedText)
 	if err != nil {
 		return fmt.Errorf("mark outbox failed: %w", err)
 	}
 	return requireOneOutboxRow(result)
 }
 
-func (r *GovernanceRepository) ReplayOutbox(ctx context.Context, workspaceID, eventID string, availableAt time.Time) error {
-	if strings.TrimSpace(workspaceID) == "" || strings.TrimSpace(eventID) == "" || availableAt.IsZero() {
+func (r *GovernanceRepository) ReplayOutbox(ctx context.Context, identity contract.OutboxRowIdentity, availableAt time.Time) error {
+	if err := identity.Validate(); err != nil || identity.State != contract.OutboxDeadLetter || availableAt.IsZero() {
 		return fmt.Errorf("%w: invalid outbox replay", contract.ErrInvalidGovernanceMutation)
 	}
 	result, err := r.db.ExecContext(ctx, `UPDATE workspace_outbox_events
 		SET state='ready', available_at=?, attempt_count=0, claim_token=NULL, lease_expires_at=NULL,
 			last_error_code=NULL, delivered_at=NULL
-		WHERE workspace_id=? AND id=? AND state='dead_letter'`,
-		availableAt.UTC().Format(time.RFC3339Nano), workspaceID, eventID)
+		WHERE state=? AND available_at=? AND workspace_id=? AND id=?`,
+		availableAt.UTC().Format(time.RFC3339Nano), identity.State,
+		identity.AvailableAt.UTC().Format(time.RFC3339Nano), identity.WorkspaceID, identity.ID)
 	if err != nil {
 		return fmt.Errorf("replay dead-letter outbox event: %w", err)
 	}
@@ -396,55 +404,17 @@ func requireOneOutboxRow(result sql.Result) error {
 }
 
 func validatePreparedGovernanceMutation(prepared application.PreparedGovernanceMutation) error {
-	if err := prepared.Identity.Validate(); err != nil {
-		return err
-	}
-	if err := prepared.Command.Validate(); err != nil {
-		return err
-	}
-	if err := prepared.Result.Validate(); err != nil {
-		return err
-	}
-	if prepared.Result.ResourceRevision != prepared.Command.ExpectedRevision+1 {
-		return fmt.Errorf("%w: prepared revision is inconsistent", contract.ErrInvalidGovernanceMutation)
-	}
-	if prepared.Result.Replayed {
-		return fmt.Errorf("%w: prepared mutation cannot already be replayed", contract.ErrInvalidGovernanceMutation)
-	}
-	if err := prepared.Audit.Validate(); err != nil {
-		return err
-	}
-	if prepared.Audit.Identity != prepared.Identity ||
-		prepared.Audit.Action != prepared.Command.Action ||
-		prepared.Audit.ResourceKind != prepared.Command.ResourceKind ||
-		prepared.Audit.ResourceID != prepared.Command.ResourceID ||
-		prepared.Audit.ResourceRevision != prepared.Result.ResourceRevision {
-		return fmt.Errorf("%w: audit envelope is inconsistent", contract.ErrInvalidGovernanceMutation)
-	}
-	for _, event := range prepared.Outbox {
-		if err := event.Validate(); err != nil {
-			return err
-		}
-		if event.WorkspaceID != prepared.Identity.WorkspaceID ||
-			event.AggregateKind != prepared.Command.ResourceKind ||
-			event.AggregateID != prepared.Command.ResourceID ||
-			event.AggregateRevision != prepared.Result.ResourceRevision ||
-			event.ActorType != prepared.Identity.ActorType ||
-			event.ActorID != prepared.Identity.ActorID ||
-			event.State != contract.OutboxReady {
-			return fmt.Errorf("%w: outbox envelope is inconsistent", contract.ErrInvalidGovernanceMutation)
-		}
-	}
-	return nil
+	return prepared.Validate()
 }
 
 func loadGovernanceReplay(ctx context.Context, connection *sql.Conn, prepared application.PreparedGovernanceMutation) (contract.MutationResult, bool, error) {
+	identity, command := prepared.Identity(), prepared.Command()
 	var hash string
 	var result contract.MutationResult
 	var body string
 	err := connection.QueryRowContext(ctx, `SELECT request_hash, resource_revision, response_status, response_body
 		FROM workspace_mutation_idempotency WHERE workspace_id=? AND action=? AND idempotency_key=?`,
-		prepared.Identity.WorkspaceID, prepared.Command.Action, prepared.Command.IdempotencyKey,
+		identity.WorkspaceID, command.Action, command.IdempotencyKey,
 	).Scan(&hash, &result.ResourceRevision, &result.ResponseStatus, &body)
 	if errors.Is(err, sql.ErrNoRows) {
 		return contract.MutationResult{}, false, nil
@@ -452,7 +422,7 @@ func loadGovernanceReplay(ctx context.Context, connection *sql.Conn, prepared ap
 	if err != nil {
 		return contract.MutationResult{}, false, fmt.Errorf("load mutation replay: %w", err)
 	}
-	if !strings.EqualFold(hash, prepared.Command.RequestHash) {
+	if !strings.EqualFold(hash, command.RequestHash) {
 		return contract.MutationResult{}, false, contract.ErrIdempotencyConflict
 	}
 	result.ResponseBody = json.RawMessage(body)
@@ -460,14 +430,18 @@ func loadGovernanceReplay(ctx context.Context, connection *sql.Conn, prepared ap
 	if err := result.Validate(); err != nil {
 		return contract.MutationResult{}, false, fmt.Errorf("validate stored mutation replay: %w", err)
 	}
+	if err := prepared.ValidateReplayResponse(result.ResponseBody); err != nil {
+		return contract.MutationResult{}, false, fmt.Errorf("validate stored replay policy: %w", err)
+	}
 	return result, true, nil
 }
 
 func loadResourceRevision(ctx context.Context, connection *sql.Conn, prepared application.PreparedGovernanceMutation) (int64, error) {
+	identity, command := prepared.Identity(), prepared.Command()
 	var revision int64
 	err := connection.QueryRowContext(ctx, `SELECT revision FROM workspace_resource_revisions
 		WHERE workspace_id=? AND resource_kind=? AND resource_id=?`,
-		prepared.Identity.WorkspaceID, prepared.Command.ResourceKind, prepared.Command.ResourceID,
+		identity.WorkspaceID, command.ResourceKind, command.ResourceID,
 	).Scan(&revision)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
@@ -479,11 +453,12 @@ func loadResourceRevision(ctx context.Context, connection *sql.Conn, prepared ap
 }
 
 func persistResourceRevision(ctx context.Context, connection *sql.Conn, prepared application.PreparedGovernanceMutation) error {
+	identity, command, result, audit := prepared.Identity(), prepared.Command(), prepared.Result(), prepared.Audit()
 	_, err := connection.ExecContext(ctx, `INSERT INTO workspace_resource_revisions
 		(workspace_id, resource_kind, resource_id, revision, updated_at) VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(workspace_id, resource_kind, resource_id) DO UPDATE SET revision=excluded.revision, updated_at=excluded.updated_at`,
-		prepared.Identity.WorkspaceID, prepared.Command.ResourceKind, prepared.Command.ResourceID,
-		prepared.Result.ResourceRevision, prepared.Audit.OccurredAt.UTC().Format(time.RFC3339Nano),
+		identity.WorkspaceID, command.ResourceKind, command.ResourceID,
+		result.ResourceRevision, audit.OccurredAt.UTC().Format(time.RFC3339Nano),
 	)
 	if err != nil {
 		return fmt.Errorf("persist resource revision: %w", err)
@@ -518,12 +493,13 @@ func persistOutboxEvent(ctx context.Context, connection *sql.Conn, event contrac
 }
 
 func persistGovernanceReplay(ctx context.Context, connection *sql.Conn, prepared application.PreparedGovernanceMutation) error {
+	identity, command, result, audit := prepared.Identity(), prepared.Command(), prepared.Result(), prepared.Audit()
 	_, err := connection.ExecContext(ctx, `INSERT INTO workspace_mutation_idempotency
 		(workspace_id, action, idempotency_key, request_hash, resource_kind, resource_id, resource_revision,
 		 response_status, response_body, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-		prepared.Identity.WorkspaceID, prepared.Command.Action, prepared.Command.IdempotencyKey, prepared.Command.RequestHash,
-		prepared.Command.ResourceKind, prepared.Command.ResourceID, prepared.Result.ResourceRevision,
-		prepared.Result.ResponseStatus, string(prepared.Result.ResponseBody), prepared.Audit.OccurredAt.UTC().Format(time.RFC3339Nano))
+		identity.WorkspaceID, command.Action, command.IdempotencyKey, command.RequestHash,
+		command.ResourceKind, command.ResourceID, result.ResourceRevision,
+		result.ResponseStatus, string(result.ResponseBody), audit.OccurredAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("persist mutation replay: %w", err)
 	}

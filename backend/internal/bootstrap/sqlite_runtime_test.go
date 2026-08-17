@@ -141,7 +141,7 @@ func TestRealtimeOutboxSinkPreservesStableDeliveryIdentity(t *testing.T) {
 	event := workspacecontract.OutboxEvent{
 		State: workspacecontract.OutboxInflight, AvailableAt: time.Unix(1, 0).UTC(), WorkspaceID: "workspace-1", ID: "event-1",
 		EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 7,
-		Payload: json.RawMessage(`{"id":"task-1"}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+		Payload: json.RawMessage(`{"version":"governance-outbox-v1","data":{"id":"task-1"}}`), ActorType: "member", ActorID: "member-1", AttemptCount: 1,
 		ClaimToken: "claim-1", LeaseExpiresAt: timePointerBootstrap(time.Unix(61, 0).UTC()), CreatedAt: time.Unix(1, 0).UTC(),
 	}
 	if err := sink.Publish(context.Background(), event); err != nil {
@@ -153,6 +153,27 @@ func TestRealtimeOutboxSinkPreservesStableDeliveryIdentity(t *testing.T) {
 	payload, ok := recorder.payload.(map[string]any)
 	if !ok || payload["event_id"] != "event-1" || payload["aggregate_revision"] != int64(7) {
 		t.Fatalf("published payload = %#v", recorder.payload)
+	}
+}
+
+func TestRealtimeOutboxSinkRejectsLegacyAndSecretBearingPayloads(t *testing.T) {
+	for _, payload := range []json.RawMessage{
+		json.RawMessage(`{"id":"task-1"}`),
+		json.RawMessage(`{"version":"governance-outbox-v1","data":{"id":"Bearer secret-value"}}`),
+	} {
+		recorder := &outboxEventRecorder{}
+		event := workspacecontract.OutboxEvent{
+			State: workspacecontract.OutboxInflight, AvailableAt: time.Unix(1, 0).UTC(), WorkspaceID: "workspace-1", ID: "event-1",
+			EventType: "task:created", AggregateKind: "task", AggregateID: "task-1", AggregateRevision: 1,
+			Payload: payload, ActorType: "member", ActorID: "member-1", AttemptCount: 1,
+			ClaimToken: "claim-1", LeaseExpiresAt: timePointerBootstrap(time.Unix(61, 0).UTC()), CreatedAt: time.Unix(1, 0).UTC(),
+		}
+		if err := (realtimeOutboxSink{events: recorder}).Publish(context.Background(), event); !errors.Is(err, workspacecontract.ErrInvalidGovernanceMutation) {
+			t.Fatalf("payload %s error = %v", payload, err)
+		}
+		if recorder.eventType != "" {
+			t.Fatalf("payload %s was published", payload)
+		}
 	}
 }
 

@@ -18,14 +18,14 @@ func TestSQLiteGovernanceOutboxOwnsExplicitWorkerLifecycle(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO workspace_outbox_events(
 		state,available_at,workspace_id,id,event_type,aggregate_kind,aggregate_id,aggregate_revision,payload_json,
 		actor_type,actor_id,attempt_count,created_at
-	) VALUES('ready',?,'workspace-1','event-1','task:created','task','task-1',7,'{"id":"task-1"}','member','member-1',0,?)`,
+	) VALUES('ready',?,'workspace-1','event-1','task:created','task','task-1',7,'{"version":"governance-outbox-v1","data":{"id":"task-1"}}','member','member-1',0,?)`,
 		now.Add(-time.Second).Format(time.RFC3339Nano), now.Add(-time.Second).Format(time.RFC3339Nano)); err != nil {
 		t.Fatal(err)
 	}
 	module := New()
 	sink := &workspaceRecordingOutboxSink{}
 	outbox, err := NewSQLiteGovernanceOutbox(module, SqlitePersistenceConfig{DB: db}, GovernanceOutboxDependencies{
-		Sink: sink, Authorizer: &workspaceAccessStub{}, Memberships: governanceMemberships{},
+		Sink: sink, Authorizer: &workspaceAccessStub{}, EventPolicies: workspaceGovernanceEventPolicies{}, Memberships: governanceMemberships{},
 		HTTPIdentity: func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
 			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
 		},
@@ -66,7 +66,7 @@ func TestSQLiteGovernanceOutboxOwnsExplicitWorkerLifecycle(t *testing.T) {
 func TestSQLiteGovernanceOutboxRejectsMissingProvider(t *testing.T) {
 	db := openWorkspaceTestDB(t)
 	_, err := NewSQLiteGovernanceOutbox(New(), SqlitePersistenceConfig{DB: db}, GovernanceOutboxDependencies{
-		Authorizer: &workspaceAccessStub{}, Memberships: governanceMemberships{},
+		Authorizer: &workspaceAccessStub{}, EventPolicies: workspaceGovernanceEventPolicies{}, Memberships: governanceMemberships{},
 		HTTPIdentity: func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
 			return contract.WorkspaceHTTPIdentity{}, nil
 		},
@@ -100,6 +100,15 @@ func (s *workspaceRecordingOutboxSink) Count() int {
 }
 
 type governanceMemberships struct{}
+
+type workspaceGovernanceEventPolicies struct{}
+
+func (workspaceGovernanceEventPolicies) ResolveGovernanceEventPolicy(_ context.Context, eventType, aggregateKind string) (GovernanceEventPolicy, error) {
+	return GovernanceEventPolicy{
+		EventType: eventType, AggregateKind: aggregateKind,
+		Schema: GovernanceEnvelopeSchema{"id": {Kind: GovernanceSafeIdentifier, MaxLength: 64, Required: true}},
+	}, nil
+}
 
 func (governanceMemberships) ListForUser(context.Context, string) ([]contract.WorkspaceMembership, error) {
 	return nil, nil

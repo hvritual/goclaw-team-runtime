@@ -82,6 +82,71 @@ func TestWorkspaceGovernanceRowsPersistAcrossRestart(t *testing.T) {
 	}
 }
 
+func TestWorkspaceGovernanceDownRejectsEveryNonEmptyGovernanceTableAtomically(t *testing.T) {
+	cases := map[string]string{
+		"resource revisions": `INSERT INTO workspace_resource_revisions(workspace_id,resource_kind,resource_id,revision,updated_at) VALUES('workspace-1','task','task-1',1,'2026-08-17T00:00:00Z')`,
+		"idempotency":        `INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.task.create','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','task','task-1',1,201,'{"version":"governance-replay-v1","data":{"id":"task-1"}}','2026-08-17T00:00:00Z')`,
+		"audit":              `INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-17T00:00:00Z','audit-1','member','user-1','workspace.task.create','task','task-1',1,'request-1','{"version":"governance-audit-v1","data":{"status":"todo"}}')`,
+		"outbox":             `INSERT INTO workspace_outbox_events(state,available_at,workspace_id,id,event_type,aggregate_kind,aggregate_id,aggregate_revision,payload_json,actor_type,actor_id,created_at) VALUES('ready','2026-08-17T00:00:00Z','workspace-1','event-1','task:created','task','task-1',1,'{"version":"governance-outbox-v1","data":{"id":"task-1"}}','member','user-1','2026-08-17T00:00:00Z')`,
+	}
+	for name, insert := range cases {
+		t.Run(name, func(t *testing.T) {
+			db := openUnmigratedWorkspaceDB(t, "governance-down-"+strings.ReplaceAll(name, " ", "-"))
+			if err := MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(insert); err != nil {
+				t.Fatal(err)
+			}
+			if err := executeWorkspaceGovernanceDownForTest(context.Background(), db); err == nil {
+				t.Fatal("governance down succeeded with retained evidence")
+			}
+			assertGovernanceTablesAndCatalog(t, db, 4, 1)
+		})
+	}
+}
+
+func TestWorkspaceGovernanceDownRemovesOnlyEmptyTablesAndCatalogEntry(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "governance-down-empty")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := executeWorkspaceGovernanceDownForTest(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	assertGovernanceTablesAndCatalog(t, db, 0, 0)
+}
+
+func executeWorkspaceGovernanceDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000009_workspace_governance.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func assertGovernanceTablesAndCatalog(t *testing.T, db *sql.DB, wantTables, wantCatalog int) {
+	t.Helper()
+	var tableCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN (
+		'workspace_resource_revisions','workspace_mutation_idempotency','workspace_audit_entries','workspace_outbox_events'
+	)`).Scan(&tableCount); err != nil || tableCount != wantTables {
+		t.Fatalf("governance table count = %d, want %d, error %v", tableCount, wantTables, err)
+	}
+	var catalogCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000009_workspace_governance.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != wantCatalog {
+		t.Fatalf("governance catalog count = %d, want %d, error %v", catalogCount, wantCatalog, err)
+	}
+}
+
 func openUnmigratedWorkspaceDB(t *testing.T, name string) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", "file:"+name+"?mode=memory&cache=shared")

@@ -18,9 +18,9 @@ const (
 
 type OutboxRepository interface {
 	ClaimOutbox(context.Context, time.Time, int, time.Duration, string) ([]contract.OutboxEvent, error)
-	MarkOutboxDelivered(context.Context, string, string, string, time.Time) error
-	MarkOutboxFailed(context.Context, string, string, string, time.Time, time.Time, string, bool) error
-	ReplayOutbox(context.Context, string, string, time.Time) error
+	MarkOutboxDelivered(context.Context, contract.OutboxClaimIdentity, time.Time) error
+	MarkOutboxFailed(context.Context, contract.OutboxClaimIdentity, time.Time, time.Time, string, bool) error
+	ReplayOutbox(context.Context, contract.OutboxRowIdentity, time.Time) error
 	ReadOutboxDiagnostics(context.Context, string, time.Time) (contract.OutboxDiagnostics, error)
 }
 
@@ -28,6 +28,7 @@ type OutboxServiceConfig struct {
 	Repository    OutboxRepository
 	Sink          contract.OutboxSink
 	Authorizer    contract.WorkspaceAccessAuthorizer
+	EventPolicies GovernanceEventPolicyProvider
 	Now           func() time.Time
 	NewClaimToken func() string
 	Jitter        func(int) time.Duration
@@ -38,6 +39,7 @@ type OutboxService struct {
 	repository        OutboxRepository
 	sink              contract.OutboxSink
 	authorizer        contract.WorkspaceAccessAuthorizer
+	eventPolicies     GovernanceEventPolicyProvider
 	now               func() time.Time
 	newClaimToken     func() string
 	jitter            func(int) time.Duration
@@ -46,7 +48,7 @@ type OutboxService struct {
 }
 
 func NewOutboxService(config OutboxServiceConfig) (*OutboxService, error) {
-	if config.Repository == nil || config.Sink == nil || config.Authorizer == nil {
+	if config.Repository == nil || config.Sink == nil || config.Authorizer == nil || config.EventPolicies == nil {
 		return nil, contract.ErrGovernanceUnavailable
 	}
 	if config.Now == nil {
@@ -66,7 +68,7 @@ func NewOutboxService(config OutboxServiceConfig) (*OutboxService, error) {
 		batchSize = MaxOutboxBatchSize
 	}
 	return &OutboxService{
-		repository: config.Repository, sink: config.Sink, authorizer: config.Authorizer,
+		repository: config.Repository, sink: config.Sink, authorizer: config.Authorizer, eventPolicies: config.EventPolicies,
 		now: config.Now, newClaimToken: config.NewClaimToken, jitter: config.Jitter, batchSize: batchSize,
 	}, nil
 }
@@ -82,29 +84,44 @@ func (s *OutboxService) DispatchOnce(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("claim outbox batch: %w", err)
 	}
 	for _, event := range events {
+		if err := event.Validate(); err != nil {
+			return 0, err
+		}
+		if err := validateGovernanceEventPolicy(ctx, s.eventPolicies, event); err != nil {
+			return 0, err
+		}
+		claimIdentity, err := event.ClaimIdentity()
+		if err != nil {
+			return 0, err
+		}
 		if err := s.sink.Publish(ctx, event); err == nil {
-			if err := s.repository.MarkOutboxDelivered(ctx, event.WorkspaceID, event.ID, event.ClaimToken, now); err != nil {
+			transitionedAt := s.now().UTC()
+			if err := s.repository.MarkOutboxDelivered(ctx, claimIdentity, transitionedAt); err != nil {
 				return 0, fmt.Errorf("acknowledge outbox delivery: %w", err)
 			}
 			continue
 		}
+		transitionedAt := s.now().UTC()
 		dead := event.AttemptCount >= MaxOutboxAttempts
-		retryAt := now
+		retryAt := transitionedAt
 		if !dead {
-			retryAt = now.Add(outboxRetryDelay(event.AttemptCount) + nonNegativeJitter(s.jitter(event.AttemptCount)))
+			retryAt = transitionedAt.Add(outboxRetryDelay(event.AttemptCount) + nonNegativeJitter(s.jitter(event.AttemptCount)))
 		}
-		if err := s.repository.MarkOutboxFailed(ctx, event.WorkspaceID, event.ID, event.ClaimToken, now, retryAt, "publish_failed", dead); err != nil {
+		if err := s.repository.MarkOutboxFailed(ctx, claimIdentity, transitionedAt, retryAt, "publish_failed", dead); err != nil {
 			return 0, fmt.Errorf("record outbox delivery failure: %w", err)
 		}
 	}
 	return len(events), nil
 }
 
-func (s *OutboxService) Replay(ctx context.Context, workspaceID, eventID string) error {
-	if err := s.authorizer.AuthorizeWorkspace(ctx, workspaceID, contract.PermissionReminderReplayRepair); err != nil {
+func (s *OutboxService) Replay(ctx context.Context, identity contract.OutboxRowIdentity) error {
+	if err := identity.Validate(); err != nil || identity.State != contract.OutboxDeadLetter {
+		return fmt.Errorf("%w: invalid dead-letter replay identity", contract.ErrInvalidGovernanceMutation)
+	}
+	if err := s.authorizer.AuthorizeWorkspace(ctx, identity.WorkspaceID, contract.PermissionReminderReplayRepair); err != nil {
 		return err
 	}
-	return s.repository.ReplayOutbox(ctx, workspaceID, eventID, s.now().UTC())
+	return s.repository.ReplayOutbox(ctx, identity, s.now().UTC())
 }
 
 func (s *OutboxService) ReadGovernanceDiagnostics(ctx context.Context, workspaceID string) (contract.OutboxDiagnostics, error) {
