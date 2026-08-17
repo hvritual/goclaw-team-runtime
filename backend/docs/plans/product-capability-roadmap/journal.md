@@ -562,3 +562,40 @@ Known limitations, blockers, and next action
 - Existing UI/local-runtime/code-to-product dirty paths remain excluded and
   `server/**` remains read-only. No repair or verification result is claimed by
   this activation record.
+
+## 2026-08-17 — J022 — v5 candidate verified; independent re-review blocked closure
+
+- Implemented the five authorized v5 repair areas with RED/GREEN tests and
+  committed exact candidate `ee02403cbed00366a5c25bfd4da8d2ee123cb675`.
+  Its 17 paths are all in the v5 Section 6 allowlist; no `server/**`, frontend,
+  Control Plane, up migration, generated, or unrelated dirty path is included.
+- Candidate behavior includes server-resolved action/resource policy and actor
+  identity, application-derived canonical v1 SHA-256 request hashes, strict
+  versioned scalar envelopes, opaque prepared mutations with defensive JSON
+  copies, post-publish clocks, complete outbox tuple/lease predicates, exact
+  dead-letter tuple replay, and transactional empty-only 000009 down behavior.
+- Deterministic evidence on the fixed candidate passed:
+  - five focused governance/Workspace/Bootstrap packages, count 1;
+  - attachment SQLite busy/serialization/cancellation cases, count 10;
+  - same-Issue concurrent attachment uploads, count 10;
+  - `make check`, `go mod verify`, and full `make test-race` using process-local
+    Scoop GCC 15.2;
+  - policy hashes, parsed traceability trailers, exact diff, diff check, and an
+    empty `server/**` candidate scope.
+- Before the candidate was fixed, one full test run observed a single C9
+  attachment HTTP 500; bounded diagnostic count 5, candidate count 10, candidate
+  `make check`, and candidate race all passed. The initial failure is retained
+  here and is not erased by later success.
+- Independent read-only review of `6d94ff4..ee02403` returned `SPEC BLOCK`:
+  1. `GovernanceRequest.ResponseBody`, `AuditMetadata`, and
+     `OutboxDraft.Payload` remain caller-visible but are silently ignored;
+  2. the universal forbidden-material guard omits Basic authorization fixtures;
+  3. an unknown-policy row is changed to `inflight` before exact event policy
+     validation, and authorized replay can change unversioned/unknown-policy
+     dead letters to `ready` without envelope/policy validation.
+- Authority, canonical hash, opaque preparation, full tuple/current lease,
+  empty-only down, scope, and `server/**` boundaries passed independent review.
+  Missing negative tests match the three blocks above.
+- Per v5, independent `BLOCK` stops closure and cannot be repaired inside r010.
+  `PCR-S01B-5` is review-blocked, Release 0 is incomplete, Release 1 is inactive,
+  and a new approved plan/task is required before further product edits.

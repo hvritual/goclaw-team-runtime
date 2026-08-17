@@ -619,9 +619,9 @@ merge, deployment, Release 1 activation, or out-of-plan defect repair.
 - Task-ID: `PCR-001-S01B5-R10`
 - Task-Revision: `r010`
 - Work-Item: `PCR-S01B-5`
-- Status: `active`
+- Status: `independent-review-blocked`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after deterministic verification`
+- Independent reviewer: `SPEC BLOCK on candidate ee02403`
 - Base commit: `0218ecbe5457f1afb716780ad44306e5b1b3b075`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v5`
 - Plan hash: `ab5b81056f26f842a1b4fa08d626928b6cfb802dfae9a2bf4e3c0f305c019e69`
@@ -654,3 +654,16 @@ path is authorized.
 The Human Customer explicitly approved `PRODUCT-CAPABILITY-ROADMAP-001 v5 /
 r010` on 2026-08-17. This activates `PCR-S01B-5` only and does not authorize
 push, merge, deployment, or Release 1.
+
+### Independent review outcome
+
+- Candidate `ee02403cbed00366a5c25bfd4da8d2ee123cb675` passed the frozen
+  deterministic gates and exact-scope audit.
+- Independent review passed authority, canonical hashing, opaque preparation,
+  complete outbox tuple/current lease, empty-only down, and scope boundaries.
+- Review blocked closure because deprecated raw response/audit/outbox fields
+  are silently ignored, Basic authorization material is not universally
+  rejected, and retained unknown-policy/unversioned outbox rows may be changed
+  by claim or replay before exact policy validation.
+- Per v5, r010 cannot repair a post-gate independent block. A new approved plan
+  version and task revision are required. Release 0 remains incomplete.
