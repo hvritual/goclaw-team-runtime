@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { CreateTaskRequest, ReorderTasksRequest, UpdateTaskRequest } from "../types/task";
+import type { CreateTaskRequest, PromoteTaskRequest, ReorderTasksRequest, UpdateTaskRequest } from "../types/task";
 import { api } from "../api";
 import { useWorkspaceId } from "../hooks";
+import { issueKeys } from "../issues/queries";
 import { taskKeys } from "./queries";
 
 export function useCreateTask() {
@@ -39,6 +40,22 @@ export function useDeleteTask() {
       api.deleteTask(id, expectedRevision),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: taskKeys.all(workspaceId) }),
+  });
+}
+
+export function usePromoteTask() {
+  const queryClient = useQueryClient();
+  const workspaceId = useWorkspaceId();
+  return useMutation({
+    mutationFn: ({ id, ...request }: { id: string } & PromoteTaskRequest) =>
+      api.promoteTask(id, request),
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: taskKeys.detail(workspaceId, variables.id),
+      });
+      queryClient.invalidateQueries({ queryKey: taskKeys.all(workspaceId) });
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(workspaceId) });
+    },
   });
 }
 

@@ -98,9 +98,11 @@ import type {
   ProjectRequirementCoverage,
   ProjectRequirementLinkRequest,
   ProjectRequirementCreateIssueRequest,
+  PromoteTaskRequest,
+  PromoteTaskResponse,
 } from "../types";
 import type { ReorderTasksRequest } from "../types/task";
-import { EMPTY_TASK_LIST, reorderedTasksSchema, taskListSchema, taskSchema } from "../tasks/schema";
+import { EMPTY_TASK_LIST, reorderedTasksSchema, taskListSchema, taskPromotionResponseSchema, taskSchema } from "../tasks/schema";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
 import { type Logger, noopLogger } from "../logger";
@@ -1588,6 +1590,17 @@ export class ApiClient {
     });
     const parsed = taskSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid task response");
+    return parsed.data;
+  }
+
+  async promoteTask(id: string, data: PromoteTaskRequest): Promise<PromoteTaskResponse> {
+    const raw = await this.fetch<unknown>(`/api/tasks/${id}/promote`, {
+      method: "POST",
+      headers: { "Idempotency-Key": createSafeId() },
+      body: JSON.stringify(data),
+    });
+    const parsed = taskPromotionResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid task promotion response");
     return parsed.data;
   }
 

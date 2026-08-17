@@ -26,6 +26,9 @@
   "assignee_id_label": "담당자 ID",
   "assignee_member": "멤버",
   "assignee_agent": "에이전트",
+  "promote": "이슈로 승격",
+  "complete_after_promotion": "승격 후 작업 완료",
+  "promoted_issue": "승격된 이슈:",
   "status": {
     "todo": "할 일",
     "in_progress": "진행 중",

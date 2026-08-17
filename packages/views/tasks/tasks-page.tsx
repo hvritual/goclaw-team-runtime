@@ -5,17 +5,20 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { AlertCircle, Archive, ArrowDown, ArrowUp, CheckSquare2, Loader2, Plus, RotateCcw } from "lucide-react";
 import type { TaskActorType, TaskStatus } from "@multica/core/types/task";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useWorkspacePaths } from "@multica/core/paths";
 import {
   taskInfiniteListOptions,
   useCreateTask,
   useDeleteTask,
   useRestoreTask,
   useReorderTasks,
+  usePromoteTask,
   useUpdateTask,
 } from "@multica/core/tasks";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
 import { useT } from "../i18n";
+import { AppLink } from "../navigation";
 
 const STATUSES: TaskStatus[] = [
   "todo",
@@ -40,6 +43,7 @@ const dueDateFormatter = new Intl.DateTimeFormat("en", { month: "short", day: "n
 export function TasksPage() {
   const { t } = useT("tasks");
   const workspaceId = useWorkspaceId();
+  const workspacePaths = useWorkspacePaths();
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const taskQuery = useInfiniteQuery(
     taskInfiniteListOptions(workspaceId, statusFilter ? { status: statusFilter } : undefined),
@@ -50,8 +54,11 @@ export function TasksPage() {
   const deleteTask = useDeleteTask();
   const restoreTask = useRestoreTask();
   const reorderTasks = useReorderTasks();
+  const promoteTask = usePromoteTask();
+  const [completeAfterPromotion, setCompleteAfterPromotion] = useState<Record<string, boolean>>({});
+  const [promotedIssues, setPromotedIssues] = useState<Record<string, { id: string; identifier: string }>>({});
   const [title, setTitle] = useState("");
-  const mutationError = createTask.error ?? updateTask.error ?? deleteTask.error ?? restoreTask.error ?? reorderTasks.error;
+  const mutationError = createTask.error ?? updateTask.error ?? deleteTask.error ?? restoreTask.error ?? reorderTasks.error ?? promoteTask.error;
 
   const submit = () => {
     const value = title.trim();
@@ -169,6 +176,54 @@ export function TasksPage() {
                   <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
                     {task.assignee_id ? <span>{task.assignee_type === "agent" ? t(($) => $.agent, { id: task.assignee_id }) : t(($) => $.member, { id: task.assignee_id })}</span> : null}
                     {task.due_date ? <span>{t(($) => $.due, { date: dueDateFormatter.format(new Date(task.due_date)) })}</span> : null}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    {promotedIssues[task.id] ?? (task.issue_id ? { id: task.issue_id, identifier: task.issue_id } : null) ? (
+                      <span className="text-muted-foreground">
+                        {t(($) => $.promoted_issue)}{" "}
+                        <AppLink
+                          className="font-medium text-foreground underline underline-offset-2"
+                          href={workspacePaths.issueDetail((promotedIssues[task.id] ?? { id: task.issue_id! }).id)}
+                        >
+                          {promotedIssues[task.id]?.identifier ?? task.issue_id}
+                        </AppLink>
+                      </span>
+                    ) : task.status !== "archived" ? (
+                      <>
+                        {task.status === "in_progress" ? (
+                          <label className="flex items-center gap-1.5 text-muted-foreground">
+                            <input
+                              type="checkbox"
+                              checked={completeAfterPromotion[task.id] ?? false}
+                              onChange={(event) => setCompleteAfterPromotion((current) => ({ ...current, [task.id]: event.target.checked }))}
+                            />
+                            {t(($) => $.complete_after_promotion)}
+                          </label>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={promoteTask.isPending}
+                          onClick={() => promoteTask.mutate(
+                            {
+                              id: task.id,
+                              expected_revision: task.revision,
+                              complete_task: completeAfterPromotion[task.id] ?? false,
+                            },
+                            {
+                              onSuccess: (result) => setPromotedIssues((current) => ({
+                                ...current,
+                                [task.id]: { id: result.issue.id, identifier: result.issue.identifier },
+                              })),
+                            },
+                          )}
+                        >
+                          {promoteTask.isPending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                          {t(($) => $.promote)}
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                   {task.status !== "archived" ? (
                     <details key={`${task.id}:${task.revision}`} className="mt-2 text-xs">

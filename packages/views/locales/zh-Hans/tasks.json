@@ -26,6 +26,9 @@
   "assignee_id_label": "负责人 ID",
   "assignee_member": "成员",
   "assignee_agent": "Agent",
+  "promote": "提升为 Issue",
+  "complete_after_promotion": "提升后完成任务",
+  "promoted_issue": "已提升为：",
   "status": {
     "todo": "待办",
     "in_progress": "进行中",

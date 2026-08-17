@@ -7,8 +7,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { setApiInstance } from "../api";
 import type { ApiClient } from "../api/client";
-import { useCreateTask, useDeleteTask, useUpdateTask } from "./mutations";
+import { useCreateTask, useDeleteTask, usePromoteTask, useUpdateTask } from "./mutations";
 import { taskKeys } from "./queries";
+import { issueKeys } from "../issues/queries";
 
 vi.mock("../hooks", () => ({ useWorkspaceId: () => "workspace-1" }));
 
@@ -27,6 +28,7 @@ describe("Task mutation cache invalidation", () => {
       createTask: vi.fn().mockResolvedValue({}),
       updateTask: vi.fn().mockResolvedValue({}),
       deleteTask: vi.fn().mockResolvedValue({}),
+      promoteTask: vi.fn().mockResolvedValue({}),
     } as unknown as ApiClient);
   });
 
@@ -50,5 +52,18 @@ describe("Task mutation cache invalidation", () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: taskKeys.all("workspace-1") });
     const allKey = JSON.stringify(taskKeys.all("workspace-1"));
     expect(invalidate.mock.calls.filter(([request]) => JSON.stringify(request?.queryKey) === allKey)).toHaveLength(3);
+  });
+
+  it("invalidates the promoted Task detail and both Task and Issue collections", async () => {
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const promote = renderHook(() => usePromoteTask(), { wrapper: wrapper(queryClient) });
+
+    await act(async () => {
+      await promote.result.current.mutateAsync({ id: "task-1", expected_revision: 1, complete_task: true });
+    });
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: taskKeys.detail("workspace-1", "task-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: taskKeys.all("workspace-1") });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: issueKeys.all("workspace-1") });
   });
 });

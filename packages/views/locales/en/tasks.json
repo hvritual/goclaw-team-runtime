@@ -26,6 +26,9 @@
   "assignee_id_label": "Assignee ID",
   "assignee_member": "Member",
   "assignee_agent": "Agent",
+  "promote": "Promote to issue",
+  "complete_after_promotion": "Complete task after promotion",
+  "promoted_issue": "Promoted issue:",
   "status": {
     "todo": "To do",
     "in_progress": "In progress",

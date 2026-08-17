@@ -25,6 +25,31 @@ const TASK = {
   updated_at: "2026-08-18T00:00:00Z",
 };
 
+const ISSUE = {
+  id: "issue-1",
+  workspace_id: "workspace-1",
+  number: 42,
+  identifier: "ONE-42",
+  title: "Ship S02A",
+  description: "",
+  status: "todo",
+  priority: "none",
+  assignee_type: null,
+  assignee_id: null,
+  creator_type: "member",
+  creator_id: "member-1",
+  parent_issue_id: null,
+  project_id: null,
+  position: 10,
+  stage: null,
+  start_date: null,
+  due_date: "2026-08-20T00:00:00Z",
+  metadata: {},
+  properties: {},
+  created_at: "2026-08-18T00:00:00Z",
+  updated_at: "2026-08-18T00:00:00Z",
+};
+
 describe("task API boundary", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -63,5 +88,21 @@ describe("task API boundary", () => {
 
     await expect(client.createTask({ title: "Ship S02A" })).resolves.toMatchObject({ id: "task-1" });
     expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBeTruthy();
+  });
+
+  it("promotes a Task with an idempotency key and rejects malformed responses", async () => {
+    const response = { task: { ...TASK, issue_id: "issue-1", revision: 2 }, issue: ISSUE, source_task_id: "task-1" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(response), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...response, source_task_id: "" }), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+
+    await expect(client.promoteTask("task-1", { expected_revision: 1, complete_task: true })).resolves.toEqual(response);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://localhost:8000/api/tasks/task-1/promote");
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ expected_revision: 1, complete_task: true }));
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Idempotency-Key")).toBeTruthy();
+
+    await expect(client.promoteTask("task-1", { expected_revision: 1 })).rejects.toThrow("Invalid task promotion response");
   });
 });

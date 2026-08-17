@@ -26,6 +26,9 @@
   "assignee_id_label": "担当者 ID",
   "assignee_member": "メンバー",
   "assignee_agent": "エージェント",
+  "promote": "Issue に昇格",
+  "complete_after_promotion": "昇格後にタスクを完了",
+  "promoted_issue": "昇格した Issue:",
   "status": {
     "todo": "未着手",
     "in_progress": "進行中",

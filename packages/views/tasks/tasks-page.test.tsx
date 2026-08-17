@@ -11,11 +11,14 @@ const mocks = vi.hoisted(() => ({
   archive: vi.fn(),
   restore: vi.fn(),
   reorder: vi.fn(),
+  promote: vi.fn(),
   mutationError: null as Error | null,
 }));
 
 vi.mock("@tanstack/react-query", () => ({ useInfiniteQuery: () => mocks.query }));
 vi.mock("@multica/core/hooks", () => ({ useWorkspaceId: () => "workspace-1" }));
+vi.mock("@multica/core/paths", () => ({ useWorkspacePaths: () => ({ issueDetail: (id: string) => `/acme/issues/${id}` }) }));
+vi.mock("../navigation", () => ({ AppLink: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a> }));
 vi.mock("@multica/core/tasks", () => ({
   taskInfiniteListOptions: () => ({ queryKey: ["tasks"] }),
   useCreateTask: () => ({ mutate: mocks.create, isPending: false, error: mocks.mutationError }),
@@ -23,6 +26,7 @@ vi.mock("@multica/core/tasks", () => ({
   useDeleteTask: () => ({ mutate: mocks.archive, isPending: false, error: mocks.mutationError }),
   useRestoreTask: () => ({ mutate: mocks.restore, isPending: false, error: mocks.mutationError }),
   useReorderTasks: () => ({ mutate: mocks.reorder, isPending: false, error: mocks.mutationError }),
+  usePromoteTask: () => ({ mutate: mocks.promote, isPending: false, error: mocks.mutationError }),
 }));
 
 const TASK: Task = {
@@ -121,5 +125,24 @@ describe("TasksPage", () => {
     renderWithI18n(<TasksPage />);
     fireEvent.click(screen.getByRole("button", { name: "Load more tasks" }));
     expect(mocks.query.fetchNextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("promotes an in-progress Task, optionally completes it, and links the created Issue", () => {
+    mocks.query = { ...mocks.query, data: [TASK] };
+    mocks.promote.mockImplementation((_variables, options) => options?.onSuccess?.({
+      task: { ...TASK, issue_id: "issue-1", status: "done", revision: 3 },
+      issue: { id: "issue-1", identifier: "ONE-42" },
+      source_task_id: "task-1",
+    }));
+    renderWithI18n(<TasksPage />);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Complete task after promotion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Promote to issue" }));
+
+    expect(mocks.promote).toHaveBeenCalledWith(
+      { id: "task-1", expected_revision: 2, complete_task: true },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    );
+    expect(screen.getByRole("link", { name: "ONE-42" })).toHaveAttribute("href", "/acme/issues/issue-1");
   });
 });

@@ -1,5 +1,7 @@
 import { z } from "zod";
+import type { Issue } from "../types/issue";
 import type { ListTasksResponse } from "../types/task";
+import { IssueSchema } from "../api/schemas";
 
 const nullableString = z.string().nullable();
 
@@ -38,5 +40,21 @@ export const taskListSchema = z.object({
 }).strict();
 
 export const reorderedTasksSchema = z.object({ tasks: z.array(taskSchema) }).strict();
+
+const promotedIssueSchema = IssueSchema.extend({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  identifier: z.string().min(1),
+  status: z.enum(["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"]),
+  priority: z.enum(["urgent", "high", "medium", "low", "none"]),
+  assignee_type: z.enum(["member", "agent"]).nullable(),
+  creator_type: z.enum(["member", "agent"]),
+}).transform((issue) => issue as Issue);
+
+export const taskPromotionResponseSchema = z.object({
+  task: taskSchema,
+  issue: promotedIssueSchema,
+  source_task_id: z.string().min(1),
+}).strict();
 
 export const EMPTY_TASK_LIST: ListTasksResponse = { tasks: [], total: 0, next_cursor: null };

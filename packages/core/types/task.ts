@@ -59,6 +59,16 @@ export interface ReorderTasksRequest {
   items: ReorderTaskItem[];
 }
 
+export interface PromoteTaskRequest extends TaskRevisionRequest {
+  complete_task?: boolean;
+}
+
+export interface PromoteTaskResponse {
+  task: Task;
+  issue: import("./issue").Issue;
+  source_task_id: string;
+}
+
 export interface ListTasksResponse {
   tasks: Task[];
   total: number;

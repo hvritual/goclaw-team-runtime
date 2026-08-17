@@ -6,6 +6,8 @@ export type {
   CreateTaskRequest,
   UpdateTaskRequest,
   ListTasksResponse,
+  PromoteTaskRequest,
+  PromoteTaskResponse,
 } from "./task";
 export type {
   Skill,
