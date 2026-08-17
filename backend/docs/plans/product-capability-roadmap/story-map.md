@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v12`
-- Status: `Release 1 active; PCR-S02A root parallel-test repair is the sole active story`
+- Plan-Version: `v13`
+- Status: `Release 1 active; PCR-S02A real-Git timeout correction is the sole active story`
 
 ## Delivery policy
 
@@ -60,7 +60,7 @@ Acceptance scenarios:
 
 ### PCR-S02A — Manage tasks
 
-Status: `active root parallel-test repair under PRODUCT-CAPABILITY-ROADMAP-001 v12 / r017`
+Status: `active real-Git timeout correction under PRODUCT-CAPABILITY-ROADMAP-001 v13 / r018`
 
 As a member, I can create, view, filter, reorder, edit, complete, cancel, archive,
 and restore tasks in my workspace.

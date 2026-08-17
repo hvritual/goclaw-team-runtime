@@ -761,3 +761,15 @@ Known limitations, blockers, and next action
   production behavior, retry count, and all other tests remain unchanged.
 - r016 is verification-blocked; r017 is the sole active task. S02B and later
   stories remain inactive, and no r017 PASS or S02A closure is claimed.
+
+## 2026-08-18 — J031 — v13/r018 real-Git timeout correction activated
+
+- v12 root execution passes 422/423 Desktop tests. The remaining multi-step
+  real-Git tag/commit/describe case exceeds 15 seconds only under the full
+  workspace parallel graph; isolated package tests remain 30/30.
+- Continued Customer authority activates immutable v13 from exact `8f94d69`.
+  Only the same three timeout literals may move from 15 to 60 seconds; no
+  assertion, retry, skip, mock, production code, or concurrency change is
+  permitted.
+- r017 is verification-blocked and r018 is the sole active task. S02B and later
+  stories remain inactive; no r018 PASS or S02A closure is claimed.

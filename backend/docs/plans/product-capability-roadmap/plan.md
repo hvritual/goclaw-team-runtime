@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v12.md](plan_v12.md).
+The approved execution snapshot is [plan_v13.md](plan_v13.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `12`
-- Active step: `PCR-S02A root parallel-test repair`
-- Status: `Release 1 active; PCR-S02A/r017 root parallel-test repair authorized`
+- Approved version: `13`
+- Active step: `PCR-S02A real-Git timeout correction`
+- Status: `Release 1 active; PCR-S02A/r018 real-Git timeout correction authorized`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `3c030b4a6f8e9d47e1029d3c3245733768644415`
+- Active task base commit: `8f94d69db72e18719b7ed4315e7d74901b1f5945`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -78,6 +78,12 @@ seconds under full-workspace parallel load; the isolated file remains 30/30.
 Continued follow-up authority activates v12/r017 from exact `3c030b4` solely to
 assign those three tests a 15-second parallel-load budget without changing
 assertions or product code.
+
+v12 root execution passed 422/423 Desktop tests; one multi-step real-Git case
+still exceeded the frozen 15-second ceiling under full-workspace load. v13/r018
+starts from exact `8f94d69` and authorizes only raising the same three
+external-process test ceilings to 60 seconds. Assertions, concurrency, and
+retry behavior remain unchanged.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

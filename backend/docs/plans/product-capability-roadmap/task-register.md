@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v12`
-- Registry status: `Release 1 active; PCR-001-S02A-R17 is the sole active task`
-- Registry revision: `r017`
+- Plan-Version: `v13`
+- Registry status: `Release 1 active; PCR-001-S02A-R18 is the sole active task`
+- Registry revision: `r018`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -24,6 +24,7 @@
 | `plan_v10.md` | `444861e85c41b30beeb0ba36f0d75ac54c95015db503ce1d2576088b7c9a2171` |
 | `plan_v11.md` | `6177497d7d7e78b4d0b74b282245e01a50a8f737c9838a22b2ede1a17c4cb9b5` |
 | `plan_v12.md` | `138219e9cc6710919b96b10332b5c56fbf287f1ee8430f2d1615df991efcbf32` |
+| `plan_v13.md` | `830ad1b5c189d356b074e1b84cde9ca220b587bb24e322186d38a9dad9806013` |
 
 Changing any policy hash invalidates a queued product task until it is reviewed
 and re-frozen. `server/**` remains excluded regardless of hash changes.
@@ -963,7 +964,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02A-R17`
 - Task-Revision: `r017`
 - Work-Item: `PCR-S02A`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `3c030b4a6f8e9d47e1029d3c3245733768644415`
@@ -984,3 +985,30 @@ S02A without changing Task product behavior or activating S02B.
 - Exact base is `3c030b4`; r016 is verification-blocked and r017 is sole active.
 - Isolated package tests pass 30/30; root-parallel timeout is the captured RED.
 - No r017 implementation or closure PASS is claimed at activation.
+
+### Verification outcome
+
+- Root execution passes 422/423 Desktop tests after the 15-second budget.
+- One multi-step real-Git scenario still exceeds that ceiling under full graph
+  load. r017 is verification-blocked and superseded by r018 without waiver.
+
+## PCR-001-S02A-R18
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S02A-R18`
+- Task-Revision: `r018`
+- Work-Item: `PCR-S02A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `8f94d69db72e18719b7ed4315e7d74901b1f5945`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v13`
+- Plan hash: `830ad1b5c189d356b074e1b84cde9ca220b587bb24e322186d38a9dad9806013`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/830ad1b5c189d356b074e1b84cde9ca220b587bb24e322186d38a9dad9806013`
+
+### Objective and acceptance
+
+- Change only the three real-Git timeout literals from 15 to 60 seconds.
+- Root typecheck/test, backend full/race, exact browser, scope, and independent
+  review must pass before S02A closure.
+- S02B and all later stories remain inactive.
