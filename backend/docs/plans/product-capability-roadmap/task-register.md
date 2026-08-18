@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v19`
-- Registry status: `Release 1 complete-independent-reviewed; no active task`
-- Registry revision: `r024`
+- Plan-Version: `v20`
+- Registry status: `Release 2 active; PCR-S05A complete-independent-reviewed; no active task`
+- Registry revision: `r025`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1341,9 +1341,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S05A-R25`
 - Task-Revision: `r025`
 - Work-Item: `PCR-S05A`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `pending`
+- Independent reviewer: `Codex independent subagent release2_baseline — SPEC PASS / CODE QUALITY PASS`
 - Base commit: `0aed36871271184325b6147841348847b004a7a4`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v20`
 - Plan hash: `a55f0f0f5e593d39f779fb3d67a556dfa5eb0157b49faa4562badbdb5af1ad85`
@@ -1371,3 +1371,25 @@ S02A without changing Task product behavior or activating S02B.
   `a830fd2f0f82770563908d512558fe6ba48f50dd`. Existing generated protobuf
   worktree blobs equal the index; all other recorded dirty paths remain excluded.
 - `server/**` range and worktree diffs are empty at activation.
+
+### Closure evidence
+
+- Exact implementation candidate `17f7eb1f2db22bd64e426614b84b945325b1f90f`
+  (tree `57361bc6344e2801c4393414cfcc4bdb6d6c9897`) installs the complete
+  S05A catalog, immutable version lifecycle, Workspace visibility, provenance,
+  audit, authorization, strict clients, shared UI, and installed acceptance.
+- The final remediation protects down migration from retained Workspace
+  bindings and proves `context.Canceled` and `context.DeadlineExceeded` leave
+  Skill, version, audit, and binding tables without partial rows.
+- Exact candidate backend `make check` and official `make test-race` pass with
+  MinGW GCC 15.2.0. Frontend typecheck, serialized tests, production Web build,
+  and installed-Chrome lifecycle acceptance passed before the backend-only
+  final remediation; the remediation changed no frontend blob.
+- Installed Chrome acceptance proves create, version, publish, archive,
+  restore, provenance/audit display, and hidden import controls on a fresh
+  migrated database. The first production-proxy attempt exposed missing
+  `REMOTE_API_URL`; the corrected explicit 8081 backend wiring passed 1/1.
+- Fresh independent review of `28c0b71e..17f7eb1f` returns SPEC PASS and CODE
+  QUALITY PASS with no blocker. Candidate and worktree `server/**` diffs are
+  empty, the eight governance trailers parse, and recorded dirty paths remain
+  excluded. PCR-S05A is closed; S05B remains inactive pending a new frozen plan.

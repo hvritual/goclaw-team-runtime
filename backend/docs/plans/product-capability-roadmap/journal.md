@@ -1152,3 +1152,36 @@ Known limitations, blockers, and next action
   `a830fd2f0f82770563908d512558fe6ba48f50dd`; `server/**` remains unchanged.
   Browser, production build, official race, independent review, and S05A
   closure are still pending.
+
+## 2026-08-18 — J045 — v20/r025 and PCR-S05A closed
+
+- Exact implementation candidate `17f7eb1f2db22bd64e426614b84b945325b1f90f`
+  (tree `57361bc6344e2801c4393414cfcc4bdb6d6c9897`) completes the
+  System-owned Skill catalog and immutable numbered-version lifecycle with
+  Workspace visibility, exact referenced reads, provenance, audit, strict Core
+  parsing, shared Web/Desktop UI, and only `skill_administration=true`.
+- The first independent review blocked closure on non-atomic binding, archived
+  member-list leakage, missing audit/provenance read surface, visible import UI,
+  and silently ignored file fields. Remediation closed all five. A second review
+  found retained Workspace bindings absent from the down guard and missing
+  cancellation evidence; the final candidate closes both with binding-aware
+  rollback protection and explicit cancel/deadline zero-partial-row tests.
+- Exact final-candidate backend `make check` and official `make test-race` pass
+  with MinGW GCC 15.2.0. One preceding full check exposed a test-only SQLite
+  `:memory:` multi-connection fixture; replacing it with a `t.TempDir()` file
+  database made the same assertions deterministic before the PASS.
+- Root typecheck 6/6, serialized package tests (Core 613, Docs 17, Views 1677,
+  Web 149, Desktop 423), and production Web build pass on the preceding tree;
+  final remediation is backend-test/migration-only and changes no frontend blob.
+  The build retains two pre-existing CSS `::highlight` optimizer warnings.
+- Fresh migrated SQLite plus canonical fixture passes installed Chrome S05A
+  lifecycle acceptance 1/1 with retries disabled. The initial production-proxy
+  run exposed omitted `REMOTE_API_URL`; explicit backend 8081 wiring then passed.
+  Visual inspection confirms origin Workspace, audit activity, v2 published,
+  archive/restore, and no file/import controls. Isolated processes were stopped.
+- Fresh final independent review returns SPEC PASS and CODE QUALITY PASS with no
+  blocker. `server/**` candidate/worktree diffs are empty, protected Input stays
+  blob `a830fd2f0f82770563908d512558fe6ba48f50dd`, eight trailers parse, and all
+  recorded dirty paths remain excluded. PCR-S05A is
+  `complete-independent-reviewed`; Release 2 remains active with no active task.
+  S05B needs a new frozen plan. No push, merge, or deployment is claimed.

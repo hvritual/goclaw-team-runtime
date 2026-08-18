@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v20.md](plan_v20.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `20`
-- Active step: `PCR-S05A Skill catalog and version lifecycle`
-- Status: `Release 2 active; PCR-S05A r025 active`
+- Active step: `none`
+- Status: `Release 2 active; PCR-S05A r025 complete-independent-reviewed`
 - Plan base commit: `0aed36871271184325b6147841348847b004a7a4`
-- Last closed task candidate: `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11`
+- Last closed task candidate: `17f7eb1f2db22bd64e426614b84b945325b1f90f`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -15,11 +15,13 @@ The approved execution snapshot is [plan_v20.md](plan_v20.md).
 - Evidence journal: [journal.md](journal.md)
 - S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
 
-The Human Customer's standing direction to complete Release 2 activates
+The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
-`0aed3687`. Only PCR-S05A System-owned Skill catalog and version lifecycle is
-active. S05B, S06A, and S06B remain inactive. Skill file bodies/import, Space
-Asset implementation, Knowledge, push, merge, and deployment are excluded.
+`0aed3687`. Exact S05A candidate `17f7eb1f` passes its deterministic, installed,
+scope, traceability, and fresh independent-review gates; PCR-S05A is
+`complete-independent-reviewed`. Release 2 remains active with no active task.
+S05B, S06A, and S06B require their next frozen plan versions and remain
+inactive. Push, merge, and deployment remain excluded.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,
