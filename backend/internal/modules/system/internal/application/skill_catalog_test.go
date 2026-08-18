@@ -12,10 +12,9 @@ type visibilityRepositoryStub struct {
 	entries map[string]contract.SkillCatalogEntry
 }
 
-func (r visibilityRepositoryStub) Create(context.Context, contract.CreateSkillCatalogRequest, string, string, time.Time) (contract.SkillCatalogEntry, error) {
+func (r visibilityRepositoryStub) Create(context.Context, contract.CreateSkillCatalogRequest, string, string, time.Time, contract.SkillCreateBinding) (contract.SkillCatalogEntry, error) {
 	panic("not used")
 }
-func (r visibilityRepositoryStub) DeleteCreated(context.Context, string) error { panic("not used") }
 func (r visibilityRepositoryStub) CreateVersion(context.Context, contract.SkillIdentity, string, contract.UpdateSkillCatalogRequest, string, time.Time) (contract.SkillCatalogEntry, error) {
 	panic("not used")
 }
@@ -41,6 +40,9 @@ func (r visibilityRepositoryStub) GetReferenced(_ context.Context, skillID, vers
 	}
 	return value, nil
 }
+func (r visibilityRepositoryStub) History(context.Context, contract.SkillIdentity, string) (contract.SkillHistory, error) {
+	panic("not used")
+}
 
 func TestSkillCatalogAgentReadsOnlyExplicitExactBinding(t *testing.T) {
 	repository := visibilityRepositoryStub{entries: map[string]contract.SkillCatalogEntry{
@@ -50,7 +52,7 @@ func TestSkillCatalogAgentReadsOnlyExplicitExactBinding(t *testing.T) {
 	resolve := func(_ context.Context, workspaceID, skillID string) (contract.SkillVisibilityReference, error) {
 		return contract.SkillVisibilityReference{WorkspaceID: workspaceID, SkillID: skillID, VersionID: "version-1", Enabled: true, AgentIDs: []string{"agent-1"}}, nil
 	}
-	service := NewSkillCatalog(repository, authorize, nil, resolve, nil)
+	service := NewSkillCatalog(repository, authorize, nil, nil, resolve, nil)
 
 	allowed, err := service.Get(context.Background(), contract.SkillIdentity{WorkspaceID: "workspace-1", ActorType: "agent", ActorID: "agent-1"}, "skill-1", "version-1")
 	if err != nil || allowed.VersionID != "version-1" {
@@ -70,6 +72,7 @@ func TestSkillCatalogMemberListUsesEnabledPublishedWorkspaceBindings(t *testing.
 	repository := visibilityRepositoryStub{entries: map[string]contract.SkillCatalogEntry{
 		"skill-1:version-1": {ID: "skill-1", VersionID: "version-1", Status: "published"},
 		"skill-2:version-2": {ID: "skill-2", VersionID: "version-2", Status: "draft"},
+		"skill-4:version-4": {ID: "skill-4", VersionID: "version-4", Status: "archived", Archived: true},
 	}}
 	authorize := func(_ context.Context, identity contract.SkillIdentity, permission string) error {
 		if identity.ActorType == "member" && permission == contract.PermissionSkillRead {
@@ -82,9 +85,10 @@ func TestSkillCatalogMemberListUsesEnabledPublishedWorkspaceBindings(t *testing.
 			{WorkspaceID: workspaceID, SkillID: "skill-1", VersionID: "version-1", Enabled: true},
 			{WorkspaceID: workspaceID, SkillID: "skill-2", VersionID: "version-2", Enabled: true},
 			{WorkspaceID: workspaceID, SkillID: "skill-3", VersionID: "version-3", Enabled: false},
+			{WorkspaceID: workspaceID, SkillID: "skill-4", VersionID: "version-4", Enabled: true},
 		}, nil
 	}
-	service := NewSkillCatalog(repository, authorize, nil, nil, list)
+	service := NewSkillCatalog(repository, authorize, nil, nil, nil, list)
 
 	values, err := service.List(context.Background(), contract.SkillIdentity{WorkspaceID: "workspace-2", ActorType: "member", ActorID: "member-1"})
 	if err != nil || len(values) != 1 || values[0].ID != "skill-1" {

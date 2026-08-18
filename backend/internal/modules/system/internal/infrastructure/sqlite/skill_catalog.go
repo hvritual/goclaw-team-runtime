@@ -14,11 +14,18 @@ import (
 
 type SkillCatalogRepository struct{ db *sql.DB }
 
+type skillCreateExecutor struct{ tx *sql.Tx }
+
+func (e skillCreateExecutor) Execute(ctx context.Context, statement string, arguments ...any) error {
+	_, err := e.tx.ExecContext(ctx, statement, arguments...)
+	return err
+}
+
 func NewSkillCatalogRepository(db *sql.DB) *SkillCatalogRepository {
 	return &SkillCatalogRepository{db: db}
 }
 
-func (r *SkillCatalogRepository) Create(ctx context.Context, request contract.CreateSkillCatalogRequest, skillID, versionID string, now time.Time) (contract.SkillCatalogEntry, error) {
+func (r *SkillCatalogRepository) Create(ctx context.Context, request contract.CreateSkillCatalogRequest, skillID, versionID string, now time.Time, bind contract.SkillCreateBinding) (contract.SkillCatalogEntry, error) {
 	config, err := json.Marshal(request.Config)
 	if err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("encode Skill config: %w", err)
@@ -41,6 +48,12 @@ func (r *SkillCatalogRepository) Create(ctx context.Context, request contract.Cr
 	if _, err := tx.ExecContext(ctx, `INSERT INTO system_skill_audit(id,skill_id,version_id,workspace_id,actor_type,actor_id,action,created_at) VALUES(?,?,?,?,?,?,?,?)`, uuid.NewString(), skillID, versionID, request.WorkspaceID, request.ActorType, request.ActorID, "skill.created", timestamp); err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("insert Skill audit: %w", err)
 	}
+	if bind == nil {
+		return contract.SkillCatalogEntry{}, errors.New("bind initial Workspace Skill: binding is required")
+	}
+	if err := bind(ctx, skillCreateExecutor{tx: tx}); err != nil {
+		return contract.SkillCatalogEntry{}, fmt.Errorf("bind initial Workspace Skill: %w", err)
+	}
 	if err := tx.Commit(); err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("commit Skill create: %w", err)
 	}
@@ -51,22 +64,33 @@ func (r *SkillCatalogRepository) Create(ctx context.Context, request contract.Cr
 	}, nil
 }
 
-func (r *SkillCatalogRepository) DeleteCreated(ctx context.Context, skillID string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
+func (r *SkillCatalogRepository) History(ctx context.Context, identity contract.SkillIdentity, skillID string) (contract.SkillHistory, error) {
+	value := contract.SkillHistory{SkillID: skillID, Audit: make([]contract.SkillAuditEntry, 0)}
+	err := r.db.QueryRowContext(ctx, `SELECT origin_workspace_id,created_by,created_at FROM system_skills WHERE id=? AND origin_workspace_id=?`, skillID, identity.WorkspaceID).Scan(
+		&value.Provenance.OriginWorkspaceID, &value.Provenance.CreatedBy, &value.Provenance.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return contract.SkillHistory{}, contract.ErrSkillNotFound
+	}
 	if err != nil {
-		return fmt.Errorf("begin Skill create compensation: %w", err)
+		return contract.SkillHistory{}, fmt.Errorf("read Skill provenance: %w", err)
 	}
-	defer func() { _ = tx.Rollback() }()
-	for _, statement := range []string{
-		`DELETE FROM system_skill_audit WHERE skill_id=?`,
-		`DELETE FROM system_skill_versions WHERE skill_id=?`,
-		`DELETE FROM system_skills WHERE id=?`,
-	} {
-		if _, err := tx.ExecContext(ctx, statement, skillID); err != nil {
-			return fmt.Errorf("compensate Skill create: %w", err)
+	rows, err := r.db.QueryContext(ctx, `SELECT id,COALESCE(version_id,''),workspace_id,actor_type,actor_id,action,created_at FROM system_skill_audit WHERE skill_id=? AND workspace_id=? ORDER BY created_at,id`, skillID, identity.WorkspaceID)
+	if err != nil {
+		return contract.SkillHistory{}, fmt.Errorf("read Skill audit: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var audit contract.SkillAuditEntry
+		if err := rows.Scan(&audit.ID, &audit.VersionID, &audit.WorkspaceID, &audit.ActorType, &audit.ActorID, &audit.Action, &audit.CreatedAt); err != nil {
+			return contract.SkillHistory{}, fmt.Errorf("scan Skill audit: %w", err)
 		}
+		value.Audit = append(value.Audit, audit)
 	}
-	return tx.Commit()
+	if err := rows.Err(); err != nil {
+		return contract.SkillHistory{}, fmt.Errorf("iterate Skill audit: %w", err)
+	}
+	return value, nil
 }
 
 func (r *SkillCatalogRepository) CreateVersion(ctx context.Context, identity contract.SkillIdentity, skillID string, request contract.UpdateSkillCatalogRequest, versionID string, now time.Time) (contract.SkillCatalogEntry, error) {

@@ -34,6 +34,7 @@ import type {
   SkillSummary,
   CreateSkillRequest,
   UpdateSkillRequest,
+  SkillHistory,
   PersonalAccessToken,
   CreatePersonalAccessTokenRequest,
   CreatePersonalAccessTokenResponse,
@@ -210,6 +211,7 @@ import {
   SkillSummarySchema,
   SkillListSchema,
   EMPTY_SKILLS,
+  SkillHistorySchema,
 } from "./schemas";
 
 function parseSkillResponse(raw: unknown): Skill {
@@ -1258,6 +1260,13 @@ export class ApiClient {
     return parseSkillResponse(raw);
   }
 
+  async getSkillHistory(id: string): Promise<SkillHistory> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/history`);
+    const parsed = SkillHistorySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid skill history response");
+    return parsed.data;
+  }
+
   async createSkill(data: CreateSkillRequest): Promise<Skill> {
     const raw = await this.fetch<unknown>("/api/skills", {
       method: "POST",
@@ -1267,6 +1276,9 @@ export class ApiClient {
   }
 
   async updateSkill(id: string, data: UpdateSkillRequest): Promise<Skill> {
+    if ("content" in data || "files" in data) {
+      throw new Error("Skill file updates are unavailable");
+    }
     const { content: _content, files: _files, ...metadata } = data;
     const raw = await this.fetch<unknown>(`/api/skills/${id}`, {
       method: "PUT",

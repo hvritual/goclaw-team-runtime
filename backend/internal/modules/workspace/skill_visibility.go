@@ -25,19 +25,32 @@ func NewSQLiteSkillVisibilityService(db *sql.DB, authorizer contract.WorkspaceAc
 	return &sqliteSkillVisibilityService{db: db, authorizer: authorizer, now: time.Now}, nil
 }
 
-func (s *sqliteSkillVisibilityService) BindInitialSkill(ctx context.Context, request contract.BindInitialSkillRequest) error {
+func (s *sqliteSkillVisibilityService) AuthorizeInitialSkill(ctx context.Context, request contract.BindInitialSkillRequest) error {
+	if err := validateInitialSkillBinding(&request); err != nil {
+		return err
+	}
+	return s.authorizer.AuthorizeWorkspace(ctx, request.WorkspaceID, contract.PermissionSkillCreate)
+}
+
+func (s *sqliteSkillVisibilityService) BindInitialSkill(ctx context.Context, executor contract.SkillBindingExecutor, request contract.BindInitialSkillRequest) error {
+	if err := validateInitialSkillBinding(&request); err != nil {
+		return err
+	}
+	if executor == nil {
+		return errors.New("Skill visibility binding executor is required")
+	}
+	if err := executor.Execute(ctx, `INSERT INTO workspace_skill_bindings(workspace_id,skill_id,skill_version_id,enabled,configuration,agent_ids,updated_at) VALUES(?,?,?,?,?,?,?)`, request.WorkspaceID, request.SkillID, request.VersionID, true, `{}`, `[]`, s.now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("bind initial Workspace Skill: %w", err)
+	}
+	return nil
+}
+
+func validateInitialSkillBinding(request *contract.BindInitialSkillRequest) error {
 	request.WorkspaceID = strings.TrimSpace(request.WorkspaceID)
 	request.SkillID = strings.TrimSpace(request.SkillID)
 	request.VersionID = strings.TrimSpace(request.VersionID)
 	if request.WorkspaceID == "" || request.SkillID == "" || request.VersionID == "" {
 		return errors.New("invalid Skill visibility binding")
-	}
-	if err := s.authorizer.AuthorizeWorkspace(ctx, request.WorkspaceID, contract.PermissionSkillCreate); err != nil {
-		return err
-	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO workspace_skill_bindings(workspace_id,skill_id,skill_version_id,enabled,configuration,agent_ids,updated_at) VALUES(?,?,?,?,?,?,?)`, request.WorkspaceID, request.SkillID, request.VersionID, true, `{}`, `[]`, s.now().UTC().Format(time.RFC3339Nano))
-	if err != nil {
-		return fmt.Errorf("bind initial Workspace Skill: %w", err)
 	}
 	return nil
 }

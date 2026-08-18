@@ -29,6 +29,7 @@ import { useFeatureEnabled } from "@multica/core/config";
 import {
   memberListOptions,
   skillDetailOptions,
+  skillHistoryOptions,
   workspaceKeys,
 } from "@multica/core/workspace/queries";
 import { resolvePublicFileUrl } from "@multica/core/workspace/avatar-url";
@@ -211,6 +212,9 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   const canEdit = administrationInstalled && roleCanEdit;
   const canEditFiles = canEdit && fileManagementInstalled;
   const skillPermissions = useSkillPermissions(skill ?? null, wsId);
+  const { data: history } = useQuery(
+    skillHistoryOptions(wsId, skillId, !!skill && canEdit)
+  );
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -849,8 +853,48 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                   {skill.id.slice(0, 8)}…
                 </dd>
               </div>
+              {history && (
+                <div
+                  className="flex gap-2"
+                  title={history.provenance.origin_workspace_id}
+                >
+                  <dt className="min-w-20 text-muted-foreground">
+                    {t(($) => $.detail.sidebar.origin_workspace)}
+                  </dt>
+                  <dd className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                    {history.provenance.origin_workspace_id}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
+
+          {history && (
+            <div>
+              <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                {t(($) => $.detail.sidebar.audit)}
+              </h3>
+              <ol
+                className="space-y-2"
+                aria-label={t(($) => $.detail.sidebar.audit)}
+              >
+                {history.audit.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="rounded-md border bg-background/60 p-2 text-xs"
+                  >
+                    <div className="font-mono text-foreground">
+                      {entry.action}
+                    </div>
+                    <div className="mt-1 text-muted-foreground">
+                      {entry.actor_type}:{entry.actor_id} ·{" "}
+                      {timeAgo(entry.created_at)}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           {origin && origin.type !== "manual" && (
             <div>

@@ -8,6 +8,10 @@ type BindInitialSkillRequest struct {
 	VersionID   string
 }
 
+type SkillBindingExecutor interface {
+	Execute(context.Context, string, ...any) error
+}
+
 type SkillVisibilityReference struct {
 	WorkspaceID string
 	SkillID     string
@@ -17,7 +21,8 @@ type SkillVisibilityReference struct {
 }
 
 type SkillVisibilityService interface {
-	BindInitialSkill(context.Context, BindInitialSkillRequest) error
+	AuthorizeInitialSkill(context.Context, BindInitialSkillRequest) error
+	BindInitialSkill(context.Context, SkillBindingExecutor, BindInitialSkillRequest) error
 	ResolveSkill(context.Context, string, string) (SkillVisibilityReference, error)
 	ListSkills(context.Context, string) ([]SkillVisibilityReference, error)
 }

@@ -146,6 +146,8 @@
       "files": "파일",
       "id": "ID",
       "origin": "출처",
+      "origin_workspace": "원본 워크스페이스",
+      "audit": "감사 활동",
       "used_by_other": "에이전트 {{count}}개가 사용 중",
       "permissions": "권한",
       "permissions_owner": "이 스킬을 수정하고 보관할 수 있습니다. 변경사항은 다음 에이전트 실행부터 적용됩니다.",

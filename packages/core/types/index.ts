@@ -15,6 +15,7 @@ export type {
   SkillFile,
   CreateSkillRequest,
   UpdateSkillRequest,
+  SkillHistory,
 } from "./skill";
 export type {
   Workspace,

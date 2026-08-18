@@ -149,6 +149,8 @@
       "files": "ファイル",
       "id": "ID",
       "origin": "ソース",
+      "origin_workspace": "作成元ワークスペース",
+      "audit": "監査アクティビティ",
       "used_by_other": "{{count}} 個のエージェントが使用中",
       "permissions": "権限",
       "permissions_owner": "このスキルを編集およびアーカイブできます。変更は次回のエージェント実行から有効になります。",

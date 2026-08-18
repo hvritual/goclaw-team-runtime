@@ -13,6 +13,7 @@ import (
 type SkillCatalog struct {
 	repository        contract.SkillCatalogRepository
 	authorize         contract.SkillAccessAuthorizer
+	preflight         contract.SkillVisibilityPreflight
 	bind              contract.SkillVisibilityBinder
 	resolveVisibility contract.SkillVisibilityResolver
 	listVisibility    contract.SkillVisibilityLister
@@ -20,8 +21,8 @@ type SkillCatalog struct {
 	newID             func() string
 }
 
-func NewSkillCatalog(repository contract.SkillCatalogRepository, authorize contract.SkillAccessAuthorizer, bind contract.SkillVisibilityBinder, resolveVisibility contract.SkillVisibilityResolver, listVisibility contract.SkillVisibilityLister) *SkillCatalog {
-	return &SkillCatalog{repository: repository, authorize: authorize, bind: bind, resolveVisibility: resolveVisibility, listVisibility: listVisibility, now: time.Now, newID: uuid.NewString}
+func NewSkillCatalog(repository contract.SkillCatalogRepository, authorize contract.SkillAccessAuthorizer, preflight contract.SkillVisibilityPreflight, bind contract.SkillVisibilityBinder, resolveVisibility contract.SkillVisibilityResolver, listVisibility contract.SkillVisibilityLister) *SkillCatalog {
+	return &SkillCatalog{repository: repository, authorize: authorize, preflight: preflight, bind: bind, resolveVisibility: resolveVisibility, listVisibility: listVisibility, now: time.Now, newID: uuid.NewString}
 }
 
 func (s *SkillCatalog) Create(ctx context.Context, identity contract.SkillIdentity, request contract.CreateSkillCatalogRequest) (contract.SkillCatalogEntry, error) {
@@ -37,17 +38,16 @@ func (s *SkillCatalog) Create(ctx context.Context, identity contract.SkillIdenti
 	if request.Config == nil {
 		request.Config = map[string]any{}
 	}
-	value, err := s.repository.Create(ctx, request, s.newID(), s.newID(), s.now().UTC())
-	if err != nil {
-		return contract.SkillCatalogEntry{}, err
+	skillID, versionID := s.newID(), s.newID()
+	if s.preflight == nil || s.bind == nil {
+		return contract.SkillCatalogEntry{}, contract.ErrSkillAccessDenied
 	}
-	if err := s.bind(ctx, identity, value.ID, value.VersionID); err != nil {
-		if cleanupErr := s.repository.DeleteCreated(ctx, value.ID); cleanupErr != nil {
-			return contract.SkillCatalogEntry{}, errors.Join(err, cleanupErr)
-		}
-		return contract.SkillCatalogEntry{}, err
+	if err := s.preflight(ctx, identity, skillID, versionID); err != nil {
+		return contract.SkillCatalogEntry{}, contract.ErrSkillAccessDenied
 	}
-	return value, nil
+	return s.repository.Create(ctx, request, skillID, versionID, s.now().UTC(), func(bindingContext context.Context, executor contract.SkillCreateExecutor) error {
+		return s.bind(bindingContext, executor, identity, skillID, versionID)
+	})
 }
 
 func (s *SkillCatalog) CreateVersion(ctx context.Context, identity contract.SkillIdentity, skillID string, request contract.UpdateSkillCatalogRequest) (contract.SkillCatalogEntry, error) {
@@ -155,11 +155,21 @@ func (s *SkillCatalog) List(ctx context.Context, identity contract.SkillIdentity
 		if readErr != nil {
 			return nil, readErr
 		}
-		if readableReferencedStatus(value.Status) {
+		if !value.Archived && readableReferencedStatus(value.Status) {
 			values = append(values, value)
 		}
 	}
 	return values, nil
+}
+
+func (s *SkillCatalog) History(ctx context.Context, identity contract.SkillIdentity, skillID string) (contract.SkillHistory, error) {
+	if strings.TrimSpace(skillID) == "" {
+		return contract.SkillHistory{}, contract.ErrInvalidSkill
+	}
+	if err := s.authorize(ctx, identity, contract.PermissionSkillCreate); err != nil {
+		return contract.SkillHistory{}, contract.ErrSkillAccessDenied
+	}
+	return s.repository.History(ctx, identity, skillID)
 }
 
 func containsActor(values []string, actorID string) bool {

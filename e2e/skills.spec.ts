@@ -54,6 +54,7 @@ test("installed Skill lifecycle creates immutable versions and restores an archi
   });
 
   await page.getByRole("button", { name: "New skill" }).click();
+  await expect(page.getByRole("button", { name: "Import from URL" })).toHaveCount(0);
   await page.getByRole("button", { name: "Create manually" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name").fill("release-helper");
@@ -63,6 +64,8 @@ test("installed Skill lifecycle creates immutable versions and restores an archi
   await expect(page).toHaveURL(new RegExp(`/${SLUG}/skills/[^/]+$`));
   const detailURL = page.url();
   await expect(page.getByText("Version 1 · draft", { exact: true })).toBeVisible();
+  await expect(page.getByText("Audit activity", { exact: true })).toBeVisible();
+  await expect(page.getByText("skill.created", { exact: true })).toBeVisible();
   await page.getByLabel("Description").fill("Second immutable version");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByText("Version 2 · draft", { exact: true })).toBeVisible();

@@ -151,6 +151,8 @@
       "files": "Files",
       "id": "ID",
       "origin": "Origin",
+      "origin_workspace": "Origin workspace",
+      "audit": "Audit activity",
       "used_by_one": "Used by {{count}} agent",
       "used_by_other": "Used by {{count}} agents",
       "permissions": "Permissions",

@@ -152,6 +152,8 @@
       "files": "文件",
       "id": "ID",
       "origin": "来源",
+      "origin_workspace": "来源工作区",
+      "audit": "审计活动",
       "used_by_other": "被 {{count}} 个智能体使用",
       "permissions": "权限",
       "permissions_owner": "你可以编辑和归档这个 skill。修改在智能体下次运行时生效。",

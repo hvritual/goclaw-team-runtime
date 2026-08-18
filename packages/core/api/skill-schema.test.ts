@@ -70,6 +70,63 @@ describe("Skill API boundary", () => {
     );
   });
 
+  it("validates provenance and audit history strictly", async () => {
+    const valid = {
+      skill_id: "skill-1",
+      provenance: {
+        origin_workspace_id: "workspace-1",
+        created_by: "user-1",
+        created_at: "2026-08-18T00:00:00Z",
+      },
+      audit: [
+        {
+          id: "audit-1",
+          version_id: "version-1",
+          workspace_id: "workspace-1",
+          actor_type: "member",
+          actor_id: "user-1",
+          action: "skill.created",
+          created_at: "2026-08-18T00:00:00Z",
+        },
+      ],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(valid), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ...valid,
+            audit: [{ ...valid.audit[0], actor_id: 7 }],
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+
+    await expect(client.getSkillHistory("skill-1")).resolves.toEqual(valid);
+    await expect(client.getSkillHistory("skill-1")).rejects.toThrow(
+      "Invalid skill history response"
+    );
+  });
+
+  it("rejects unavailable file mutations before issuing a request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+
+    await expect(
+      client.updateSkill("skill-1", { content: "# body", expected_revision: 1 })
+    ).rejects.toThrow("Skill file updates are unavailable");
+    await expect(
+      client.updateSkill("skill-1", { files: [], expected_revision: 1 })
+    ).rejects.toThrow("Skill file updates are unavailable");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("sends revisioned lifecycle mutations through the exact Skill routes", async () => {
     const versioned = {
       ...SKILL,

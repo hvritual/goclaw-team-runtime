@@ -68,6 +68,18 @@ export function skillDetailOptions(
   });
 }
 
+export function skillHistoryOptions(
+  wsId: string,
+  skillId: string,
+  enabled = true
+) {
+  return queryOptions({
+    queryKey: [...workspaceKeys.skills(wsId), skillId, "history"] as const,
+    queryFn: () => api.getSkillHistory(skillId),
+    enabled: !!skillId && enabled,
+  });
+}
+
 export function invitationListOptions(wsId: string, enabled = true) {
   return queryOptions({
     queryKey: workspaceKeys.invitations(wsId),

@@ -25,11 +25,24 @@ func (h *SkillCatalogHandler) Register(server *kratoshttp.Server) {
 	router.GET("/api/skills", h.list)
 	router.POST("/api/skills", h.create)
 	router.GET("/api/skills/{id}", h.get)
+	router.GET("/api/skills/{id}/history", h.history)
 	router.PUT("/api/skills/{id}", h.createVersion)
 	router.DELETE("/api/skills/{id}", h.archive)
 	router.POST("/api/skills/{id}/restore", h.restore)
 	router.POST("/api/skills/{id}/versions/{version_id}/publish", h.publish)
 	router.POST("/api/skills/{id}/versions/{version_id}/deprecate", h.deprecate)
+}
+
+func (h *SkillCatalogHandler) history(ctx kratoshttp.Context) error {
+	identity, ok := h.resolveIdentity(ctx)
+	if !ok {
+		return nil
+	}
+	value, err := h.service.History(ctx.Request().Context(), identity, ctx.Vars().Get("id"))
+	if err != nil {
+		return h.writeError(ctx, err)
+	}
+	return ctx.JSON(http.StatusOK, value)
 }
 
 func (h *SkillCatalogHandler) list(ctx kratoshttp.Context) error {

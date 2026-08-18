@@ -42,6 +42,11 @@ import { useT } from "../../i18n";
 import { isNameConflictError } from "../lib/utils";
 
 type Method = "chooser" | "manual" | "url";
+type CreateMethod = Exclude<Method, "chooser">;
+
+export function availableCreateMethods(allowImport: boolean): CreateMethod[] {
+  return allowImport ? ["manual", "url"] : ["manual"];
+}
 
 function seedAfterCreate(
   qc: ReturnType<typeof useQueryClient>,
@@ -56,16 +61,17 @@ function seedAfterCreate(
 // Chooser — initial method picker (3 cards)
 // ---------------------------------------------------------------------------
 
-function MethodChooser({ onChoose }: { onChoose: (m: Method) => void }) {
+function MethodChooser({ onChoose, allowImport }: { onChoose: (m: Method) => void; allowImport: boolean }) {
   const { t } = useT("skills");
   const methods: {
     key: Method;
     icon: typeof Plus;
     titleKey: "manual" | "url";
-  }[] = [
-    { key: "manual", icon: Plus, titleKey: "manual" },
-    { key: "url", icon: Download, titleKey: "url" },
-  ];
+  }[] = availableCreateMethods(allowImport).map((key) => ({
+    key,
+    icon: key === "manual" ? Plus : Download,
+    titleKey: key,
+  }));
   return (
     <div className="grid gap-2 p-5">
       {methods.map(({ key, icon: Icon, titleKey }) => (
@@ -423,9 +429,11 @@ function UrlForm({
 export function CreateSkillDialog({
   onClose,
   onCreated,
+  allowImport = false,
 }: {
   onClose: () => void;
   onCreated?: (skill: Skill) => void;
+  allowImport?: boolean;
 }) {
   const { t } = useT("skills");
   const [method, setMethod] = useState<Method>("chooser");
@@ -492,14 +500,14 @@ export function CreateSkillDialog({
         </div>
 
         {/* Method body — each form owns its scroll middle + footer */}
-        {method === "chooser" && <MethodChooser onChoose={setMethod} />}
+        {method === "chooser" && <MethodChooser onChoose={setMethod} allowImport={allowImport} />}
         {method === "manual" && (
           <ManualForm
             onCreated={handleCreated}
             onCancel={() => setMethod("chooser")}
           />
         )}
-        {method === "url" && (
+        {allowImport && method === "url" && (
           <UrlForm
             onCreated={handleCreated}
             onCancel={() => setMethod("chooser")}

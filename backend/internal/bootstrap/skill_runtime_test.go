@@ -217,6 +217,23 @@ func TestSQLiteRuntimeSkillPermissionsExposeOnlyPublishedVersionsToMembers(t *te
 	if response := runtimeRequest(runtime, http.MethodDelete, "/api/skills/"+publishedSkill.ID, `{"expected_revision":2}`, memberHeaders); response.Code != http.StatusForbidden {
 		t.Fatalf("member archive = %d %s", response.Code, response.Body.String())
 	}
+	history := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+publishedSkill.ID+"/history", "", ownerHeaders)
+	if history.Code != http.StatusOK || !containsJSON(history.Body.Bytes(), `"origin_workspace_id":"`+workspaceID+`"`) || !containsJSON(history.Body.Bytes(), `"action":"skill.created"`) || !containsJSON(history.Body.Bytes(), `"action":"skill.published"`) {
+		t.Fatalf("owner Skill history = %d %s", history.Code, history.Body.String())
+	}
+	if response := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+publishedSkill.ID+"/history", "", memberHeaders); response.Code != http.StatusForbidden {
+		t.Fatalf("member Skill history = %d %s", response.Code, response.Body.String())
+	}
+	if response := runtimeRequest(runtime, http.MethodDelete, "/api/skills/"+publishedSkill.ID, `{"expected_revision":2}`, ownerHeaders); response.Code != http.StatusNoContent {
+		t.Fatalf("owner archive = %d %s", response.Code, response.Body.String())
+	}
+	listed = runtimeRequest(runtime, http.MethodGet, "/api/skills", "", memberHeaders)
+	if listed.Code != http.StatusOK || containsJSON(listed.Body.Bytes(), `"name":"Published helper"`) {
+		t.Fatalf("member archived list = %d %s", listed.Code, listed.Body.String())
+	}
+	if response := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+publishedSkill.ID+"?version_id="+publishedSkill.VersionID, "", memberHeaders); response.Code != http.StatusOK {
+		t.Fatalf("member exact archived reference = %d %s", response.Code, response.Body.String())
+	}
 }
 
 func TestSQLiteRuntimeSkillPublishedVersionCanBeDeprecatedOnce(t *testing.T) {
@@ -408,7 +425,7 @@ func TestSQLiteRuntimeSkillConcurrentPublishRequestsReturnOneRevisionConflict(t 
 	}
 }
 
-func TestSQLiteRuntimeSkillCreateRollsBackAuditAndCompensatesBindingFailure(t *testing.T) {
+func TestSQLiteRuntimeSkillCreateAtomicallyRollsBackAuditAndBinding(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		trigger string
@@ -526,5 +543,8 @@ func TestSQLiteRuntimeSkillHTTPBoundariesDenyUnauthenticatedCSRFAndOtherWorkspac
 	}
 	if response := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+skill.ID, "", collaborationHeaders(owner.Token, "skill-b")); response.Code != http.StatusNotFound {
 		t.Fatalf("other Workspace get = %d %s", response.Code, response.Body.String())
+	}
+	if response := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+skill.ID+"/history", "", collaborationHeaders(owner.Token, "skill-b")); response.Code != http.StatusNotFound {
+		t.Fatalf("other Workspace history = %d %s", response.Code, response.Body.String())
 	}
 }

@@ -15,6 +15,7 @@ type SkillCatalogDependencies struct {
 	Identity  contract.SkillIdentityResolver
 	Mutation  contract.SkillMutationAuthorizer
 	Authorize contract.SkillAccessAuthorizer
+	Preflight contract.SkillVisibilityPreflight
 	Bind      contract.SkillVisibilityBinder
 	Resolve   contract.SkillVisibilityResolver
 	List      contract.SkillVisibilityLister
@@ -28,7 +29,7 @@ func (e *skillCatalogExtension) RegisterHTTP(server *kratoshttp.Server) { e.hand
 func (*skillCatalogExtension) RegisterGRPC(grpc.ServiceRegistrar)       {}
 
 func NewWithSQLiteSkillCatalog(db *sql.DB, dependencies SkillCatalogDependencies) (*Module, error) {
-	service := application.NewSkillCatalog(sqliteinfra.NewSkillCatalogRepository(db), dependencies.Authorize, dependencies.Bind, dependencies.Resolve, dependencies.List)
+	service := application.NewSkillCatalog(sqliteinfra.NewSkillCatalogRepository(db), dependencies.Authorize, dependencies.Preflight, dependencies.Bind, dependencies.Resolve, dependencies.List)
 	module := New()
 	module.extensions = append(module.extensions, &skillCatalogExtension{handler: httpadapter.NewSkillCatalogHandler(service, dependencies.Identity, dependencies.Mutation)})
 	return module, nil

@@ -48,6 +48,24 @@ export const SkillSummarySchema = z.object({
 export const SkillListSchema = z.array(SkillSummarySchema);
 export const EMPTY_SKILLS: SkillSummary[] = [];
 
+export const SkillHistorySchema = z.object({
+  skill_id: z.string().min(1),
+  provenance: z.object({
+    origin_workspace_id: z.string().min(1),
+    created_by: z.string().min(1),
+    created_at: z.string().min(1),
+  }).strict(),
+  audit: z.array(z.object({
+    id: z.string().min(1),
+    version_id: z.string(),
+    workspace_id: z.string().min(1),
+    actor_type: z.string().min(1),
+    actor_id: z.string().min(1),
+    action: z.string().min(1),
+    created_at: z.string().min(1),
+  }).strict()),
+}).strict();
+
 import type { CreateFeedbackResponse } from "../feedback/types";
 
 const WORKSPACE_PERMISSION_ROLES = ["owner", "admin", "member"] as const;

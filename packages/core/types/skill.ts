@@ -28,6 +28,24 @@ export interface SkillFile {
   updated_at: string;
 }
 
+export interface SkillHistory {
+  skill_id: string;
+  provenance: {
+    origin_workspace_id: string;
+    created_by: string;
+    created_at: string;
+  };
+  audit: {
+    id: string;
+    version_id: string;
+    workspace_id: string;
+    actor_type: string;
+    actor_id: string;
+    action: string;
+    created_at: string;
+  }[];
+}
+
 export interface CreateSkillRequest {
   name: string;
   description?: string;

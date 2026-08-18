@@ -33,6 +33,7 @@ export default function SkillsPage() {
     "skill_administration",
     false
   );
+  const importInstalled = useFeatureEnabled("skill_import", false);
   const currentMember = useCurrentMember(workspaceId);
   const canAdminister =
     administrationInstalled &&
@@ -173,6 +174,7 @@ export default function SkillsPage() {
         <CreateSkillDialog
           onClose={() => setCreateOpen(false)}
           onCreated={openSkill}
+          allowImport={importInstalled}
         />
       ) : null}
     </div>

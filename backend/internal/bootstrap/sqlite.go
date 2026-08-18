@@ -158,9 +158,13 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 			actorContext := contract.WithWorkspaceActor(requestContext, identity.ActorType, identity.ActorID)
 			return memberships.AuthorizeWorkspace(actorContext, identity.WorkspaceID, permission)
 		},
-		Bind: func(requestContext context.Context, identity systemcontract.SkillIdentity, skillID, versionID string) error {
+		Preflight: func(requestContext context.Context, identity systemcontract.SkillIdentity, skillID, versionID string) error {
 			actorContext := contract.WithWorkspaceActor(requestContext, identity.ActorType, identity.ActorID)
-			return skillVisibility.BindInitialSkill(actorContext, contract.BindInitialSkillRequest{WorkspaceID: identity.WorkspaceID, SkillID: skillID, VersionID: versionID})
+			return skillVisibility.AuthorizeInitialSkill(actorContext, contract.BindInitialSkillRequest{WorkspaceID: identity.WorkspaceID, SkillID: skillID, VersionID: versionID})
+		},
+		Bind: func(requestContext context.Context, executor systemcontract.SkillCreateExecutor, identity systemcontract.SkillIdentity, skillID, versionID string) error {
+			actorContext := contract.WithWorkspaceActor(requestContext, identity.ActorType, identity.ActorID)
+			return skillVisibility.BindInitialSkill(actorContext, executor, contract.BindInitialSkillRequest{WorkspaceID: identity.WorkspaceID, SkillID: skillID, VersionID: versionID})
 		},
 		Resolve: func(requestContext context.Context, workspaceID, skillID string) (systemcontract.SkillVisibilityReference, error) {
 			value, resolveErr := skillVisibility.ResolveSkill(requestContext, workspaceID, skillID)

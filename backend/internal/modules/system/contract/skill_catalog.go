@@ -35,7 +35,13 @@ type SkillIdentity struct {
 type SkillIdentityResolver func(*http.Request) (SkillIdentity, error)
 type SkillMutationAuthorizer func(*http.Request) error
 type SkillAccessAuthorizer func(context.Context, SkillIdentity, string) error
-type SkillVisibilityBinder func(context.Context, SkillIdentity, string, string) error
+type SkillCreateExecutor interface {
+	Execute(context.Context, string, ...any) error
+}
+
+type SkillCreateBinding func(context.Context, SkillCreateExecutor) error
+type SkillVisibilityPreflight func(context.Context, SkillIdentity, string, string) error
+type SkillVisibilityBinder func(context.Context, SkillCreateExecutor, SkillIdentity, string, string) error
 type SkillVisibilityResolver func(context.Context, string, string) (SkillVisibilityReference, error)
 type SkillVisibilityLister func(context.Context, string) ([]SkillVisibilityReference, error)
 
@@ -63,6 +69,28 @@ type SkillCatalogEntry struct {
 	Archived    bool           `json:"archived"`
 }
 
+type SkillProvenance struct {
+	OriginWorkspaceID string `json:"origin_workspace_id"`
+	CreatedBy         string `json:"created_by"`
+	CreatedAt         string `json:"created_at"`
+}
+
+type SkillAuditEntry struct {
+	ID          string `json:"id"`
+	VersionID   string `json:"version_id"`
+	WorkspaceID string `json:"workspace_id"`
+	ActorType   string `json:"actor_type"`
+	ActorID     string `json:"actor_id"`
+	Action      string `json:"action"`
+	CreatedAt   string `json:"created_at"`
+}
+
+type SkillHistory struct {
+	SkillID    string            `json:"skill_id"`
+	Provenance SkillProvenance   `json:"provenance"`
+	Audit      []SkillAuditEntry `json:"audit"`
+}
+
 type CreateSkillCatalogRequest struct {
 	WorkspaceID string
 	ActorType   string
@@ -73,8 +101,7 @@ type CreateSkillCatalogRequest struct {
 }
 
 type SkillCatalogRepository interface {
-	Create(context.Context, CreateSkillCatalogRequest, string, string, time.Time) (SkillCatalogEntry, error)
-	DeleteCreated(context.Context, string) error
+	Create(context.Context, CreateSkillCatalogRequest, string, string, time.Time, SkillCreateBinding) (SkillCatalogEntry, error)
 	CreateVersion(context.Context, SkillIdentity, string, UpdateSkillCatalogRequest, string, time.Time) (SkillCatalogEntry, error)
 	TransitionVersion(context.Context, SkillIdentity, string, string, string, int64, time.Time) (SkillCatalogEntry, error)
 	Archive(context.Context, SkillIdentity, string, int64, time.Time) error
@@ -82,6 +109,7 @@ type SkillCatalogRepository interface {
 	Get(context.Context, SkillIdentity, string, string, bool) (SkillCatalogEntry, error)
 	List(context.Context, SkillIdentity, bool) ([]SkillCatalogEntry, error)
 	GetReferenced(context.Context, string, string) (SkillCatalogEntry, error)
+	History(context.Context, SkillIdentity, string) (SkillHistory, error)
 }
 
 type UpdateSkillCatalogRequest struct {
@@ -100,4 +128,5 @@ type SkillCatalogService interface {
 	Restore(context.Context, SkillIdentity, string, int64) (SkillCatalogEntry, error)
 	Get(context.Context, SkillIdentity, string, string) (SkillCatalogEntry, error)
 	List(context.Context, SkillIdentity) ([]SkillCatalogEntry, error)
+	History(context.Context, SkillIdentity, string) (SkillHistory, error)
 }
