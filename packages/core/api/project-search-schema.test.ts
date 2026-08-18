@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiClient } from "./client";
+import { SearchProjectsResponseSchema } from "./schemas";
 
 const PROJECT_HIT = {
   id: "project-1",
@@ -24,6 +25,12 @@ const PROJECT_HIT = {
 describe("Project search API boundary", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("requires the complete top-level response contract", () => {
+    expect(SearchProjectsResponseSchema.safeParse({}).success).toBe(false);
+    expect(SearchProjectsResponseSchema.safeParse({ projects: [] }).success).toBe(false);
+    expect(SearchProjectsResponseSchema.safeParse({ total: 0 }).success).toBe(false);
+  });
+
   it("forwards the exact query contract and AbortSignal", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(JSON.stringify({ projects: [PROJECT_HIT], total: 1 }), { status: 200 }),
@@ -46,10 +53,12 @@ describe("Project search API boundary", () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ projects: [{ ...PROJECT_HIT, unexpected: true }], total: 1 }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ projects: [{ ...PROJECT_HIT, match_source: "name" }], total: 1 }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ projects: [PROJECT_HIT], total: "1" }), { status: 200 }));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ projects: [PROJECT_HIT], total: "1" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:8000");
 
+    await expect(client.searchProjects({ q: "project" })).resolves.toEqual({ projects: [], total: 0 });
     await expect(client.searchProjects({ q: "project" })).resolves.toEqual({ projects: [], total: 0 });
     await expect(client.searchProjects({ q: "project" })).resolves.toEqual({ projects: [], total: 0 });
     await expect(client.searchProjects({ q: "project" })).resolves.toEqual({ projects: [], total: 0 });

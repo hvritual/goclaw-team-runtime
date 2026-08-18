@@ -782,8 +782,8 @@ const SearchProjectResultSchema = ProjectSchema.extend({
 }).strict();
 
 export const SearchProjectsResponseSchema = z.object({
-  projects: z.array(SearchProjectResultSchema).default([]),
-  total: z.number().int().nonnegative().default(0),
+  projects: z.array(SearchProjectResultSchema),
+  total: z.number().int().nonnegative(),
 }).strict();
 
 export const EMPTY_SEARCH_PROJECTS_RESPONSE: SearchProjectsResponse = {
