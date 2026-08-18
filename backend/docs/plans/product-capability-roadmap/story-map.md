@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v18`
-- Status: `Release 1 active; PCR-S03B implementation active under r023`
+- Status: `Release 1 active; no active task`
 
 ## Delivery policy
 
@@ -93,7 +93,7 @@ cancellation, empty query rules, closed inclusion, and workspace isolation.
 
 ### PCR-S03B — Search projects
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v18 / r023`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v18 / r023`
 
 As a member, I can find a project using the same stable search contract through
 the installed HTTP and shared client surfaces.

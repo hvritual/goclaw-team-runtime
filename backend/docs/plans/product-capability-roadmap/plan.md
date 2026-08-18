@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v18.md](plan_v18.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `18`
-- Active step: `PCR-S03B Project search under r023`
-- Status: `Release 1 active; PCR-S03B implementation active`
+- Active step: `none`
+- Status: `Release 1 active; no active task`
 - Plan base commit: `781471015ec8d759cd1209fd051e59fa91507eef`
-- Last closed task base commit: `7479e07adcc1c703a52cb348af7919df2cc68553`
+- Last closed task base commit: `c9e905bc7675d253991c0a816bcd19985a49c10b`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -21,12 +21,11 @@ process-cleanup, and fresh independent-review gates. PCR-S03A is
 `complete-independent-reviewed`. Release 1 remains active with no active task;
 S03B and S04 require a new approved plan version.
 
-The Human Customer's standing direction to complete Release 1 activates
-`PRODUCT-CAPABILITY-ROADMAP-001 v18 / r023` from exact S03A closure `7814710`.
-Only PCR-S03B repository-backed Project search is active. The public contract
-uses the installed Project surface's `title` shape, strict `title|description`
-match sources, shared Unicode normalization, a 2,000-Project latency gate, and
-explicit per-feature installation evidence. S04 remains inactive.
+v18/r023 exact candidate `c9e905bc7675d253991c0a816bcd19985a49c10b`
+passes deterministic, performance, production-build, installed-Chrome, scope,
+process-cleanup, commit-traceability, and fresh independent-review gates.
+PCR-S03B is `complete-independent-reviewed`. Release 1 remains active with no
+active task; S04 requires a new approved plan version and remains inactive.
 
 Candidate `5062e84` passed every frozen deterministic gate, but its independent
 review returned `SPEC BLOCK` for authority mapping, canonical request hashing,

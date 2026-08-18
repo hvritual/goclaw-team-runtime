@@ -1007,3 +1007,36 @@ Known limitations, blockers, and next action
   read-only and currently has empty range/worktree diffs.
 - No S03B implementation, verification PASS, independent review, closure,
   push, merge, deployment, S04 activation, or Release 1 completion is claimed.
+
+## 2026-08-18 — J040 — v18/r023 and PCR-S03B closed
+
+- Exact candidate `c9e905bc7675d253991c0a816bcd19985a49c10b` installs ranked,
+  repository-backed `GET /api/projects/search` using the public snake-case
+  Project surface, strict `title|description` match sources, shared Unicode
+  normalization, stable pagination, closed filtering, cancellation,
+  authorization, Workspace isolation, projection migration `000014`, trigger
+  synchronization, and startup rebuild. Runtime retains `issue_search=true`,
+  enables `project_search=true`, and keeps `pin_reorder=false`.
+- The 2,000-Project non-race gate measured p50/p95 at 3.0314/4.1305ms, below
+  the frozen 100/250ms limits. Exact-candidate backend `make check`, official
+  clean-cache `make test-race` with MinGW GCC 15.2.0, root typecheck 6/6,
+  source-equivalent root tests 5/5, and production Web build pass.
+- A fresh migrated database and canonical fixture pass installed Chrome
+  `e2e/project-search.spec.ts` 1/1 with retries disabled. The journey covers
+  English/Chinese queries, ranking, closed state, pagination, Workspace
+  isolation, shared UI, and installed DELETE-trigger projection disappearance.
+- Independent review first returned CODE QUALITY BLOCK for incomplete commit
+  trailers and missing direct authentication/trusted-identity and installed
+  deletion coverage. Four unpublished commit messages were rewritten without
+  changing final tree `b33a24c8fc5818cc1ddec40f9879ea62af33fac7`;
+  all five r023 commits now carry the required governance trailers. Added HTTP
+  and E2E tests pass. Fresh re-review returns SPEC PASS and CODE QUALITY PASS.
+- Scope and cleanup pass: `server/**` candidate diff is empty; CLAUDE,
+  backend AGENTS, and v18 hashes match the frozen policy bundle; protected
+  Input remains blob `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  candidate tracked state is clean apart from recorded environment artifacts;
+  exact backend/Web processes were stopped and ports 3000/8080/9080 are closed.
+- r023 and PCR-S03B are `complete-independent-reviewed`. Release 1 remains
+  active with no active task. S04 remains inactive until a new approved plan;
+  no push, merge, deployment, S04 activation, or Release 1 completion is
+  claimed.
