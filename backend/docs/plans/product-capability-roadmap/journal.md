@@ -906,3 +906,28 @@ Known limitations, blockers, and next action
   complete. Release 1 remains active with no active task. S03A and later stories
   remain inactive pending a new versioned plan; no push, merge, deployment, or
   Release 1 completion is claimed.
+
+## 2026-08-18 — J037 — v17/r022 Issue search activated
+
+- Exact base `2439e9c2edd3c557e849fb695210b2eab95bbb9d` records S02B as
+  complete-independent-reviewed and leaves zero active tasks.
+- Three bounded context-discovery rounds reached dependency closure. The shared
+  Search UI and cancellable Core client already target `GET /api/issues/search`,
+  but Canonical HTTP currently filters `ListIssues` in memory and has no search
+  service, ranked repository query, projection, or installed feature evidence.
+- Existing Issue title/description writes occur through Create, Update,
+  hierarchy batch update, and Task promotion. The additive 000013 projection
+  will backfill retained data, synchronize all writes, and rebuild with one
+  Unicode NFKC/case-fold/punctuation normalizer at startup. The current
+  modernc SQLite build exposes FTS5 and deterministic scalar functions; no
+  external network dependency is required.
+- `issue_search` and `project_search` currently share one permission-derived
+  flag. v17 separates per-feature installation evidence from the shared read
+  authorization so S03A can enable only Issue search and cannot claim S03B.
+- The Human Customer's standing direction to complete Release 1 activates
+  immutable v17/r022 for PCR-S03A only. S03B and S04 remain inactive.
+- Existing dirty generated protobuf, shared Input/Issue/modal files,
+  `.local-runtime/**`, `docs/code-to-product/**`, the untracked auth test, and
+  `ui/**` remain excluded. `server/**` remains permanently read-only.
+- No S03A implementation, verification PASS, independent review, closure,
+  push, merge, deployment, S03B activation, or Release 1 completion is claimed.

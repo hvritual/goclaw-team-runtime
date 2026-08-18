@@ -1158,3 +1158,41 @@ S02A without changing Task product behavior or activating S02B.
   transport cancellation, and supplied deterministic/browser evidence.
 - r021, r020, and PCR-S02B are closed. Release 1 remains active with no active
   task; S03A requires a new approved plan.
+
+## PCR-001-S03A-R22
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S03A-R22`
+- Task-Revision: `r022`
+- Work-Item: `PCR-S03A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `2439e9c2edd3c557e849fb695210b2eab95bbb9d`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v17`
+- Plan hash: `f08ace3cbecf964df88b0f22e551fe60b2f133699fb22322244e17874d61fab1`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/f08ace3cbecf964df88b0f22e551fe60b2f133699fb22322244e17874d61fab1`
+
+### Objective and acceptance
+
+- Install repository-backed ranked Issue search at `GET /api/issues/search`
+  with deterministic Unicode normalization, identifier/number lookup,
+  pagination, closed filtering, cancellation, and Workspace isolation.
+- Prove projection synchronization and restart, a strict cancellable Core
+  boundary, shared Web/Desktop consumption, the 10,000-Issue latency budget,
+  and installed Chrome acceptance.
+- Enable only `issue_search`; `project_search`, S03B, and S04 remain inactive.
+
+### Activation evidence
+
+- Exact base `2439e9c` closes S02B with independent review and has zero active
+  tasks before r022 activation.
+- Three bounded read-only discovery rounds found the existing shared UI/client,
+  Canonical Issue repository/write paths, authorization provider, route
+  composition, and modernc SQLite FTS5/UDF support. No unresolved human-owned
+  decision remains.
+- Existing dirty generated protobuf, shared Input/Issue/modal files, local
+  runtime, code-to-product, auth test, and UI artifacts remain excluded.
+- No S03A implementation, deterministic PASS, independent review, S03A
+  closure, push, merge, deployment, S03B activation, or Release 1 completion
+  is claimed by activation.

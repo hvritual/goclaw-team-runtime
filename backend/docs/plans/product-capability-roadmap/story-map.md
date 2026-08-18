@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v16`
-- Status: `Release 1 active; PCR-S02B complete; no active story`
+- Plan-Version: `v17`
+- Status: `Release 1 active; PCR-S03A active under r022`
 
 ## Delivery policy
 
@@ -82,6 +82,8 @@ Acceptance scenarios:
 3. Later Task or Issue edits do not silently synchronize content.
 
 ### PCR-S03A — Search Issues
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v17 / r022`
 
 As a member, I can find an Issue by title, description, human identifier, or
 number with stable ranking and closed-state filters.

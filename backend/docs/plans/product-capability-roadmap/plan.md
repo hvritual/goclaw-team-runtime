@@ -1,13 +1,13 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v16.md](plan_v16.md).
+The approved execution snapshot is [plan_v17.md](plan_v17.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `16`
-- Active step: `none; PCR-S02B complete-independent-reviewed`
-- Status: `Release 1 active; no active task`
+- Approved version: `17`
+- Active step: `PCR-S03A Issue search`
+- Status: `Release 1 active; PCR-S03A active`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
+- Active task base commit: `2439e9c2edd3c557e849fb695210b2eab95bbb9d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -118,6 +118,14 @@ acceptance, forced root typecheck/test, backend full/race gates, exact installed
 Chrome Task-promotion acceptance, scope/process cleanup, and fresh independent
 review. r021, r020, and PCR-S02B are closed. Release 1 remains active with no
 active task; S03A still requires a new versioned plan.
+
+The Human Customer's standing direction to complete Release 1 activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v17 / r022` from exact S02B closure `2439e9c`.
+Only PCR-S03A repository-backed Issue search is active. The plan freezes
+Unicode normalization, deterministic ranking/pagination, closed-state and
+Workspace isolation, cancellation, an installed shared client surface, and a
+feature signal that cannot prematurely enable S03B. S03B and S04 remain
+inactive.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not
