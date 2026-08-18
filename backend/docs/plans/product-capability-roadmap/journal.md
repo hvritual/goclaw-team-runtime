@@ -1242,3 +1242,27 @@ Known limitations, blockers, and next action
   paths remain excluded. PCR-S05B is `complete-independent-reviewed`; Release 2
   remains active with no active task. S06A needs its own frozen plan. No push,
   merge, or deployment is claimed.
+
+## 2026-08-18 — J048 — v22/r027 activates PCR-S06A
+
+- Exact base `78c5b5eb8b04d27d1fdc3c524955dd02fd756348` closes PCR-S05B
+  with final independent SPEC and code/security/quality PASS and leaves no
+  active task before this activation.
+- Three bounded read-only discovery rounds reached dependency closure with
+  `new_dependencies=0`. The frozen story requires status/kind/source/
+  applicability/revision filters, stable pages, source projection, superseded
+  reads, Workspace isolation, and quarantine visibility. Canonical currently
+  has only an uninstalled provenance-free scaffold; existing shared clients are
+  permissive and expose future S06B controls; legacy `server/**` search is
+  published-only offset evidence and remains read-only.
+- Immutable v22 freezes additive governed revision/source storage, trusted
+  Workspace identity, member versus owner/admin visibility, selected-revision
+  source filtering, deterministic portable rank, filter-bound signed keyset
+  cursors, strict Core contracts, and loaded query-only shared UI.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/11474d4c1bdf84f0fc574ef40f913425be35b6dad8810ce382ab88df959a6edc`.
+  Protected Input stays `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and every recorded dirty path remain excluded.
+- Only PCR-S06A is active. S06B mutations/realtime, `knowledge_review`, push,
+  merge, deployment, and Release 2 completion remain inactive. `server/**`
+  range/worktree diffs are empty; no implementation or PASS is claimed.

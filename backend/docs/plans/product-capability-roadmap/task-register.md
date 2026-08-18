@@ -1466,3 +1466,42 @@ S02A without changing Task product behavior or activating S02B.
   and candidate/worktree `server/**` diffs are empty. PCR-S05B is closed; S06A
   remains inactive pending its own frozen plan. No push, merge, or deployment is
   claimed.
+
+## PCR-001-S06A-R27
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S06A-R27`
+- Task-Revision: `r027`
+- Work-Item: `PCR-S06A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release2_baseline`
+- Base commit: `78c5b5eb8b04d27d1fdc3c524955dd02fd756348`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v22`
+- Plan hash: `11474d4c1bdf84f0fc574ef40f913425be35b6dad8810ce382ab88df959a6edc`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/11474d4c1bdf84f0fc574ef40f913425be35b6dad8810ce382ab88df959a6edc`
+
+### Objective and acceptance
+
+- Install strict authenticated Knowledge list/detail with status, kind, source,
+  applicability, and revision filters, deterministic ranking/keyset pagination,
+  exact immutable provenance, superseded reads, and role-bounded quarantine.
+- Prove Workspace isolation, cursor tamper/filter binding, cancellation, restart,
+  strict Core schemas, loaded shared UI, and fresh installed-browser behavior.
+- Enable only `knowledge_query`; keep S06B, `knowledge_review`, push, merge,
+  deployment, and Release 2 completion inactive.
+
+### Activation evidence
+
+- Exact base `78c5b5eb8b04d27d1fdc3c524955dd02fd756348` closes S05B with
+  final independent SPEC and code/security/quality PASS and no active task.
+- Three bounded discovery rounds end with `new_dependencies=0`, no retrievable
+  blocker, contradiction, blocking unknown, or unresolved human decision.
+  Canonical scaffold limits, legacy evidence limits, storage ownership, query
+  semantics, role visibility, cursor, and feature boundaries are frozen in v22.
+- Policy bundle freezes current CLAUDE, backend AGENTS, and immutable v22 hashes.
+  Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and every recorded dirty path remain excluded.
+- `server/**` activation range and worktree diffs are empty. No implementation,
+  verification PASS, independent review, closure, push, merge, or deployment is
+  claimed.
