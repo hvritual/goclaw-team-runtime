@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v19`
-- Status: `Release 1 complete-independent-reviewed; no active task`
+- Plan-Version: `v20`
+- Status: `Release 2 active; PCR-S05A r025 active`
 
 ## Delivery policy
 
@@ -114,6 +114,8 @@ item, foreign workspace item, stale revision, optimistic rollback, and restart.
 ## Release 2 — Reusable Skills and governed Knowledge
 
 ### PCR-S05A — Create and version a Skill
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025`
 
 As an authorized workspace administrator, I can create, edit as a new version,
 publish, deprecate, archive, restore, and inspect Skill provenance.

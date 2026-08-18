@@ -1334,3 +1334,40 @@ S02A without changing Task product behavior or activating S02B.
 - Fresh independent read-only review returns SPEC PASS and CODE QUALITY PASS.
   r024, PCR-S04, and Release 1 are closed. Release 2 remains inactive; no push,
   merge, or deployment is claimed.
+
+## PCR-001-S05A-R25
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S05A-R25`
+- Task-Revision: `r025`
+- Work-Item: `PCR-S05A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `pending`
+- Base commit: `0aed36871271184325b6147841348847b004a7a4`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v20`
+- Plan hash: `a55f0f0f5e593d39f779fb3d67a556dfa5eb0157b49faa4562badbdb5af1ad85`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/a55f0f0f5e593d39f779fb3d67a556dfa5eb0157b49faa4562badbdb5af1ad85`
+
+### Objective and acceptance
+
+- Install the System-owned Skill definition and immutable numbered-version
+  lifecycle through the frozen `/api/skills` family with Workspace visibility
+  bindings, exact revision conflicts, provenance, audit, and retained reads.
+- Enforce owner/admin mutations, member published reads, explicit Agent binding,
+  strict Core parsing, shared Web/Desktop lifecycle behavior, and fresh-database
+  installed-browser acceptance.
+- Enable only `skill_administration`. Keep S05B file/import behavior, Space
+  Asset implementation, S06A/S06B, push, merge, and deployment inactive.
+
+### Activation evidence
+
+- Exact base `0aed36871271184325b6147841348847b004a7a4` closes Release 1 and
+  has no active roadmap task before this activation.
+- Bounded discovery completed three rounds with zero final new dependencies and
+  no unresolved retrievable or human-owned blocker. S05A is first in the frozen
+  Release 2 dependency order; S05B owns file/import behavior explicitly.
+- Protected `packages/ui/components/ui/input.tsx` blob is
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`. Existing generated protobuf
+  worktree blobs equal the index; all other recorded dirty paths remain excluded.
+- `server/**` range and worktree diffs are empty at activation.

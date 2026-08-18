@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v19.md](plan_v19.md).
+The approved execution snapshot is [plan_v20.md](plan_v20.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `19`
-- Active step: `none`
-- Status: `Release 1 complete-independent-reviewed; no active task`
-- Plan base commit: `b86447909e1a7614c539769514008e010b478140`
+- Approved version: `20`
+- Active step: `PCR-S05A Skill catalog and version lifecycle`
+- Status: `Release 2 active; PCR-S05A r025 active`
+- Plan base commit: `0aed36871271184325b6147841348847b004a7a4`
 - Last closed task candidate: `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -14,6 +14,12 @@ The approved execution snapshot is [plan_v19.md](plan_v19.md).
 - Task register: [task-register.md](task-register.md)
 - Evidence journal: [journal.md](journal.md)
 - S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
+
+The Human Customer's standing direction to complete Release 2 activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
+`0aed3687`. Only PCR-S05A System-owned Skill catalog and version lifecycle is
+active. S05B, S06A, and S06B remain inactive. Skill file bodies/import, Space
+Asset implementation, Knowledge, push, merge, and deployment are excluded.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

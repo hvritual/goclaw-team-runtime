@@ -1106,3 +1106,24 @@ Known limitations, blockers, and next action
   concrete blocker. r024 and PCR-S04 are `complete-independent-reviewed`;
   Release 1 is complete with no active task. Release 2 remains inactive, and
   no push, merge, or deployment is claimed.
+
+## 2026-08-18 — J043 — v20/r025 activates PCR-S05A
+
+- The Human Customer approved continued execution through Release 2. Current
+  exact base `0aed36871271184325b6147841348847b004a7a4` closes Release 1
+  with independent review and has no active roadmap task.
+- Three bounded read-only discovery rounds reached dependency closure: final
+  `new_dependencies_count=0`, remaining retrievable blockers `0`, no blocking
+  unknown/contradiction, and no unresolved human-owned decision. The frozen
+  story order selects S05A before S05B/S06A/S06B.
+- v20/r025 activates only the System-owned Skill catalog and immutable version
+  lifecycle. S05B remains the sole owner of Skill file bodies, archive import,
+  Space assets, manifests, preview, and download. Both Knowledge stories remain
+  inactive.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/a55f0f0f5e593d39f779fb3d67a556dfa5eb0157b49faa4562badbdb5af1ad85`.
+  Protected Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; generated protobuf worktree
+  blobs equal the index; recorded UI/runtime/dependency paths remain excluded.
+- Activation `server/**` range and worktree diffs are empty. No push, merge, or
+  deployment is authorized or claimed.
