@@ -266,6 +266,16 @@ describe("SearchCommand", () => {
     expect(mockSearchProjects).not.toHaveBeenCalled();
   });
 
+  it("keeps Project search disabled while feature config is loading", async () => {
+    const user = userEvent.setup();
+    renderSearch();
+
+    await user.type(screen.getByPlaceholderText("Type a command or search..."), "coffee");
+
+    await waitFor(() => expect(mockSearchIssues).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    expect(mockSearchProjects).not.toHaveBeenCalled();
+  });
+
   it("closes on a single Escape press from the search input", async () => {
     const user = userEvent.setup();
 

@@ -161,7 +161,7 @@ export function SearchCommand() {
   const configLoaded = useConfigStore((state) => state.configLoaded);
   const featureFlags = useConfigStore((state) => state.featureFlags);
   const issueSearchEnabled = !configLoaded || featureFlagEnabled(featureFlags, "issue_search");
-  const projectSearchEnabled = !configLoaded || featureFlagEnabled(featureFlags, "project_search");
+  const projectSearchEnabled = configLoaded && featureFlagEnabled(featureFlags, "project_search");
 
   // Resolve each recent issue via its cached detail entry. Recent items are
   // typically already in the detail cache because the user has opened them;
