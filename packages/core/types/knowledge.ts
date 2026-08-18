@@ -19,8 +19,11 @@ export interface KnowledgeSourceRef {
   type: string;
   id: string;
   revision: string;
-  uri: string;
-  checksum: string;
+  citation?: string;
+  assetId?: string | null;
+  assetVersionId?: string | null;
+  uri?: string;
+  checksum?: string;
   metadata?: Record<string, string>;
 }
 
@@ -45,8 +48,8 @@ export interface KnowledgeEntry {
   revisions: KnowledgeRevision[];
   createdAt: string;
   updatedAt: string;
-  citation?: string;
-  score?: number;
+  citation: string;
+  matchedBy: "recent" | "title_exact" | "title_prefix" | "title" | "content" | "source" | "detail";
 }
 
 export interface KnowledgeCandidate {
@@ -71,6 +74,20 @@ export interface KnowledgeListResponse {
   entries: KnowledgeEntry[];
   total: number;
   nextCursor: string | null;
+}
+
+export interface KnowledgeQueryFilters {
+  query?: string;
+  statuses?: Array<"published" | "superseded" | "quarantined">;
+  kinds?: KnowledgeKind[];
+  sourceType?: string;
+  sourceId?: string;
+  sourceRevision?: string;
+  applicability?: "workspace" | "project";
+  projectId?: string;
+  revision?: number;
+  limit?: number;
+  cursor?: string;
 }
 
 export interface KnowledgeCandidateListResponse {

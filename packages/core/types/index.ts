@@ -88,6 +88,7 @@ export type {
   KnowledgeEntry,
   KnowledgeCandidate,
   KnowledgeListResponse,
+  KnowledgeQueryFilters,
   KnowledgeCandidateListResponse,
   CommentKnowledgeProposalResponse,
   ProposeKnowledgeRequest,

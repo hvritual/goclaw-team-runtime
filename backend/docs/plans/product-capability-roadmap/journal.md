@@ -1266,3 +1266,27 @@ Known limitations, blockers, and next action
 - Only PCR-S06A is active. S06B mutations/realtime, `knowledge_review`, push,
   merge, deployment, and Release 2 completion remain inactive. `server/**`
   range/worktree diffs are empty; no implementation or PASS is claimed.
+
+## 2026-08-18 — J049 — v22/r027 S06A implementation candidate
+
+- Added additive guarded Workspace migrations for governed Knowledge entries,
+  immutable numbered revisions, and ordered source references without promoting
+  the provenance-free legacy scaffold or adding foreign keys.
+- Installed authenticated list/detail routes with capability authorization,
+  role-bounded quarantine, strict status/kind/source/applicability/revision
+  validation, portable Unicode-normalized rank buckets, filter-bound signed
+  expiring keyset cursors, selected-revision source projection, cancellation,
+  and non-disclosing detail behavior.
+- Core now strictly rejects malformed list/detail success responses, carries
+  every filter in typed request/query keys, and removes empty fallbacks. Shared
+  Web/Desktop mounts only after loaded `knowledge_query=true`, performs source
+  deep links server-side, shows provenance/revision/status/pagination states,
+  and no longer mounts any S06B proposal or review request/control.
+- Focused application, persistence, Runtime HTTP, schema, and Views tests pass.
+  Backend `make check` passes. Root typecheck passes 6/6. Root parallel tests
+  pass Core 615, Web 149, Desktop 423, and Docs 17; Views has one unrelated
+  Team Control five-second load timeout, while that exact file plus Knowledge
+  passes 13/13 immediately in isolation. The aggregate is not recorded as PASS.
+- Official race, production build, installed-browser acceptance, exact scope,
+  candidate commit, and fresh independent review remain pending. Protected
+  Input and recorded dirty paths remain excluded; `server/**` remains unchanged.

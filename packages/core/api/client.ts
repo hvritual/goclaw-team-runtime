@@ -85,6 +85,7 @@ import type {
   KnowledgeCandidateListResponse,
   KnowledgeEntry,
   KnowledgeListResponse,
+  KnowledgeQueryFilters,
   ProposeKnowledgeRequest,
   ReviewKnowledgeRequest,
   ReviewKnowledgeResponse,
@@ -114,7 +115,6 @@ import { getCurrentSlug, getCurrentWsId } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
 import {
   EMPTY_KNOWLEDGE_CANDIDATE_LIST,
-  EMPTY_KNOWLEDGE_LIST,
   knowledgeCandidateListSchema,
   knowledgeCandidateSchema,
   knowledgeEntrySchema,
@@ -1817,52 +1817,35 @@ export class ApiClient {
     return parsed.data.tasks;
   }
 
-  async listKnowledge(params?: {
-    query?: string;
-    projectId?: string;
-    kind?: string;
-    limit?: number;
-    cursor?: string;
-  }): Promise<KnowledgeListResponse> {
+  async listKnowledge(params?: KnowledgeQueryFilters): Promise<KnowledgeListResponse> {
     const search = new URLSearchParams();
     if (params?.query) search.set("query", params.query);
     if (params?.projectId) search.set("project_id", params.projectId);
-    if (params?.kind) search.set("kind", params.kind);
+    for (const status of params?.statuses ?? []) search.append("status", status);
+    for (const kind of params?.kinds ?? []) search.append("kind", kind);
+    if (params?.sourceType) search.set("source_type", params.sourceType);
+    if (params?.sourceId) search.set("source_id", params.sourceId);
+    if (params?.sourceRevision) search.set("source_revision", params.sourceRevision);
+    if (params?.applicability) search.set("applicability", params.applicability);
+    if (params?.revision) search.set("revision", String(params.revision));
     if (params?.limit) search.set("limit", String(params.limit));
     if (params?.cursor) search.set("cursor", params.cursor);
     const query = search.toString();
     const raw = await this.fetch<unknown>(
       `/api/knowledge${query ? `?${query}` : ""}`,
     );
-    return parseWithFallback(
-      raw,
-      knowledgeListSchema,
-      EMPTY_KNOWLEDGE_LIST,
-      { endpoint: "GET /api/knowledge" },
-    );
+    const parsed = knowledgeListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Knowledge list response");
+    return parsed.data;
   }
 
   async getKnowledge(id: string): Promise<KnowledgeEntry> {
     const raw = await this.fetch<unknown>(
       `/api/knowledge/${encodeURIComponent(id)}`,
     );
-    return parseWithFallback(
-      raw,
-      knowledgeEntrySchema,
-      {
-        id: "",
-        workspaceId: "",
-        projectId: null,
-        candidateId: null,
-        kind: "reference",
-        status: "published",
-        currentRevision: 0,
-        revisions: [],
-        createdAt: "",
-        updatedAt: "",
-      },
-      { endpoint: "GET /api/knowledge/:id" },
-    );
+    const parsed = knowledgeEntrySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Knowledge detail response");
+    return parsed.data;
   }
 
   async proposeKnowledge(

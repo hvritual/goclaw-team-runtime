@@ -30,10 +30,6 @@ const knowledgeKindSchema = z
   ])
   .catch("reference");
 
-const publishedKnowledgeStatusSchema = z
-  .enum(["published", "superseded"])
-  .catch("published");
-
 const candidateKnowledgeStatusSchema = z
   .enum([
     "candidate",
@@ -60,46 +56,55 @@ const sourceRefSchema = z.object({
   metadata: value.metadata,
 }));
 
+const governedSourceRefSchema = z.object({
+  type: z.string().min(1),
+  id: z.string().min(1),
+  revision: z.string().min(1),
+  citation: z.string().min(1),
+  asset_id: z.string().min(1).nullable(),
+  asset_version_id: z.string().min(1).nullable(),
+}).strict().transform((value) => ({
+  type: value.type,
+  id: value.id,
+  revision: value.revision,
+  citation: value.citation,
+  assetId: value.asset_id,
+  assetVersionId: value.asset_version_id,
+}));
+
 const revisionSchema = z.object({
-  Number: z.number().optional(),
-  SupersedesRevision: z.number().optional(),
-  Title: z.string().optional(),
-  Content: z.string().optional(),
-  CreatedBy: z.string().optional(),
-  CreatedAt: z.string().optional(),
-  SourceRefs: z.array(sourceRefSchema).optional(),
-  number: z.number().optional(),
-  supersedes_revision: z.number().optional(),
-  title: z.string().optional(),
-  content: z.string().optional(),
-  created_by: z.string().optional(),
-  created_at: z.string().optional(),
-  source_refs: z.array(sourceRefSchema).optional(),
-}).loose().transform((value) => ({
-  number: value.number ?? value.Number ?? 0,
-  supersedesRevision:
-    value.supersedes_revision ?? value.SupersedesRevision ?? 0,
-  title: value.title ?? value.Title ?? "",
-  content: value.content ?? value.Content ?? "",
-  createdBy: value.created_by ?? value.CreatedBy ?? "",
-  createdAt: value.created_at ?? value.CreatedAt ?? "",
-  sourceRefs: value.source_refs ?? value.SourceRefs ?? [],
+  number: z.number().int().positive(),
+  supersedes_revision: z.number().int().nonnegative(),
+  title: z.string().min(1),
+  content: z.string(),
+  created_by: z.string().min(1),
+  created_at: z.string().min(1),
+  source_refs: z.array(governedSourceRefSchema),
+}).strict().transform((value) => ({
+  number: value.number,
+  supersedesRevision: value.supersedes_revision,
+  title: value.title,
+  content: value.content,
+  createdBy: value.created_by,
+  createdAt: value.created_at,
+  sourceRefs: value.source_refs,
 }));
 
 export const knowledgeEntrySchema = z.object({
-  id: z.string(),
-  workspace_id: z.string(),
-  project_id: z.string().nullable().optional().default(null),
-  candidate_id: z.string().nullable().optional().default(null),
-  kind: knowledgeKindSchema,
-  status: publishedKnowledgeStatusSchema,
-  current_revision: z.number(),
-  revisions: z.array(revisionSchema).default([]),
-  created_at: z.string(),
-  updated_at: z.string(),
-  citation: z.string().optional(),
-  score: z.number().optional(),
-}).loose().transform((value) => ({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  project_id: z.string().min(1).nullable(),
+  candidate_id: z.string().min(1).nullable(),
+  kind: z.enum(["goal", "decision", "constraint", "requirement", "procedure", "lesson", "reference"]),
+  status: z.enum(["published", "superseded", "quarantined"]),
+  current_revision: z.number().int().positive(),
+  revision: revisionSchema,
+  revisions: z.array(revisionSchema).optional(),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  citation: z.string(),
+  matched_by: z.enum(["recent", "title_exact", "title_prefix", "title", "content", "source", "detail"]),
+}).strict().transform((value) => ({
   id: value.id,
   workspaceId: value.workspace_id,
   projectId: value.project_id,
@@ -107,11 +112,11 @@ export const knowledgeEntrySchema = z.object({
   kind: value.kind,
   status: value.status,
   currentRevision: value.current_revision,
-  revisions: value.revisions,
+  revisions: value.revisions ?? [value.revision],
   createdAt: value.created_at,
   updatedAt: value.updated_at,
   citation: value.citation,
-  score: value.score,
+  matchedBy: value.matched_by,
 })) as z.ZodType<KnowledgeEntry>;
 
 export const knowledgeCandidateSchema = z.object({
@@ -149,10 +154,10 @@ export const knowledgeCandidateSchema = z.object({
 })) as z.ZodType<KnowledgeCandidate>;
 
 export const knowledgeListSchema = z.object({
-  entries: z.array(knowledgeEntrySchema).default([]),
-  total: z.number().default(0),
-  next_cursor: z.string().nullable().optional().default(null),
-}).loose().transform((value) => ({
+  entries: z.array(knowledgeEntrySchema),
+  total: z.number().int().nonnegative(),
+  next_cursor: z.string().min(1).nullable(),
+}).strict().transform((value) => ({
   entries: value.entries,
   total: value.total,
   nextCursor: value.next_cursor,
