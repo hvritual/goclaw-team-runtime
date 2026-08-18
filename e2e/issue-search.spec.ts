@@ -32,6 +32,7 @@ async function searchIssues(page: Page, token: string, query: string, suffix = "
 
 test("installed Issue search handles ranking, Unicode, closed state, pagination, and isolation", async ({ page }) => {
   const { token } = await loginFixture(page);
+  await page.addInitScript((value) => localStorage.setItem("multica_token", value), token);
   const marker = Date.now().toString(36);
   const englishTitle = `Alpha Beta browser ${marker}`;
   const chineseTitle = `修复咖啡机搜索 ${marker}`;
