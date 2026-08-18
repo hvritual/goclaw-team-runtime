@@ -1341,3 +1341,34 @@ Known limitations, blockers, and next action
 - Only PCR-S06B is active. Release 3, push, merge, deployment, and Release 2
   completion remain inactive. `server/**` range/worktree diffs are empty; no
   implementation or verification PASS is claimed.
+
+## 2026-08-18 — J052 — v23/r028 S06B implementation candidate
+
+- Exact candidate `ca8b2a41f7ca4871375584a0a4ee1628c8c0a075`
+  (tree `5b9a6c06c22f93f0dadb5b488172df6945a64ebc`) installs
+  idempotent member proposals, private owner/admin review queues, exact
+  candidate and target revision conflicts, all seven frozen transitions,
+  terminal immutability, owner-only reasoned emergency self-review, immutable
+  audit/publication records, and post-commit realtime.
+- Publication requires ordered source evidence and revalidates optional Space
+  asset/version ownership inside the locked transaction. Business,
+  idempotency, review, publication, and audit writes are atomic; proposal replay
+  suppresses duplicate realtime. Core success parsing is strict and the shared
+  Web/Desktop surface is loaded only with `knowledge_review=true`.
+- Exact candidate backend `make check` and official `make test-race` pass with
+  MinGW GCC 15.2.0. Root typecheck and production Web build pass. Root parallel
+  tests complete 1,674/1,675 Views assertions before one unrelated Team Control
+  five-second load timeout; the exact Team Control file passes 10/10 in focused
+  execution, so the aggregate is retained as non-PASS evidence.
+- Fresh temporary SQLite, the real Canonical HTTP runtime, production Web, and
+  installed Chrome exercise login, workspace creation, proposal, owner
+  emergency review, approve, publish, empty queue, and governed query readback.
+  The first browser run exposed `candidates: null` after publication; a focused
+  regression and non-nil empty-array fix were added. The remediated journey
+  passes 1/1 with retries disabled and no mocked Knowledge route.
+- Immutable v23 and policy hashes remain exact. Candidate/worktree `server/**`
+  diffs are empty, protected Input remains
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`, generated protobuf and recorded
+  dirty paths remain excluded, and all required trailers parse. Fresh
+  independent SPEC and CODE/SECURITY/QUALITY review remain pending; PCR-S06B
+  and Release 2 are not yet closed. No push, merge, or deployment is claimed.
