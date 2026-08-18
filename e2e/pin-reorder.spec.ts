@@ -25,6 +25,25 @@ function headers(token: string) {
   return { Authorization: `Bearer ${token}`, "X-Workspace-Slug": SLUG };
 }
 
+function pinnedLink(page: Page, href: string) {
+  return page.locator(`a[data-sidebar="menu-button"][href="${href}"]`);
+}
+
+async function dragPinnedBefore(page: Page, sourceHref: string, targetHref: string) {
+  const sourceBox = await pinnedLink(page, sourceHref).boundingBox();
+  const targetBox = await pinnedLink(page, targetHref).boundingBox();
+  expect(sourceBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  if (!sourceBox || !targetBox) return;
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y - 8, { steps: 5 });
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 4, { steps: 20 });
+  await page.waitForTimeout(100);
+  await page.mouse.up();
+}
+
 async function createProject(request: APIRequestContext, token: string, title: string) {
   const response = await request.post("/api/projects", {
     headers: headers(token),
@@ -53,7 +72,7 @@ async function createPin(request: APIRequestContext, token: string, item_type: "
 }
 
 async function expectPinnedOrder(page: Page, hrefs: string[]) {
-  const selector = hrefs.map((href) => `a[href="${href}"]`).join(",");
+  const selector = hrefs.map((href) => `a[data-sidebar="menu-button"][href="${href}"]`).join(",");
   await expect.poll(async () => page.locator(selector).evaluateAll((nodes) => nodes.map((node) => node.getAttribute("href")))).toEqual(hrefs);
 }
 
@@ -74,8 +93,8 @@ test("installed Pin reorder rolls back stale drag and persists one atomic comple
   await loginBrowserFixture(page);
   const issueHref = `/${SLUG}/issues/${issue.id}`;
   const projectHref = `/${SLUG}/projects/${project.id}`;
-  await expect(page.locator(`a[href="${issueHref}"]`)).toBeVisible();
-  await expect(page.locator(`a[href="${projectHref}"]`)).toBeVisible();
+  await expect(pinnedLink(page, issueHref)).toBeVisible();
+  await expect(pinnedLink(page, projectHref)).toBeVisible();
   await expectPinnedOrder(page, [issueHref, projectHref]);
 
   const third = await createProject(page.request, token, thirdTitle);
@@ -83,7 +102,7 @@ test("installed Pin reorder rolls back stale drag and persists one atomic comple
   expect(thirdPin.order_revision).toBe(3);
 
   const staleResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/pins/reorder") && response.request().method() === "PUT");
-  await page.locator(`a[href="${projectHref}"]`).dragTo(page.locator(`a[href="${issueHref}"]`));
+  await dragPinnedBefore(page, projectHref, issueHref);
   const staleResponse = await staleResponsePromise;
   expect(staleResponse.status()).toBe(409);
   expect(await staleResponse.json()).toEqual({
@@ -93,11 +112,11 @@ test("installed Pin reorder rolls back stale drag and persists one atomic comple
   });
 
   const thirdHref = `/${SLUG}/projects/${third.id}`;
-  await expect(page.locator(`a[href="${thirdHref}"]`)).toBeVisible();
+  await expect(pinnedLink(page, thirdHref)).toBeVisible();
   await expectPinnedOrder(page, [issueHref, projectHref, thirdHref]);
 
   const successResponsePromise = page.waitForResponse((response) => response.url().endsWith("/api/pins/reorder") && response.request().method() === "PUT");
-  await page.locator(`a[href="${projectHref}"]`).dragTo(page.locator(`a[href="${issueHref}"]`));
+  await dragPinnedBefore(page, projectHref, issueHref);
   const successResponse = await successResponsePromise;
   expect(successResponse.status()).toBe(204);
   await expectPinnedOrder(page, [projectHref, issueHref, thirdHref]);
