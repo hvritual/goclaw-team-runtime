@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v18.md](plan_v18.md).
+The approved execution snapshot is [plan_v19.md](plan_v19.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `18`
-- Active step: `none`
-- Status: `Release 1 active; no active task`
-- Plan base commit: `781471015ec8d759cd1209fd051e59fa91507eef`
+- Approved version: `19`
+- Active step: `PCR-S04 Pin reorder under r024`
+- Status: `Release 1 active; PCR-S04 implementation active`
+- Plan base commit: `b86447909e1a7614c539769514008e010b478140`
 - Last closed task base commit: `c9e905bc7675d253991c0a816bcd19985a49c10b`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -26,6 +26,12 @@ passes deterministic, performance, production-build, installed-Chrome, scope,
 process-cleanup, commit-traceability, and fresh independent-review gates.
 PCR-S03B is `complete-independent-reviewed`. Release 1 remains active with no
 active task; S04 requires a new approved plan version and remains inactive.
+
+The Human Customer's standing direction to complete Release 1 activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v19 / r024` from exact S03B closure `b864479`.
+Only PCR-S04 atomic revisioned Pin reorder is active. Existing Issue and
+Project search remain installed. No Release 2 story, push, merge, deployment,
+or Release 1 completion is authorized or claimed.
 
 Candidate `5062e84` passed every frozen deterministic gate, but its independent
 review returned `SPEC BLOCK` for authority mapping, canonical request hashing,

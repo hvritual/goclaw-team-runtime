@@ -1040,3 +1040,30 @@ Known limitations, blockers, and next action
   active with no active task. S04 remains inactive until a new approved plan;
   no push, merge, deployment, S04 activation, or Release 1 completion is
   claimed.
+
+## 2026-08-18 — J041 — v19/r024 Pin reorder activated
+
+- Exact base `b86447909e1a7614c539769514008e010b478140` closes S03B with
+  independent review and leaves zero active tasks before this activation.
+- Bounded context discovery reached dependency closure with zero new
+  dependencies or unresolved human choices. Shared Core/Views already declare
+  and invoke `PUT /api/pins/reorder`; the Canonical backend has list/create/
+  delete Pins but no reorder route. Read-only legacy evidence performs
+  unchecked position updates and is not safe authority to copy.
+- v19 freezes a strict complete ID order plus `expected_revision`, a per-user/
+  Workspace monotonic `order_revision`, contiguous server-derived positions,
+  one `BEGIN IMMEDIATE` transaction, exact-set ownership validation, canonical
+  409 conflict response, scoped optimistic rollback/refetch, and loaded
+  explicit sidebar drag gating.
+- Migration `000015` may add only Pin-order revision metadata with existing-set
+  backfill and guarded rollback. It may not add a foreign key, cascade, or
+  rewrite/drop source Pins or positions.
+- The Human Customer's standing direction to complete Release 1 activates
+  immutable v19/r024 for PCR-S04 only. Release 2 remains inactive.
+- Existing dirty generated protobuf, shared Input/Issue/modal files,
+  `.local-runtime/**`, `docs/code-to-product/**`, the untracked auth test, and
+  `ui/**` remain excluded. Protected Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; `server/**` remains permanently
+  read-only and has empty range/worktree diffs.
+- No S04 implementation, verification PASS, independent review, closure,
+  push, merge, deployment, or Release 1 completion is claimed.

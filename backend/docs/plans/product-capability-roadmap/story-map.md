@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v18`
-- Status: `Release 1 active; no active task`
+- Plan-Version: `v19`
+- Status: `Release 1 active; PCR-S04 implementation active under r024`
 
 ## Delivery policy
 
@@ -102,6 +102,8 @@ Acceptance scenarios include closed-state filters, deterministic tie-breaks,
 membership denial, malformed responses, and restart consistency.
 
 ### PCR-S04 — Reorder pins
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v19 / r024`
 
 As a member, I can reorder my project and Issue pins, and concurrent changes do
 not silently overwrite one another.

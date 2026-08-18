@@ -1274,3 +1274,30 @@ S02A without changing Task product behavior or activating S02B.
 - r023 and PCR-S03B are closed. Release 1 remains active with no active task;
   S04 remains inactive pending a new approved plan. No push, merge, or
   deployment is claimed.
+
+## PCR-001-S04-R24
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S04-R24`
+- Task-Revision: `r024`
+- Work-Item: `PCR-S04`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `b86447909e1a7614c539769514008e010b478140`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v19`
+- Plan hash: `c39bce662586248b0b652e93a940f3feb7897c2e6d1761b55635594172ddd800`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/c39bce662586248b0b652e93a940f3feb7897c2e6d1761b55635594172ddd800`
+
+### Objective and acceptance
+
+- Install atomic revisioned `PUT /api/pins/reorder` for the authenticated
+  user's complete Pin set in the trusted Workspace.
+- Reject duplicate, missing, additional, foreign, other-user, stale, denied,
+  and cancelled requests without partial mutation; preserve contiguous order
+  and monotonic revision through create/delete/reorder and restart.
+- Prove strict Core parsing/request shape, Workspace/user-scoped optimistic
+  rollback/refetch, explicit loaded sidebar gating, and installed Chrome
+  persistence/concurrency acceptance.
+- Preserve both installed search features and keep all Release 2 stories
+  inactive.
