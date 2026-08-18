@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v21`
-- Registry status: `Release 2 active; PCR-S05B complete-independent-reviewed; no active task`
-- Registry revision: `r026`
+- Plan-Version: `v25`
+- Registry status: `Release 2 complete; Release 3 inactive; no active task`
+- Registry revision: `r030`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1638,7 +1638,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S06B-R30`
 - Task-Revision: `r030`
 - Work-Item: `PCR-S06B`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent release2_baseline`
 - Base commit: `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48`
@@ -1696,3 +1696,16 @@ S02A without changing Task product behavior or activating S02B.
   `server/**` remain excluded. Fresh independent SPEC and
   CODE/SECURITY/QUALITY review remains pending; r030 and Release 2 are not yet
   closed.
+
+### Closure evidence
+
+- Fresh independent review of exact candidate
+  `32f273e47e6b9863b4ef462f28eed3e91da654d0` returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS` with no blocking findings. It verifies trusted
+  identity retention, role-aware composition, reviewer/private and
+  member/public projection, permission-denial and Workspace isolation, exact
+  post-commit publication semantics, seven-action/cancellation coverage, the
+  dual-identity browser contract, scope, and all eight trailers.
+- r030 and PCR-S06B are `complete-independent-reviewed`. All four Release 2
+  stories are closed, so Release 2 is complete with zero active tasks. Release
+  3, push, merge, and deployment remain inactive.

@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v25.md](plan_v25.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `25`
-- Active step: `PCR-S06B authorized realtime projection`
-- Status: `Release 2 active; PCR-S06B remediation active under r030`
+- Active step: `none`
+- Status: `Release 2 complete; Release 3 inactive`
 - Plan base commit: `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48`
-- Last closed task candidate: `3d465f1110fed1ce9bef8d076f77d4b553fda421`
+- Last closed task candidate: `32f273e47e6b9863b4ef462f28eed3e91da654d0`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -67,6 +67,13 @@ design-blocked before product implementation. v25/r030 starts from exact
 activation base `33ec500f` and adds only role-aware per-client projection,
 composition, exact transition/cancellation coverage, and the same dual-identity
 browser acceptance.
+
+Exact S06B candidate `32f273e47e6b9863b4ef462f28eed3e91da654d0`
+passes backend deterministic/race, frontend type/build, focused realtime and
+transition tests, installed-Chrome dual-identity no-reload acceptance, scope,
+traceability, and fresh independent SPEC plus CODE/SECURITY/QUALITY review.
+PCR-S06B and Release 2 are `complete-independent-reviewed`; no task is active.
+Release 3, push, merge, and deployment remain inactive.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,
