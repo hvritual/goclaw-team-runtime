@@ -1070,7 +1070,7 @@ Known limitations, blockers, and next action
 
 ## 2026-08-18 — J042 — v19/r024, PCR-S04, and Release 1 closed
 
-- Exact candidate `bd757d1d5203988d4fb924818e71f7e3b7fb1563` installs strict,
+- Exact candidate `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11` installs strict,
   revisioned `PUT /api/pins/reorder` for the authenticated user's complete Pin
   set in the trusted Workspace. One `BEGIN IMMEDIATE` transaction validates
   revision, exact membership, ownership, and Workspace before writing all

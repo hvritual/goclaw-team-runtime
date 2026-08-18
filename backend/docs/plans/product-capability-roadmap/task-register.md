@@ -1283,7 +1283,7 @@ S02A without changing Task product behavior or activating S02B.
 - Work-Item: `PCR-S04`
 - Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `SPEC PASS and CODE QUALITY PASS on bd757d1d`
+- Independent reviewer: `SPEC PASS and CODE QUALITY PASS on b4fa3a3c after tree-identical trailer repair`
 - Base commit: `b86447909e1a7614c539769514008e010b478140`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v19`
 - Plan hash: `c39bce662586248b0b652e93a940f3feb7897c2e6d1761b55635594172ddd800`
@@ -1304,8 +1304,8 @@ S02A without changing Task product behavior or activating S02B.
 
 ### Verification and review outcome
 
-- Exact candidate: `bd757d1d5203988d4fb924818e71f7e3b7fb1563`; implementation
-  commit: `1b64c8895572128ad0acdb7e3dd0f832aef9802a`.
+- Exact candidate: `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11`; implementation
+  commit: `738338ff3e19d14fc18100d385aaa0c832368472`.
 - Application, HTTP, repository, migration, runtime, Core, and Views tests prove
   strict complete-set validation, authentication/trusted identity/CSRF,
   authorization, canonical conflict shape, cancellation, rollback, revision

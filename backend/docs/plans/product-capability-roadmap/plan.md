@@ -7,7 +7,7 @@ The approved execution snapshot is [plan_v19.md](plan_v19.md).
 - Active step: `none`
 - Status: `Release 1 complete-independent-reviewed; no active task`
 - Plan base commit: `b86447909e1a7614c539769514008e010b478140`
-- Last closed task candidate: `bd757d1d5203988d4fb924818e71f7e3b7fb1563`
+- Last closed task candidate: `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -33,7 +33,7 @@ Only PCR-S04 atomic revisioned Pin reorder is active. Existing Issue and
 Project search remain installed. No Release 2 story, push, merge, deployment,
 or Release 1 completion is authorized or claimed.
 
-v19/r024 exact candidate `bd757d1d5203988d4fb924818e71f7e3b7fb1563`
+v19/r024 exact candidate `b4fa3a3c60d24953c9f37c82cf0d70cda0fd7b11`
 passes backend check/race, root typecheck/test, production-build,
 fresh-database installed-Chrome, scope/process-cleanup, traceability, and fresh
 independent-review gates. PCR-S04 and Release 1 are
