@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v23.md](plan_v23.md).
+The approved execution snapshot is [plan_v24.md](plan_v24.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `23`
-- Active step: `PCR-S06B Review and publish a candidate`
-- Status: `Release 2 active; PCR-S06B active under r028`
-- Plan base commit: `84ed0e4afa8f76de2cb854047f2fc4d26641810f`
+- Approved version: `24`
+- Active step: `PCR-S06B realtime delivery remediation`
+- Status: `Release 2 active; PCR-S06B remediation active under r029`
+- Plan base commit: `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac`
 - Last closed task candidate: `3d465f1110fed1ce9bef8d076f77d4b553fda421`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -53,6 +53,13 @@ r028` from exact S06A closure `84ed0e4a`. Only PCR-S06B governed Knowledge
 proposal/review/publication is active. Release 3, push, merge, deployment, and
 Release 2 completion remain inactive until the exact S06B candidate passes all
 frozen gates and fresh independent review.
+
+The v23 candidate passes backend/race/type/build checks, but the frozen
+dual-identity browser RED proves `knowledge:candidate_updated` is discarded by
+the shared realtime Hub allowlist. Because that boundary lies outside v23
+scope, r028 is verification-blocked. The standing completion direction
+activates v24/r029 from exact base `ffcdd1c7` only for the Hub event allowlist,
+shared event type, exact tests, and real member-to-owner browser journey.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

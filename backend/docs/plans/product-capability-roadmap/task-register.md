@@ -1537,7 +1537,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S06B-R28`
 - Task-Revision: `r028`
 - Work-Item: `PCR-S06B`
-- Status: `active`
+- Status: `verification-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent release2_baseline`
 - Base commit: `84ed0e4afa8f76de2cb854047f2fc4d26641810f`
@@ -1572,3 +1572,53 @@ S02A without changing Task product behavior or activating S02B.
   generated protobuf and every recorded dirty path remain excluded.
   `server/**` range/worktree diffs are empty. No implementation, verification
   PASS, closure, push, merge, or deployment is claimed.
+
+### Verification block
+
+- Exact implementation candidate `ca8b2a41f7ca4871375584a0a4ee1628c8c0a075`
+  passes backend check/race, root typecheck, and production build. Exact RED
+  base `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac` upgrades browser
+  acceptance to a real member and independent owner with no Knowledge mocks.
+- The member proposal commits and the application invokes
+  `knowledge:candidate_updated`, but `backend/internal/realtime/hub.go`
+  silently drops the unrecognized event. Independent review cannot see the
+  candidate without reload, so the frozen realtime gate fails.
+- The required Hub and shared event-type files are outside v23 scope. r028 is
+  retained as verification-blocked; no scope is silently expanded and no
+  closure is claimed.
+
+## PCR-001-S06B-R29
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S06B-R29`
+- Task-Revision: `r029`
+- Work-Item: `PCR-S06B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release2_baseline`
+- Base commit: `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v24`
+- Plan hash: `826a1818a4a5f362512912d56f0eecc34ebcb6089656531e1adc7e1cbdcc9966`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/826a1818a4a5f362512912d56f0eecc34ebcb6089656531e1adc7e1cbdcc9966`
+
+### Objective and acceptance
+
+- Admit only `knowledge:candidate_updated` through the Workspace-scoped Hub
+  and shared WebSocket event type without changing v23 mutation semantics.
+- Prove target Workspace delivery, foreign Workspace exclusion, retained
+  allowlist denial, and fresh installed-Chrome member-to-owner realtime
+  proposal/review/publication/readback with no reload or Knowledge mocks.
+- Keep Release 3, push, merge, deployment, and Release 2 completion inactive
+  until all exact candidate gates and fresh independent review pass.
+
+### Activation evidence
+
+- Exact base `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac` retains the v23
+  implementation and failing dual-identity browser RED.
+- The missing Hub allowlist and event-union dependencies are the only newly
+  retrieved blockers. Immutable v24 freezes their exact scope; no Knowledge
+  business, storage, permission, migration, route, or UI semantics may change.
+- Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and every recorded dirty path remain excluded.
+  `server/**` range/worktree diffs are empty. No remediation PASS, closure,
+  push, merge, or deployment is claimed.

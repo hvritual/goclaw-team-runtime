@@ -1372,3 +1372,27 @@ Known limitations, blockers, and next action
   dirty paths remain excluded, and all required trailers parse. Fresh
   independent SPEC and CODE/SECURITY/QUALITY review remain pending; PCR-S06B
   and Release 2 are not yet closed. No push, merge, or deployment is claimed.
+
+## 2026-08-18 — J053 — v24/r029 activates S06B realtime remediation
+
+- Exact v23 implementation candidate
+  `ca8b2a41f7ca4871375584a0a4ee1628c8c0a075` passes backend check/race,
+  root typecheck, production build, strict focused tests, and an owner emergency
+  browser lifecycle. The stronger frozen acceptance was retained as a real
+  member-to-independent-owner RED at exact base
+  `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac`.
+- Fresh SQLite, production Web, installed Chrome, and a build-time direct
+  backend WebSocket URL prove the member proposal commits. The owner does not
+  receive it: application publication calls `knowledge:candidate_updated`, but
+  the shared Hub allowlist silently rejects that event before delivery.
+- `backend/internal/realtime/**` and the shared WebSocket event union are outside
+  immutable v23 scope. r028 is therefore `verification-blocked`. Immutable v24
+  authorizes only the exact Hub allowlist/type contract, isolation regression,
+  and dual-identity browser rerun; v23 business/storage behavior cannot change.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/826a1818a4a5f362512912d56f0eecc34ebcb6089656531e1adc7e1cbdcc9966`.
+  Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and recorded dirty paths remain excluded; `server/**`
+  range/worktree diffs are empty.
+- Only r029 is active. Release 3, push, merge, deployment, and Release 2 closure
+  remain inactive; no remediation or independent-review PASS is claimed.
