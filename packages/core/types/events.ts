@@ -54,7 +54,8 @@ export type WSEventType =
   | "property:updated"
   | "pin:created"
   | "pin:deleted"
-  | "pin:reordered";
+  | "pin:reordered"
+  | "knowledge:candidate_updated";
 
 export interface WSMessage<T = unknown> {
   type: WSEventType;

@@ -15,15 +15,18 @@ import (
 )
 
 type IdentityResolver func(*http.Request) (contract.WorkspaceHTTPIdentity, error)
+type EventAccessResolver func(workspaceID, actorType, actorID, eventType string) bool
 
 type Hub struct {
 	identity IdentityResolver
+	access   EventAccessResolver
 	mu       sync.RWMutex
 	clients  map[string]map[*client]struct{}
 }
 
 type client struct {
 	writer    frameWriter
+	identity  contract.WorkspaceHTTPIdentity
 	outbound  chan []byte
 	done      chan struct{}
 	closeOnce sync.Once
@@ -41,8 +44,12 @@ const (
 	maxInboundFrameBytes = 64 * 1024
 )
 
-func NewHub(identity IdentityResolver) *Hub {
-	return &Hub{identity: identity, clients: make(map[string]map[*client]struct{})}
+func NewHub(identity IdentityResolver, access ...EventAccessResolver) *Hub {
+	var resolver EventAccessResolver
+	if len(access) > 0 {
+		resolver = access[0]
+	}
+	return &Hub{identity: identity, access: resolver, clients: make(map[string]map[*client]struct{})}
 }
 
 func (h *Hub) RegisterHTTP(server *kratoshttp.Server) {
@@ -83,6 +90,7 @@ func (h *Hub) connect(ctx kratoshttp.Context) error {
 		}
 	}
 	connected := newClient(connection, clientQueueCapacity)
+	connected.identity = identity
 	h.add(identity.WorkspaceID, connected)
 	go connected.writePump()
 	defer func() { h.remove(identity.WorkspaceID, connected); connected.close() }()
@@ -174,7 +182,8 @@ func (h *Hub) Publish(workspaceID, eventType string, payload any, actorID, actor
 		"comment:created", "comment:updated", "comment:deleted", "comment:resolved", "comment:unresolved",
 		"reaction:added", "reaction:removed", "issue_reaction:added", "issue_reaction:removed",
 		"subscriber:added", "subscriber:removed", "activity:created",
-		"label:created", "label:updated", "label:deleted", "property:created", "property:updated":
+		"label:created", "label:updated", "label:deleted", "property:created", "property:updated",
+		"knowledge:candidate_updated":
 	default:
 		return
 	}
@@ -184,23 +193,41 @@ func (h *Hub) Publish(workspaceID, eventType string, payload any, actorID, actor
 		clients = append(clients, value)
 	}
 	h.mu.RUnlock()
-	message := map[string]any{"type": eventType, "payload": payload}
-	if actorID != "" {
-		message["actor_id"] = actorID
-	}
-	if actorType != "" {
-		message["actor_type"] = actorType
-	}
-	frame, err := json.Marshal(message)
-	if err != nil {
-		return
-	}
 	for _, value := range clients {
+		projection, visible := h.projectEvent(value, eventType, payload)
+		if !visible {
+			continue
+		}
+		message := map[string]any{"type": eventType, "payload": projection}
+		if actorID != "" {
+			message["actor_id"] = actorID
+		}
+		if actorType != "" {
+			message["actor_type"] = actorType
+		}
+		frame, err := json.Marshal(message)
+		if err != nil {
+			continue
+		}
 		if !value.enqueue(frame) {
 			h.remove(workspaceID, value)
 			value.close()
 		}
 	}
+}
+
+func (h *Hub) projectEvent(value *client, eventType string, payload any) (any, bool) {
+	if eventType != "knowledge:candidate_updated" {
+		return payload, true
+	}
+	if h.access != nil && h.access(value.identity.WorkspaceID, value.identity.ActorType, value.identity.ActorID, eventType) {
+		return payload, true
+	}
+	values, ok := payload.(map[string]any)
+	if !ok || values["entry"] == nil {
+		return nil, false
+	}
+	return map[string]any{"entry": values["entry"]}, true
 }
 
 func newClient(writer frameWriter, capacity int) *client {

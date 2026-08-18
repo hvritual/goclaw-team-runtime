@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 )
 
 type recordingWriter struct {
@@ -79,6 +81,70 @@ func TestHubRejectsEventsOutsideCanonicalM1Set(t *testing.T) {
 	select {
 	case <-writer.notify:
 		t.Fatal("unsupported event was published")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestHubProjectsKnowledgeByReviewPermissionAndWorkspace(t *testing.T) {
+	hub := NewHub(nil, func(workspaceID, actorType, actorID, eventType string) bool {
+		return workspaceID == "workspace-one" && actorType == "member" && actorID == "reviewer" && eventType == "knowledge:candidate_updated"
+	})
+	reviewerWriter, memberWriter, foreignWriter := newRecordingWriter(), newRecordingWriter(), newRecordingWriter()
+	reviewer, member, foreign := newClient(reviewerWriter, 4), newClient(memberWriter, 4), newClient(foreignWriter, 4)
+	reviewer.identity = contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-one", ActorType: "member", ActorID: "reviewer"}
+	member.identity = contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-one", ActorType: "member", ActorID: "member"}
+	foreign.identity = contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-two", ActorType: "member", ActorID: "reviewer"}
+	for _, value := range []*client{reviewer, member, foreign} {
+		go value.writePump()
+		t.Cleanup(value.close)
+	}
+	hub.add("workspace-one", reviewer)
+	hub.add("workspace-one", member)
+	hub.add("workspace-two", foreign)
+
+	hub.Publish("workspace-one", "knowledge:candidate_updated", map[string]any{"candidate": map[string]any{"id": "candidate-one", "reason": "private"}}, "proposer", "member")
+	waitForFrame(t, reviewerWriter)
+	assertNoFrame(t, memberWriter)
+	assertNoFrame(t, foreignWriter)
+	if !containsFrame(reviewerWriter.frames[0], `"candidate"`) || !containsFrame(reviewerWriter.frames[0], `"private"`) {
+		t.Fatalf("reviewer frame = %s", reviewerWriter.frames[0])
+	}
+
+	hub.Publish("workspace-one", "knowledge:candidate_updated", map[string]any{"candidate": map[string]any{"id": "candidate-one", "reason": "private"}, "entry": map[string]any{"id": "knowledge-one", "title": "public"}}, "reviewer", "member")
+	waitForFrame(t, reviewerWriter)
+	waitForFrame(t, memberWriter)
+	assertNoFrame(t, foreignWriter)
+	if containsFrame(memberWriter.frames[0], `"candidate"`) || containsFrame(memberWriter.frames[0], `"private"`) || !containsFrame(memberWriter.frames[0], `"entry"`) || !containsFrame(memberWriter.frames[0], `"public"`) {
+		t.Fatalf("member frame = %s", memberWriter.frames[0])
+	}
+}
+
+func TestHubKnowledgeResolverDenialFailsClosed(t *testing.T) {
+	hub := NewHub(nil, func(string, string, string, string) bool { return false })
+	writer := newRecordingWriter()
+	value := newClient(writer, 2)
+	value.identity = contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-one", ActorType: "member", ActorID: "owner"}
+	go value.writePump()
+	t.Cleanup(value.close)
+	hub.add("workspace-one", value)
+	hub.Publish("workspace-one", "knowledge:candidate_updated", map[string]any{"candidate": map[string]any{"id": "candidate-one"}}, "proposer", "member")
+	assertNoFrame(t, writer)
+}
+
+func waitForFrame(t *testing.T, writer *recordingWriter) {
+	t.Helper()
+	select {
+	case <-writer.notify:
+	case <-time.After(time.Second):
+		t.Fatal("realtime delivery timeout")
+	}
+}
+
+func assertNoFrame(t *testing.T, writer *recordingWriter) {
+	t.Helper()
+	select {
+	case <-writer.notify:
+		t.Fatal("unexpected realtime delivery")
 	case <-time.After(50 * time.Millisecond):
 	}
 }

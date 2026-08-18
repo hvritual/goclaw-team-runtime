@@ -101,7 +101,16 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if attachmentRoot == "" {
 		attachmentRoot = path + ".files"
 	}
-	realtimeHub := canonicalrealtime.NewHub(canonicalrealtime.IdentityResolver(workspaceDependencies.HTTPIdentity))
+	realtimeHub := canonicalrealtime.NewHub(
+		canonicalrealtime.IdentityResolver(workspaceDependencies.HTTPIdentity),
+		func(workspaceID, actorType, actorID, eventType string) bool {
+			if eventType != "knowledge:candidate_updated" {
+				return false
+			}
+			actorContext := contract.WithWorkspaceActor(context.Background(), actorType, actorID)
+			return memberships.AuthorizeWorkspace(actorContext, workspaceID, contract.PermissionKnowledgeReview) == nil
+		},
+	)
 	spaceModule, err := space.NewWithSQLiteAttachments(space.SQLiteAttachmentConfig{
 		DB: db, StorageRoot: attachmentRoot, Relations: attachmentRelations,
 		HTTPIdentity: func(request *http.Request) (spacecontract.HTTPIdentity, error) {

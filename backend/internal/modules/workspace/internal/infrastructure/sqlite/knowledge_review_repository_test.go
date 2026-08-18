@@ -122,6 +122,90 @@ func TestKnowledgeReviewRepositorySerializesExpectedRevision(t *testing.T) {
 	}
 }
 
+func TestKnowledgeReviewRepositoryCancelledProposalLeavesNoRows(t *testing.T) {
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "knowledge-review-cancelled.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err = workspace.MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	repository, err := persistence.NewKnowledgeReviewRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	now := time.Date(2026, 8, 18, 14, 30, 0, 0, time.UTC).Format(time.RFC3339Nano)
+	candidate := contract.KnowledgeCandidate{ID: "candidate-cancelled", WorkspaceID: "workspace-1", Kind: "lesson", Title: "Cancelled", Content: "Body", Reason: "Reason", Status: "candidate", Revision: 1, ProposedBy: "user-1", CreatedAt: now, UpdatedAt: now}
+	if _, err = repository.CreateKnowledgeCandidate(ctx, application.CreateKnowledgeCandidateCommand{Candidate: candidate, IdempotencyKey: "cancelled-key", RequestHash: strings.Repeat("a", 64), AuditID: "audit-cancelled"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled proposal = %v", err)
+	}
+	for _, table := range []string{"workspace_knowledge_candidates", "workspace_audit_entries", "workspace_mutation_idempotency"} {
+		var count int
+		if err = db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("%s rows = %d, %v", table, count, err)
+		}
+	}
+}
+
+func TestKnowledgeReviewRepositoryNonPublicationTransitions(t *testing.T) {
+	tests := []struct {
+		name       string
+		actions    []string
+		wantStatus string
+		wantRev    int
+	}{
+		{name: "reject", actions: []string{"approve", "reject"}, wantStatus: "rejected", wantRev: 3},
+		{name: "quarantine and return", actions: []string{"approve", "quarantine", "return"}, wantStatus: "in_review", wantRev: 4},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "knowledge-review-transitions.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = db.Close() })
+			if err = workspace.MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			repository, err := persistence.NewKnowledgeReviewRepository(persistence.Config{DB: db})
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := time.Date(2026, 8, 18, 14, 45, 0, 0, time.UTC)
+			candidate := contract.KnowledgeCandidate{ID: "candidate-transitions", WorkspaceID: "workspace-1", Kind: "lesson", Title: "Transitions", Content: "Body", Reason: "Reason", Status: "candidate", Revision: 1, ProposedBy: "user-1", CreatedAt: now.Format(time.RFC3339Nano), UpdatedAt: now.Format(time.RFC3339Nano)}
+			if _, err = repository.CreateKnowledgeCandidate(context.Background(), application.CreateKnowledgeCandidateCommand{Candidate: candidate, IdempotencyKey: "transitions-key", RequestHash: strings.Repeat("b", 64), AuditID: "audit-create"}); err != nil {
+				t.Fatal(err)
+			}
+			for index, action := range test.actions {
+				result, reviewErr := repository.ReviewKnowledgeCandidate(context.Background(), application.ReviewKnowledgeCandidateCommand{WorkspaceID: "workspace-1", CandidateID: candidate.ID, Action: action, Rationale: "independent review", ActorID: "user-2", AuditID: "audit-" + action, PublicationID: "unused", ExpectedRevision: index + 1, OccurredAt: now.Add(time.Duration(index+1) * time.Minute)})
+				if reviewErr != nil {
+					t.Fatalf("%s = %v", action, reviewErr)
+				}
+				if result.Candidate.Revision != index+2 {
+					t.Fatalf("%s revision = %d", action, result.Candidate.Revision)
+				}
+			}
+			var status string
+			var revision, reviews, audits int
+			if err = db.QueryRow(`SELECT status,revision FROM workspace_knowledge_candidates WHERE id=?`, candidate.ID).Scan(&status, &revision); err != nil {
+				t.Fatal(err)
+			}
+			if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_knowledge_review_events WHERE candidate_id=?`, candidate.ID).Scan(&reviews); err != nil {
+				t.Fatal(err)
+			}
+			if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_audit_entries WHERE resource_id=?`, candidate.ID).Scan(&audits); err != nil {
+				t.Fatal(err)
+			}
+			if status != test.wantStatus || revision != test.wantRev || reviews != len(test.actions) || audits != len(test.actions)+1 {
+				t.Fatalf("status/revision/reviews/audits = %s/%d/%d/%d", status, revision, reviews, audits)
+			}
+		})
+	}
+}
+
 func TestKnowledgeReviewRepositoryAuditFailureRollsBackPublication(t *testing.T) {
 	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "knowledge-review-audit.db"))
 	if err != nil {
