@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,6 +82,50 @@ func TestProjectSurfaceSearchRejectsInvalidInputAndMapsDenial(t *testing.T) {
 	response := serveProjectSurfaceSearch(t, service, "/api/projects/search?q=project")
 	if response.Code != http.StatusForbidden || service.calls != 1 {
 		t.Fatalf("denied = %d calls=%d body=%s", response.Code, service.calls, response.Body.String())
+	}
+}
+
+func TestProjectSurfaceSearchRejectsAuthenticationAndTrustedIdentityFailures(t *testing.T) {
+	tests := []struct {
+		name         string
+		authenticate func(*http.Request) (string, error)
+		identity     contract.WorkspaceHTTPIdentityResolver
+		wantStatus   int
+	}{
+		{
+			name: "authentication failure",
+			authenticate: func(*http.Request) (string, error) {
+				return "", errors.New("invalid session")
+			},
+			identity: func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+				return contract.WorkspaceHTTPIdentity{}, errors.New("identity resolver must not run")
+			},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name: "trusted identity failure",
+			authenticate: func(*http.Request) (string, error) {
+				return "user-1", nil
+			},
+			identity: func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+				return contract.WorkspaceHTTPIdentity{}, contract.ErrActorOutsideWorkspace
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := &recordingProjectSurfaceSearchService{}
+			server := kratoshttp.NewServer()
+			NewProjectSurfaceHandler(service, tt.identity, tt.authenticate, nil).Register(server)
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, "/api/projects/search?q=project", nil)
+			request.Header.Set("X-Workspace-Slug", "workspace-1")
+			server.ServeHTTP(response, request)
+			if response.Code != tt.wantStatus || service.calls != 0 {
+				t.Fatalf("status = %d calls=%d body=%s", response.Code, service.calls, response.Body.String())
+			}
+		})
 	}
 }
 

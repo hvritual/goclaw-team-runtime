@@ -87,4 +87,12 @@ test("installed Project search handles Unicode, closed state, pagination, isolat
   await expect(page.getByText(englishTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(closedTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(`Other project ${marker}`, { exact: true })).toBeVisible();
+
+  const deleteResponse = await page.request.delete(`/api/projects/${description.id}`, {
+    headers: { Authorization: `Bearer ${token}`, "X-Workspace-Slug": SLUG },
+  });
+  expect(deleteResponse.status(), await deleteResponse.text()).toBe(204);
+  const afterDelete = await searchProjects(page, token, `alpha beta ${marker}`, "&include_closed=true&limit=50");
+  expect(afterDelete.total).toBe(2);
+  expect(afterDelete.projects.some((project) => project.id === description.id)).toBe(false);
 });
