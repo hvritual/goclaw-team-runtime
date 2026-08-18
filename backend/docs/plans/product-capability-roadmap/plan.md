@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v22.md](plan_v22.md).
+The approved execution snapshot is [plan_v23.md](plan_v23.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `22`
-- Active step: `none`
-- Status: `Release 2 active; PCR-S06A complete-independent-reviewed; no active task`
-- Plan base commit: `78c5b5eb8b04d27d1fdc3c524955dd02fd756348`
+- Approved version: `23`
+- Active step: `PCR-S06B Review and publish a candidate`
+- Status: `Release 2 active; PCR-S06B active under r028`
+- Plan base commit: `84ed0e4afa8f76de2cb854047f2fc4d26641810f`
 - Last closed task candidate: `3d465f1110fed1ce9bef8d076f77d4b553fda421`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -47,6 +47,12 @@ scope, traceability, rollback, and fresh independent-review gates. PCR-S06A is
 `complete-independent-reviewed`; Release 2 remains active with no active task.
 S06B requires its own frozen plan version. Push, merge, and deployment remain
 excluded.
+
+The same standing direction activates `PRODUCT-CAPABILITY-ROADMAP-001 v23 /
+r028` from exact S06A closure `84ed0e4a`. Only PCR-S06B governed Knowledge
+proposal/review/publication is active. Release 3, push, merge, deployment, and
+Release 2 completion remain inactive until the exact S06B candidate passes all
+frozen gates and fresh independent review.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

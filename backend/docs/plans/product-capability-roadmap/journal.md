@@ -1319,3 +1319,25 @@ Known limitations, blockers, and next action
   dirty paths remain excluded. PCR-S06A is `complete-independent-reviewed`;
   Release 2 remains active with no active task. S06B needs a new frozen plan.
   No push, merge, or deployment is claimed.
+
+## 2026-08-18 — J051 — v23/r028 activates PCR-S06B
+
+- Exact base `84ed0e4afa8f76de2cb854047f2fc4d26641810f` closes PCR-S06A
+  with fresh independent SPEC and CODE/SECURITY/QUALITY PASS and leaves no
+  active task before this activation.
+- Bounded read-only discovery closes the dependency graph for the frozen
+  lifecycle, current dormant Core proposal/review shapes, read-only legacy
+  evidence, Workspace audit/realtime seams, role authorization, source
+  provenance, and Space asset-ownership validation. The final round adds no new
+  dependency or unresolved human decision.
+- Immutable v23 freezes idempotent proposal, exact candidate/target revisions,
+  seven action transitions, terminal immutability, owner-only reasoned emergency
+  self-review, evidence-required publication, atomic audit/idempotency/business
+  writes, post-commit realtime, strict clients, and loaded shared UI.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/29eaeb52aaedc1764b0e30ddffd173d6129ea10e1b0170786ce4bce9277190d4`.
+  Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and every recorded dirty path remain excluded.
+- Only PCR-S06B is active. Release 3, push, merge, deployment, and Release 2
+  completion remain inactive. `server/**` range/worktree diffs are empty; no
+  implementation or verification PASS is claimed.

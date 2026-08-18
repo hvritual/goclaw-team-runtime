@@ -1530,3 +1530,45 @@ S02A without changing Task product behavior or activating S02B.
   exclusions, and empty `server/**` candidate/worktree scope all pass. PCR-S06A
   is closed; S06B remains inactive pending a new frozen plan. No push, merge,
   or deployment is claimed.
+
+## PCR-001-S06B-R28
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S06B-R28`
+- Task-Revision: `r028`
+- Work-Item: `PCR-S06B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release2_baseline`
+- Base commit: `84ed0e4afa8f76de2cb854047f2fc4d26641810f`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v23`
+- Plan hash: `29eaeb52aaedc1764b0e30ddffd173d6129ea10e1b0170786ce4bce9277190d4`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/29eaeb52aaedc1764b0e30ddffd173d6129ea10e1b0170786ce4bce9277190d4`
+
+### Objective and acceptance
+
+- Install idempotent member proposals, owner/admin independent review, exact
+  expected-revision transitions, evidence-required publication, replacement
+  supersession, invalidation, immutable audit, and post-commit realtime.
+- Prove self-review denial and owner-only reasoned emergency override, stale
+  candidate/target conflicts, source validation, cancellation/rollback,
+  restart, Workspace isolation, strict Core, loaded shared UI, and fresh
+  installed-browser behavior.
+- Enable only `knowledge_review` in addition to completed flags. Keep Release 3,
+  push, merge, deployment, and Release 2 completion inactive until closure.
+
+### Activation evidence
+
+- Exact base `84ed0e4afa8f76de2cb854047f2fc4d26641810f` closes S06A with
+  fresh independent SPEC and CODE/SECURITY/QUALITY PASS and no active task.
+- Read-only discovery reached closure across the frozen lifecycle, dormant Core
+  expectations, legacy evidence, audit/outbox/realtime seams, authorization,
+  and Space's narrow asset-ownership reader. No unresolved retrievable blocker,
+  contradiction, blocking unknown, or human-owned decision remains.
+- Immutable v23 freezes action/state mapping, proposal idempotency, target
+  capture, self-review rules, evidence publication gate, atomic audit, exact
+  realtime boundary, strict clients, and feature gating.
+- Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and every recorded dirty path remain excluded.
+  `server/**` range/worktree diffs are empty. No implementation, verification
+  PASS, closure, push, merge, or deployment is claimed.

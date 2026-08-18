@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v22`
-- Status: `Release 2 active; PCR-S06A complete-independent-reviewed; no active task`
+- Plan-Version: `v23`
+- Status: `Release 2 active; PCR-S06B active under r028`
 
 ## Delivery policy
 
@@ -145,6 +145,8 @@ Acceptance scenarios include pagination, source projection, superseded results,
 workspace isolation, quarantine visibility, and stable ranking.
 
 ### PCR-S06B — Review and publish a candidate
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v23 / r028`
 
 As an independent reviewer, I can approve, reject, quarantine, return, publish,
 supersede, or invalidate a Knowledge candidate using an expected revision.
