@@ -48,6 +48,39 @@ export const SkillSummarySchema = z.object({
 export const SkillListSchema = z.array(SkillSummarySchema);
 export const EMPTY_SKILLS: SkillSummary[] = [];
 
+export const SkillFileManifestSchema = z.object({
+  id: z.string().min(1),
+  skill_id: z.string().min(1),
+  version_id: z.string().min(1),
+  path: z.string().min(1),
+  space_object_id: z.string().min(1),
+  media_type: z.string().min(1),
+  size_bytes: z.number().int().nonnegative(),
+  checksum: z.string().regex(/^[a-f0-9]{64}$/),
+  created_at: z.string().min(1),
+}).strict();
+
+export const SkillFileContentSchema = SkillFileManifestSchema.extend({
+  content: z.string(),
+}).strict();
+
+export const SkillFileManifestListSchema = z.array(SkillFileManifestSchema);
+
+export const SkillImportPreviewSchema = z.object({
+  preview_token: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+  warnings: z.array(z.string()),
+  checksum: z.string().regex(/^[a-f0-9]{64}$/),
+  total_bytes: z.number().int().nonnegative(),
+  files: z.array(z.object({
+    path: z.string().min(1),
+    media_type: z.string().min(1),
+    checksum: z.string().regex(/^[a-f0-9]{64}$/),
+    size_bytes: z.number().int().nonnegative(),
+  }).strict()),
+}).strict();
+
 export const SkillHistorySchema = z.object({
   skill_id: z.string().min(1),
   provenance: z.object({

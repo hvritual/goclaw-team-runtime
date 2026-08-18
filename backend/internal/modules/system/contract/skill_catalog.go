@@ -8,16 +8,18 @@ import (
 )
 
 var (
-	ErrInvalidSkill       = errors.New("invalid skill")
-	ErrSkillAccessDenied  = errors.New("skill access denied")
-	ErrSkillAlreadyExists = errors.New("skill already exists")
-	ErrSkillNotFound      = errors.New("skill not found")
-	ErrSkillTransition    = errors.New("invalid skill transition")
+	ErrInvalidSkill        = errors.New("invalid skill")
+	ErrSkillAccessDenied   = errors.New("skill access denied")
+	ErrSkillAlreadyExists  = errors.New("skill already exists")
+	ErrSkillNotFound       = errors.New("skill not found")
+	ErrSkillTransition     = errors.New("invalid skill transition")
+	ErrSkillImportConflict = errors.New("Skill import conflict")
 )
 
 const (
 	PermissionSkillRead    = "workspace.skill.read_published"
 	PermissionSkillCreate  = "workspace.skill.create"
+	PermissionSkillImport  = "workspace.skill.import"
 	PermissionSkillVersion = "workspace.skill.version"
 	PermissionSkillArchive = "workspace.skill.archive"
 )
@@ -37,6 +39,7 @@ type SkillMutationAuthorizer func(*http.Request) error
 type SkillAccessAuthorizer func(context.Context, SkillIdentity, string) error
 type SkillCreateExecutor interface {
 	Execute(context.Context, string, ...any) error
+	ExecuteResult(context.Context, string, ...any) (int64, error)
 }
 
 type SkillCreateBinding func(context.Context, SkillCreateExecutor) error
@@ -118,6 +121,7 @@ type UpdateSkillCatalogRequest struct {
 	Config           map[string]any
 	ConfigPresent    bool
 	ExpectedRevision int64
+	RequireManifest  bool
 }
 
 type SkillCatalogService interface {

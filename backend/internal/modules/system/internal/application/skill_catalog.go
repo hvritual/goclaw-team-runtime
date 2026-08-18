@@ -68,6 +68,7 @@ func (s *SkillCatalog) CreateVersion(ctx context.Context, identity contract.Skil
 		trimmed := strings.TrimSpace(*request.Description)
 		request.Description = &trimmed
 	}
+	request.RequireManifest = s.authorize(ctx, identity, contract.PermissionSkillImport) == nil
 	return s.repository.CreateVersion(ctx, identity, skillID, request, s.newID(), s.now().UTC())
 }
 

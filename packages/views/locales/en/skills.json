@@ -214,6 +214,10 @@
         "title": "Create manually",
         "desc": "Write a new SKILL.md from scratch."
       },
+      "archive": {
+        "title": "Import archive",
+        "desc": "Validate a local .zip or .skill bundle before importing it."
+      },
       "url": {
         "title": "Import from URL",
         "desc": "Fetch a published skill by URL. Files are pulled server-side."
@@ -226,6 +230,8 @@
     "method_card": {
       "manual_title": "Create manually",
       "manual_desc": "Start from a blank SKILL.md and write your own instructions.",
+      "archive_title": "Import archive",
+      "archive_desc": "Preview and import a local .zip or .skill bundle.",
       "url_title": "Import from URL",
       "url_desc": "Pull a published skill from ClawHub or Skills.sh.",
       "runtime_title": "Copy from runtime",
@@ -243,6 +249,26 @@
       "submit": "Create skill",
       "submitting": "Creating…",
       "toast_created": "Skill created"
+    },
+    "import_common": {
+      "preview": "Preview",
+      "previewing": "Validating…",
+      "cancel_operation": "Cancel operation",
+      "files": "{{count}} files",
+      "bytes": "{{count}} bytes",
+      "conflict_label": "A skill with this name already exists",
+      "new_version": "Create a new version and keep the current draft.",
+      "replace": "Archive the latest draft and replace it with a new version.",
+      "replace_confirm": "I understand that the latest draft will be archived."
+    },
+    "archive": {
+      "file_label": "Skill archive",
+      "file_hint": "ZIP or .skill, up to 10 MiB compressed. The archive is validated before import.",
+      "import": "Import",
+      "importing": "Importing…",
+      "fallback_error": "Archive import failed",
+      "cancel": "Cancel",
+      "toast_imported": "Skill imported"
     },
     "url": {
       "url_label": "Skill URL",
@@ -321,6 +347,8 @@
   "file_viewer": {
     "edit_tooltip": "Edit",
     "preview_tooltip": "Preview",
+    "download_tooltip": "Download file",
+    "download_only": "This file is download-only.",
     "no_content": "*No content yet*",
     "markdown_placeholder": "Write markdown content...",
     "raw_placeholder": "File content..."

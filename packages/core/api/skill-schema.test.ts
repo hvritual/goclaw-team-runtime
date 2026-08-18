@@ -51,11 +51,9 @@ describe("Skill API boundary", () => {
   });
 
   it("reads an exact historical version through the version query", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(SKILL), {
-        status: 200,
-      })
-    );
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(SKILL), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:8000");
 
@@ -68,6 +66,57 @@ describe("Skill API boundary", () => {
       "http://localhost:8000/api/skills/skill-1?version_id=version-1",
       expect.any(Object)
     );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/api/skills/skill-1/files?version_id=version-1",
+      expect.any(Object)
+    );
+  });
+
+  it("strictly reads versioned file manifests and content", async () => {
+    const manifest = {
+      id: "manifest-1", skill_id: "skill-1", version_id: "version-1",
+      path: "SKILL.md", space_object_id: "object-1", media_type: "text/markdown",
+      size_bytes: 6, checksum: "a".repeat(64), created_at: "2026-08-18T00:00:00Z",
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([manifest]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...manifest, content: "# Demo" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("# Demo", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+    await expect(client.listSkillFiles("skill-1", "version-1")).resolves.toEqual([manifest]);
+    await expect(client.getSkillFile("skill-1", "SKILL.md", "version-1")).resolves.toMatchObject({ content: "# Demo" });
+    await expect(client.downloadSkillFile("skill-1", "SKILL.md", "version-1")).resolves.toBeInstanceOf(Blob);
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("http://localhost:8000/api/skills/skill-1/files/SKILL.md?version_id=version-1&download=true");
+  });
+
+  it("previews and commits an archive as multipart data without forcing JSON content type", async () => {
+    const preview = {
+      preview_token: "preview-token", name: "Archive skill", description: "Imported",
+      warnings: [],
+      checksum: "a".repeat(64), total_bytes: 6,
+      files: [{ path: "SKILL.md", media_type: "text/markdown", checksum: "b".repeat(64), size_bytes: 6 }],
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(preview), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(SKILL), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(SKILL), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+    const file = new File(["archive"], "skill.zip", { type: "application/zip" });
+
+    await expect(client.previewSkillImportArchive(file)).resolves.toEqual(preview);
+    await expect(client.commitSkillImportArchive(file, preview.preview_token, "new_version")).resolves.toMatchObject({ id: "skill-1" });
+
+    const previewInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const commitInit = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(previewInit.body).toBeInstanceOf(FormData);
+    expect(commitInit.body).toBeInstanceOf(FormData);
+    expect((previewInit.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    expect((commitInit.headers as Record<string, string>)["Idempotency-Key"]).toBeTruthy();
+    expect((commitInit.body as FormData).get("preview_token")).toBe("preview-token");
+    expect((commitInit.body as FormData).get("conflict_mode")).toBe("new_version");
   });
 
   it("validates provenance and audit history strictly", async () => {

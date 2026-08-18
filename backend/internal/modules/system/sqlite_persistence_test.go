@@ -64,3 +64,28 @@ func TestSkillCatalogDownMigrationOnlyRunsWhenCatalogIsEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestSkillFilesDownMigrationRefusesRetainedData(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := MigrateSqlite(t.Context(), db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO system_skill_import_previews(token_hash,workspace_id,actor_id,validator_version,source_checksum,expires_at,created_at) VALUES('token','workspace-1','actor-1','v1','checksum','2026-08-19T00:00:00Z','2026-08-18T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	down, err := fs.ReadFile(sqliteMigrationFiles, "internal/infrastructure/sqlite/migrations/000002_skill_files.down.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(string(down)); err == nil {
+		t.Fatal("down migration removed retained Skill file/import data")
+	}
+	var present int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='system_skill_import_previews'`).Scan(&present); err != nil || present != 1 {
+		t.Fatalf("retained Skill import table present = %d, %v", present, err)
+	}
+}

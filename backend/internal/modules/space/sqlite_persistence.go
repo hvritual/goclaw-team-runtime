@@ -106,11 +106,17 @@ func NewWithSQLiteAttachments(config SQLiteAttachmentConfig) (*Module, error) {
 		attachmentService = publishingAttachmentService{AttachmentService: service, events: config.Events}
 	}
 	module := New()
+	skillObjects, err := NewSQLiteSkillObjects(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("configure Space Skill objects: %w", err)
+	}
 	if config.HTTPEnabled {
 		module.extensions = append(module.extensions, newAttachmentExtension(attachmentService, config.HTTPIdentity, config.HTTPUserIdentity, config.HTTPMutationAuthorizer, config.WorkspaceMemberships))
 	}
 	module.attachments = attachmentService
+	module.skillObjects = skillObjects
 	return module, nil
 }
 
-func (m *Module) Attachments() contract.AttachmentService { return m.attachments }
+func (m *Module) Attachments() contract.AttachmentService   { return m.attachments }
+func (m *Module) SkillObjects() contract.SkillObjectService { return m.skillObjects }

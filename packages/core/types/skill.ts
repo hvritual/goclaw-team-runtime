@@ -22,10 +22,29 @@ export interface Skill extends SkillSummary {
 export interface SkillFile {
   id: string;
   skill_id: string;
+  version_id: string;
   path: string;
   content: string;
+  media_type: string;
+  size_bytes: number;
+  checksum: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+}
+
+export interface SkillImportPreview {
+  preview_token: string;
+  name: string;
+  description: string;
+  warnings: string[];
+  checksum: string;
+  total_bytes: number;
+  files: Array<{
+    path: string;
+    media_type: string;
+    checksum: string;
+    size_bytes: number;
+  }>;
 }
 
 export interface SkillHistory {

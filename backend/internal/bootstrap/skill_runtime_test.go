@@ -116,20 +116,24 @@ func TestSQLiteRuntimeSkillLifecycleCreatesImmutableVersionsAndRetainsBinding(t 
 	if created.Code != http.StatusCreated || json.Unmarshal(created.Body.Bytes(), &first) != nil || first.ID == "" || first.VersionID == "" {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
+	manifest := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+first.ID+"/files", `{"path":"SKILL.md","content":"# Release helper","expected_revision":1}`, headers)
+	if manifest.Code != http.StatusCreated {
+		t.Fatalf("add required manifest = %d %s", manifest.Code, manifest.Body.String())
+	}
 
-	versioned := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+first.ID, `{"description":"v2","expected_revision":1}`, headers)
+	versioned := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+first.ID, `{"description":"v2","expected_revision":2}`, headers)
 	var second struct {
 		VersionID string `json:"version_id"`
 	}
-	if versioned.Code != http.StatusOK || json.Unmarshal(versioned.Body.Bytes(), &second) != nil || second.VersionID == "" || second.VersionID == first.VersionID || !containsJSON(versioned.Body.Bytes(), `"version":"2"`, `"description":"v2"`, `"status":"draft"`, `"revision":2`) {
+	if versioned.Code != http.StatusOK || json.Unmarshal(versioned.Body.Bytes(), &second) != nil || second.VersionID == "" || second.VersionID == first.VersionID || !containsJSON(versioned.Body.Bytes(), `"version":"3"`, `"description":"v2"`, `"status":"draft"`, `"revision":3`) {
 		t.Fatalf("create version = %d %s", versioned.Code, versioned.Body.String())
 	}
-	stale := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+first.ID, `{"description":"stale","expected_revision":1}`, headers)
-	if stale.Code != http.StatusConflict || !containsJSON(stale.Body.Bytes(), `"code":"revision_conflict"`, `"current_revision":2`) {
+	stale := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+first.ID, `{"description":"stale","expected_revision":2}`, headers)
+	if stale.Code != http.StatusConflict || !containsJSON(stale.Body.Bytes(), `"code":"revision_conflict"`, `"current_revision":3`) {
 		t.Fatalf("stale version = %d %s", stale.Code, stale.Body.String())
 	}
-	published := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+first.ID+"/versions/"+second.VersionID+"/publish", `{"expected_revision":2}`, headers)
-	if published.Code != http.StatusOK || !containsJSON(published.Body.Bytes(), `"status":"published"`, `"revision":3`) {
+	published := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+first.ID+"/versions/"+second.VersionID+"/publish", `{"expected_revision":3}`, headers)
+	if published.Code != http.StatusOK || !containsJSON(published.Body.Bytes(), `"status":"published"`, `"revision":4`) {
 		t.Fatalf("publish = %d %s", published.Code, published.Body.String())
 	}
 
@@ -142,7 +146,7 @@ func TestSQLiteRuntimeSkillLifecycleCreatesImmutableVersionsAndRetainsBinding(t 
 		t.Fatalf("retained binding = %q, %v; want %q", boundVersion, err, first.VersionID)
 	}
 
-	archived := runtimeRequest(runtime, http.MethodDelete, "/api/skills/"+first.ID, `{"expected_revision":3}`, headers)
+	archived := runtimeRequest(runtime, http.MethodDelete, "/api/skills/"+first.ID, `{"expected_revision":4}`, headers)
 	if archived.Code != http.StatusNoContent {
 		t.Fatalf("archive = %d %s", archived.Code, archived.Body.String())
 	}
@@ -151,11 +155,11 @@ func TestSQLiteRuntimeSkillLifecycleCreatesImmutableVersionsAndRetainsBinding(t 
 		t.Fatalf("archived list = %d %s", listed.Code, listed.Body.String())
 	}
 	retained := runtimeRequest(runtime, http.MethodGet, "/api/skills/"+first.ID+"?version_id="+second.VersionID, "", headers)
-	if retained.Code != http.StatusOK || !containsJSON(retained.Body.Bytes(), `"status":"published"`, `"revision":4`) {
+	if retained.Code != http.StatusOK || !containsJSON(retained.Body.Bytes(), `"status":"published"`, `"revision":5`) {
 		t.Fatalf("retained archived read = %d %s", retained.Code, retained.Body.String())
 	}
-	restored := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+first.ID+"/restore", `{"expected_revision":4}`, headers)
-	if restored.Code != http.StatusOK || !containsJSON(restored.Body.Bytes(), `"revision":5`) {
+	restored := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+first.ID+"/restore", `{"expected_revision":5}`, headers)
+	if restored.Code != http.StatusOK || !containsJSON(restored.Body.Bytes(), `"revision":6`) {
 		t.Fatalf("restore = %d %s", restored.Code, restored.Body.String())
 	}
 }
@@ -294,6 +298,10 @@ func TestSQLiteRuntimeSkillConcurrentVersionRequestsReturnOneRevisionConflict(t 
 	if created.Code != http.StatusCreated || json.Unmarshal(created.Body.Bytes(), &skill) != nil || skill.ID == "" {
 		t.Fatalf("create = %d %s", created.Code, created.Body.String())
 	}
+	manifest := runtimeRequest(runtime, http.MethodPost, "/api/skills/"+skill.ID+"/files", `{"path":"SKILL.md","content":"# Concurrent helper","expected_revision":1}`, headers)
+	if manifest.Code != http.StatusCreated {
+		t.Fatalf("add required manifest = %d %s", manifest.Code, manifest.Body.String())
+	}
 
 	start := make(chan struct{})
 	statuses := make(chan int, 2)
@@ -304,7 +312,7 @@ func TestSQLiteRuntimeSkillConcurrentVersionRequestsReturnOneRevisionConflict(t 
 		go func() {
 			defer wait.Done()
 			<-start
-			response := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+skill.ID, `{"description":"`+description+`","expected_revision":1}`, headers)
+			response := runtimeRequest(runtime, http.MethodPut, "/api/skills/"+skill.ID, `{"description":"`+description+`","expected_revision":2}`, headers)
 			statuses <- response.Code
 		}()
 	}
@@ -328,8 +336,8 @@ func TestSQLiteRuntimeSkillConcurrentVersionRequestsReturnOneRevisionConflict(t 
 	if err := runtime.Database().QueryRow(`SELECT COUNT(*) FROM system_skill_audit WHERE skill_id=?`, skill.ID).Scan(&auditCount); err != nil {
 		t.Fatal(err)
 	}
-	if revision != 2 || versionCount != 2 || auditCount != 2 {
-		t.Fatalf("revision/version/audit = %d/%d/%d, want 2/2/2", revision, versionCount, auditCount)
+	if revision != 3 || versionCount != 3 || auditCount != 3 {
+		t.Fatalf("revision/version/audit = %d/%d/%d, want 3/3/3", revision, versionCount, auditCount)
 	}
 }
 

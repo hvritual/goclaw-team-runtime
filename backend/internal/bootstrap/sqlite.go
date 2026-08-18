@@ -120,6 +120,9 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	if err := reconcileSkillObjects(ctx, db, spaceModule.SkillObjects()); err != nil {
+		return nil, nil, nil, nil, err
+	}
 	workspaceDependencies.Assets = spaceAttachmentReader{service: spaceModule.Attachments()}
 	workspaceDependencies.IssueAttachments = spaceIssueAttachmentProjection{service: spaceModule.Attachments()}
 	workspaceDependencies.AttachmentCleanup = spaceModule.Attachments()
@@ -181,12 +184,39 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 			}
 			return result, nil
 		},
+		Objects: spaceModule.SkillObjects(),
 	})
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("configure System Skill catalog: %w", err)
 	}
 	failed = false
 	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemModule), realtimeHub, governance, nil
+}
+
+func reconcileSkillObjects(ctx context.Context, db *sql.DB, objects spacecontract.SkillObjectService) error {
+	if objects == nil {
+		return errors.New("Space Skill object service is required")
+	}
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT space_object_id FROM system_skill_file_manifests ORDER BY space_object_id`)
+	if err != nil {
+		return fmt.Errorf("list referenced Skill objects: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return fmt.Errorf("scan referenced Skill object: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate referenced Skill objects: %w", err)
+	}
+	if err := objects.Reconcile(ctx, ids); err != nil {
+		return fmt.Errorf("reconcile Space Skill objects: %w", err)
+	}
+	return nil
 }
 
 type realtimeOutboxSink struct {

@@ -35,6 +35,8 @@ import type {
   CreateSkillRequest,
   UpdateSkillRequest,
   SkillHistory,
+  SkillFile,
+  SkillImportPreview,
   PersonalAccessToken,
   CreatePersonalAccessTokenRequest,
   CreatePersonalAccessTokenResponse,
@@ -212,6 +214,9 @@ import {
   SkillListSchema,
   EMPTY_SKILLS,
   SkillHistorySchema,
+  SkillFileManifestListSchema,
+  SkillFileContentSchema,
+  SkillImportPreviewSchema,
 } from "./schemas";
 
 function parseSkillResponse(raw: unknown): Skill {
@@ -1257,7 +1262,20 @@ export class ApiClient {
   async getSkill(id: string, versionId?: string): Promise<Skill> {
     const versionQuery = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
     const raw = await this.fetch<unknown>(`/api/skills/${id}${versionQuery}`);
-    return parseSkillResponse(raw);
+    const skill = parseSkillResponse(raw);
+    const manifests = await this.listSkillFiles(id, versionId ?? skill.version_id);
+    const files: SkillFile[] = [];
+    for (let index = 0; index < manifests.length; index += 8) {
+      const batch = manifests.slice(index, index + 8);
+      const resolved = await Promise.all(batch.map(async (manifest) => {
+        const editable = manifest.media_type.startsWith("text/") || /(?:json|javascript|xml|yaml|toml)/.test(manifest.media_type);
+        if (!editable) return { ...manifest, content: "" };
+        return this.getSkillFile(id, manifest.path, versionId ?? skill.version_id);
+      }));
+      files.push(...resolved);
+    }
+    const main = files.find((file) => file.path === "SKILL.md");
+    return { ...skill, content: main?.content ?? "", files: files.filter((file) => file.path !== "SKILL.md") };
   }
 
   async getSkillHistory(id: string): Promise<SkillHistory> {
@@ -1319,10 +1337,121 @@ export class ApiClient {
   }
 
   async importSkill(data: { url: string }): Promise<Skill> {
-    return this.fetch("/api/skills/import", {
+    const preview = await this.previewSkillImportURL(data.url);
+    return this.commitSkillImportURL(data.url, preview.preview_token, "new_version");
+  }
+
+  async commitSkillImportURL(
+    url: string,
+    previewToken: string,
+    conflictMode: "new_version" | "replace",
+    expectedRevision = 0,
+    signal?: AbortSignal,
+  ): Promise<Skill> {
+    const raw = await this.fetch<unknown>("/api/skills/import", {
       method: "POST",
-      body: JSON.stringify(data),
+      headers: { "Idempotency-Key": createSafeId() },
+      body: JSON.stringify({ url, preview_token: previewToken, conflict_mode: conflictMode, expected_revision: expectedRevision }),
+      signal,
     });
+    const imported = parseSkillResponse(raw);
+    return this.getSkill(imported.id, imported.version_id);
+  }
+
+  async previewSkillImportURL(url: string, signal?: AbortSignal): Promise<SkillImportPreview> {
+    const raw = await this.fetch<unknown>("/api/skills/import/preview", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+      signal,
+    });
+    const parsed = SkillImportPreviewSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill import preview response");
+    return parsed.data;
+  }
+
+  async previewSkillImportArchive(file: File, signal?: AbortSignal): Promise<SkillImportPreview> {
+    const form = new FormData();
+    form.append("file", file);
+    const response = await this.fetchRaw("/api/skills/import/preview", { method: "POST", body: form, signal });
+    const parsed = SkillImportPreviewSchema.safeParse(await response.json());
+    if (!parsed.success) throw new Error("Invalid Skill import preview response");
+    return parsed.data;
+  }
+
+  async commitSkillImportArchive(
+    file: File,
+    previewToken: string,
+    conflictMode: "new_version" | "replace",
+    expectedRevision = 0,
+    signal?: AbortSignal,
+  ): Promise<Skill> {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("preview_token", previewToken);
+    form.append("conflict_mode", conflictMode);
+    if (expectedRevision > 0) form.append("expected_revision", String(expectedRevision));
+    const response = await this.fetchRaw("/api/skills/import", {
+      method: "POST",
+      headers: { "Idempotency-Key": createSafeId() },
+      body: form,
+      signal,
+    });
+    const imported = parseSkillResponse(await response.json());
+    return this.getSkill(imported.id, imported.version_id);
+  }
+
+  async listSkillFiles(id: string, versionId?: string): Promise<Array<Omit<SkillFile, "content"> & { space_object_id: string }>> {
+    const query = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/files${query}`);
+    const parsed = SkillFileManifestListSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill file manifest response");
+    return parsed.data;
+  }
+
+  async getSkillFile(id: string, path: string, versionId?: string): Promise<SkillFile & { space_object_id: string }> {
+    const query = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}${query}`);
+    const parsed = SkillFileContentSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill file response");
+    return parsed.data;
+  }
+
+  async downloadSkillFile(id: string, path: string, versionId?: string): Promise<Blob> {
+    const query = new URLSearchParams();
+    if (versionId) query.set("version_id", versionId);
+    query.set("download", "true");
+    const response = await this.fetchRaw(`/api/skills/${id}/files/${encodeURIComponent(path)}?${query.toString()}`);
+    return response.blob();
+  }
+
+  async addSkillFile(id: string, path: string, content: string, expectedRevision: number): Promise<SkillSummary> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/files`, {
+      method: "POST",
+      body: JSON.stringify({ path, content, expected_revision: expectedRevision }),
+    });
+    const parsed = SkillSummarySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill response");
+    return parsed.data;
+  }
+
+  async replaceSkillFile(id: string, path: string, content: string, expectedRevision: number): Promise<SkillSummary> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}`, {
+      method: "PUT",
+      body: JSON.stringify({ content, expected_revision: expectedRevision }),
+    });
+    const parsed = SkillSummarySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill response");
+    return parsed.data;
+  }
+
+  async deleteSkillFile(id: string, path: string, expectedRevision: number): Promise<SkillSummary> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+    const parsed = SkillSummarySchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Skill response");
+    return parsed.data;
   }
 
 

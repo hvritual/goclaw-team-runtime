@@ -148,7 +148,6 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"skill_import",
 		"knowledge_query",
 		"knowledge_review",
 		"project_resources",
@@ -172,6 +171,9 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	}
 	if !body.FeatureFlags["tasks"] {
 		t.Error("tasks flag = false after the installed S02A runtime")
+	}
+	if !body.FeatureFlags["skill_import"] {
+		t.Error("skill_import flag = false after the installed S05B runtime")
 	}
 	if !body.FeatureFlags["issue_search"] {
 		t.Error("issue_search flag = false after the installed S03A runtime")
@@ -230,8 +232,8 @@ func TestRuntimeReportsOnlyCapabilitiesProvenByInjectedProvider(t *testing.T) {
 	if !body.FeatureFlags["tasks"] {
 		t.Error("tasks flag = false after runtime provider installation")
 	}
-	if body.FeatureFlags["skill_import"] {
-		t.Error("skill_import flag = true without runtime provider installation")
+	if !body.FeatureFlags["skill_import"] {
+		t.Error("skill_import flag = false after installed S05B runtime")
 	}
 }
 

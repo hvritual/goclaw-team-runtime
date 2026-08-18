@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Pencil, Eye } from "lucide-react";
+import { Download, Pencil, Eye } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Textarea } from "@multica/ui/components/ui/textarea";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
@@ -48,15 +48,22 @@ export function FileViewer({
   content,
   editable,
   onChange,
+  mediaType = "text/plain",
+  sizeBytes = 0,
+  onDownload,
 }: {
   path: string;
   content: string;
   editable: boolean;
   onChange: (content: string) => void;
+  mediaType?: string;
+  sizeBytes?: number;
+  onDownload?: () => void;
 }) {
   const { t } = useT("skills");
   const [editing, setEditing] = useState(false);
   const isMd = isMarkdown(path);
+  const isText = mediaType.startsWith("text/") || /(?:json|javascript|xml|yaml|toml)/.test(mediaType);
 
   const { frontmatter, body } = useMemo(
     () => (isMd ? parseFrontmatter(content) : { frontmatter: null, body: content }),
@@ -71,6 +78,11 @@ export function FileViewer({
           {path}
         </span>
         <div className="flex items-center gap-1">
+          {onDownload && (
+            <Button variant="ghost" size="icon-sm" onClick={onDownload} className="text-muted-foreground" aria-label={t(($) => $.file_viewer.download_tooltip)}>
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {isMd && editable && (
             <Tooltip>
               <TooltipTrigger
@@ -101,7 +113,13 @@ export function FileViewer({
 
       {/* File content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {isMd && (!editable || !editing) ? (
+        {!isText ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted-foreground">
+            <Download className="h-6 w-6 opacity-50" />
+            <p>{t(($) => $.file_viewer.download_only)}</p>
+            <p className="text-xs">{mediaType} · {sizeBytes} bytes</p>
+          </div>
+        ) : isMd && (!editable || !editing) ? (
           <div className="p-4 sm:p-6">
             {frontmatter && <FrontmatterCard data={frontmatter} />}
             <RichContent

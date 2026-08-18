@@ -213,6 +213,10 @@
         "title": "手动创建",
         "desc": "从空白 SKILL.md 开始写。"
       },
+      "archive": {
+        "title": "导入归档包",
+        "desc": "先校验本地 .zip 或 .skill 包，再执行导入。"
+      },
       "url": {
         "title": "从 URL 导入",
         "desc": "通过 URL 拉取已发布的 skill，文件由服务端拉取。"
@@ -225,6 +229,8 @@
     "method_card": {
       "manual_title": "手动创建",
       "manual_desc": "从空白 SKILL.md 开始，自己写指令。",
+      "archive_title": "导入归档包",
+      "archive_desc": "预览并导入本地 .zip 或 .skill 包。",
       "url_title": "从 URL 导入",
       "url_desc": "从 ClawHub 或 Skills.sh 拉取已发布的 skill。",
       "runtime_title": "从运行时复制",
@@ -242,6 +248,26 @@
       "submit": "创建 skill",
       "submitting": "创建中...",
       "toast_created": "已创建 skill"
+    },
+    "import_common": {
+      "preview": "预览",
+      "previewing": "正在校验…",
+      "cancel_operation": "取消操作",
+      "files": "{{count}} 个文件",
+      "bytes": "{{count}} 字节",
+      "conflict_label": "已存在同名 skill",
+      "new_version": "创建新版本并保留当前草稿。",
+      "replace": "归档最新草稿并创建新版本以替换它。",
+      "replace_confirm": "我确认最新草稿将被归档。"
+    },
+    "archive": {
+      "file_label": "Skill 归档包",
+      "file_hint": "支持 ZIP 或 .skill，压缩后最大 10 MiB；导入前会先校验。",
+      "import": "导入",
+      "importing": "正在导入…",
+      "fallback_error": "归档包导入失败",
+      "cancel": "取消",
+      "toast_imported": "已导入 skill"
     },
     "url": {
       "url_label": "Skill URL",
@@ -319,6 +345,8 @@
   "file_viewer": {
     "edit_tooltip": "编辑",
     "preview_tooltip": "预览",
+    "download_tooltip": "下载文件",
+    "download_only": "此文件仅支持下载。",
     "no_content": "*暂无内容*",
     "markdown_placeholder": "输入 Markdown 内容...",
     "raw_placeholder": "文件内容..."

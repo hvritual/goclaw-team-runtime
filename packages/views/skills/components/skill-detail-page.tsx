@@ -65,7 +65,7 @@ import { ResourceLabelPicker } from "../../labels/resource-label-picker";
 
 const SKILL_MD = "SKILL.md";
 
-type DraftFile = { id?: string; path: string; content: string };
+type DraftFile = { id?: string; path: string; content: string; mediaType?: string; sizeBytes?: number };
 
 // ---------------------------------------------------------------------------
 // File path validation + inline add
@@ -271,6 +271,8 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         id: f.id,
         path: f.path,
         content: f.content,
+        mediaType: f.media_type,
+        sizeBytes: f.size_bytes,
       }))
     );
     if (!sameSkill) setSelectedPath(SKILL_MD);
@@ -294,6 +296,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   }, [content, files]);
   const filePaths = useMemo(() => Array.from(fileMap.keys()), [fileMap]);
   const selectedContent = fileMap.get(selectedPath) ?? "";
+  const selectedFile = selectedPath === SKILL_MD ? undefined : files.find((file) => file.path === selectedPath);
+  const selectedMediaType = selectedPath === SKILL_MD ? "text/markdown" : selectedFile?.mediaType ?? "text/plain";
+  const selectedSizeBytes = selectedPath === SKILL_MD ? new TextEncoder().encode(content).byteLength : selectedFile?.sizeBytes ?? 0;
+  const selectedIsText = selectedMediaType.startsWith("text/") || /(?:json|javascript|xml|yaml|toml)/.test(selectedMediaType);
 
   useEffect(() => {
     if (selectedPath !== SKILL_MD && !fileMap.has(selectedPath)) {
@@ -326,6 +332,8 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         id: f.id,
         path: f.path,
         content: f.content,
+        mediaType: f.media_type,
+        sizeBytes: f.size_bytes,
       }))
     );
   };
@@ -336,12 +344,47 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     const trimmedDesc = description.trim();
     setSaving(true);
     try {
-      const payload: UpdateSkillRequest = {
-        name: trimmedName,
-        description: trimmedDesc,
-        expected_revision: skill.revision,
-      };
-      const updated = await api.updateSkill(skill.id, payload);
+      let current = skill;
+      const manifests = fileManagementInstalled
+        ? await api.listSkillFiles(skill.id, skill.version_id)
+        : [];
+      let hasMain = manifests.some((file) => file.path === SKILL_MD);
+      if (fileManagementInstalled && !hasMain) {
+        const next = await api.addSkillFile(skill.id, SKILL_MD, content, current.revision);
+        current = { ...current, ...next };
+        hasMain = true;
+      }
+      if (trimmedName !== skill.name || trimmedDesc !== skill.description) {
+        const payload: UpdateSkillRequest = {
+          name: trimmedName,
+          description: trimmedDesc,
+          expected_revision: current.revision,
+        };
+        current = await api.updateSkill(skill.id, payload);
+      }
+      if (fileManagementInstalled) {
+        if (hasMain && content !== skill.content) {
+          const next = await api.replaceSkillFile(skill.id, SKILL_MD, content, current.revision);
+          current = { ...current, ...next };
+        }
+        const previous = new Map((skill.files ?? []).map((file) => [file.path, file.content]));
+        const draft = new Map(files.map((file) => [file.path, file.content]));
+        for (const path of previous.keys()) {
+          if (!draft.has(path)) {
+            const next = await api.deleteSkillFile(skill.id, path, current.revision);
+            current = { ...current, ...next };
+          }
+        }
+        for (const [path, fileContent] of draft) {
+          const oldContent = previous.get(path);
+          if (oldContent === fileContent) continue;
+          const next = oldContent === undefined
+            ? await api.addSkillFile(skill.id, path, fileContent, current.revision)
+            : await api.replaceSkillFile(skill.id, path, fileContent, current.revision);
+          current = { ...current, ...next };
+        }
+      }
+      const updated = await api.getSkill(skill.id, current.version_id);
       qc.setQueryData(skillDetailOptions(wsId, skill.id).queryKey, updated);
       seedFromSkill(updated);
       seededKeyRef.current = `${wsId}:${updated.id}@${updated.updated_at}`;
@@ -418,7 +461,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   };
 
   const handleAddFile = (path: string) => {
-    setFiles((prev) => [...prev, { path, content: "" }]);
+    setFiles((prev) => [...prev, { path, content: "", mediaType: "text/plain", sizeBytes: 0 }]);
     setSelectedPath(path);
     setAddingFile(false);
   };
@@ -443,6 +486,21 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   };
 
   const supportingQueryDown = !!membersError;
+
+  const handleDownloadFile = async () => {
+    if (!skill) return;
+    try {
+      const blob = await api.downloadSkillFile(skill.id, selectedPath, skill.version_id);
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = selectedPath.split("/").pop() || "skill-file";
+      anchor.click();
+      URL.revokeObjectURL(href);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t(($) => $.detail.toast_save_failed));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -764,8 +822,11 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               key={selectedPath}
               path={selectedPath}
               content={selectedContent}
-              editable={canEditFiles}
+              editable={canEditFiles && selectedIsText}
               onChange={handleFileContentChange}
+              mediaType={selectedMediaType}
+              sizeBytes={selectedSizeBytes}
+              onDownload={fileManagementInstalled ? handleDownloadFile : undefined}
             />
           </div>
 

@@ -210,6 +210,10 @@
         "title": "手動で作成",
         "desc": "新しい SKILL.md を一から作成します。"
       },
+      "archive": {
+        "title": "アーカイブをインポート",
+        "desc": "ローカルの .zip または .skill を検証してからインポートします。"
+      },
       "url": {
         "title": "URL からインポート",
         "desc": "公開済みのスキルを URL で取得します。ファイルはサーバー側で取得されます。"
@@ -222,6 +226,8 @@
     "method_card": {
       "manual_title": "手動で作成",
       "manual_desc": "空の SKILL.md から始めて、独自の指示を記述します。",
+      "archive_title": "アーカイブをインポート",
+      "archive_desc": "ローカルの .zip または .skill をプレビューしてインポートします。",
       "url_title": "URL からインポート",
       "url_desc": "ClawHub または Skills.sh の公開スキルを取得します。",
       "runtime_title": "ランタイムからコピー",
@@ -239,6 +245,26 @@
       "submit": "スキルを作成",
       "submitting": "作成中…",
       "toast_created": "スキルを作成しました"
+    },
+    "import_common": {
+      "preview": "プレビュー",
+      "previewing": "検証中…",
+      "cancel_operation": "操作をキャンセル",
+      "files": "{{count}} ファイル",
+      "bytes": "{{count}} バイト",
+      "conflict_label": "同じ名前のスキルが既に存在します",
+      "new_version": "現在のドラフトを保持して新しいバージョンを作成します。",
+      "replace": "最新のドラフトをアーカイブして新しいバージョンに置き換えます。",
+      "replace_confirm": "最新のドラフトがアーカイブされることを確認しました。"
+    },
+    "archive": {
+      "file_label": "スキルアーカイブ",
+      "file_hint": "ZIP または .skill、圧縮後 10 MiB まで。インポート前に検証されます。",
+      "import": "インポート",
+      "importing": "インポート中…",
+      "fallback_error": "アーカイブのインポートに失敗しました",
+      "cancel": "キャンセル",
+      "toast_imported": "スキルをインポートしました"
     },
     "url": {
       "url_label": "スキル URL",
@@ -316,6 +342,8 @@
   "file_viewer": {
     "edit_tooltip": "編集",
     "preview_tooltip": "プレビュー",
+    "download_tooltip": "ファイルをダウンロード",
+    "download_only": "このファイルはダウンロード専用です。",
     "no_content": "*まだ内容がありません*",
     "markdown_placeholder": "Markdown の内容を記述...",
     "raw_placeholder": "ファイルの内容..."

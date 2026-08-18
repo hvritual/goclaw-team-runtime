@@ -14,11 +14,19 @@ import (
 
 type SkillCatalogRepository struct{ db *sql.DB }
 
-type skillCreateExecutor struct{ tx *sql.Tx }
+type skillCreateExecutor struct{ executor skillExecutor }
 
 func (e skillCreateExecutor) Execute(ctx context.Context, statement string, arguments ...any) error {
-	_, err := e.tx.ExecContext(ctx, statement, arguments...)
+	_, err := e.executor.ExecContext(ctx, statement, arguments...)
 	return err
+}
+
+func (e skillCreateExecutor) ExecuteResult(ctx context.Context, statement string, arguments ...any) (int64, error) {
+	result, err := e.executor.ExecContext(ctx, statement, arguments...)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 func NewSkillCatalogRepository(db *sql.DB) *SkillCatalogRepository {
@@ -51,7 +59,7 @@ func (r *SkillCatalogRepository) Create(ctx context.Context, request contract.Cr
 	if bind == nil {
 		return contract.SkillCatalogEntry{}, errors.New("bind initial Workspace Skill: binding is required")
 	}
-	if err := bind(ctx, skillCreateExecutor{tx: tx}); err != nil {
+	if err := bind(ctx, skillCreateExecutor{executor: tx}); err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("bind initial Workspace Skill: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -110,6 +118,15 @@ func (r *SkillCatalogRepository) CreateVersion(ctx context.Context, identity con
 	if current.Archived {
 		return contract.SkillCatalogEntry{}, contract.ErrSkillTransition
 	}
+	if request.RequireManifest {
+		var hasManifest bool
+		if err := connection.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM system_skill_file_manifests WHERE skill_id=? AND version_id=? AND path='SKILL.md')`, skillID, current.VersionID).Scan(&hasManifest); err != nil {
+			return contract.SkillCatalogEntry{}, fmt.Errorf("check required Skill manifest: %w", err)
+		}
+		if !hasManifest {
+			return contract.SkillCatalogEntry{}, contract.ErrInvalidSkill
+		}
+	}
 	if request.Name != nil {
 		current.Name = *request.Name
 	}
@@ -127,6 +144,10 @@ func (r *SkillCatalogRepository) CreateVersion(ctx context.Context, identity con
 	timestamp := now.Format(time.RFC3339Nano)
 	if _, err := connection.ExecContext(ctx, `INSERT INTO system_skill_versions(id,skill_id,version_number,name,description,configuration,status,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)`, versionID, skillID, nextVersion, current.Name, current.Description, string(config), "draft", identity.ActorID, timestamp); err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("insert Skill version: %w", err)
+	}
+	if _, err := connection.ExecContext(ctx, `INSERT INTO system_skill_file_manifests(id,skill_id,version_id,path,space_object_id,media_type,size_bytes,checksum,created_at)
+		SELECT lower(hex(randomblob(16))),skill_id,?,path,space_object_id,media_type,size_bytes,checksum,? FROM system_skill_file_manifests WHERE skill_id=? AND version_id=?`, versionID, timestamp, skillID, current.VersionID); err != nil {
+		return contract.SkillCatalogEntry{}, fmt.Errorf("copy Skill version manifest: %w", err)
 	}
 	if _, err := connection.ExecContext(ctx, `UPDATE system_skills SET revision=revision+1,updated_at=? WHERE id=? AND revision=?`, timestamp, skillID, request.ExpectedRevision); err != nil {
 		return contract.SkillCatalogEntry{}, fmt.Errorf("advance Skill revision: %w", err)
