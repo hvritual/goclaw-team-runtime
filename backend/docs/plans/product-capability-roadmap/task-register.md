@@ -1667,3 +1667,32 @@ S02A without changing Task product behavior or activating S02B.
 - Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
   generated protobuf and recorded dirty paths remain excluded; `server/**`
   range/worktree diffs are empty. No implementation or PASS is claimed.
+
+### Candidate evidence
+
+- Exact candidate `32f273e47e6b9863b4ef462f28eed3e91da654d0`
+  (tree `fd860e2b89cfc7a74caef39adf31b0f667cfc385`) installs the v25
+  role-aware Hub resolver and per-client Knowledge projection. Authorized
+  reviewers receive the private candidate; ordinary members receive only the
+  public entry after publication or supersession; denied and foreign-Workspace
+  clients receive no frame.
+- Focused Hub tests pass five consecutive executions. Repository tests cover
+  all seven actions, invalid and terminal transitions, proposal cancellation,
+  persistence, audit, and idempotency. Backend `make check` and official
+  `make test-race` pass with MinGW GCC 15.2.0; Core realtime tests pass 28/28;
+  root and Core typechecks pass.
+- The exact candidate production Web build passes with the two pre-existing
+  CSS `::highlight` optimizer warnings. Root parallel tests retain one
+  unrelated Team Control five-second timeout after 1,674/1,675 Views
+  assertions; the exact file passes 10/10 in focused execution, so the root
+  aggregate remains recorded as non-PASS evidence.
+- Fresh SQLite, the Canonical HTTP runtime, production Web on `[::1]:3000`,
+  and installed Chrome exercise a true member proposal, independent owner
+  review, approval/publication, reviewer realtime queue update, and sanitized
+  member publication update without reload. The journey passes 1/1 with
+  retries disabled and no mocked Knowledge route.
+- The candidate contains the exact continuous eight-trailer block required by
+  v25. Protected Input, generated protobuf, recorded dirty paths, and
+  `server/**` remain excluded. Fresh independent SPEC and
+  CODE/SECURITY/QUALITY review remains pending; r030 and Release 2 are not yet
+  closed.

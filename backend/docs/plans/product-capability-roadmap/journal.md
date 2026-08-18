@@ -1419,3 +1419,37 @@ Known limitations, blockers, and next action
   generated protobuf, recorded dirty paths, and `server/**` remain excluded.
 - Only r030 is active. Release 3, push, merge, deployment, and Release 2 closure
   remain inactive; no implementation or verification PASS is claimed.
+
+## 2026-08-18 — J055 — v25/r030 exact S06B candidate
+
+- Exact candidate `32f273e47e6b9863b4ef462f28eed3e91da654d0`
+  (tree `fd860e2b89cfc7a74caef39adf31b0f667cfc385`) composes the current
+  actor's Workspace identity into the realtime Hub and resolves
+  `knowledge_review` permission before projecting each Knowledge frame.
+  Reviewers receive private candidate state; ordinary members receive only a
+  public entry after publication or supersession; denied and foreign-Workspace
+  clients receive no frame.
+- Focused Hub authorization/isolation tests pass five consecutive executions.
+  Repository tests cover all seven actions, invalid/new/target/terminal
+  transitions, actual reject/quarantine/return persistence, cancellation with
+  zero writes, immutable audit, and idempotency. Backend `make check` and
+  official `make test-race` pass with MinGW GCC 15.2.0; Core realtime tests pass
+  28/28; root and Core typechecks pass.
+- The exact candidate production Web build passes with the two pre-existing
+  CSS `::highlight` optimizer warnings. Root parallel tests retain one
+  unrelated Team Control five-second timeout after 1,674/1,675 Views
+  assertions; the exact Team Control file passes 10/10 in focused execution.
+  The aggregate is therefore retained honestly as non-PASS evidence rather
+  than retried into a release claim.
+- Fresh SQLite, the Canonical HTTP runtime, production Web bound to
+  `[::1]:3000`, and installed Chrome exercise a true member proposal and an
+  independent owner review. The owner receives the private queue update and
+  approves/publishes without reload; the member receives only the sanitized
+  published S06A entry without reload. The journey passes 1/1 with retries
+  disabled and no mocked Knowledge route.
+- Immutable v25, the policy bundle, and the exact continuous eight-trailer
+  block remain valid. Candidate/worktree `server/**` diffs are empty, protected
+  Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`, and generated
+  protobuf plus all recorded dirty paths remain excluded. Fresh independent
+  SPEC and CODE/SECURITY/QUALITY review remains pending; r030, PCR-S06B, and
+  Release 2 remain active. No push, merge, or deployment is claimed.
