@@ -1593,7 +1593,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S06B-R29`
 - Task-Revision: `r029`
 - Work-Item: `PCR-S06B`
-- Status: `active`
+- Status: `design-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent release2_baseline`
 - Base commit: `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac`
@@ -1622,3 +1622,48 @@ S02A without changing Task product behavior or activating S02B.
   generated protobuf and every recorded dirty path remain excluded.
   `server/**` range/worktree diffs are empty. No remediation PASS, closure,
   push, merge, or deployment is claimed.
+
+### Design block
+
+- Independent review confirms a raw allowlist repair would broadcast the full
+  candidate/proposer/reason projection to every Workspace WebSocket client,
+  including ordinary members denied access to the private queue.
+- v24 does not authorize the required role-aware composition or per-client
+  public/private projection. Its uncommitted trial was discarded; r029 is
+  design-blocked and has no product candidate.
+
+## PCR-001-S06B-R30
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S06B-R30`
+- Task-Revision: `r030`
+- Work-Item: `PCR-S06B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release2_baseline`
+- Base commit: `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v25`
+- Plan hash: `ca46357cd46bd57a7c31663224b450e840784f26bc7f1495f6fc30e7048a1301`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ca46357cd46bd57a7c31663224b450e840784f26bc7f1495f6fc30e7048a1301`
+
+### Objective and acceptance
+
+- Deliver private candidate projections only to actors currently authorized for
+  Knowledge review; deliver only public entry projection to ordinary members
+  after publish/supersede; deny all other Knowledge frames.
+- Add all-seven-action, invalid-transition, terminal, cancellation, permission,
+  Workspace-isolation, and dual-identity no-reload browser evidence.
+- Keep Release 3, push, merge, deployment, and Release 2 completion inactive
+  until exact final checks and fresh independent review pass.
+
+### Activation evidence
+
+- Exact base `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48` records v24 activation,
+  the v23 candidate, and the failing real member-to-owner realtime acceptance.
+- Independent review returns SPEC BLOCK and CODE/SECURITY/QUALITY BLOCK for the
+  dropped event, unsafe raw projection, non-independent browser path, incomplete
+  action/cancellation coverage, scope, and unparseable/incomplete trailers.
+  v25 freezes the narrow authority required to address every item.
+- Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf and recorded dirty paths remain excluded; `server/**`
+  range/worktree diffs are empty. No implementation or PASS is claimed.

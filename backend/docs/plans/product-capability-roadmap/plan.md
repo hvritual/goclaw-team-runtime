@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v24.md](plan_v24.md).
+The approved execution snapshot is [plan_v25.md](plan_v25.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `24`
-- Active step: `PCR-S06B realtime delivery remediation`
-- Status: `Release 2 active; PCR-S06B remediation active under r029`
-- Plan base commit: `ffcdd1c7a87db21a3a5f5a20afb66c6c952ee8ac`
+- Approved version: `25`
+- Active step: `PCR-S06B authorized realtime projection`
+- Status: `Release 2 active; PCR-S06B remediation active under r030`
+- Plan base commit: `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48`
 - Last closed task candidate: `3d465f1110fed1ce9bef8d076f77d4b553fda421`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -60,6 +60,13 @@ the shared realtime Hub allowlist. Because that boundary lies outside v23
 scope, r028 is verification-blocked. The standing completion direction
 activates v24/r029 from exact base `ffcdd1c7` only for the Hub event allowlist,
 shared event type, exact tests, and real member-to-owner browser journey.
+
+Independent review also proves a raw allowlist change would disclose the full
+private candidate projection to ordinary Workspace members. v24/r029 is
+design-blocked before product implementation. v25/r030 starts from exact
+activation base `33ec500f` and adds only role-aware per-client projection,
+composition, exact transition/cancellation coverage, and the same dual-identity
+browser acceptance.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

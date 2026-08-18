@@ -1396,3 +1396,26 @@ Known limitations, blockers, and next action
   range/worktree diffs are empty.
 - Only r029 is active. Release 3, push, merge, deployment, and Release 2 closure
   remain inactive; no remediation or independent-review PASS is claimed.
+
+## 2026-08-18 — J054 — v25/r030 activates authorized realtime projection
+
+- Independent review of exact v23 candidate
+  `ca8b2a41f7ca4871375584a0a4ee1628c8c0a075` returns SPEC BLOCK and
+  CODE/SECURITY/QUALITY BLOCK. It confirms the dropped Hub event and
+  non-independent browser path, and adds three blockers: a raw allowlist would
+  leak full candidate data to ordinary members, exact transition/cancellation
+  tests are incomplete, and candidate trailers are incomplete/non-contiguous.
+- v24 authorized only raw allowlist/type repair. Its uncommitted GREEN trial was
+  discarded immediately after the projection risk was identified; r029 is
+  `design-blocked` with no product candidate.
+- Immutable v25 starts from exact base
+  `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48` and freezes a role-aware Hub
+  resolver, reviewer-only candidate projection, member-only public entry after
+  publication, exact event type, all-action/cancellation tests, dual-identity
+  no-reload Chrome acceptance, and one continuous required trailer block.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ca46357cd46bd57a7c31663224b450e840784f26bc7f1495f6fc30e7048a1301`.
+  Protected Input remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  generated protobuf, recorded dirty paths, and `server/**` remain excluded.
+- Only r030 is active. Release 3, push, merge, deployment, and Release 2 closure
+  remain inactive; no implementation or verification PASS is claimed.
