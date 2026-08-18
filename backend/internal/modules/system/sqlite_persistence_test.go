@@ -11,12 +11,14 @@ import (
 
 func TestSkillCatalogDownMigrationOnlyRunsWhenCatalogIsEmpty(t *testing.T) {
 	for _, test := range []struct {
-		name      string
-		seed      bool
-		wantError bool
+		name        string
+		seedCatalog bool
+		seedBinding bool
+		wantError   bool
 	}{
 		{name: "empty catalog"},
-		{name: "retained catalog", seed: true, wantError: true},
+		{name: "retained catalog", seedCatalog: true, wantError: true},
+		{name: "retained Workspace binding", seedBinding: true, wantError: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			db, err := sql.Open("sqlite", ":memory:")
@@ -27,8 +29,16 @@ func TestSkillCatalogDownMigrationOnlyRunsWhenCatalogIsEmpty(t *testing.T) {
 			if err := MigrateSqlite(context.Background(), db); err != nil {
 				t.Fatal(err)
 			}
-			if test.seed {
+			if _, err := db.Exec(`CREATE TABLE workspace_skill_bindings(workspace_id TEXT NOT NULL, skill_id TEXT NOT NULL)`); err != nil {
+				t.Fatal(err)
+			}
+			if test.seedCatalog {
 				if _, err := db.Exec(`INSERT INTO system_skills(id,origin_workspace_id,revision,created_by,created_at,updated_at) VALUES('skill-1','workspace-1',1,'user-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if test.seedBinding {
+				if _, err := db.Exec(`INSERT INTO workspace_skill_bindings(workspace_id,skill_id) VALUES('workspace-1','skill-1')`); err != nil {
 					t.Fatal(err)
 				}
 			}

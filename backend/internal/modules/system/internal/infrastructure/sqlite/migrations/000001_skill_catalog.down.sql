@@ -4,8 +4,9 @@ BEFORE INSERT ON system_skill_catalog_down_guard
 WHEN EXISTS(SELECT 1 FROM system_skills)
   OR EXISTS(SELECT 1 FROM system_skill_versions)
   OR EXISTS(SELECT 1 FROM system_skill_audit)
+  OR EXISTS(SELECT 1 FROM workspace_skill_bindings)
 BEGIN
-    SELECT RAISE(ABORT, 'cannot remove retained Skill catalog');
+    SELECT RAISE(ABORT, 'cannot remove retained Skill catalog or Workspace bindings');
 END;
 INSERT INTO system_skill_catalog_down_guard(value) VALUES(1);
 DROP TRIGGER system_skill_catalog_down_guard_retained;
