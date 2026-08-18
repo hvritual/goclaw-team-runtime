@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
@@ -26,12 +27,55 @@ func (h *ProjectSurfaceHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.GET("/api/projects", h.listProjects)
 	router.POST("/api/projects", h.createProject)
+	if _, ok := h.service.(contract.ProjectSurfaceSearchService); ok {
+		router.GET("/api/projects/search", h.searchProjects)
+	}
 	router.GET("/api/projects/{id}", h.getProject)
 	router.PUT("/api/projects/{id}", h.updateProject)
 	router.DELETE("/api/projects/{id}", h.deleteProject)
 	router.GET("/api/pins", h.listPins)
 	router.POST("/api/pins", h.createPin)
 	router.DELETE("/api/pins/{item_type}/{item_id}", h.deletePin)
+}
+
+func (h *ProjectSurfaceHandler) searchProjects(ctx kratoshttp.Context) error {
+	identity, ok := h.resolveIdentity(ctx)
+	if !ok {
+		return nil
+	}
+	values := ctx.Request().URL.Query()
+	if strings.TrimSpace(values.Get("q")) == "" {
+		return writeError(ctx, http.StatusBadRequest, "invalid project search")
+	}
+	limit, err := strictSearchInteger(values.Get("limit"), 0, false)
+	if err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid project search")
+	}
+	offset, err := strictSearchInteger(values.Get("offset"), 0, true)
+	if err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid project search")
+	}
+	includeClosed := false
+	if raw := values.Get("include_closed"); raw != "" {
+		includeClosed, err = strconv.ParseBool(raw)
+		if err != nil {
+			return writeError(ctx, http.StatusBadRequest, "invalid project search")
+		}
+	}
+	service := h.service.(contract.ProjectSurfaceSearchService)
+	result, err := service.SearchProjects(workspaceActorContext(ctx, identity), identity.WorkspaceID, contract.ProjectSurfaceSearchRequest{
+		Query: values.Get("q"), IncludeClosed: includeClosed, Limit: limit, Offset: offset,
+	})
+	if errors.Is(err, application.ErrInvalidProjectSurfaceRequest) {
+		return writeError(ctx, http.StatusBadRequest, "invalid project search")
+	}
+	if errors.Is(err, contract.ErrWorkspacePermissionDenied) || errors.Is(err, contract.ErrWorkspaceActorRequired) {
+		return writeError(ctx, http.StatusForbidden, "project search denied")
+	}
+	if err != nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to search projects")
+	}
+	return ctx.JSON(http.StatusOK, result)
 }
 
 func (h *ProjectSurfaceHandler) listProjects(ctx kratoshttp.Context) error {

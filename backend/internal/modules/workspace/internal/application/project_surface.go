@@ -25,6 +25,22 @@ type ProjectSurfaceRepository interface {
 	InspectPin(context.Context, string, string, string, string) (bool, bool, error)
 	CreatePin(context.Context, contract.Pin) (contract.Pin, error)
 	DeletePin(context.Context, string, string, string, string) error
+	SearchProjects(context.Context, ProjectSurfaceSearchQuery) ([]ProjectSurfaceSearchResult, int, error)
+}
+
+type ProjectSurfaceSearchQuery struct {
+	WorkspaceID   string
+	Phrase        string
+	Terms         []string
+	IncludeClosed bool
+	Limit         int
+	Offset        int
+}
+
+type ProjectSurfaceSearchResult struct {
+	Project        contract.ProjectSurfaceProject
+	MatchSource    string
+	MatchedSnippet string
 }
 
 type ProjectSurfaceUseCase struct {
@@ -62,6 +78,40 @@ func (u *ProjectSurfaceUseCase) ListProjects(ctx context.Context, workspaceID, s
 		projects = []contract.ProjectSurfaceProject{}
 	}
 	return contract.ProjectSurfaceList{Projects: projects, Total: len(projects)}, nil
+}
+
+func (u *ProjectSurfaceUseCase) SearchProjects(ctx context.Context, workspaceID string, request contract.ProjectSurfaceSearchRequest) (contract.ProjectSurfaceSearchResponse, error) {
+	workspaceID = strings.TrimSpace(workspaceID)
+	phrase := NormalizeIssueSearchText(request.Query)
+	if workspaceID == "" || phrase == "" || request.Limit < 0 || request.Offset < 0 {
+		return contract.ProjectSurfaceSearchResponse{}, ErrInvalidProjectSurfaceRequest
+	}
+	if err := u.authorizer.AuthorizeWorkspace(ctx, workspaceID, contract.PermissionSearchReadable); err != nil {
+		return contract.ProjectSurfaceSearchResponse{}, err
+	}
+	limit := request.Limit
+	if limit == 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	values, total, err := u.repository.SearchProjects(ctx, ProjectSurfaceSearchQuery{
+		WorkspaceID: workspaceID, Phrase: phrase, Terms: strings.Fields(phrase),
+		IncludeClosed: request.IncludeClosed, Limit: limit, Offset: request.Offset,
+	})
+	if err != nil {
+		return contract.ProjectSurfaceSearchResponse{}, fmt.Errorf("search projects: %w", err)
+	}
+	projects := make([]contract.ProjectSurfaceSearchResult, len(values))
+	for index, value := range values {
+		projects[index] = contract.ProjectSurfaceSearchResult{ProjectSurfaceProject: value.Project, MatchSource: value.MatchSource}
+		if value.MatchedSnippet != "" {
+			snippet := value.MatchedSnippet
+			projects[index].MatchedSnippet = &snippet
+		}
+	}
+	return contract.ProjectSurfaceSearchResponse{Projects: projects, Total: total}, nil
 }
 
 func (u *ProjectSurfaceUseCase) GetProject(ctx context.Context, workspaceID, projectID string) (contract.ProjectSurfaceProject, error) {
@@ -277,3 +327,4 @@ func validateLead(ctx context.Context, memberships contract.WorkspaceMembershipR
 }
 
 var _ contract.ProjectSurfaceService = (*ProjectSurfaceUseCase)(nil)
+var _ contract.ProjectSurfaceSearchService = (*ProjectSurfaceUseCase)(nil)

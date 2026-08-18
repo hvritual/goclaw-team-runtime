@@ -276,6 +276,44 @@ describe("SearchCommand", () => {
     expect(mockSearchProjects).not.toHaveBeenCalled();
   });
 
+  it("calls and renders the installed Project search vertical", async () => {
+    const user = userEvent.setup();
+    configStore.setState({
+      configLoaded: true,
+      featureFlags: { issue_search: true, project_search: true },
+    });
+    mockSearchProjects.mockResolvedValue({
+      projects: [{
+        id: "project-search-result",
+        workspace_id: "ws-test",
+        title: "Coffee platform",
+        description: "Shared Project search",
+        icon: null,
+        status: "planned",
+        priority: "none",
+        lead_type: null,
+        lead_id: null,
+        start_date: null,
+        due_date: null,
+        created_at: "2026-08-18T00:00:00Z",
+        updated_at: "2026-08-18T00:00:00Z",
+        issue_count: 0,
+        done_count: 0,
+        resource_count: 0,
+        match_source: "title",
+      }],
+      total: 1,
+    });
+    renderSearch();
+
+    await user.type(screen.getByPlaceholderText("Type a command or search..."), "coffee");
+
+    await waitFor(() => expect(mockSearchProjects).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    expect(await screen.findByText((_, element) =>
+      element?.tagName === "SPAN" && element.textContent === "Coffee platform",
+    )).toBeInTheDocument();
+  });
+
   it("closes on a single Escape press from the search input", async () => {
     const user = userEvent.setup();
 

@@ -18,7 +18,33 @@ func NewProjectSurfaceRepository(config Config) (*ProjectSurfaceRepository, erro
 	if config.DB == nil {
 		return nil, fmt.Errorf("workspace sqlite database is required")
 	}
-	return &ProjectSurfaceRepository{db: config.DB}, nil
+	repository := &ProjectSurfaceRepository{db: config.DB}
+	if err := repository.rebuildSearch(context.Background()); err != nil {
+		return nil, err
+	}
+	return repository, nil
+}
+
+func (r *ProjectSurfaceRepository) rebuildSearch(ctx context.Context) (err error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin Project search projection rebuild: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err = tx.ExecContext(ctx, `DELETE FROM workspace_project_search_documents`); err != nil {
+		return fmt.Errorf("clear Project search projection: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO workspace_project_search_documents(
+		project_id,workspace_id,title,description,status,updated_at
+	) SELECT id,workspace_id,goclaw_issue_search_normalize(name),
+		goclaw_issue_search_normalize(COALESCE(description,'')),status,updated_at
+		FROM workspace_projects`); err != nil {
+		return fmt.Errorf("rebuild Project search projection: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit Project search projection rebuild: %w", err)
+	}
+	return nil
 }
 
 const projectSurfaceColumns = `p.id,p.workspace_id,p.name,NULLIF(p.description,''),NULLIF(p.icon,''),p.status,p.priority,p.lead_type,p.lead_id,p.start_date,p.due_date,p.created_at,p.updated_at,
@@ -61,6 +87,89 @@ func (r *ProjectSurfaceRepository) GetProject(ctx context.Context, workspaceID, 
 		return contract.ProjectSurfaceProject{}, fmt.Errorf("get project surface: %w", err)
 	}
 	return value, nil
+}
+
+func (r *ProjectSurfaceRepository) SearchProjects(ctx context.Context, query application.ProjectSurfaceSearchQuery) ([]application.ProjectSurfaceSearchResult, int, error) {
+	matchSQL, rankSQL, sourceSQL, matchArgs, rankArgs := projectSearchPredicates(query)
+	closedSQL := ""
+	if !query.IncludeClosed {
+		closedSQL = ` AND d.status NOT IN ('completed','cancelled')`
+	}
+	countArgs := append([]any{query.WorkspaceID}, matchArgs...)
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM workspace_project_search_documents d
+		WHERE d.workspace_id=?`+closedSQL+` AND (`+matchSQL+`)`, countArgs...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count Project search results: %w", err)
+	}
+	selectArgs := append([]any{}, rankArgs...)
+	selectArgs = append(selectArgs, query.WorkspaceID)
+	selectArgs = append(selectArgs, matchArgs...)
+	selectArgs = append(selectArgs, rankArgs...)
+	selectArgs = append(selectArgs, query.Limit, query.Offset)
+	rows, err := r.db.QueryContext(ctx, `SELECT `+projectSurfaceColumns+`, `+sourceSQL+`
+		FROM workspace_project_search_documents d
+		JOIN workspace_projects p ON p.id=d.project_id AND p.workspace_id=d.workspace_id
+		WHERE d.workspace_id=?`+closedSQL+` AND (`+matchSQL+`)
+		ORDER BY `+rankSQL+` ASC,d.updated_at DESC,d.project_id ASC
+		LIMIT ? OFFSET ?`, selectArgs...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query Project search results: %w", err)
+	}
+	defer rows.Close()
+	results := make([]application.ProjectSurfaceSearchResult, 0)
+	for rows.Next() {
+		value, err := scanProjectSurfaceWithSource(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("scan Project search result: %w", err)
+		}
+		results = append(results, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate Project search results: %w", err)
+	}
+	return results, total, nil
+}
+
+func projectSearchPredicates(query application.ProjectSurfaceSearchQuery) (matchSQL, rankSQL, sourceSQL string, matchArgs, rankArgs []any) {
+	titleTerms := termPredicate("d.title", query.Terms)
+	descriptionTerms := termPredicate("d.description", query.Terms)
+	matchSQL = `d.title=? OR (` + titleTerms + `) OR (` + descriptionTerms + `)`
+	rankSQL = `CASE WHEN d.title=? THEN 0 WHEN (` + titleTerms + `) THEN 1 ELSE 2 END`
+	sourceSQL = `CASE WHEN d.title=? OR (` + titleTerms + `) THEN 'title' ELSE 'description' END`
+	rankArgs = append([]any{query.Phrase}, stringArgs(query.Terms)...)
+	matchArgs = append([]any{}, rankArgs...)
+	matchArgs = append(matchArgs, stringArgs(query.Terms)...)
+	return matchSQL, rankSQL, sourceSQL, matchArgs, rankArgs
+}
+
+func stringArgs(values []string) []any {
+	result := make([]any, len(values))
+	for index, value := range values {
+		result[index] = value
+	}
+	return result
+}
+
+type projectSurfaceAndSourceScanner struct {
+	scanner projectSurfaceScanner
+	source  *string
+}
+
+func (s *projectSurfaceAndSourceScanner) Scan(dest ...any) error {
+	return s.scanner.Scan(append(dest, s.source)...)
+}
+
+func scanProjectSurfaceWithSource(scanner projectSurfaceScanner) (application.ProjectSurfaceSearchResult, error) {
+	var source string
+	project, err := scanProjectSurface(&projectSurfaceAndSourceScanner{scanner: scanner, source: &source})
+	if err != nil {
+		return application.ProjectSurfaceSearchResult{}, err
+	}
+	result := application.ProjectSurfaceSearchResult{Project: project, MatchSource: source}
+	if source == "description" && project.Description != nil {
+		result.MatchedSnippet = boundedIssueSearchSnippet(*project.Description, 240)
+	}
+	return result, nil
 }
 
 func (r *ProjectSurfaceRepository) CreateProject(ctx context.Context, value contract.ProjectSurfaceProject) (contract.ProjectSurfaceProject, error) {

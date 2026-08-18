@@ -101,12 +101,13 @@ func TestSqliteMigrationsAreOrderedAtomicAndRepeatable(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 13 {
-		t.Fatalf("migration count = %d, want 13", count)
+	if count != 14 {
+		t.Fatalf("migration count = %d, want 14", count)
 	}
 	for _, table := range []string{
 		"workspaces",
 		"workspace_projects",
+		"workspace_project_search_documents",
 		"workspace_project_actor_relations",
 		"workspace_todos",
 		"workspace_issues",

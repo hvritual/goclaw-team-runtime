@@ -44,7 +44,7 @@ func TestSQLiteRuntimeIssueSearchInstalledJourney(t *testing.T) {
 	if config.Code != http.StatusOK || json.Unmarshal(config.Body.Bytes(), &configBody) != nil {
 		t.Fatalf("config = %d %s", config.Code, config.Body.String())
 	}
-	if !configBody.FeatureFlags["issue_search"] || configBody.FeatureFlags["project_search"] {
+	if !configBody.FeatureFlags["issue_search"] || !configBody.FeatureFlags["project_search"] {
 		t.Fatalf("search flags = %+v", configBody.FeatureFlags)
 	}
 }

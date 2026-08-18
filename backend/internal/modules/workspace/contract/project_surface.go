@@ -29,6 +29,24 @@ type ProjectSurfaceList struct {
 	Total    int                     `json:"total"`
 }
 
+type ProjectSurfaceSearchRequest struct {
+	Query         string
+	IncludeClosed bool
+	Limit         int
+	Offset        int
+}
+
+type ProjectSurfaceSearchResult struct {
+	ProjectSurfaceProject
+	MatchSource    string  `json:"match_source"`
+	MatchedSnippet *string `json:"matched_snippet,omitempty"`
+}
+
+type ProjectSurfaceSearchResponse struct {
+	Projects []ProjectSurfaceSearchResult `json:"projects"`
+	Total    int                          `json:"total"`
+}
+
 type Pin struct {
 	ID          string  `json:"id"`
 	WorkspaceID string  `json:"workspace_id"`
@@ -96,4 +114,8 @@ type ProjectSurfaceService interface {
 	ListPins(context.Context, string, string) ([]Pin, error)
 	CreatePin(context.Context, string, string, CreatePinRequest) (Pin, error)
 	DeletePin(context.Context, string, string, string, string) error
+}
+
+type ProjectSurfaceSearchService interface {
+	SearchProjects(context.Context, string, ProjectSurfaceSearchRequest) (ProjectSurfaceSearchResponse, error)
 }

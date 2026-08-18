@@ -777,14 +777,14 @@ export const ProjectSchema = z.object({
 }).loose();
 
 const SearchProjectResultSchema = ProjectSchema.extend({
-  match_source: z.string(),
+  match_source: z.enum(["title", "description"]),
   matched_snippet: z.string().optional(),
-}).loose();
+}).strict();
 
 export const SearchProjectsResponseSchema = z.object({
   projects: z.array(SearchProjectResultSchema).default([]),
-  total: z.number().default(0),
-}).loose();
+  total: z.number().int().nonnegative().default(0),
+}).strict();
 
 export const EMPTY_SEARCH_PROJECTS_RESPONSE: SearchProjectsResponse = {
   projects: [],

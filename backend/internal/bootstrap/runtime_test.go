@@ -148,7 +148,6 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"project_search",
 		"pin_reorder",
 		"skill_administration",
 		"skill_import",
@@ -179,8 +178,8 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	if !body.FeatureFlags["issue_search"] {
 		t.Error("issue_search flag = false after the installed S03A runtime")
 	}
-	if body.FeatureFlags["project_search"] {
-		t.Error("project_search flag = true before S03B installation")
+	if !body.FeatureFlags["project_search"] {
+		t.Error("project_search flag = false after the installed S03B runtime")
 	}
 }
 

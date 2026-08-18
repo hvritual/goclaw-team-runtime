@@ -168,13 +168,8 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 
 func (p installedRuntimeCapabilities) RoadmapFeatureInstalled(feature string) bool {
 	switch feature {
-	case "tasks", "issue_search":
+	case "tasks", "issue_search", "project_search":
 		return true
-	case "project_search":
-		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {
-			return next.RoadmapFeatureInstalled(feature)
-		}
-		return false
 	default:
 		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {
 			return next.RoadmapFeatureInstalled(feature)
