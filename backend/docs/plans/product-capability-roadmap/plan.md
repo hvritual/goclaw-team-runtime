@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v22.md](plan_v22.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `22`
-- Active step: `PCR-S06A Query Knowledge`
-- Status: `Release 2 active; PCR-S06A active under r027`
+- Active step: `none`
+- Status: `Release 2 active; PCR-S06A complete-independent-reviewed; no active task`
 - Plan base commit: `78c5b5eb8b04d27d1fdc3c524955dd02fd756348`
-- Last closed task candidate: `abce08d652c1af263a4e678a31732814d324330d`
+- Last closed task candidate: `3d465f1110fed1ce9bef8d076f77d4b553fda421`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -40,6 +40,13 @@ r027` from exact S05B closure `78c5b5eb`. Only PCR-S06A authenticated,
 revisioned, source-explained Knowledge query is active. S06B proposal/review,
 Knowledge realtime, `knowledge_review`, push, merge, deployment, and Release 2
 completion remain inactive.
+
+Exact S06A candidate `3d465f1110fed1ce9bef8d076f77d4b553fda421`
+passes backend deterministic/race, frontend type/build, installed-browser UI,
+scope, traceability, rollback, and fresh independent-review gates. PCR-S06A is
+`complete-independent-reviewed`; Release 2 remains active with no active task.
+S06B requires its own frozen plan version. Push, merge, and deployment remain
+excluded.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

@@ -1473,9 +1473,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S06A-R27`
 - Task-Revision: `r027`
 - Work-Item: `PCR-S06A`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `Codex independent subagent release2_baseline`
+- Independent reviewer: `Codex independent subagent release2_baseline — SPEC PASS / CODE/SECURITY/QUALITY PASS on 3d465f11`
 - Base commit: `78c5b5eb8b04d27d1fdc3c524955dd02fd756348`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v22`
 - Plan hash: `11474d4c1bdf84f0fc574ef40f913425be35b6dad8810ce382ab88df959a6edc`
@@ -1505,3 +1505,28 @@ S02A without changing Task product behavior or activating S02B.
 - `server/**` activation range and worktree diffs are empty. No implementation,
   verification PASS, independent review, closure, push, merge, or deployment is
   claimed.
+
+### Closure evidence
+
+- Exact candidate `3d465f1110fed1ce9bef8d076f77d4b553fda421`
+  (tree `c54f33d48f660f6b12fbfb70dbeea9f8d4826e5e`) installs the
+  authenticated governed list/detail surface, immutable provenance, strict
+  Core parsing, and query-only shared Web/Desktop UI.
+- Independent review first blocked explicit-empty filters and injected-provider
+  reopening of `knowledge_review`. Final remediation rejects empty/repeated
+  numeric and empty status/kind filters, binds cursors to Workspace, and forces
+  both review permissions and feature false until S06B.
+- Exact candidate backend `make check` and official `make test-race` pass with
+  MinGW GCC 15.2.0. Root typecheck and production Web build pass. Root parallel
+  tests retain one unrelated Team Control timeout whose exact file plus
+  Knowledge passes 13/13 in focused execution.
+- Fresh migrated backend runtime tests prove filtering, ranking, cursor,
+  visibility, isolation, and restart. Installed Chrome passes the strict shared
+  UI/provenance journey 1/1 with retries disabled; that browser spec mocks only
+  Knowledge payloads and is recorded as UI projection evidence, not backend
+  filter evidence.
+- Fresh independent review returns SPEC PASS and CODE/SECURITY/QUALITY PASS.
+  The three-table down guard, protected Input blob, trailers, recorded dirty
+  exclusions, and empty `server/**` candidate/worktree scope all pass. PCR-S06A
+  is closed; S06B remains inactive pending a new frozen plan. No push, merge,
+  or deployment is claimed.

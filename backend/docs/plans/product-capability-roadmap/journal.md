@@ -1290,3 +1290,32 @@ Known limitations, blockers, and next action
 - Official race, production build, installed-browser acceptance, exact scope,
   candidate commit, and fresh independent review remain pending. Protected
   Input and recorded dirty paths remain excluded; `server/**` remains unchanged.
+
+## 2026-08-18 — J050 — v22/r027 and PCR-S06A closed
+
+- Exact candidate `3d465f1110fed1ce9bef8d076f77d4b553fda421`
+  (tree `c54f33d48f660f6b12fbfb70dbeea9f8d4826e5e`) installs strict
+  authenticated Knowledge list/detail, deterministic source-explained ranking,
+  filter/Workspace-bound signed cursors, immutable revision provenance,
+  superseded reads, and owner/admin-only explicit quarantine reads.
+- Independent review initially blocked explicit empty filters and an injected
+  feature provider that could reopen `knowledge_review`. Remediation rejects
+  explicit empty/repeated numeric filters and empty status/kind filters, binds
+  cursors to Workspace, and forces review permissions/feature false under v22.
+  It also strengthens down migration to reject retained rows in any of the
+  three new tables. Fresh review returns SPEC PASS and
+  CODE/SECURITY/QUALITY PASS with no blocker.
+- Exact candidate backend `make check` and official `make test-race` pass with
+  MinGW GCC 15.2.0. Root typecheck and production Web build pass. The root
+  parallel suite retains one unrelated Team Control five-second timeout; the
+  exact file plus Knowledge passes 13/13 immediately in focused execution.
+- Fresh backend runtime tests prove real filtering, ranking, cursor integrity,
+  role visibility, Workspace isolation, and restart. Installed Chrome passes
+  the query-only shared UI/provenance journey 1/1 with retries disabled. The
+  browser spec mocks Knowledge responses and is therefore recorded only as UI
+  projection evidence; it does not replace backend runtime acceptance.
+- Candidate/worktree `server/**` diffs are empty, protected Input stays
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`, trailers parse, and all recorded
+  dirty paths remain excluded. PCR-S06A is `complete-independent-reviewed`;
+  Release 2 remains active with no active task. S06B needs a new frozen plan.
+  No push, merge, or deployment is claimed.

@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v22`
-- Status: `Release 2 active; PCR-S06A active under r027`
+- Status: `Release 2 active; PCR-S06A complete-independent-reviewed; no active task`
 
 ## Delivery policy
 
@@ -136,7 +136,7 @@ forbidden type, partial write cleanup, checksum, download, and archive.
 
 ### PCR-S06A — Query Knowledge
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v22 / r027`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v22 / r027`
 
 As a member, I can search and filter Knowledge by status, kind, source,
 applicability, and revision, and understand why a result is trustworthy.
