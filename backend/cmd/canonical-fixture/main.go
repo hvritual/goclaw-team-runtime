@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/hvritual/workspace/internal/modules/workspace"
 	_ "modernc.org/sqlite"
 )
 
