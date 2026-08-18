@@ -1211,3 +1211,34 @@ Known limitations, blockers, and next action
   dirty paths remain excluded. `server/**` diffs are empty.
 - Only PCR-S05B is active. Knowledge, push, merge, deployment, and Release 2
   completion remain inactive; no implementation or verification PASS is claimed.
+
+## 2026-08-18 — J047 — v21/r026 and PCR-S05B closed
+
+- Exact candidate `abce08d652c1af263a4e678a31732814d324330d`
+  (tree `639d1bdfaf843c08c3a3e3df15c5d66140facc47`) installs safe
+  archive/recognized-URL preview/import, immutable version-scoped manifests,
+  Space-owned object quarantine/promotion/reconciliation, checksummed download,
+  strict clients, and shared Web/Desktop file management.
+- Independent review first blocked governance trailers, missing `SKILL.md`
+  enforcement, invalid UTF-8 paths, disguised binary/container acceptance, and
+  incorrect Agent historical-file filtering. Remediation closed all five. A
+  second review found metadata-only versions and disguised ar bodies still open;
+  the final candidate requires and transactionally copies `SKILL.md` manifests
+  and rejects ar magic. Final review returns SPEC PASS and
+  CODE/SECURITY/QUALITY PASS with no blocker.
+- Backend `make check` and official `make test-race` pass with MinGW GCC 15.2.0.
+  Root typecheck and focused Core/Views tests pass. Root parallel tests retain
+  only two unrelated Team Control 5-second load timeouts; the exact file passes
+  10/10 in isolation. Production Web build passes with two existing CSS
+  optimizer warnings.
+- Fresh SQLite plus installed Chrome passes lifecycle, archive preview/import,
+  file read, checksum-backed download, archive/restore, and mandatory-manifest
+  ordering 1/1 with retries disabled after explicit build-time backend proxy
+  wiring. The initial missing-proxy 404 was retained as configuration evidence;
+  all isolated processes were stopped after PASS.
+- Immutable v21 and policy hashes remain exact. Candidate/worktree `server/**`
+  diffs are empty, protected Input remains
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`, trailers parse, and recorded dirty
+  paths remain excluded. PCR-S05B is `complete-independent-reviewed`; Release 2
+  remains active with no active task. S06A needs its own frozen plan. No push,
+  merge, or deployment is claimed.

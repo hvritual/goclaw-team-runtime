@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v21`
-- Status: `Release 2 active; PCR-S05B r026 active`
+- Status: `Release 2 active; PCR-S05B complete-independent-reviewed; no active task`
 
 ## Delivery policy
 
@@ -125,7 +125,7 @@ admin/member/agent permissions, audit history, and referenced-version reads.
 
 ### PCR-S05B — Import and manage Skill files
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v21 / r026`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v21 / r026`
 
 As an authorized administrator, I can preview and import a Skill archive and
 manage its logical file tree safely.

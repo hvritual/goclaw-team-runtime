@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v21.md](plan_v21.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `21`
-- Active step: `PCR-S05B Skill import and logical files`
-- Status: `Release 2 active; PCR-S05B r026 active`
+- Active step: `none`
+- Status: `Release 2 active; PCR-S05B complete-independent-reviewed`
 - Plan base commit: `27def068f07cb56ef7e58471fbfacb397b11b639`
-- Last closed task candidate: `17f7eb1f2db22bd64e426614b84b945325b1f90f`
+- Last closed task candidate: `abce08d652c1af263a4e678a31732814d324330d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -27,6 +27,13 @@ The same standing direction activates `PRODUCT-CAPABILITY-ROADMAP-001 v21 /
 r026` from exact S05A closure `27def068`. Only PCR-S05B safe preview/import and
 version-scoped logical file management is active. S06A and S06B remain inactive;
 no push, merge, deployment, or Release 2 completion is authorized or claimed.
+
+Exact S05B candidate `abce08d652c1af263a4e678a31732814d324330d`
+passes deterministic, race, production-build, installed-Chrome, scope,
+traceability, and fresh independent-review gates. PCR-S05B is
+`complete-independent-reviewed`; Release 2 remains active with no active task.
+S06A and S06B remain inactive pending their own frozen plan versions. Push,
+merge, and deployment remain excluded.
 
 v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
 passes deterministic, performance, production-build, installed-Chrome, scope,

@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v21`
-- Registry status: `Release 2 active; PCR-S05B r026 active`
+- Registry status: `Release 2 active; PCR-S05B complete-independent-reviewed; no active task`
 - Registry revision: `r026`
 - Updated: `2026-08-18`
 
@@ -1400,9 +1400,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S05B-R26`
 - Task-Revision: `r026`
 - Work-Item: `PCR-S05B`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `pending`
+- Independent reviewer: `Codex independent subagent release2_baseline — SPEC PASS / CODE/SECURITY/QUALITY PASS`
 - Base commit: `27def068f07cb56ef7e58471fbfacb397b11b639`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v21`
 - Plan hash: `e7db2df5d92345dfe0e988af3f1c1f353ddd519bda8bf07bfbfcf6a472f9544e`
@@ -1433,3 +1433,36 @@ S02A without changing Task product behavior or activating S02B.
   recorded dirty paths remain excluded.
 - `server/**` activation range and worktree diffs are empty. No implementation,
   PASS, independent review, closure, push, merge, or deployment is claimed.
+
+### Closure evidence
+
+- Exact candidate `abce08d652c1af263a4e678a31732814d324330d`
+  (tree `639d1bdfaf843c08c3a3e3df15c5d66140facc47`) installs governed
+  archive/recognized-URL preview and import, immutable logical manifests,
+  Space-owned quarantine/promotion/reconciliation, exact checksums and retained
+  downloads, strict Core parsing, and shared Web/Desktop file management.
+- Adversarial coverage rejects traversal, invalid UTF-8, duplicate NFC paths,
+  links, nested or disguised container/executable bodies including ZIP, gzip,
+  PDF, tar, and ar, exact count/size/depth overruns, token/source mismatch, SSRF
+  boundaries, cancellation, and partial transaction/object leaks.
+- Installed S05B refuses ordinary file or metadata versions before `SKILL.md`;
+  subsequent metadata versions copy the complete manifest in the same SQLite
+  transaction. Exact historical and Agent-bound archived/deprecated reads stay
+  available while cross-Workspace and unbound reads remain denied.
+- Backend `make check` and official `make test-race` pass with MinGW GCC 15.2.0.
+  Root typecheck passes; Core/Views focused tests pass. The root parallel test
+  run has two unrelated Team Control 5-second load timeouts, and the exact file
+  passes 10/10 immediately in isolation. Production Web build passes with only
+  the two pre-existing CSS `::highlight` optimizer warnings.
+- Fresh SQLite, explicit production proxy wiring, installed Chrome, and retries
+  disabled pass the lifecycle/import/download journey 1/1. The first run without
+  build-time `REMOTE_API_URL` correctly exposed a 404 proxy misconfiguration;
+  rebuilding with explicit backend 8081 wiring passed. All isolated processes
+  were stopped.
+- Fresh final independent review returns SPEC PASS and CODE/SECURITY/QUALITY
+  PASS with no blocker. Eight governance trailers parse, immutable v21 and its
+  policy hashes remain exact, protected Input remains
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`, recorded dirty paths stay excluded,
+  and candidate/worktree `server/**` diffs are empty. PCR-S05B is closed; S06A
+  remains inactive pending its own frozen plan. No push, merge, or deployment is
+  claimed.
