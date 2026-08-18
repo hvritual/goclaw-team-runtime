@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v16.md](plan_v16.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `16`
-- Active step: `PCR-S02B deterministic-gate remediation`
-- Status: `Release 1 active; PCR-S02B/r021 verification repair authorized`
+- Active step: `none; PCR-S02B complete-independent-reviewed`
+- Status: `Release 1 active; no active task`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
 - Active task base commit: `3262232c5000ed449b89d98901535cd58b42a48d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -112,6 +112,12 @@ before the repository's bounded lock budget. No-waiver v16/r021 starts from
 exact `e97c92b` and authorizes only an explicit 30-second Canonical Runtime HTTP
 budget, its transport contract test, and repeated complete S02B verification.
 S03A and later stories remain inactive.
+
+v16 candidate `5ea1a47` passed the explicit deadline and unchanged 12-writer
+acceptance, forced root typecheck/test, backend full/race gates, exact installed
+Chrome Task-promotion acceptance, scope/process cleanup, and fresh independent
+review. r021, r020, and PCR-S02B are closed. Release 1 remains active with no
+active task; S03A still requires a new versioned plan.
 
 The Canonical cutover plan remains independent. The Customer confirmed C9
 passed before PCR-S01A resumed; full Canonical milestone acceptance is not

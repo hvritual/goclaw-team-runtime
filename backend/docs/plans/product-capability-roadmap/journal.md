@@ -865,3 +865,44 @@ Known limitations, blockers, and next action
 - r020 is `verification-blocked`; r021 is the sole active task. No backend
   gate PASS, S02B closure, S03A activation, push, merge, deployment, or Release
   1 completion is claimed.
+
+## 2026-08-18 — J036 — v16/r021 and PCR-S02B closed
+
+- Exact candidate `5ea1a47f7f3395c4778398ee1a6e79f6880bf0a0`
+  changes only the approved r020 product remediation, v15/v16 governance, and
+  the r021 Canonical Runtime timeout plus its contract test. `server/**` range
+  and worktree diffs remain empty.
+- RED records an actual one-second installed HTTP request deadline and the
+  unchanged 12-writer attachment failure on both `36b18b4` and `e97c92b`.
+  GREEN records an explicit 30-second deadline and the same 12-writer test
+  passing without retries, skipped assertions, reduced concurrency, or
+  attachment production changes.
+- r020 focused backend replay/migration/runtime tests pass. Core passes 2 files
+  and 7 tests; Task Views passes 1 file and 9 tests. Forced root typecheck
+  passes 6/6 with zero cache; forced root tests pass 5/5 with zero cache and
+  Views passes 165 files/1672 tests.
+- Backend `make check` passes. Real `make test-race` passes after
+  `go clean -testcache`, using MinGW GCC 15.2.0.
+- A new r021 SQLite database and canonical fixture pass installed Chrome Task
+  promotion acceptance 1/1 in 16.2 seconds. The initial browser run reached
+  the known cold-route compile window before the five-second heading check;
+  the route was then verified 200 with Tasks content and the explicit rerun
+  passed under Playwright retries=0.
+- Policy hashes are CLAUDE
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646`,
+  backend AGENTS
+  `fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209`,
+  and v16
+  `3575657bbe68972b25691d2b9f077038b802a39e5ad730e07708cd215af63e5b`.
+  Excluded Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`.
+- Candidate-only `.local-runtime/**` and `node_modules.main-link-r019/**` are
+  recorded untracked runtime/dependency artifacts. Candidate backend/Web
+  processes were resolved and stopped; ports 3000/8080/9080 are closed.
+- Fresh independent read-only review returned PASS for authority, scope, all
+  three original r019 blockers, v16 cancellation/timeout behavior, and supplied
+  deterministic/browser evidence. It recommends closing r021/r020/S02B.
+- r021 is `complete-independent-reviewed`; r020 is closed through r021; S02B is
+  complete. Release 1 remains active with no active task. S03A and later stories
+  remain inactive pending a new versioned plan; no push, merge, deployment, or
+  Release 1 completion is claimed.

@@ -1069,7 +1069,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02B-R20`
 - Task-Revision: `r020`
 - Work-Item: `PCR-S02B`
-- Status: `verification-blocked`
+- Status: `complete-via-r021-independent-review`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required after deterministic verification`
 - Base commit: `36b18b4afac2ca2ae65ced7ee329c726c0bed73b`
@@ -1099,6 +1099,9 @@ S02A without changing Task product behavior or activating S02B.
   write-slot wait or commit contexts.
 - v15 requires full gates with no waiver. r020 is verification-blocked and
   superseded for active execution only by v16/r021.
+- Fresh v16/r021 independent review passed the unchanged r020 product
+  remediation at exact candidate `5ea1a47`; r020 is closed through that
+  verified successor without rewriting its v15 gate history.
 
 ## PCR-001-S02B-R21
 
@@ -1106,9 +1109,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S02B-R21`
 - Task-Revision: `r021`
 - Work-Item: `PCR-S02B`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after deterministic verification`
+- Independent reviewer: `PASS on 5ea1a47; S02B closure allowed`
 - Base commit: `e97c92b23423a89d6d731ab8ba40ca9a80858b63`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v16`
 - Plan hash: `3575657bbe68972b25691d2b9f077038b802a39e5ad730e07708cd215af63e5b`
@@ -1123,3 +1126,35 @@ S02A without changing Task product behavior or activating S02B.
   attachment acceptance, then repeat all r020 deterministic, browser, scope,
   cleanup, and independent-review gates without waiver.
 - S03A and all later stories remain inactive.
+
+### Verification and review outcome
+
+- Exact candidate: `5ea1a47f7f3395c4778398ee1a6e79f6880bf0a0`.
+- RED captured the installed Kratos request deadline as one second and the
+  unchanged 12-writer attachment acceptance failed with sanitized
+  `context deadline exceeded`. GREEN proves an explicit 30-second deadline and
+  the same 12 writers pass without reduced concurrency, retry, or attachment
+  production changes.
+- r020 backend replay/migration/runtime focused tests pass; Core passes 2 files
+  and 7 tests; Task Views passes 1 file and 9 tests.
+- Forced root typecheck passes 6/6 Turbo tasks with zero cache. Forced root
+  tests pass 5/5 with zero cache; Views passes 165 files and 1672 tests.
+- Backend `make check` passes. After `go clean -testcache`, real
+  `make test-race` passes with MinGW GCC 15.2.0.
+- A new r021-migrated SQLite database and canonical fixture pass installed
+  Chrome `e2e/tasks.spec.ts` 1/1 in 16.2 seconds. The first browser attempt hit
+  the known cold-route compile window before the Tasks heading appeared; after
+  verifying the route returned 200 and contained Tasks, the zero-retry
+  Playwright configuration passed on one explicit rerun.
+- Scope passes: `server/**` range and worktree diffs are empty; excluded Input
+  remains blob `a830fd2f0f82770563908d512558fe6ba48f50dd`; policy hashes match
+  v16. Candidate-only `.local-runtime/**` and
+  `node_modules.main-link-r019/**` are recorded untracked runtime/dependency
+  artifacts, not candidate source.
+- Candidate backend and Web process ancestry was resolved and stopped; ports
+  3000, 8080, and 9080 are closed.
+- Fresh independent read-only review returned PASS across authority, scope,
+  exact replay, stable header-only idempotency, strict nested Issue parsing,
+  transport cancellation, and supplied deterministic/browser evidence.
+- r021, r020, and PCR-S02B are closed. Release 1 remains active with no active
+  task; S03A requires a new approved plan.
