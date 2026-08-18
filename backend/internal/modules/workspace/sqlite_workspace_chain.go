@@ -68,6 +68,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Knowledge query SQLite persistence: %w", err)
 	}
+	knowledgeReviewRepository, err := persistence.NewKnowledgeReviewRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Knowledge review SQLite persistence: %w", err)
+	}
 	requirements, err := persistence.NewRequirementRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Requirement SQLite persistence: %w", err)
@@ -115,6 +119,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		return nil, fmt.Errorf("configure Task cursor signing: %w", err)
 	}
 	knowledgeCursorSigningKey := sha256.Sum256(append(append([]byte(nil), taskCursorSigningKey...), []byte("workspace.knowledge.query.cursor.v1")...))
+	knowledgeReviewSigningKey := sha256.Sum256(append(append([]byte(nil), taskCursorSigningKey...), []byte("workspace.knowledge.review.cursor.v1")...))
 
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now, taskCursorSigningKey)
 	if err != nil {
@@ -169,6 +174,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Knowledge query application: %w", err)
 	}
+	knowledgeReviewService, err := application.NewKnowledgeReviewUseCase(knowledgeReviewRepository, dependencies.Authorizer, dependencies.Assets, newID(dependencies.NewKnowledgeID), now, knowledgeReviewSigningKey[:], dependencies.Events)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Knowledge review application: %w", err)
+	}
 	requirementService, err := application.NewRequirementUseCase(requirements, projects, issues, dependencies.Authorizer, newID(dependencies.NewRequirementID), newID(dependencies.NewRequirementVersionID), now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Requirement application: %w", err)
@@ -220,6 +229,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newKnowledgeReviewHTTPExtension(knowledgeReviewService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newKnowledgeQueryHTTPExtension(knowledgeQueryService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity))
 		module.extensions = append(module.extensions, newTaskHTTPExtension(todoService, taskPromotionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newIssueCollaborationExtension(

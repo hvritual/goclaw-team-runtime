@@ -49,7 +49,14 @@ export interface KnowledgeEntry {
   createdAt: string;
   updatedAt: string;
   citation: string;
-  matchedBy: "recent" | "title_exact" | "title_prefix" | "title" | "content" | "source" | "detail";
+  matchedBy:
+    | "recent"
+    | "title_exact"
+    | "title_prefix"
+    | "title"
+    | "content"
+    | "source"
+    | "detail";
 }
 
 export interface KnowledgeCandidate {
@@ -103,6 +110,7 @@ export interface CommentKnowledgeProposalResponse {
 }
 
 export interface ProposeKnowledgeRequest {
+  idempotencyKey: string;
   projectId?: string;
   knowledgeId?: string;
   kind: KnowledgeKind;
@@ -112,12 +120,20 @@ export interface ProposeKnowledgeRequest {
   sourceRefs?: KnowledgeSourceRef[];
 }
 
-export type KnowledgeReviewAction = "approve" | "reject" | "quarantine";
+export type KnowledgeReviewAction =
+  | "approve"
+  | "reject"
+  | "quarantine"
+  | "return"
+  | "publish"
+  | "supersede"
+  | "invalidate";
 
 export interface ReviewKnowledgeRequest {
   action: KnowledgeReviewAction;
   expectedRevision: number;
   rationale: string;
+  emergency?: boolean;
 }
 
 export interface ReviewKnowledgeResponse {

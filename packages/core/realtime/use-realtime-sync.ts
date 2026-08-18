@@ -12,6 +12,7 @@ import { labelKeys } from "../labels/queries";
 import { propertyKeys } from "../properties/queries";
 import { pinKeys } from "../pins/queries";
 import { implementationKnowledgeKeys } from "../implementation-knowledge/queries";
+import { knowledgeKeys } from "../knowledge/queries";
 import { workspaceKeys } from "../workspace/queries";
 import { getCurrentWsId } from "../platform/workspace-storage";
 
@@ -26,7 +27,7 @@ export interface RealtimeSyncStores {
 export function useRealtimeSync(
   ws: WSClient | null,
   stores: RealtimeSyncStores,
-  _onToast?: (message: string, type?: "info" | "error") => void,
+  _onToast?: (message: string, type?: "info" | "error") => void
 ) {
   const qc = useQueryClient();
   const previousWsRef = useRef<WSClient | null | undefined>(undefined);
@@ -50,13 +51,20 @@ export function useRealtimeSync(
       void qc.invalidateQueries({ queryKey: issueKeys.attachmentsAll() });
       void qc.invalidateQueries({ queryKey: projectKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: taskKeys.all(workspaceId) });
-      void qc.invalidateQueries({ queryKey: workspaceKeys.skills(workspaceId) });
+      void qc.invalidateQueries({
+        queryKey: workspaceKeys.skills(workspaceId),
+      });
       void qc.invalidateQueries({ queryKey: labelKeys.all(workspaceId) });
       void qc.invalidateQueries({ queryKey: propertyKeys.all(workspaceId) });
-      void qc.invalidateQueries({ queryKey: implementationKnowledgeKeys.all(workspaceId) });
+      void qc.invalidateQueries({
+        queryKey: implementationKnowledgeKeys.all(workspaceId),
+      });
+      void qc.invalidateQueries({ queryKey: knowledgeKeys.all(workspaceId) });
       const userId = stores.authStore.getState().user?.id;
       if (userId) {
-        void qc.invalidateQueries({ queryKey: pinKeys.all(workspaceId, userId) });
+        void qc.invalidateQueries({
+          queryKey: pinKeys.all(workspaceId, userId),
+        });
       }
     };
 
@@ -86,7 +94,8 @@ export function useRealtimeSync(
         domain === "skill" ||
         domain === "label" ||
         domain === "property" ||
-        domain === "pin"
+        domain === "pin" ||
+        domain === "knowledge"
       ) {
         scheduleRefresh();
       }

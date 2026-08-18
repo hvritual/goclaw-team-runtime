@@ -148,7 +148,6 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"knowledge_review",
 		"project_resources",
 		"project_requirements",
 		"project_retrospectives",
@@ -176,6 +175,9 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	}
 	if !body.FeatureFlags["knowledge_query"] {
 		t.Error("knowledge_query flag = false after the installed S06A runtime")
+	}
+	if !body.FeatureFlags["knowledge_review"] {
+		t.Error("knowledge_review flag = false after the installed S06B runtime")
 	}
 	if !body.FeatureFlags["issue_search"] {
 		t.Error("issue_search flag = false after the installed S03A runtime")
@@ -213,13 +215,13 @@ func TestRoadmapFeatureFlagsRequireAnInstalledProvider(t *testing.T) {
 	}
 }
 
-func TestInstalledRuntimeKeepsKnowledgeReviewClosedAgainstInjectedFeatureProvider(t *testing.T) {
+func TestInstalledRuntimeKeepsKnowledgeReviewOpenAgainstInjectedFeatureProvider(t *testing.T) {
 	provider := featureEnabledProvider{runtimeCapabilityProviderStub: runtimeCapabilityProviderStub{
 		workspacecontract.PermissionKnowledgeReview: true,
 	}}
 	flags := roadmapFeatureFlags(installedRuntimeCapabilities{next: provider})
-	if flags["knowledge_review"] {
-		t.Fatal("knowledge_review flag = true before S06B installation")
+	if !flags["knowledge_review"] {
+		t.Fatal("knowledge_review flag = false after S06B installation")
 	}
 }
 

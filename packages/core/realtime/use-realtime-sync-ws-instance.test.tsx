@@ -70,13 +70,10 @@ describe("useRealtimeSync", () => {
   it("does not invalidate on the first socket mount or while disconnected", () => {
     const first = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    const { rerender } = renderHook(
-      ({ ws }) => useRealtimeSync(ws, stores),
-      {
-        initialProps: { ws: first.ws as WSClient | null },
-        wrapper: createWrapper(qc),
-      },
-    );
+    const { rerender } = renderHook(({ ws }) => useRealtimeSync(ws, stores), {
+      initialProps: { ws: first.ws as WSClient | null },
+      wrapper: createWrapper(qc),
+    });
 
     expect(invalidate).not.toHaveBeenCalled();
     rerender({ ws: null });
@@ -86,13 +83,10 @@ describe("useRealtimeSync", () => {
   it("refreshes workspace and per-issue detail caches when the socket is replaced", () => {
     const first = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    const { rerender } = renderHook(
-      ({ ws }) => useRealtimeSync(ws, stores),
-      {
-        initialProps: { ws: first.ws as WSClient | null },
-        wrapper: createWrapper(qc),
-      },
-    );
+    const { rerender } = renderHook(({ ws }) => useRealtimeSync(ws, stores), {
+      initialProps: { ws: first.ws as WSClient | null },
+      wrapper: createWrapper(qc),
+    });
 
     rerender({ ws: null });
     invalidate.mockClear();
@@ -109,6 +103,7 @@ describe("useRealtimeSync", () => {
     expect(keys).toContainEqual(["issues", "subscribers"]);
     expect(keys).toContainEqual(["issues", "attachments"]);
     expect(keys).toContainEqual(["implementation-knowledge", "ws-1"]);
+    expect(keys).toContainEqual(["knowledge", "ws-1"]);
   });
 
   it("debounces retained-domain events into one workspace refresh", () => {
@@ -123,26 +118,30 @@ describe("useRealtimeSync", () => {
     expect(invalidate).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(75));
-    expect(invalidate).toHaveBeenCalledTimes(13);
+    expect(invalidate).toHaveBeenCalledTimes(14);
   });
 
   it("tolerates duplicate committed events with one authoritative refresh", () => {
     const socket = createMockWs();
     const invalidate = vi.spyOn(qc, "invalidateQueries");
-    renderHook(() => useRealtimeSync(socket.ws, stores), { wrapper: createWrapper(qc) });
+    renderHook(() => useRealtimeSync(socket.ws, stores), {
+      wrapper: createWrapper(qc),
+    });
 
     socket.emit("issue_metadata:changed");
     socket.emit("issue_metadata:changed");
     act(() => vi.advanceTimersByTime(75));
 
-    expect(invalidate).toHaveBeenCalledTimes(13);
+    expect(invalidate).toHaveBeenCalledTimes(14);
   });
 
   it("invalidates the non-workspace-scoped attachment cache after an attachment event", () => {
     const socket = createMockWs();
     const attachmentKey = ["issues", "attachments", "issue-1"] as const;
     qc.setQueryData(attachmentKey, [{ id: "attachment-1" }]);
-    renderHook(() => useRealtimeSync(socket.ws, stores), { wrapper: createWrapper(qc) });
+    renderHook(() => useRealtimeSync(socket.ws, stores), {
+      wrapper: createWrapper(qc),
+    });
 
     socket.emit("issue_attachments:changed");
     act(() => vi.advanceTimersByTime(75));
@@ -170,6 +169,6 @@ describe("useRealtimeSync", () => {
     });
 
     socket.reconnect();
-    expect(invalidate).toHaveBeenCalledTimes(13);
+    expect(invalidate).toHaveBeenCalledTimes(14);
   });
 });

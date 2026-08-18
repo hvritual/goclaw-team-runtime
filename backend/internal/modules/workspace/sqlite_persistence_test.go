@@ -23,7 +23,7 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 16 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 17 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
@@ -100,6 +100,35 @@ func TestKnowledgeQueryDownMigrationRejectsEveryRetainedTable(t *testing.T) {
 			}
 			if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000016_knowledge_query.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
 				t.Fatalf("knowledge catalog count = %d, %v", catalogCount, err)
+			}
+		})
+	}
+}
+
+func TestKnowledgeReviewDownMigrationRejectsEveryRetainedDependency(t *testing.T) {
+	for _, test := range []struct{ name, statement string }{
+		{"candidate", `INSERT INTO workspace_knowledge_candidates(id,workspace_id,target_revision,kind,title,content,reason,status,revision,proposed_by,created_at,updated_at) VALUES('candidate-1','workspace-1',0,'lesson','Title','Body','Reason','candidate',1,'user-1','2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`},
+		{"candidate source", `INSERT INTO workspace_knowledge_candidate_sources(candidate_id,ordinal,source_type,source_id,source_revision,citation) VALUES('candidate-1',0,'acceptance_conclusion','issue-1','sha256:abc','Accepted')`},
+		{"review event", `INSERT INTO workspace_knowledge_review_events(candidate_id,candidate_revision,action,actor_id,rationale,emergency,occurred_at) VALUES('candidate-1',2,'approve','user-2','Approved',0,'2026-08-18T00:00:00Z')`},
+		{"publication", `INSERT INTO workspace_knowledge_publications(candidate_id,knowledge_id,action,created_at) VALUES('candidate-1','knowledge-1','publish','2026-08-18T00:00:00Z')`},
+		{"invalidated entry", `INSERT INTO workspace_governed_knowledge(id,workspace_id,kind,status,current_revision,created_at,updated_at) VALUES('knowledge-1','workspace-1','lesson','invalidated',1,'2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`},
+		{"audit", `INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-18T00:00:00Z','audit-1','member','user-1','workspace.knowledge.propose','knowledge_candidate','candidate-1',1,'request-1','{}')`},
+		{"idempotency", `INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.knowledge.propose','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','knowledge_candidate','candidate-1',1,201,'{}','2026-08-18T00:00:00Z')`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := openUnmigratedWorkspaceDB(t, "knowledge-review-down-"+strings.ReplaceAll(test.name, " ", "-"))
+			if err := MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(test.statement); err != nil {
+				t.Fatal(err)
+			}
+			if err := executeKnowledgeReviewDownForTest(context.Background(), db); err == nil {
+				t.Fatal("knowledge review down succeeded with retained dependency")
+			}
+			var catalog int
+			if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000017_knowledge_review.up.sql'`).Scan(&catalog); err != nil || catalog != 1 {
+				t.Fatalf("review catalog = %d, %v", catalog, err)
 			}
 		})
 	}
@@ -398,6 +427,22 @@ func executePinReorderDownForTest(ctx context.Context, db *sql.DB) error {
 
 func executeKnowledgeQueryDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000016_knowledge_query.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func executeKnowledgeReviewDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000017_knowledge_review.down.sql")
 	if err != nil {
 		return err
 	}

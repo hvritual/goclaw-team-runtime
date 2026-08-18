@@ -6,13 +6,21 @@ export const knowledgeKeys = {
   all: (workspaceId: string) => ["knowledge", workspaceId] as const,
   list: (workspaceId: string, filters: KnowledgeQueryFilters) =>
     [...knowledgeKeys.all(workspaceId), "list", filters] as const,
-  candidates: (workspaceId: string) =>
-    [...knowledgeKeys.all(workspaceId), "candidates"] as const,
+  candidates: (workspaceId: string, limit: number, cursor?: string) =>
+    [
+      ...knowledgeKeys.all(workspaceId),
+      "candidates",
+      { limit, cursor },
+    ] as const,
   detail: (workspaceId: string, knowledgeId: string) =>
     [...knowledgeKeys.all(workspaceId), "detail", knowledgeId] as const,
 };
 
-export function knowledgeListOptions(workspaceId: string, filters: KnowledgeQueryFilters = {}, enabled = true) {
+export function knowledgeListOptions(
+  workspaceId: string,
+  filters: KnowledgeQueryFilters = {},
+  enabled = true
+) {
   return queryOptions({
     queryKey: knowledgeKeys.list(workspaceId, filters),
     queryFn: () => api.listKnowledge(filters),
@@ -23,7 +31,7 @@ export function knowledgeListOptions(workspaceId: string, filters: KnowledgeQuer
 export function knowledgeDetailOptions(
   workspaceId: string,
   knowledgeId: string,
-  enabled = true,
+  enabled = true
 ) {
   return queryOptions({
     queryKey: knowledgeKeys.detail(workspaceId, knowledgeId),
@@ -35,10 +43,12 @@ export function knowledgeDetailOptions(
 export function knowledgeCandidateListOptions(
   workspaceId: string,
   enabled: boolean,
+  limit = 50,
+  cursor?: string
 ) {
   return queryOptions({
-    queryKey: knowledgeKeys.candidates(workspaceId),
-    queryFn: () => api.listKnowledgeCandidates(),
+    queryKey: knowledgeKeys.candidates(workspaceId, limit, cursor),
+    queryFn: () => api.listKnowledgeCandidates(limit, cursor),
     enabled: Boolean(workspaceId) && enabled,
   });
 }

@@ -106,7 +106,13 @@ import type {
   PromoteTaskResponse,
 } from "../types";
 import type { ReorderTasksRequest } from "../types/task";
-import { EMPTY_TASK_LIST, reorderedTasksSchema, taskListSchema, taskPromotionResponseSchema, taskSchema } from "../tasks/schema";
+import {
+  EMPTY_TASK_LIST,
+  reorderedTasksSchema,
+  taskListSchema,
+  taskPromotionResponseSchema,
+  taskSchema,
+} from "../tasks/schema";
 import type { OnboardingCompletionPath } from "../onboarding/types";
 import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
 import { type Logger, noopLogger } from "../logger";
@@ -114,7 +120,6 @@ import { createRequestId, createSafeId } from "../utils";
 import { getCurrentSlug, getCurrentWsId } from "../platform/workspace-storage";
 import { parseWithFallback } from "./schema";
 import {
-  EMPTY_KNOWLEDGE_CANDIDATE_LIST,
   knowledgeCandidateListSchema,
   knowledgeCandidateSchema,
   knowledgeEntrySchema,
@@ -131,9 +136,9 @@ import {
 } from "../implementation-knowledge/schema";
 import {
   EMPTY_PROJECT_REQUIREMENT_BASELINE,
-	EMPTY_PROJECT_REQUIREMENT_COVERAGE,
+  EMPTY_PROJECT_REQUIREMENT_COVERAGE,
   projectRequirementBaselineResponseSchema,
-	projectRequirementCoverageSchema,
+  projectRequirementCoverageSchema,
 } from "../project-requirements/schema";
 import {
   AttachmentSchema,
@@ -244,7 +249,6 @@ export interface ApiClientOptions {
   identity?: ApiClientIdentity;
 }
 
-
 export interface LoginResponse {
   token: string;
   user: User;
@@ -258,7 +262,12 @@ export class ApiError extends Error {
   // identifiers instead of pattern-matching the human-readable message.
   readonly body?: unknown;
 
-  constructor(message: string, status: number, statusText: string, body?: unknown) {
+  constructor(
+    message: string,
+    status: number,
+    statusText: string,
+    body?: unknown
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -301,7 +310,6 @@ export class PreviewUnsupportedError extends Error {
     this.name = "PreviewUnsupportedError";
   }
 }
-
 
 export class ApiClient {
   private baseUrl: string;
@@ -354,9 +362,12 @@ export class ApiClient {
     this.options.onUnauthorized?.();
   }
 
-  private async parseErrorMessage(res: Response, fallback: string): Promise<string> {
+  private async parseErrorMessage(
+    res: Response,
+    fallback: string
+  ): Promise<string> {
     try {
-      const data = await res.json() as { error?: string };
+      const data = (await res.json()) as { error?: string };
       if (typeof data.error === "string" && data.error) return data.error;
     } catch {
       // Ignore non-JSON error bodies.
@@ -367,10 +378,14 @@ export class ApiClient {
   // Reads the response body once for both human-readable error message and
   // structured fields. The Response stream can only be consumed once, so
   // both pieces have to come from a single read.
-  private async parseErrorBody(res: Response, fallback: string): Promise<{ message: string; body: unknown }> {
+  private async parseErrorBody(
+    res: Response,
+    fallback: string
+  ): Promise<{ message: string; body: unknown }> {
     try {
-      const data = await res.json() as { error?: string };
-      const message = typeof data.error === "string" && data.error ? data.error : fallback;
+      const data = (await res.json()) as { error?: string };
+      const message =
+        typeof data.error === "string" && data.error ? data.error : fallback;
       return { message, body: data };
     } catch {
       return { message: fallback, body: undefined };
@@ -384,7 +399,7 @@ export class ApiClient {
   // path, plain text for the attachment-preview proxy, etc.
   private async fetchRaw(
     path: string,
-    init?: RequestInit & { extraHeaders?: Record<string, string> },
+    init?: RequestInit & { extraHeaders?: Record<string, string> }
   ): Promise<Response> {
     const rid = createRequestId();
     const start = Date.now();
@@ -407,13 +422,23 @@ export class ApiClient {
 
     if (!res.ok) {
       if (res.status === 401) this.handleUnauthorized();
-      const { message, body } = await this.parseErrorBody(res, `API error: ${res.status} ${res.statusText}`);
+      const { message, body } = await this.parseErrorBody(
+        res,
+        `API error: ${res.status} ${res.statusText}`
+      );
       const logLevel = res.status === 404 ? "warn" : "error";
-      this.logger[logLevel](`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms`, error: message });
+      this.logger[logLevel](`← ${res.status} ${path}`, {
+        rid,
+        duration: `${Date.now() - start}ms`,
+        error: message,
+      });
       throw new ApiError(message, res.status, res.statusText, body);
     }
 
-    this.logger.info(`← ${res.status} ${path}`, { rid, duration: `${Date.now() - start}ms` });
+    this.logger.info(`← ${res.status} ${path}`, {
+      rid,
+      duration: `${Date.now() - start}ms`,
+    });
     return res;
   }
 
@@ -430,15 +455,18 @@ export class ApiClient {
   }
 
   /** Authenticated transport for the canonical control-plane process. */
-  async requestControlPlane(path: string, init?: RequestInit): Promise<Response> {
+  async requestControlPlane(
+    path: string,
+    init?: RequestInit
+  ): Promise<Response> {
     const parsed = new URL(path, "https://control-plane.invalid");
     if (
-      parsed.origin !== "https://control-plane.invalid"
-      || !parsed.pathname.startsWith("/v1/")
-      || parsed.search !== ""
-      || parsed.hash !== ""
-      || path.includes("\\")
-      || parsed.pathname !== path
+      parsed.origin !== "https://control-plane.invalid" ||
+      !parsed.pathname.startsWith("/v1/") ||
+      parsed.search !== "" ||
+      parsed.hash !== "" ||
+      path.includes("\\") ||
+      parsed.pathname !== path
     ) {
       throw new Error("control-plane path must be a normalized /v1/ path");
     }
@@ -518,24 +546,36 @@ export class ApiClient {
     if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
     if (params?.q?.trim()) search.set("q", params.q.trim());
     if (params?.status) search.set("status", params.status);
-    if (params?.statuses?.length) search.set("statuses", params.statuses.join(","));
+    if (params?.statuses?.length)
+      search.set("statuses", params.statuses.join(","));
     if (params?.priority) search.set("priority", params.priority);
-    if (params?.priorities?.length) search.set("priorities", params.priorities.join(","));
+    if (params?.priorities?.length)
+      search.set("priorities", params.priorities.join(","));
     if (params?.assignee_id) search.set("assignee_id", params.assignee_id);
-    if (params?.assignee_ids?.length) search.set("assignee_ids", params.assignee_ids.join(","));
-    if (params?.assignee_types?.length) search.set("assignee_types", params.assignee_types.join(","));
+    if (params?.assignee_ids?.length)
+      search.set("assignee_ids", params.assignee_ids.join(","));
+    if (params?.assignee_types?.length)
+      search.set("assignee_types", params.assignee_types.join(","));
     if (params?.creator_id) search.set("creator_id", params.creator_id);
     if (params?.project_id) search.set("project_id", params.project_id);
     if (params?.assignee_filters?.length) {
-      search.set("assignee_filters", params.assignee_filters.map((f) => `${f.type}:${f.id}`).join(","));
+      search.set(
+        "assignee_filters",
+        params.assignee_filters.map((f) => `${f.type}:${f.id}`).join(",")
+      );
     }
     if (params?.include_no_assignee) search.set("include_no_assignee", "true");
     if (params?.creator_filters?.length) {
-      search.set("creator_filters", params.creator_filters.map((f) => `${f.type}:${f.id}`).join(","));
+      search.set(
+        "creator_filters",
+        params.creator_filters.map((f) => `${f.type}:${f.id}`).join(",")
+      );
     }
-    if (params?.project_ids?.length) search.set("project_ids", params.project_ids.join(","));
+    if (params?.project_ids?.length)
+      search.set("project_ids", params.project_ids.join(","));
     if (params?.include_no_project) search.set("include_no_project", "true");
-    if (params?.label_ids?.length) search.set("label_ids", params.label_ids.join(","));
+    if (params?.label_ids?.length)
+      search.set("label_ids", params.label_ids.join(","));
     if (params?.top_level_only) search.set("top_level_only", "true");
     // No `.length` guard on purpose: an empty ids array must still send
     // `ids=` — the server treats a PRESENT-but-empty list as an empty window
@@ -563,27 +603,43 @@ export class ApiClient {
         method: "POST",
         body: JSON.stringify(Object.fromEntries(search)),
       });
-      return parseWithFallback(raw, ListIssuesResponseSchema, EMPTY_LIST_ISSUES_RESPONSE, {
-        endpoint: "POST /api/issues/query",
-      });
+      return parseWithFallback(
+        raw,
+        ListIssuesResponseSchema,
+        EMPTY_LIST_ISSUES_RESPONSE,
+        {
+          endpoint: "POST /api/issues/query",
+        }
+      );
     }
     const path = `/api/issues?${search}`;
     const raw = await this.fetch<unknown>(path);
-    return parseWithFallback(raw, ListIssuesResponseSchema, EMPTY_LIST_ISSUES_RESPONSE, {
-      endpoint: "GET /api/issues",
-    });
+    return parseWithFallback(
+      raw,
+      ListIssuesResponseSchema,
+      EMPTY_LIST_ISSUES_RESPONSE,
+      {
+        endpoint: "GET /api/issues",
+      }
+    );
   }
 
-  async listGroupedIssues(params: ListGroupedIssuesParams): Promise<GroupedIssuesResponse> {
+  async listGroupedIssues(
+    params: ListGroupedIssuesParams
+  ): Promise<GroupedIssuesResponse> {
     const search = new URLSearchParams({ group_by: params.group_by });
     if (params.limit) search.set("limit", String(params.limit));
     if (params.offset) search.set("offset", String(params.offset));
     if (params.workspace_id) search.set("workspace_id", params.workspace_id);
-    if (params.statuses?.length) search.set("statuses", params.statuses.join(","));
-    if (params.priorities?.length) search.set("priorities", params.priorities.join(","));
-    if (params.assignee_types?.length) search.set("assignee_types", params.assignee_types.join(","));
+    if (params.statuses?.length)
+      search.set("statuses", params.statuses.join(","));
+    if (params.priorities?.length)
+      search.set("priorities", params.priorities.join(","));
+    if (params.assignee_types?.length)
+      search.set("assignee_types", params.assignee_types.join(","));
     if (params.assignee_id) search.set("assignee_id", params.assignee_id);
-    if (params.assignee_ids?.length) search.set("assignee_ids", params.assignee_ids.join(","));
+    if (params.assignee_ids?.length)
+      search.set("assignee_ids", params.assignee_ids.join(","));
     if (params.creator_id) search.set("creator_id", params.creator_id);
     if (params.project_id) search.set("project_id", params.project_id);
     if (params.metadata && Object.keys(params.metadata).length > 0) {
@@ -593,29 +649,46 @@ export class ApiClient {
       search.set("properties", JSON.stringify(params.properties));
     }
     if (params.assignee_filters?.length) {
-      search.set("assignee_filters", params.assignee_filters.map((f) => `${f.type}:${f.id}`).join(","));
+      search.set(
+        "assignee_filters",
+        params.assignee_filters.map((f) => `${f.type}:${f.id}`).join(",")
+      );
     }
     if (params.include_no_assignee) search.set("include_no_assignee", "true");
     if (params.creator_filters?.length) {
-      search.set("creator_filters", params.creator_filters.map((f) => `${f.type}:${f.id}`).join(","));
+      search.set(
+        "creator_filters",
+        params.creator_filters.map((f) => `${f.type}:${f.id}`).join(",")
+      );
     }
-    if (params.project_ids?.length) search.set("project_ids", params.project_ids.join(","));
+    if (params.project_ids?.length)
+      search.set("project_ids", params.project_ids.join(","));
     if (params.include_no_project) search.set("include_no_project", "true");
-    if (params.label_ids?.length) search.set("label_ids", params.label_ids.join(","));
-    if (params.group_assignee_type) search.set("group_assignee_type", params.group_assignee_type);
-    if (params.group_assignee_id) search.set("group_assignee_id", params.group_assignee_id);
+    if (params.label_ids?.length)
+      search.set("label_ids", params.label_ids.join(","));
+    if (params.group_assignee_type)
+      search.set("group_assignee_type", params.group_assignee_type);
+    if (params.group_assignee_id)
+      search.set("group_assignee_id", params.group_assignee_id);
     if (params.date_field) search.set("date_field", params.date_field);
     if (params.date_start) search.set("date_start", params.date_start);
     if (params.date_end) search.set("date_end", params.date_end);
     if (params.sort_by) search.set("sort", params.sort_by);
     if (params.sort_direction) search.set("direction", params.sort_direction);
     const raw = await this.fetch<unknown>(`/api/issues/grouped?${search}`);
-    return parseWithFallback(raw, GroupedIssuesResponseSchema, EMPTY_GROUPED_ISSUES_RESPONSE, {
-      endpoint: "GET /api/issues/grouped",
-    });
+    return parseWithFallback(
+      raw,
+      GroupedIssuesResponseSchema,
+      EMPTY_GROUPED_ISSUES_RESPONSE,
+      {
+        endpoint: "GET /api/issues/grouped",
+      }
+    );
   }
 
-  async listIssueTableGroups(params: IssueTableGroupsRequest): Promise<IssueTableGroupsResponse> {
+  async listIssueTableGroups(
+    params: IssueTableGroupsRequest
+  ): Promise<IssueTableGroupsResponse> {
     const raw = await this.fetch<unknown>("/api/issues/table/groups", {
       method: "POST",
       body: JSON.stringify(params),
@@ -624,11 +697,13 @@ export class ApiClient {
       raw,
       IssueTableGroupsResponseSchema,
       EMPTY_ISSUE_TABLE_GROUPS_RESPONSE,
-      { endpoint: "POST /api/issues/table/groups" },
+      { endpoint: "POST /api/issues/table/groups" }
     );
   }
 
-  async listIssueTableRows(params: IssueTableRowsRequest): Promise<IssueTableRowsResponse> {
+  async listIssueTableRows(
+    params: IssueTableRowsRequest
+  ): Promise<IssueTableRowsResponse> {
     const raw = await this.fetch<unknown>("/api/issues/table/rows", {
       method: "POST",
       body: JSON.stringify(params),
@@ -637,11 +712,13 @@ export class ApiClient {
       raw,
       IssueTableRowsResponseSchema,
       EMPTY_ISSUE_TABLE_ROWS_RESPONSE,
-      { endpoint: "POST /api/issues/table/rows" },
+      { endpoint: "POST /api/issues/table/rows" }
     );
   }
 
-  async listIssueTableFacets(params: IssueTableFacetsRequest): Promise<IssueTableFacetsResponse> {
+  async listIssueTableFacets(
+    params: IssueTableFacetsRequest
+  ): Promise<IssueTableFacetsResponse> {
     const raw = await this.fetch<unknown>("/api/issues/table/facets", {
       method: "POST",
       body: JSON.stringify(params),
@@ -650,72 +727,113 @@ export class ApiClient {
       raw,
       IssueTableFacetsResponseSchema,
       EMPTY_ISSUE_TABLE_FACETS_RESPONSE,
-      { endpoint: "POST /api/issues/table/facets" },
+      { endpoint: "POST /api/issues/table/facets" }
     );
   }
 
-  async searchIssues(params: { q: string; limit?: number; offset?: number; include_closed?: boolean; signal?: AbortSignal }): Promise<SearchIssuesResponse> {
+  async searchIssues(params: {
+    q: string;
+    limit?: number;
+    offset?: number;
+    include_closed?: boolean;
+    signal?: AbortSignal;
+  }): Promise<SearchIssuesResponse> {
     const search = new URLSearchParams({ q: params.q });
     if (params.limit !== undefined) search.set("limit", String(params.limit));
-    if (params.offset !== undefined) search.set("offset", String(params.offset));
+    if (params.offset !== undefined)
+      search.set("offset", String(params.offset));
     if (params.include_closed) search.set("include_closed", "true");
     const raw = await this.fetch<unknown>(
       `/api/issues/search?${search}`,
-      params.signal ? { signal: params.signal } : undefined,
+      params.signal ? { signal: params.signal } : undefined
     );
-    return parseWithFallback(raw, SearchIssuesResponseSchema, EMPTY_SEARCH_ISSUES_RESPONSE, {
-      endpoint: "GET /api/issues/search",
-    });
+    return parseWithFallback(
+      raw,
+      SearchIssuesResponseSchema,
+      EMPTY_SEARCH_ISSUES_RESPONSE,
+      {
+        endpoint: "GET /api/issues/search",
+      }
+    );
   }
 
-  async searchProjects(params: { q: string; limit?: number; offset?: number; include_closed?: boolean; signal?: AbortSignal }): Promise<SearchProjectsResponse> {
+  async searchProjects(params: {
+    q: string;
+    limit?: number;
+    offset?: number;
+    include_closed?: boolean;
+    signal?: AbortSignal;
+  }): Promise<SearchProjectsResponse> {
     const search = new URLSearchParams({ q: params.q });
     if (params.limit !== undefined) search.set("limit", String(params.limit));
-    if (params.offset !== undefined) search.set("offset", String(params.offset));
+    if (params.offset !== undefined)
+      search.set("offset", String(params.offset));
     if (params.include_closed) search.set("include_closed", "true");
     const raw = await this.fetch<unknown>(
       `/api/projects/search?${search}`,
-      params.signal ? { signal: params.signal } : undefined,
+      params.signal ? { signal: params.signal } : undefined
     );
-    return parseWithFallback(raw, SearchProjectsResponseSchema, EMPTY_SEARCH_PROJECTS_RESPONSE, {
-      endpoint: "GET /api/projects/search",
-    });
+    return parseWithFallback(
+      raw,
+      SearchProjectsResponseSchema,
+      EMPTY_SEARCH_PROJECTS_RESPONSE,
+      {
+        endpoint: "GET /api/projects/search",
+      }
+    );
   }
 
   async getIssue(id: string): Promise<Issue> {
     const raw = await this.fetch<unknown>(`/api/issues/${id}`);
-    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
-      endpoint: "GET /api/issues/:id",
-    });
+    const issue = parseWithFallback<Issue | null>(
+      raw,
+      IssueSchema.nullable(),
+      null,
+      {
+        endpoint: "GET /api/issues/:id",
+      }
+    );
     if (!issue) throw new Error("Invalid issue response");
     return issue;
   }
 
   async getIssueMetadata(id: string): Promise<IssueMetadata> {
     return this.parseIssueMetadata(
-      await this.fetch<unknown>(`/api/issues/${id}/metadata`, { headers: this.issueMetadataWorkspaceHeader() }),
-      "GET /api/issues/:id/metadata",
+      await this.fetch<unknown>(`/api/issues/${id}/metadata`, {
+        headers: this.issueMetadataWorkspaceHeader(),
+      }),
+      "GET /api/issues/:id/metadata"
     );
   }
 
-  async putIssueMetadata(id: string, key: string, value: IssueMetadataValue): Promise<IssueMetadata> {
+  async putIssueMetadata(
+    id: string,
+    key: string,
+    value: IssueMetadataValue
+  ): Promise<IssueMetadata> {
     return this.parseIssueMetadata(
-      await this.fetch<unknown>(`/api/issues/${id}/metadata/${encodeURIComponent(key)}`, {
-        method: "PUT",
-        headers: this.issueMetadataWorkspaceHeader(),
-        body: JSON.stringify({ value }),
-      }),
-      "PUT /api/issues/:id/metadata/:key",
+      await this.fetch<unknown>(
+        `/api/issues/${id}/metadata/${encodeURIComponent(key)}`,
+        {
+          method: "PUT",
+          headers: this.issueMetadataWorkspaceHeader(),
+          body: JSON.stringify({ value }),
+        }
+      ),
+      "PUT /api/issues/:id/metadata/:key"
     );
   }
 
   async deleteIssueMetadata(id: string, key: string): Promise<IssueMetadata> {
     return this.parseIssueMetadata(
-      await this.fetch<unknown>(`/api/issues/${id}/metadata/${encodeURIComponent(key)}`, {
-        method: "DELETE",
-        headers: this.issueMetadataWorkspaceHeader(),
-      }),
-      "DELETE /api/issues/:id/metadata/:key",
+      await this.fetch<unknown>(
+        `/api/issues/${id}/metadata/${encodeURIComponent(key)}`,
+        {
+          method: "DELETE",
+          headers: this.issueMetadataWorkspaceHeader(),
+        }
+      ),
+      "DELETE /api/issues/:id/metadata/:key"
     );
   }
 
@@ -724,7 +842,7 @@ export class ApiClient {
       raw,
       IssueMetadataResponseSchema.nullable(),
       null,
-      { endpoint },
+      { endpoint }
     );
     if (!response) throw new Error("Invalid issue metadata response");
     return response.metadata;
@@ -749,9 +867,14 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-    const issue = parseWithFallback<Issue | null>(raw, CreateIssueResponseSchema, null, {
-      endpoint: "POST /api/issues",
-    });
+    const issue = parseWithFallback<Issue | null>(
+      raw,
+      CreateIssueResponseSchema,
+      null,
+      {
+        endpoint: "POST /api/issues",
+      }
+    );
     if (!issue) {
       throw new Error();
     }
@@ -768,9 +891,14 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return parseWithFallback(raw, CreateFeedbackResponseSchema, EMPTY_CREATE_FEEDBACK_RESPONSE, {
-      endpoint: "POST /api/feedback",
-    });
+    return parseWithFallback(
+      raw,
+      CreateFeedbackResponseSchema,
+      EMPTY_CREATE_FEEDBACK_RESPONSE,
+      {
+        endpoint: "POST /api/feedback",
+      }
+    );
   }
 
   async updateIssue(id: string, data: UpdateIssueRequest): Promise<Issue> {
@@ -779,44 +907,64 @@ export class ApiClient {
       method: "PUT",
       body: JSON.stringify({
         ...issueUpdate,
-        ...(acceptanceConclusion ? {
-          acceptance_conclusion: {
-            result: acceptanceConclusion.result,
-            rationale: acceptanceConclusion.rationale,
-            evidence_refs: acceptanceConclusion.evidenceRefs,
-          },
-        } : {}),
+        ...(acceptanceConclusion
+          ? {
+              acceptance_conclusion: {
+                result: acceptanceConclusion.result,
+                rationale: acceptanceConclusion.rationale,
+                evidence_refs: acceptanceConclusion.evidenceRefs,
+              },
+            }
+          : {}),
       }),
     });
-    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
-      endpoint: "PUT /api/issues/:id",
-    });
+    const issue = parseWithFallback<Issue | null>(
+      raw,
+      IssueSchema.nullable(),
+      null,
+      {
+        endpoint: "PUT /api/issues/:id",
+      }
+    );
     if (!issue) throw new Error("Invalid issue update response");
     return issue;
   }
 
-  async listIssueAcceptanceConclusions(id: string): Promise<AcceptanceConclusionListResponse> {
-    const raw = await this.fetch<unknown>(`/api/issues/${id}/acceptance-conclusions`);
+  async listIssueAcceptanceConclusions(
+    id: string
+  ): Promise<AcceptanceConclusionListResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${id}/acceptance-conclusions`
+    );
     const parsed = acceptanceConclusionListSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid acceptance conclusion list response");
+    if (!parsed.success)
+      throw new Error("Invalid acceptance conclusion list response");
     return parsed.data;
   }
 
   async createIssueAcceptanceConclusion(
     id: string,
-    input: AcceptanceConclusionInput,
+    input: AcceptanceConclusionInput
   ): Promise<AcceptanceConclusion> {
-    const raw = await this.fetch<unknown>(`/api/issues/${id}/acceptance-conclusions`, {
-      method: "POST",
-      body: JSON.stringify({
-        result: input.result,
-        rationale: input.rationale,
-        evidence_refs: input.evidenceRefs,
-      }),
-    });
-    const conclusion = parseWithFallback(raw, acceptanceConclusionSchema.nullable(), null, {
-      endpoint: "POST /api/issues/:id/acceptance-conclusions",
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${id}/acceptance-conclusions`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          result: input.result,
+          rationale: input.rationale,
+          evidence_refs: input.evidenceRefs,
+        }),
+      }
+    );
+    const conclusion = parseWithFallback(
+      raw,
+      acceptanceConclusionSchema.nullable(),
+      null,
+      {
+        endpoint: "POST /api/issues/:id/acceptance-conclusions",
+      }
+    );
     if (!conclusion) throw new Error("Invalid acceptance conclusion response");
     return conclusion;
   }
@@ -826,9 +974,14 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(data),
     });
-    const issue = parseWithFallback<Issue | null>(raw, IssueSchema.nullable(), null, {
-      endpoint: "POST /api/issues/:id/move",
-    });
+    const issue = parseWithFallback<Issue | null>(
+      raw,
+      IssueSchema.nullable(),
+      null,
+      {
+        endpoint: "POST /api/issues/:id/move",
+      }
+    );
     if (!issue) throw new Error("Invalid issue move response");
     return issue;
   }
@@ -844,19 +997,24 @@ export class ApiClient {
    *  Avoids an N-request fan-out in Swimlane (one per visible parent lane).
    *  parentIds must be non-empty; pass a sorted, deduplicated list so the
    *  React Query cache key is stable across renders. */
-  async listChildrenByParents(parentIds: string[]): Promise<{ issues: Issue[] }> {
+  async listChildrenByParents(
+    parentIds: string[]
+  ): Promise<{ issues: Issue[] }> {
     const raw = await this.fetch<unknown>(
-      `/api/issues/children?parent_ids=${parentIds.join(",")}`,
+      `/api/issues/children?parent_ids=${parentIds.join(",")}`
     );
     const parsed = ChildIssuesResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid child issues response");
     return parsed.data;
   }
 
-  async getChildIssueProgress(): Promise<{ progress: { parent_issue_id: string; total: number; done: number }[] }> {
+  async getChildIssueProgress(): Promise<{
+    progress: { parent_issue_id: string; total: number; done: number }[];
+  }> {
     const raw = await this.fetch<unknown>("/api/issues/child-progress");
     const parsed = ChildIssueProgressResponseSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid child issue progress response");
+    if (!parsed.success)
+      throw new Error("Invalid child issue progress response");
     return parsed.data;
   }
 
@@ -864,7 +1022,10 @@ export class ApiClient {
     await this.fetch(`/api/issues/${id}`, { method: "DELETE" });
   }
 
-  async batchUpdateIssues(issueIds: string[], updates: UpdateIssueRequest): Promise<{ updated: number }> {
+  async batchUpdateIssues(
+    issueIds: string[],
+    updates: UpdateIssueRequest
+  ): Promise<{ updated: number }> {
     const raw = await this.fetch<unknown>("/api/issues/batch-update", {
       method: "POST",
       body: JSON.stringify({ issue_ids: issueIds, updates }),
@@ -897,7 +1058,7 @@ export class ApiClient {
     content: string,
     type?: string,
     parentId?: string,
-    attachmentIds?: string[],
+    attachmentIds?: string[]
   ): Promise<Comment> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/comments`, {
       method: "POST",
@@ -914,15 +1075,17 @@ export class ApiClient {
   }
 
   async listTimeline(issueId: string): Promise<TimelineEntry[]> {
-    const raw = await this.fetch<unknown>(
-      `/api/issues/${issueId}/timeline`,
-    );
+    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/timeline`);
     const parsed = TimelineEntriesSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid timeline response");
     return parsed.data;
   }
 
-  async updateComment(commentId: string, content: string, attachmentIds?: string[]): Promise<Comment> {
+  async updateComment(
+    commentId: string,
+    content: string,
+    attachmentIds?: string[]
+  ): Promise<Comment> {
     const raw = await this.fetch<unknown>(`/api/comments/${commentId}`, {
       method: "PUT",
       body: JSON.stringify({
@@ -940,36 +1103,46 @@ export class ApiClient {
   }
 
   async proposeCommentDecision(
-    commentId: string,
+    commentId: string
   ): Promise<CommentKnowledgeProposalResponse> {
     const raw = await this.fetch<unknown>(
       `/api/comments/${encodeURIComponent(commentId)}/knowledge-proposals`,
-      { method: "POST" },
+      { method: "POST" }
     );
     const parsed = commentKnowledgeProposalResponseSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid comment knowledge proposal response");
+    if (!parsed.success)
+      throw new Error("Invalid comment knowledge proposal response");
     return parsed.data;
   }
 
   async resolveComment(commentId: string): Promise<Comment> {
-    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/resolve`, { method: "POST" });
+    const raw = await this.fetch<unknown>(
+      `/api/comments/${commentId}/resolve`,
+      { method: "POST" }
+    );
     const parsed = CommentSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid comment response");
     return parsed.data;
   }
 
   async unresolveComment(commentId: string): Promise<Comment> {
-    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/resolve`, { method: "DELETE" });
+    const raw = await this.fetch<unknown>(
+      `/api/comments/${commentId}/resolve`,
+      { method: "DELETE" }
+    );
     const parsed = CommentSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid comment response");
     return parsed.data;
   }
 
   async addReaction(commentId: string, emoji: string): Promise<Reaction> {
-    const raw = await this.fetch<unknown>(`/api/comments/${commentId}/reactions`, {
-      method: "POST",
-      body: JSON.stringify({ emoji }),
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/comments/${commentId}/reactions`,
+      {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      }
+    );
     const parsed = ReactionSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid comment reaction response");
     return parsed.data;
@@ -982,7 +1155,10 @@ export class ApiClient {
     });
   }
 
-  async addIssueReaction(issueId: string, emoji: string): Promise<IssueReaction> {
+  async addIssueReaction(
+    issueId: string,
+    emoji: string
+  ): Promise<IssueReaction> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/reactions`, {
       method: "POST",
       body: JSON.stringify({ emoji }),
@@ -1014,7 +1190,11 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async subscribeToIssue(issueId: string, userId?: string, userType?: string): Promise<void> {
+  async subscribeToIssue(
+    issueId: string,
+    userId?: string,
+    userType?: string
+  ): Promise<void> {
     const body: Record<string, string> = {};
     if (userId) body.user_id = userId;
     if (userType) body.user_type = userType;
@@ -1026,18 +1206,24 @@ export class ApiClient {
     if (!parsed.success) throw new Error("Invalid subscription response");
   }
 
-  async unsubscribeFromIssue(issueId: string, userId?: string, userType?: string): Promise<void> {
+  async unsubscribeFromIssue(
+    issueId: string,
+    userId?: string,
+    userType?: string
+  ): Promise<void> {
     const body: Record<string, string> = {};
     if (userId) body.user_id = userId;
     if (userType) body.user_type = userType;
-    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/unsubscribe`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${issueId}/unsubscribe`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    );
     const parsed = SubscribedResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid subscription response");
   }
-
 
   // Notification preferences
   //
@@ -1045,22 +1231,26 @@ export class ApiClient {
   // follows the active workspace) so a caller can read a SPECIFIC workspace's
   // preferences — e.g. honoring the mute setting of the workspace an inbox
   // notification came from while the user is viewing a different one (#3766).
-  async getNotificationPreferences(workspaceSlug?: string): Promise<NotificationPreferenceResponse> {
+  async getNotificationPreferences(
+    workspaceSlug?: string
+  ): Promise<NotificationPreferenceResponse> {
     const raw = await this.fetch<unknown>(
       "/api/notification-preferences",
-      workspaceSlug ? { headers: { "X-Workspace-Slug": workspaceSlug } } : undefined,
+      workspaceSlug
+        ? { headers: { "X-Workspace-Slug": workspaceSlug } }
+        : undefined
     );
     return parseWithFallback(
       raw,
       NotificationPreferenceResponseSchema,
       EMPTY_NOTIFICATION_PREFERENCE_RESPONSE,
-      { endpoint: "GET /api/notification-preferences" },
+      { endpoint: "GET /api/notification-preferences" }
     );
   }
 
   async updateNotificationPreferences(
     preferences: NotificationPreferences,
-    workspaceSlug?: string,
+    workspaceSlug?: string
   ): Promise<NotificationPreferenceResponse> {
     const raw = await this.fetch<unknown>("/api/notification-preferences", {
       method: "PATCH",
@@ -1073,31 +1263,46 @@ export class ApiClient {
       raw,
       NotificationPreferenceResponseSchema,
       EMPTY_NOTIFICATION_PREFERENCE_RESPONSE,
-      { endpoint: "PATCH /api/notification-preferences" },
+      { endpoint: "PATCH /api/notification-preferences" }
     );
   }
 
   // App Config
   async getConfig(): Promise<AppConfigResponse> {
     const raw = await this.fetch<unknown>("/api/config");
-    return parseWithFallback<AppConfigResponse>(raw, AppConfigSchema, EMPTY_APP_CONFIG, {
-      endpoint: "GET /api/config",
-    });
+    return parseWithFallback<AppConfigResponse>(
+      raw,
+      AppConfigSchema,
+      EMPTY_APP_CONFIG,
+      {
+        endpoint: "GET /api/config",
+      }
+    );
   }
 
   // Workspaces
   async listWorkspaces(): Promise<Workspace[]> {
     const raw = await this.fetch<unknown>("/api/workspaces");
-    return parseWithFallback<Workspace[]>(raw, WorkspaceListSchema, EMPTY_WORKSPACE_LIST, {
-      endpoint: "GET /api/workspaces",
-    });
+    return parseWithFallback<Workspace[]>(
+      raw,
+      WorkspaceListSchema,
+      EMPTY_WORKSPACE_LIST,
+      {
+        endpoint: "GET /api/workspaces",
+      }
+    );
   }
 
   async getWorkspace(id: string): Promise<Workspace> {
     return this.fetch(`/api/workspaces/${id}`);
   }
 
-  async createWorkspace(data: { name: string; slug: string; description?: string; context?: string }): Promise<Workspace> {
+  async createWorkspace(data: {
+    name: string;
+    slug: string;
+    description?: string;
+    context?: string;
+  }): Promise<Workspace> {
     const raw = await this.fetch<unknown>("/api/workspaces", {
       method: "POST",
       body: JSON.stringify(data),
@@ -1109,7 +1314,18 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async updateWorkspace(id: string, data: { name?: string; description?: string; context?: string; settings?: Record<string, unknown>; repos?: WorkspaceRepo[]; issue_prefix?: string; avatar_url?: string }): Promise<Workspace> {
+  async updateWorkspace(
+    id: string,
+    data: {
+      name?: string;
+      description?: string;
+      context?: string;
+      settings?: Record<string, unknown>;
+      repos?: WorkspaceRepo[];
+      issue_prefix?: string;
+      avatar_url?: string;
+    }
+  ): Promise<Workspace> {
     return this.fetch(`/api/workspaces/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -1119,38 +1335,43 @@ export class ApiClient {
   // Members
   async listMembers(workspaceId: string): Promise<MemberWithUser[]> {
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/members`,
+      `/api/workspaces/${workspaceId}/members`
     );
-    return parseWithFallback<MemberWithUser[]>(
-      raw,
-      MemberListSchema,
-      [],
-      { endpoint: "GET /api/workspaces/:id/members" },
-    );
+    return parseWithFallback<MemberWithUser[]>(raw, MemberListSchema, [], {
+      endpoint: "GET /api/workspaces/:id/members",
+    });
   }
 
-  async getWorkspacePermissions(workspaceId: string): Promise<WorkspacePermissionCatalog> {
+  async getWorkspacePermissions(
+    workspaceId: string
+  ): Promise<WorkspacePermissionCatalog> {
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/permissions`,
+      `/api/workspaces/${workspaceId}/permissions`
     );
     return parseWithFallback(
       raw,
       WorkspacePermissionCatalogSchema,
       EMPTY_WORKSPACE_PERMISSION_CATALOG,
-      { endpoint: "GET /api/workspaces/:id/permissions" },
+      { endpoint: "GET /api/workspaces/:id/permissions" }
     );
   }
 
-  async createMember(workspaceId: string, data: CreateMemberRequest): Promise<Invitation> {
-    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/members`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
+  async createMember(
+    workspaceId: string,
+    data: CreateMemberRequest
+  ): Promise<Invitation> {
+    const raw = await this.fetch<unknown>(
+      `/api/workspaces/${workspaceId}/members`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
     const invitation = parseWithFallback<Invitation | null>(
       raw,
       InvitationSchema.nullable(),
       null,
-      { endpoint: "POST /api/workspaces/:id/members" },
+      { endpoint: "POST /api/workspaces/:id/members" }
     );
     if (!invitation) throw new Error("Invalid invitation response");
     return invitation;
@@ -1159,20 +1380,20 @@ export class ApiClient {
   async updateMember(
     workspaceId: string,
     memberId: string,
-    data: UpdateMemberRequest,
+    data: UpdateMemberRequest
   ): Promise<MemberWithUser> {
     const raw = await this.fetch<unknown>(
       `/api/workspaces/${workspaceId}/members/${memberId}`,
       {
         method: "PATCH",
         body: JSON.stringify(data),
-      },
+      }
     );
     const member = parseWithFallback<MemberWithUser | null>(
       raw,
       MemberWithUserSchema.nullable(),
       null,
-      { endpoint: "PATCH /api/workspaces/:id/members/:memberId" },
+      { endpoint: "PATCH /api/workspaces/:id/members/:memberId" }
     );
     if (!member) throw new Error("Invalid member update response");
     return member;
@@ -1193,17 +1414,23 @@ export class ApiClient {
   // Invitations
   async listWorkspaceInvitations(workspaceId: string): Promise<Invitation[]> {
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/invitations`,
+      `/api/workspaces/${workspaceId}/invitations`
     );
     return parseWithFallback<Invitation[]>(raw, InvitationListSchema, [], {
       endpoint: "GET /api/workspaces/:id/invitations",
     });
   }
 
-  async revokeInvitation(workspaceId: string, invitationId: string): Promise<void> {
-    await this.fetch(`/api/workspaces/${workspaceId}/invitations/${invitationId}`, {
-      method: "DELETE",
-    });
+  async revokeInvitation(
+    workspaceId: string,
+    invitationId: string
+  ): Promise<void> {
+    await this.fetch(
+      `/api/workspaces/${workspaceId}/invitations/${invitationId}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
   async listMyInvitations(): Promise<Invitation[]> {
@@ -1219,21 +1446,24 @@ export class ApiClient {
       raw,
       InvitationSchema.nullable(),
       null,
-      { endpoint: "GET /api/invitations/:id" },
+      { endpoint: "GET /api/invitations/:id" }
     );
     if (!invitation) throw new Error("Invalid invitation response");
     return invitation;
   }
 
   async acceptInvitation(invitationId: string): Promise<MemberWithUser> {
-    const raw = await this.fetch<unknown>(`/api/invitations/${invitationId}/accept`, {
-      method: "POST",
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/invitations/${invitationId}/accept`,
+      {
+        method: "POST",
+      }
+    );
     const member = parseWithFallback<MemberWithUser | null>(
       raw,
       MemberWithUserSchema.nullable(),
       null,
-      { endpoint: "POST /api/invitations/:id/accept" },
+      { endpoint: "POST /api/invitations/:id/accept" }
     );
     if (!member) throw new Error("Invalid member response");
     return member;
@@ -1260,22 +1490,39 @@ export class ApiClient {
   }
 
   async getSkill(id: string, versionId?: string): Promise<Skill> {
-    const versionQuery = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+    const versionQuery = versionId
+      ? `?version_id=${encodeURIComponent(versionId)}`
+      : "";
     const raw = await this.fetch<unknown>(`/api/skills/${id}${versionQuery}`);
     const skill = parseSkillResponse(raw);
-    const manifests = await this.listSkillFiles(id, versionId ?? skill.version_id);
+    const manifests = await this.listSkillFiles(
+      id,
+      versionId ?? skill.version_id
+    );
     const files: SkillFile[] = [];
     for (let index = 0; index < manifests.length; index += 8) {
       const batch = manifests.slice(index, index + 8);
-      const resolved = await Promise.all(batch.map(async (manifest) => {
-        const editable = manifest.media_type.startsWith("text/") || /(?:json|javascript|xml|yaml|toml)/.test(manifest.media_type);
-        if (!editable) return { ...manifest, content: "" };
-        return this.getSkillFile(id, manifest.path, versionId ?? skill.version_id);
-      }));
+      const resolved = await Promise.all(
+        batch.map(async (manifest) => {
+          const editable =
+            manifest.media_type.startsWith("text/") ||
+            /(?:json|javascript|xml|yaml|toml)/.test(manifest.media_type);
+          if (!editable) return { ...manifest, content: "" };
+          return this.getSkillFile(
+            id,
+            manifest.path,
+            versionId ?? skill.version_id
+          );
+        })
+      );
       files.push(...resolved);
     }
     const main = files.find((file) => file.path === "SKILL.md");
-    return { ...skill, content: main?.content ?? "", files: files.filter((file) => file.path !== "SKILL.md") };
+    return {
+      ...skill,
+      content: main?.content ?? "",
+      files: files.filter((file) => file.path !== "SKILL.md"),
+    };
   }
 
   async getSkillHistory(id: string): Promise<SkillHistory> {
@@ -1305,19 +1552,33 @@ export class ApiClient {
     return parseSkillResponse(raw);
   }
 
-  async publishSkill(id: string, versionId: string, expectedRevision: number): Promise<Skill> {
-    const raw = await this.fetch<unknown>(`/api/skills/${id}/versions/${versionId}/publish`, {
-      method: "POST",
-      body: JSON.stringify({ expected_revision: expectedRevision }),
-    });
+  async publishSkill(
+    id: string,
+    versionId: string,
+    expectedRevision: number
+  ): Promise<Skill> {
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${id}/versions/${versionId}/publish`,
+      {
+        method: "POST",
+        body: JSON.stringify({ expected_revision: expectedRevision }),
+      }
+    );
     return parseSkillResponse(raw);
   }
 
-  async deprecateSkill(id: string, versionId: string, expectedRevision: number): Promise<Skill> {
-    const raw = await this.fetch<unknown>(`/api/skills/${id}/versions/${versionId}/deprecate`, {
-      method: "POST",
-      body: JSON.stringify({ expected_revision: expectedRevision }),
-    });
+  async deprecateSkill(
+    id: string,
+    versionId: string,
+    expectedRevision: number
+  ): Promise<Skill> {
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${id}/versions/${versionId}/deprecate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ expected_revision: expectedRevision }),
+      }
+    );
     return parseSkillResponse(raw);
   }
 
@@ -1338,7 +1599,11 @@ export class ApiClient {
 
   async importSkill(data: { url: string }): Promise<Skill> {
     const preview = await this.previewSkillImportURL(data.url);
-    return this.commitSkillImportURL(data.url, preview.preview_token, "new_version");
+    return this.commitSkillImportURL(
+      data.url,
+      preview.preview_token,
+      "new_version"
+    );
   }
 
   async commitSkillImportURL(
@@ -1346,35 +1611,52 @@ export class ApiClient {
     previewToken: string,
     conflictMode: "new_version" | "replace",
     expectedRevision = 0,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Skill> {
     const raw = await this.fetch<unknown>("/api/skills/import", {
       method: "POST",
       headers: { "Idempotency-Key": createSafeId() },
-      body: JSON.stringify({ url, preview_token: previewToken, conflict_mode: conflictMode, expected_revision: expectedRevision }),
+      body: JSON.stringify({
+        url,
+        preview_token: previewToken,
+        conflict_mode: conflictMode,
+        expected_revision: expectedRevision,
+      }),
       signal,
     });
     const imported = parseSkillResponse(raw);
     return this.getSkill(imported.id, imported.version_id);
   }
 
-  async previewSkillImportURL(url: string, signal?: AbortSignal): Promise<SkillImportPreview> {
+  async previewSkillImportURL(
+    url: string,
+    signal?: AbortSignal
+  ): Promise<SkillImportPreview> {
     const raw = await this.fetch<unknown>("/api/skills/import/preview", {
       method: "POST",
       body: JSON.stringify({ url }),
       signal,
     });
     const parsed = SkillImportPreviewSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid Skill import preview response");
+    if (!parsed.success)
+      throw new Error("Invalid Skill import preview response");
     return parsed.data;
   }
 
-  async previewSkillImportArchive(file: File, signal?: AbortSignal): Promise<SkillImportPreview> {
+  async previewSkillImportArchive(
+    file: File,
+    signal?: AbortSignal
+  ): Promise<SkillImportPreview> {
     const form = new FormData();
     form.append("file", file);
-    const response = await this.fetchRaw("/api/skills/import/preview", { method: "POST", body: form, signal });
+    const response = await this.fetchRaw("/api/skills/import/preview", {
+      method: "POST",
+      body: form,
+      signal,
+    });
     const parsed = SkillImportPreviewSchema.safeParse(await response.json());
-    if (!parsed.success) throw new Error("Invalid Skill import preview response");
+    if (!parsed.success)
+      throw new Error("Invalid Skill import preview response");
     return parsed.data;
   }
 
@@ -1383,13 +1665,14 @@ export class ApiClient {
     previewToken: string,
     conflictMode: "new_version" | "replace",
     expectedRevision = 0,
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Skill> {
     const form = new FormData();
     form.append("file", file);
     form.append("preview_token", previewToken);
     form.append("conflict_mode", conflictMode);
-    if (expectedRevision > 0) form.append("expected_revision", String(expectedRevision));
+    if (expectedRevision > 0)
+      form.append("expected_revision", String(expectedRevision));
     const response = await this.fetchRaw("/api/skills/import", {
       method: "POST",
       headers: { "Idempotency-Key": createSafeId() },
@@ -1400,67 +1683,112 @@ export class ApiClient {
     return this.getSkill(imported.id, imported.version_id);
   }
 
-  async listSkillFiles(id: string, versionId?: string): Promise<Array<Omit<SkillFile, "content"> & { space_object_id: string }>> {
-    const query = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+  async listSkillFiles(
+    id: string,
+    versionId?: string
+  ): Promise<Array<Omit<SkillFile, "content"> & { space_object_id: string }>> {
+    const query = versionId
+      ? `?version_id=${encodeURIComponent(versionId)}`
+      : "";
     const raw = await this.fetch<unknown>(`/api/skills/${id}/files${query}`);
     const parsed = SkillFileManifestListSchema.safeParse(raw);
-    if (!parsed.success) throw new Error("Invalid Skill file manifest response");
+    if (!parsed.success)
+      throw new Error("Invalid Skill file manifest response");
     return parsed.data;
   }
 
-  async getSkillFile(id: string, path: string, versionId?: string): Promise<SkillFile & { space_object_id: string }> {
-    const query = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
-    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}${query}`);
+  async getSkillFile(
+    id: string,
+    path: string,
+    versionId?: string
+  ): Promise<SkillFile & { space_object_id: string }> {
+    const query = versionId
+      ? `?version_id=${encodeURIComponent(versionId)}`
+      : "";
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${id}/files/${encodeURIComponent(path)}${query}`
+    );
     const parsed = SkillFileContentSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Skill file response");
     return parsed.data;
   }
 
-  async downloadSkillFile(id: string, path: string, versionId?: string): Promise<Blob> {
+  async downloadSkillFile(
+    id: string,
+    path: string,
+    versionId?: string
+  ): Promise<Blob> {
     const query = new URLSearchParams();
     if (versionId) query.set("version_id", versionId);
     query.set("download", "true");
-    const response = await this.fetchRaw(`/api/skills/${id}/files/${encodeURIComponent(path)}?${query.toString()}`);
+    const response = await this.fetchRaw(
+      `/api/skills/${id}/files/${encodeURIComponent(path)}?${query.toString()}`
+    );
     return response.blob();
   }
 
-  async addSkillFile(id: string, path: string, content: string, expectedRevision: number): Promise<SkillSummary> {
+  async addSkillFile(
+    id: string,
+    path: string,
+    content: string,
+    expectedRevision: number
+  ): Promise<SkillSummary> {
     const raw = await this.fetch<unknown>(`/api/skills/${id}/files`, {
       method: "POST",
-      body: JSON.stringify({ path, content, expected_revision: expectedRevision }),
+      body: JSON.stringify({
+        path,
+        content,
+        expected_revision: expectedRevision,
+      }),
     });
     const parsed = SkillSummarySchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Skill response");
     return parsed.data;
   }
 
-  async replaceSkillFile(id: string, path: string, content: string, expectedRevision: number): Promise<SkillSummary> {
-    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}`, {
-      method: "PUT",
-      body: JSON.stringify({ content, expected_revision: expectedRevision }),
-    });
+  async replaceSkillFile(
+    id: string,
+    path: string,
+    content: string,
+    expectedRevision: number
+  ): Promise<SkillSummary> {
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${id}/files/${encodeURIComponent(path)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ content, expected_revision: expectedRevision }),
+      }
+    );
     const parsed = SkillSummarySchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Skill response");
     return parsed.data;
   }
 
-  async deleteSkillFile(id: string, path: string, expectedRevision: number): Promise<SkillSummary> {
-    const raw = await this.fetch<unknown>(`/api/skills/${id}/files/${encodeURIComponent(path)}`, {
-      method: "DELETE",
-      body: JSON.stringify({ expected_revision: expectedRevision }),
-    });
+  async deleteSkillFile(
+    id: string,
+    path: string,
+    expectedRevision: number
+  ): Promise<SkillSummary> {
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${id}/files/${encodeURIComponent(path)}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({ expected_revision: expectedRevision }),
+      }
+    );
     const parsed = SkillSummarySchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Skill response");
     return parsed.data;
   }
-
 
   // Personal Access Tokens
   async listPersonalAccessTokens(): Promise<PersonalAccessToken[]> {
     return this.fetch("/api/tokens");
   }
 
-  async createPersonalAccessToken(data: CreatePersonalAccessTokenRequest): Promise<CreatePersonalAccessTokenResponse> {
+  async createPersonalAccessToken(
+    data: CreatePersonalAccessTokenRequest
+  ): Promise<CreatePersonalAccessTokenResponse> {
     return this.fetch("/api/tokens", {
       method: "POST",
       body: JSON.stringify(data),
@@ -1479,13 +1807,14 @@ export class ApiClient {
     // can cancel an in-flight upload on logout. When aborted, `fetch` rejects
     // with an AbortError, which the coordinator distinguishes from a real
     // failure via `signal.aborted` / `err.name === "AbortError"`.
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Attachment> {
     const formData = new FormData();
     formData.append("file", file);
     if (opts?.issueId) formData.append("issue_id", opts.issueId);
     if (opts?.commentId) formData.append("comment_id", opts.commentId);
-    if (opts?.chatSessionId) formData.append("chat_session_id", opts.chatSessionId);
+    if (opts?.chatSessionId)
+      formData.append("chat_session_id", opts.chatSessionId);
 
     const rid = createRequestId();
     const start = Date.now();
@@ -1501,18 +1830,27 @@ export class ApiClient {
 
     if (!res.ok) {
       if (res.status === 401) this.handleUnauthorized();
-      const message = await this.parseErrorMessage(res, `Upload failed: ${res.status}`);
-      this.logger.error(`← ${res.status} /api/upload-file`, { rid, duration: `${Date.now() - start}ms`, error: message });
+      const message = await this.parseErrorMessage(
+        res,
+        `Upload failed: ${res.status}`
+      );
+      this.logger.error(`← ${res.status} /api/upload-file`, {
+        rid,
+        duration: `${Date.now() - start}ms`,
+        error: message,
+      });
       throw new Error(message);
     }
 
-    this.logger.info(`← ${res.status} /api/upload-file`, { rid, duration: `${Date.now() - start}ms` });
+    this.logger.info(`← ${res.status} /api/upload-file`, {
+      rid,
+      duration: `${Date.now() - start}ms`,
+    });
     const raw = (await res.json()) as unknown;
     const parsed = AttachmentResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid attachment response");
     return parsed.data as unknown as Attachment;
   }
-
 
   async listAttachments(issueId: string): Promise<Attachment[]> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/attachments`);
@@ -1550,7 +1888,7 @@ export class ApiClient {
   // shape. 413 / 415 are translated to typed `Preview*Error` instances so
   // the modal can render specific fallbacks instead of generic failure.
   async getAttachmentTextContent(
-    id: string,
+    id: string
   ): Promise<{ text: string; originalContentType: string }> {
     let res: Response;
     try {
@@ -1592,13 +1930,20 @@ export class ApiClient {
   }
 
   // Projects
-  async listProjects(params?: { status?: string }): Promise<ListProjectsResponse> {
+  async listProjects(params?: {
+    status?: string;
+  }): Promise<ListProjectsResponse> {
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
     const raw = await this.fetch<unknown>(`/api/projects?${search}`);
-    return parseWithFallback(raw, ListProjectsResponseSchema, EMPTY_LIST_PROJECTS_RESPONSE, {
-      endpoint: "GET /api/projects",
-    });
+    return parseWithFallback(
+      raw,
+      ListProjectsResponseSchema,
+      EMPTY_LIST_PROJECTS_RESPONSE,
+      {
+        endpoint: "GET /api/projects",
+      }
+    );
   }
 
   async getProject(id: string): Promise<Project> {
@@ -1618,7 +1963,10 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async updateProject(id: string, data: UpdateProjectRequest): Promise<Project> {
+  async updateProject(
+    id: string,
+    data: UpdateProjectRequest
+  ): Promise<Project> {
     const raw = await this.fetch<unknown>(`/api/projects/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -1628,31 +1976,47 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async listProjectRetrospectives(id: string): Promise<ProjectRetrospectiveListResponse> {
+  async listProjectRetrospectives(
+    id: string
+  ): Promise<ProjectRetrospectiveListResponse> {
     const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives`);
-    return parseWithFallback(raw, projectRetrospectiveListSchema, EMPTY_RETROSPECTIVE_LIST, {
-      endpoint: "GET /api/projects/:id/retrospectives",
-    });
+    return parseWithFallback(
+      raw,
+      projectRetrospectiveListSchema,
+      EMPTY_RETROSPECTIVE_LIST,
+      {
+        endpoint: "GET /api/projects/:id/retrospectives",
+      }
+    );
   }
 
   async createProjectRetrospective(
     id: string,
-    input: ProjectRetrospectiveInput,
+    input: ProjectRetrospectiveInput
   ): Promise<ProjectRetrospective> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives`, {
-      method: "POST",
-      body: JSON.stringify({
-        summary: input.summary,
-        successes: input.successes,
-        problems: input.problems,
-        lessons: input.lessons,
-        follow_up_refs: input.followUpRefs,
-      }),
-    });
-    const retrospective = parseWithFallback(raw, projectRetrospectiveSchema.nullable(), null, {
-      endpoint: "POST /api/projects/:id/retrospectives",
-    });
-    if (!retrospective) throw new Error("Invalid project retrospective response");
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/retrospectives`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          summary: input.summary,
+          successes: input.successes,
+          problems: input.problems,
+          lessons: input.lessons,
+          follow_up_refs: input.followUpRefs,
+        }),
+      }
+    );
+    const retrospective = parseWithFallback(
+      raw,
+      projectRetrospectiveSchema.nullable(),
+      null,
+      {
+        endpoint: "POST /api/projects/:id/retrospectives",
+      }
+    );
+    if (!retrospective)
+      throw new Error("Invalid project retrospective response");
     return retrospective;
   }
 
@@ -1660,74 +2024,179 @@ export class ApiClient {
     await this.fetch(`/api/projects/${id}`, { method: "DELETE" });
   }
 
-  async getProjectRequirementBaseline(id: string): Promise<ProjectRequirementBaselineResponse> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline`);
-    return parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, {
-      endpoint: "GET /api/projects/:id/requirement-baseline",
+  async getProjectRequirementBaseline(
+    id: string
+  ): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline`
+    );
+    return parseWithFallback(
+      raw,
+      projectRequirementBaselineResponseSchema,
+      EMPTY_PROJECT_REQUIREMENT_BASELINE,
+      {
+        endpoint: "GET /api/projects/:id/requirement-baseline",
+      }
+    );
+  }
+
+  async getProjectRequirementCoverage(
+    id: string
+  ): Promise<ProjectRequirementCoverage> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/coverage`
+    );
+    return parseWithFallback(
+      raw,
+      projectRequirementCoverageSchema,
+      EMPTY_PROJECT_REQUIREMENT_COVERAGE,
+      { endpoint: "GET /api/projects/:id/requirement-baseline/coverage" }
+    );
+  }
+
+  async linkProjectRequirementIssue(
+    id: string,
+    input: ProjectRequirementLinkRequest
+  ): Promise<void> {
+    await this.fetch(`/api/projects/${id}/requirement-baseline/links`, {
+      method: "POST",
+      body: JSON.stringify({
+        requirement_key: input.requirementKey,
+        issue_id: input.issueId,
+        revision: input.revision,
+      }),
     });
   }
 
-  async getProjectRequirementCoverage(id: string): Promise<ProjectRequirementCoverage> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/coverage`);
-    return parseWithFallback(raw, projectRequirementCoverageSchema, EMPTY_PROJECT_REQUIREMENT_COVERAGE, { endpoint: "GET /api/projects/:id/requirement-baseline/coverage" });
+  async unlinkProjectRequirementIssue(
+    id: string,
+    input: ProjectRequirementLinkRequest
+  ): Promise<void> {
+    await this.fetch(
+      `/api/projects/${id}/requirement-baseline/links/${encodeURIComponent(
+        input.requirementKey
+      )}/${encodeURIComponent(input.issueId)}?revision=${input.revision}`,
+      { method: "DELETE" }
+    );
   }
 
-  async linkProjectRequirementIssue(id: string, input: ProjectRequirementLinkRequest): Promise<void> {
-    await this.fetch(`/api/projects/${id}/requirement-baseline/links`, { method: "POST", body: JSON.stringify({ requirement_key: input.requirementKey, issue_id: input.issueId, revision: input.revision }) });
-  }
-
-  async unlinkProjectRequirementIssue(id: string, input: ProjectRequirementLinkRequest): Promise<void> {
-    await this.fetch(`/api/projects/${id}/requirement-baseline/links/${encodeURIComponent(input.requirementKey)}/${encodeURIComponent(input.issueId)}?revision=${input.revision}`, { method: "DELETE" });
-  }
-
-  async createIssueForProjectRequirement(id: string, requirementKey: string, input: ProjectRequirementCreateIssueRequest): Promise<Issue> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/items/${encodeURIComponent(requirementKey)}/issues`, { method: "POST", body: JSON.stringify({ revision: input.revision }) });
-    const issue = parseWithFallback<Issue | null>(raw, CreateIssueResponseSchema, null, { endpoint: "POST /api/projects/:id/requirement-baseline/items/:key/issues" });
+  async createIssueForProjectRequirement(
+    id: string,
+    requirementKey: string,
+    input: ProjectRequirementCreateIssueRequest
+  ): Promise<Issue> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/items/${encodeURIComponent(
+        requirementKey
+      )}/issues`,
+      { method: "POST", body: JSON.stringify({ revision: input.revision }) }
+    );
+    const issue = parseWithFallback<Issue | null>(
+      raw,
+      CreateIssueResponseSchema,
+      null,
+      {
+        endpoint:
+          "POST /api/projects/:id/requirement-baseline/items/:key/issues",
+      }
+    );
     if (!issue) throw new Error("Invalid project requirement issue response");
     return issue;
   }
 
-  async saveProjectRequirementDraft(id: string, input: SaveProjectRequirementDraftRequest): Promise<ProjectRequirementBaselineResponse> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline`, {
-      method: "PUT", body: JSON.stringify({
-        expected_revision: input.expectedRevision,
-        content: {
-          problem_statement: input.content.problemStatement,
-          goals: input.content.goals,
-          in_scope: input.content.inScope,
-          out_of_scope: input.content.outOfScope,
-          constraints: input.content.constraints,
-          acceptance_criteria: input.content.acceptanceCriteria,
-          dependencies: input.content.dependencies,
-        },
-        change_summary: input.changeSummary,
-      }),
-    });
-    const response = parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, {
-      endpoint: "PUT /api/projects/:id/requirement-baseline",
-    });
-    if (!response.baseline) throw new Error("Invalid project requirement draft response");
+  async saveProjectRequirementDraft(
+    id: string,
+    input: SaveProjectRequirementDraftRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          expected_revision: input.expectedRevision,
+          content: {
+            problem_statement: input.content.problemStatement,
+            goals: input.content.goals,
+            in_scope: input.content.inScope,
+            out_of_scope: input.content.outOfScope,
+            constraints: input.content.constraints,
+            acceptance_criteria: input.content.acceptanceCriteria,
+            dependencies: input.content.dependencies,
+          },
+          change_summary: input.changeSummary,
+        }),
+      }
+    );
+    const response = parseWithFallback(
+      raw,
+      projectRequirementBaselineResponseSchema,
+      EMPTY_PROJECT_REQUIREMENT_BASELINE,
+      {
+        endpoint: "PUT /api/projects/:id/requirement-baseline",
+      }
+    );
+    if (!response.baseline)
+      throw new Error("Invalid project requirement draft response");
     return response;
   }
 
-  async submitProjectRequirementReview(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
-    return this.transitionProjectRequirement(id, "submit-review", input, "POST /api/projects/:id/requirement-baseline/submit-review");
+  async submitProjectRequirementReview(
+    id: string,
+    input: ProjectRequirementTransitionRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(
+      id,
+      "submit-review",
+      input,
+      "POST /api/projects/:id/requirement-baseline/submit-review"
+    );
   }
 
-  async approveProjectRequirement(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
-    return this.transitionProjectRequirement(id, "approve", input, "POST /api/projects/:id/requirement-baseline/approve");
+  async approveProjectRequirement(
+    id: string,
+    input: ProjectRequirementTransitionRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(
+      id,
+      "approve",
+      input,
+      "POST /api/projects/:id/requirement-baseline/approve"
+    );
   }
 
-  async withdrawProjectRequirementReview(id: string, input: ProjectRequirementTransitionRequest): Promise<ProjectRequirementBaselineResponse> {
-    return this.transitionProjectRequirement(id, "withdraw", input, "POST /api/projects/:id/requirement-baseline/withdraw");
+  async withdrawProjectRequirementReview(
+    id: string,
+    input: ProjectRequirementTransitionRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(
+      id,
+      "withdraw",
+      input,
+      "POST /api/projects/:id/requirement-baseline/withdraw"
+    );
   }
 
-  private async transitionProjectRequirement(id: string, action: string, input: ProjectRequirementTransitionRequest, endpoint: string): Promise<ProjectRequirementBaselineResponse> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/requirement-baseline/${action}`, {
-      method: "POST", body: JSON.stringify({ expected_revision: input.expectedRevision }),
-    });
-    const response = parseWithFallback(raw, projectRequirementBaselineResponseSchema, EMPTY_PROJECT_REQUIREMENT_BASELINE, { endpoint });
-    if (!response.baseline) throw new Error("Invalid project requirement transition response");
+  private async transitionProjectRequirement(
+    id: string,
+    action: string,
+    input: ProjectRequirementTransitionRequest,
+    endpoint: string
+  ): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/${action}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ expected_revision: input.expectedRevision }),
+      }
+    );
+    const response = parseWithFallback(
+      raw,
+      projectRequirementBaselineResponseSchema,
+      EMPTY_PROJECT_REQUIREMENT_BASELINE,
+      { endpoint }
+    );
+    if (!response.baseline)
+      throw new Error("Invalid project requirement transition response");
     return response;
   }
 
@@ -1745,8 +2214,12 @@ export class ApiClient {
     if (params?.limit) search.set("limit", String(params.limit));
     if (params?.cursor) search.set("cursor", params.cursor);
     const query = search.toString();
-    const raw = await this.fetch<unknown>(`/api/tasks${query ? `?${query}` : ""}`);
-    return parseWithFallback(raw, taskListSchema, EMPTY_TASK_LIST, { endpoint: "GET /api/tasks" });
+    const raw = await this.fetch<unknown>(
+      `/api/tasks${query ? `?${query}` : ""}`
+    );
+    return parseWithFallback(raw, taskListSchema, EMPTY_TASK_LIST, {
+      endpoint: "GET /api/tasks",
+    });
   }
 
   async getTask(id: string): Promise<Task> {
@@ -1777,7 +2250,10 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async promoteTask(id: string, data: PromoteTaskRequest): Promise<PromoteTaskResponse> {
+  async promoteTask(
+    id: string,
+    data: PromoteTaskRequest
+  ): Promise<PromoteTaskResponse> {
     const { idempotency_key: idempotencyKey, ...body } = data;
     const raw = await this.fetch<unknown>(`/api/tasks/${id}/promote`, {
       method: "POST",
@@ -1817,22 +2293,27 @@ export class ApiClient {
     return parsed.data.tasks;
   }
 
-  async listKnowledge(params?: KnowledgeQueryFilters): Promise<KnowledgeListResponse> {
+  async listKnowledge(
+    params?: KnowledgeQueryFilters
+  ): Promise<KnowledgeListResponse> {
     const search = new URLSearchParams();
     if (params?.query) search.set("query", params.query);
     if (params?.projectId) search.set("project_id", params.projectId);
-    for (const status of params?.statuses ?? []) search.append("status", status);
+    for (const status of params?.statuses ?? [])
+      search.append("status", status);
     for (const kind of params?.kinds ?? []) search.append("kind", kind);
     if (params?.sourceType) search.set("source_type", params.sourceType);
     if (params?.sourceId) search.set("source_id", params.sourceId);
-    if (params?.sourceRevision) search.set("source_revision", params.sourceRevision);
-    if (params?.applicability) search.set("applicability", params.applicability);
+    if (params?.sourceRevision)
+      search.set("source_revision", params.sourceRevision);
+    if (params?.applicability)
+      search.set("applicability", params.applicability);
     if (params?.revision) search.set("revision", String(params.revision));
     if (params?.limit) search.set("limit", String(params.limit));
     if (params?.cursor) search.set("cursor", params.cursor);
     const query = search.toString();
     const raw = await this.fetch<unknown>(
-      `/api/knowledge${query ? `?${query}` : ""}`,
+      `/api/knowledge${query ? `?${query}` : ""}`
     );
     const parsed = knowledgeListSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Knowledge list response");
@@ -1841,7 +2322,7 @@ export class ApiClient {
 
   async getKnowledge(id: string): Promise<KnowledgeEntry> {
     const raw = await this.fetch<unknown>(
-      `/api/knowledge/${encodeURIComponent(id)}`,
+      `/api/knowledge/${encodeURIComponent(id)}`
     );
     const parsed = knowledgeEntrySchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Knowledge detail response");
@@ -1849,10 +2330,11 @@ export class ApiClient {
   }
 
   async proposeKnowledge(
-    request: ProposeKnowledgeRequest,
+    request: ProposeKnowledgeRequest
   ): Promise<KnowledgeCandidate> {
     const raw = await this.fetch<unknown>("/api/knowledge/proposals", {
       method: "POST",
+      headers: { "Idempotency-Key": request.idempotencyKey },
       body: JSON.stringify({
         project_id: request.projectId,
         knowledge_id: request.knowledgeId,
@@ -1860,46 +2342,39 @@ export class ApiClient {
         title: request.title,
         content: request.content,
         reason: request.reason,
-        source_refs: request.sourceRefs,
+        source_refs: request.sourceRefs?.map((source) => ({
+          type: source.type,
+          id: source.id,
+          revision: source.revision,
+          citation: source.citation ?? "",
+          asset_id: source.assetId ?? null,
+          asset_version_id: source.assetVersionId ?? null,
+        })),
       }),
     });
-    return parseWithFallback(
-      raw,
-      knowledgeCandidateSchema,
-      {
-        id: "",
-        workspaceId: "",
-        projectId: null,
-        knowledgeId: request.knowledgeId ?? null,
-        targetRevision: 0,
-        kind: request.kind,
-        title: request.title,
-        content: request.content,
-        reason: request.reason,
-        status: "candidate",
-        revision: 0,
-        proposedBy: "",
-        sourceRefs: [],
-        createdAt: "",
-        updatedAt: "",
-      },
-      { endpoint: "POST /api/knowledge/proposals" },
-    );
+    const parsed = knowledgeCandidateSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Knowledge proposal response");
+    return parsed.data;
   }
 
-  async listKnowledgeCandidates(): Promise<KnowledgeCandidateListResponse> {
-    const raw = await this.fetch<unknown>("/api/knowledge/candidates");
-    return parseWithFallback(
-      raw,
-      knowledgeCandidateListSchema,
-      EMPTY_KNOWLEDGE_CANDIDATE_LIST,
-      { endpoint: "GET /api/knowledge/candidates" },
+  async listKnowledgeCandidates(
+    limit = 50,
+    cursor?: string
+  ): Promise<KnowledgeCandidateListResponse> {
+    const search = new URLSearchParams({ limit: String(limit) });
+    if (cursor) search.set("cursor", cursor);
+    const raw = await this.fetch<unknown>(
+      `/api/knowledge/candidates?${search}`
     );
+    const parsed = knowledgeCandidateListSchema.safeParse(raw);
+    if (!parsed.success)
+      throw new Error("Invalid Knowledge candidate response");
+    return parsed.data;
   }
 
   async reviewKnowledgeCandidate(
     candidateId: string,
-    request: ReviewKnowledgeRequest,
+    request: ReviewKnowledgeRequest
   ): Promise<ReviewKnowledgeResponse> {
     const raw = await this.fetch<unknown>(
       `/api/knowledge/candidates/${encodeURIComponent(candidateId)}/review`,
@@ -1909,46 +2384,25 @@ export class ApiClient {
           action: request.action,
           expected_revision: request.expectedRevision,
           rationale: request.rationale,
+          emergency: request.emergency ?? false,
         }),
-      },
+      }
     );
-    return parseWithFallback(
-      raw,
-      reviewKnowledgeResponseSchema,
-      {
-        candidate: {
-          id: "",
-          workspaceId: "",
-          projectId: null,
-          knowledgeId: null,
-          targetRevision: 0,
-          kind: "reference",
-          title: "",
-          content: "",
-          reason: "",
-          status: "candidate",
-          revision: 0,
-          proposedBy: "",
-          sourceRefs: [],
-          createdAt: "",
-          updatedAt: "",
-        },
-        entry: null,
-      },
-      { endpoint: "POST /api/knowledge/candidates/:id/review" },
-    );
+    const parsed = reviewKnowledgeResponseSchema.safeParse(raw);
+    if (!parsed.success) throw new Error("Invalid Knowledge review response");
+    return parsed.data;
   }
 
   // Project resources
   async listProjectResources(
-    projectId: string,
+    projectId: string
   ): Promise<ListProjectResourcesResponse> {
     return this.fetch(`/api/projects/${projectId}/resources`);
   }
 
   async createProjectResource(
     projectId: string,
-    data: CreateProjectResourceRequest,
+    data: CreateProjectResourceRequest
   ): Promise<ProjectResource> {
     return this.fetch(`/api/projects/${projectId}/resources`, {
       method: "POST",
@@ -1959,7 +2413,7 @@ export class ApiClient {
   async updateProjectResource(
     projectId: string,
     resourceId: string,
-    data: UpdateProjectResourceRequest,
+    data: UpdateProjectResourceRequest
   ): Promise<ProjectResource> {
     return this.fetch(`/api/projects/${projectId}/resources/${resourceId}`, {
       method: "PUT",
@@ -1969,7 +2423,7 @@ export class ApiClient {
 
   async deleteProjectResource(
     projectId: string,
-    resourceId: string,
+    resourceId: string
   ): Promise<void> {
     await this.fetch(`/api/projects/${projectId}/resources/${resourceId}`, {
       method: "DELETE",
@@ -1977,8 +2431,12 @@ export class ApiClient {
   }
 
   // Labels
-  async listLabels(resourceType: LabelResourceType = "issue"): Promise<ListLabelsResponse> {
-    const raw = await this.fetch<unknown>(`/api/labels?resource_type=${resourceType}`);
+  async listLabels(
+    resourceType: LabelResourceType = "issue"
+  ): Promise<ListLabelsResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/labels?resource_type=${resourceType}`
+    );
     const parsed = ListLabelsResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid label list response");
     return parsed.data;
@@ -2016,7 +2474,9 @@ export class ApiClient {
   }
 
   // Custom issue properties
-  async listProperties(includeArchived = false): Promise<ListPropertiesResponse> {
+  async listProperties(
+    includeArchived = false
+  ): Promise<ListPropertiesResponse> {
     const suffix = includeArchived ? "?include_archived=true" : "";
     let raw: unknown;
     try {
@@ -2027,7 +2487,11 @@ export class ApiClient {
       // UI sections disappear and the active-catalog reconciliation strips
       // persisted property sorts/filters, so no property params ever reach
       // the old server. Other errors keep normal query-error semantics.
-      if (error instanceof Error && "status" in error && (error as { status?: number }).status === 404) {
+      if (
+        error instanceof Error &&
+        "status" in error &&
+        (error as { status?: number }).status === 404
+      ) {
         return EMPTY_LIST_PROPERTIES_RESPONSE;
       }
       throw error;
@@ -2047,7 +2511,10 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async updateProperty(id: string, data: UpdatePropertyRequest): Promise<IssueProperty> {
+  async updateProperty(
+    id: string,
+    data: UpdatePropertyRequest
+  ): Promise<IssueProperty> {
     const raw = await this.fetch<unknown>(`/api/properties/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -2057,20 +2524,33 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async setIssueProperty(issueId: string, propertyId: string, value: IssuePropertyValue): Promise<IssuePropertiesResponse> {
-    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/properties/${propertyId}`, {
-      method: "PUT",
-      body: JSON.stringify({ value }),
-    });
+  async setIssueProperty(
+    issueId: string,
+    propertyId: string,
+    value: IssuePropertyValue
+  ): Promise<IssuePropertiesResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${issueId}/properties/${propertyId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ value }),
+      }
+    );
     const parsed = IssuePropertiesResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Issue properties response");
     return parsed.data;
   }
 
-  async unsetIssueProperty(issueId: string, propertyId: string): Promise<IssuePropertiesResponse> {
-    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/properties/${propertyId}`, {
-      method: "DELETE",
-    });
+  async unsetIssueProperty(
+    issueId: string,
+    propertyId: string
+  ): Promise<IssuePropertiesResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${issueId}/properties/${propertyId}`,
+      {
+        method: "DELETE",
+      }
+    );
     const parsed = IssuePropertiesResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Issue properties response");
     return parsed.data;
@@ -2083,7 +2563,10 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async attachLabel(issueId: string, labelId: string): Promise<IssueLabelsResponse> {
+  async attachLabel(
+    issueId: string,
+    labelId: string
+  ): Promise<IssueLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/issues/${issueId}/labels`, {
       method: "POST",
       body: JSON.stringify({ label_id: labelId }),
@@ -2093,10 +2576,16 @@ export class ApiClient {
     return parsed.data;
   }
 
-  async detachLabel(issueId: string, labelId: string): Promise<IssueLabelsResponse> {
-    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/labels/${labelId}`, {
-      method: "DELETE",
-    });
+  async detachLabel(
+    issueId: string,
+    labelId: string
+  ): Promise<IssueLabelsResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${issueId}/labels/${labelId}`,
+      {
+        method: "DELETE",
+      }
+    );
     const parsed = ResourceLabelsResponseSchema.safeParse(raw);
     if (!parsed.success) throw new Error("Invalid Issue labels response");
     return parsed.data;
@@ -2104,45 +2593,65 @@ export class ApiClient {
 
   async listLabelsForResource(
     _resourceType: "skill",
-    resourceId: string,
+    resourceId: string
   ): Promise<ResourceLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/skills/${resourceId}/labels`);
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "GET /api/skills/{id}/labels",
-    });
+    return parseWithFallback(
+      raw,
+      ResourceLabelsResponseSchema,
+      EMPTY_RESOURCE_LABELS_RESPONSE,
+      {
+        endpoint: "GET /api/skills/{id}/labels",
+      }
+    );
   }
 
   async attachLabelToResource(
     _resourceType: "skill",
     resourceId: string,
-    labelId: string,
+    labelId: string
   ): Promise<ResourceLabelsResponse> {
     const raw = await this.fetch<unknown>(`/api/skills/${resourceId}/labels`, {
       method: "POST",
       body: JSON.stringify({ label_id: labelId }),
     });
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "POST /api/skills/{id}/labels",
-    });
+    return parseWithFallback(
+      raw,
+      ResourceLabelsResponseSchema,
+      EMPTY_RESOURCE_LABELS_RESPONSE,
+      {
+        endpoint: "POST /api/skills/{id}/labels",
+      }
+    );
   }
 
   async detachLabelFromResource(
     _resourceType: "skill",
     resourceId: string,
-    labelId: string,
+    labelId: string
   ): Promise<ResourceLabelsResponse> {
-    const raw = await this.fetch<unknown>(`/api/skills/${resourceId}/labels/${labelId}`, {
-      method: "DELETE",
-    });
-    return parseWithFallback(raw, ResourceLabelsResponseSchema, EMPTY_RESOURCE_LABELS_RESPONSE, {
-      endpoint: "DELETE /api/skills/{id}/labels/{labelId}",
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/skills/${resourceId}/labels/${labelId}`,
+      {
+        method: "DELETE",
+      }
+    );
+    return parseWithFallback(
+      raw,
+      ResourceLabelsResponseSchema,
+      EMPTY_RESOURCE_LABELS_RESPONSE,
+      {
+        endpoint: "DELETE /api/skills/{id}/labels/{labelId}",
+      }
+    );
   }
 
   // Pins
   async listPins(): Promise<PinnedItem[]> {
     const raw = await this.fetch<unknown>("/api/pins");
-    return parseWithFallback(raw, PinsSchema, EMPTY_PINS, { endpoint: "GET /api/pins" });
+    return parseWithFallback(raw, PinsSchema, EMPTY_PINS, {
+      endpoint: "GET /api/pins",
+    });
   }
 
   async createPin(data: CreatePinRequest): Promise<PinnedItem> {
@@ -2166,82 +2675,99 @@ export class ApiClient {
     });
   }
 
-
   // GitHub integration
   async getGitHubConnectURL(
     workspaceId: string,
-    returnTo?: "github" | "repositories",
+    returnTo?: "github" | "repositories"
   ): Promise<GitHubConnectResponse> {
     const search = new URLSearchParams();
     if (returnTo) search.set("return_to", returnTo);
     const suffix = search.size > 0 ? `?${search.toString()}` : "";
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/github/connect${suffix}`,
+      `/api/workspaces/${workspaceId}/github/connect${suffix}`
     );
     return parseWithFallback(
       raw,
       GitHubConnectResponseSchema,
       EMPTY_GITHUB_CONNECT_RESPONSE,
-      { endpoint: "GET /api/workspaces/:id/github/connect" },
+      { endpoint: "GET /api/workspaces/:id/github/connect" }
     );
   }
 
-  async listGitHubInstallations(workspaceId: string): Promise<ListGitHubInstallationsResponse> {
+  async listGitHubInstallations(
+    workspaceId: string
+  ): Promise<ListGitHubInstallationsResponse> {
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/github/installations`,
+      `/api/workspaces/${workspaceId}/github/installations`
     );
     return parseWithFallback(
       raw,
       ListGitHubInstallationsResponseSchema,
       EMPTY_LIST_GITHUB_INSTALLATIONS_RESPONSE,
-      { endpoint: "GET /api/workspaces/:id/github/installations" },
+      { endpoint: "GET /api/workspaces/:id/github/installations" }
     );
   }
 
   async listGitHubInstallationRepositories(
     workspaceId: string,
     installationId: string,
-    params: { page?: number; per_page?: number } = {},
+    params: { page?: number; per_page?: number } = {}
   ): Promise<ListGitHubRepositoriesResponse> {
     const search = new URLSearchParams();
     if (params.page !== undefined) search.set("page", String(params.page));
-    if (params.per_page !== undefined) search.set("per_page", String(params.per_page));
+    if (params.per_page !== undefined)
+      search.set("per_page", String(params.per_page));
     const suffix = search.size > 0 ? `?${search.toString()}` : "";
     const raw = await this.fetch<unknown>(
-      `/api/workspaces/${workspaceId}/github/installations/${installationId}/repositories${suffix}`,
+      `/api/workspaces/${workspaceId}/github/installations/${installationId}/repositories${suffix}`
     );
     return parseWithFallback(
       raw,
       ListGitHubRepositoriesResponseSchema,
       EMPTY_LIST_GITHUB_REPOSITORIES_RESPONSE,
-      { endpoint: "GET /api/workspaces/:id/github/installations/:installationId/repositories" },
+      {
+        endpoint:
+          "GET /api/workspaces/:id/github/installations/:installationId/repositories",
+      }
     );
   }
 
-  async deleteGitHubInstallation(workspaceId: string, installationId: string): Promise<void> {
-    await this.fetch(`/api/workspaces/${workspaceId}/github/installations/${installationId}`, {
-      method: "DELETE",
-    });
+  async deleteGitHubInstallation(
+    workspaceId: string,
+    installationId: string
+  ): Promise<void> {
+    await this.fetch(
+      `/api/workspaces/${workspaceId}/github/installations/${installationId}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
-  async listIssuePullRequests(issueId: string): Promise<{ pull_requests: GitHubPullRequest[] }> {
-    const raw = await this.fetch<unknown>(`/api/issues/${issueId}/pull-requests`);
+  async listIssuePullRequests(
+    issueId: string
+  ): Promise<{ pull_requests: GitHubPullRequest[] }> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${issueId}/pull-requests`
+    );
     return parseWithFallback(
       raw,
       IssuePullRequestsResponseSchema,
       EMPTY_ISSUE_PULL_REQUESTS_RESPONSE,
-      { endpoint: "GET /api/issues/:id/pull-requests" },
+      { endpoint: "GET /api/issues/:id/pull-requests" }
     );
   }
 
   // VCS integration (Forgejo / Gitea / GitLab)
-  async listVCSConnections(workspaceId: string): Promise<ListVCSConnectionsResponse> {
+  async listVCSConnections(
+    workspaceId: string
+  ): Promise<ListVCSConnectionsResponse> {
     return this.fetch(`/api/workspaces/${workspaceId}/vcs/connections`);
   }
 
   async connectVCS(
     workspaceId: string,
-    body: ConnectVCSRequest,
+    body: ConnectVCSRequest
   ): Promise<ConnectVCSResponse> {
     return this.fetch(`/api/workspaces/${workspaceId}/vcs/connections`, {
       method: "POST",
@@ -2249,20 +2775,25 @@ export class ApiClient {
     });
   }
 
-  async deleteVCSConnection(workspaceId: string, connectionId: string): Promise<void> {
-    await this.fetch(`/api/workspaces/${workspaceId}/vcs/connections/${connectionId}`, {
-      method: "DELETE",
-    });
+  async deleteVCSConnection(
+    workspaceId: string,
+    connectionId: string
+  ): Promise<void> {
+    await this.fetch(
+      `/api/workspaces/${workspaceId}/vcs/connections/${connectionId}`,
+      {
+        method: "DELETE",
+      }
+    );
   }
 
   async rotateVCSWebhook(
     workspaceId: string,
-    connectionId: string,
+    connectionId: string
   ): Promise<ConnectVCSResponse> {
     return this.fetch(
       `/api/workspaces/${workspaceId}/vcs/connections/${connectionId}/rotate-webhook`,
-      { method: "POST" },
+      { method: "POST" }
     );
   }
-
 }
