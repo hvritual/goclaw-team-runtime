@@ -13,6 +13,14 @@ async function loginFixture(page: Page) {
   return (await response.json()) as { token: string };
 }
 
+async function loginBrowserFixture(page: Page) {
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  await page.locator("#login-email").fill(EMAIL);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.locator('input[autocomplete="one-time-code"]').fill("888888");
+  await page.waitForURL(new RegExp(`/${SLUG}/issues`));
+}
+
 async function createIssue(request: APIRequestContext, token: string, slug: string, title: string) {
   const response = await request.post("/api/issues", {
     headers: { Authorization: `Bearer ${token}`, "X-Workspace-Slug": slug },
@@ -32,7 +40,14 @@ async function searchIssues(page: Page, token: string, query: string, suffix = "
 
 test("installed Issue search handles ranking, Unicode, closed state, pagination, and isolation", async ({ page }) => {
   const { token } = await loginFixture(page);
-  await page.addInitScript((value) => localStorage.setItem("multica_token", value), token);
+  await page.context().clearCookies();
+  await page.context().addCookies([
+    {
+      name: "multica-locale",
+      value: "en",
+      url: "http://127.0.0.1:3000",
+    },
+  ]);
   const marker = Date.now().toString(36);
   const englishTitle = `Alpha Beta browser ${marker}`;
   const chineseTitle = `修复咖啡机搜索 ${marker}`;
@@ -68,7 +83,7 @@ test("installed Issue search handles ranking, Unicode, closed state, pagination,
   const isolated = await searchIssues(page, token, `alpha beta ${marker}`, "&include_closed=true&limit=50");
   expect(isolated.issues.some((issue) => issue.id === foreign.id)).toBe(false);
 
-  await page.goto(`/${SLUG}/issues`, { waitUntil: "domcontentloaded" });
+  await loginBrowserFixture(page);
   await page.getByText("Search", { exact: true }).first().click();
   const input = page.getByPlaceholder("Type a command or search...");
   await input.fill(`咖啡机 ${marker}`);
