@@ -213,6 +213,20 @@ func TestRoadmapFeatureFlagsRequireAnInstalledProvider(t *testing.T) {
 	}
 }
 
+func TestInstalledRuntimeKeepsKnowledgeReviewClosedAgainstInjectedFeatureProvider(t *testing.T) {
+	provider := featureEnabledProvider{runtimeCapabilityProviderStub: runtimeCapabilityProviderStub{
+		workspacecontract.PermissionKnowledgeReview: true,
+	}}
+	flags := roadmapFeatureFlags(installedRuntimeCapabilities{next: provider})
+	if flags["knowledge_review"] {
+		t.Fatal("knowledge_review flag = true before S06B installation")
+	}
+}
+
+type featureEnabledProvider struct{ runtimeCapabilityProviderStub }
+
+func (featureEnabledProvider) RoadmapFeatureInstalled(string) bool { return true }
+
 func TestRuntimeReportsOnlyCapabilitiesProvenByInjectedProvider(t *testing.T) {
 	runtime := newRuntimeForConfig(t, Config{
 		Name: "backend-test", Version: "test",

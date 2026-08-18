@@ -40,9 +40,9 @@ func NewKnowledgeQueryUseCase(repository KnowledgeQueryRepository, authorizer co
 }
 
 type knowledgeQuerySpec struct {
-	Query, SourceType, SourceID, SourceRevision, Applicability, ProjectID string
-	Statuses, Kinds                                                       []string
-	Revision, Limit                                                       int
+	WorkspaceID, Query, SourceType, SourceID, SourceRevision, Applicability, ProjectID string
+	Statuses, Kinds                                                                    []string
+	Revision, Limit                                                                    int
 }
 
 type rankedKnowledge struct {
@@ -181,15 +181,21 @@ func (s *KnowledgeQueryUseCase) actorRole(ctx context.Context, workspaceID strin
 }
 
 func normalizeKnowledgeQuery(request contract.QueryKnowledgeRequest, role string) (knowledgeQuerySpec, error) {
-	spec := knowledgeQuerySpec{Query: normalizeKnowledgeText(request.Query), SourceType: strings.TrimSpace(request.SourceType), SourceID: strings.TrimSpace(request.SourceID), SourceRevision: strings.TrimSpace(request.SourceRevision), Applicability: strings.TrimSpace(request.Applicability), ProjectID: strings.TrimSpace(request.ProjectID), Revision: request.Revision, Limit: request.Limit}
+	spec := knowledgeQuerySpec{WorkspaceID: strings.TrimSpace(request.WorkspaceID), Query: normalizeKnowledgeText(request.Query), SourceType: strings.TrimSpace(request.SourceType), SourceID: strings.TrimSpace(request.SourceID), SourceRevision: strings.TrimSpace(request.SourceRevision), Applicability: strings.TrimSpace(request.Applicability), ProjectID: strings.TrimSpace(request.ProjectID), Revision: request.Revision, Limit: request.Limit}
 	if spec.Limit == 0 {
 		spec.Limit = 20
 	}
 	spec.Statuses = canonicalValues(request.Statuses)
+	if len(request.Statuses) > 0 && len(spec.Statuses) == 0 {
+		return knowledgeQuerySpec{}, contract.ErrInvalidKnowledgeQuery
+	}
 	if len(spec.Statuses) == 0 {
 		spec.Statuses = []string{"published"}
 	}
 	spec.Kinds = canonicalValues(request.Kinds)
+	if len(request.Kinds) > 0 && len(spec.Kinds) == 0 {
+		return knowledgeQuerySpec{}, contract.ErrInvalidKnowledgeQuery
+	}
 	for _, status := range spec.Statuses {
 		if status != "published" && status != "superseded" && status != "quarantined" {
 			return knowledgeQuerySpec{}, contract.ErrInvalidKnowledgeQuery

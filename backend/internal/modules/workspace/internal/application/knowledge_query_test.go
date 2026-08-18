@@ -71,6 +71,25 @@ func TestKnowledgeQueryRanksPagesAndBindsCursor(t *testing.T) {
 	if _, err := service.QueryKnowledge(ctx, contract.QueryKnowledgeRequest{WorkspaceID: "workspace-1", Query: "other", Limit: 2, Cursor: *first.NextCursor}); !errors.Is(err, contract.ErrInvalidKnowledgeQuery) {
 		t.Fatalf("cross-filter cursor error = %v", err)
 	}
+	if _, err := service.QueryKnowledge(ctx, contract.QueryKnowledgeRequest{WorkspaceID: "workspace-2", Query: "retry", Limit: 2, Cursor: *first.NextCursor}); !errors.Is(err, contract.ErrInvalidKnowledgeQuery) {
+		t.Fatalf("cross-workspace cursor error = %v", err)
+	}
+}
+
+func TestKnowledgeQueryRejectsExplicitEmptyCollections(t *testing.T) {
+	service, err := NewKnowledgeQueryUseCase(knowledgeQueryRepositoryStub{}, knowledgeQueryAuthorizerStub{}, knowledgeQueryMembershipsStub{role: "owner"}, []byte("01234567890123456789012345678901"), time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := contract.WithWorkspaceActor(context.Background(), "member", "user-1")
+	for _, request := range []contract.QueryKnowledgeRequest{
+		{WorkspaceID: "workspace-1", Statuses: []string{" "}},
+		{WorkspaceID: "workspace-1", Kinds: []string{" , "}},
+	} {
+		if _, err := service.QueryKnowledge(ctx, request); !errors.Is(err, contract.ErrInvalidKnowledgeQuery) {
+			t.Fatalf("explicit empty filter error = %v", err)
+		}
+	}
 }
 
 func TestKnowledgeQueryHidesQuarantineFromMembers(t *testing.T) {

@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -38,11 +39,11 @@ func (h *KnowledgeQueryHandler) list(ctx kratoshttp.Context) error {
 			return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidKnowledgeQuery.Error())
 		}
 	}
-	revision, err := strictKnowledgeInteger(values.Get("revision"))
+	revision, err := strictKnowledgeInteger(values, "revision")
 	if err != nil {
 		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidKnowledgeQuery.Error())
 	}
-	limit, err := strictKnowledgeInteger(values.Get("limit"))
+	limit, err := strictKnowledgeInteger(values, "limit")
 	if err != nil {
 		return writeError(ctx, http.StatusBadRequest, contract.ErrInvalidKnowledgeQuery.Error())
 	}
@@ -112,10 +113,17 @@ func (h *KnowledgeQueryHandler) resolve(ctx kratoshttp.Context) (contract.Worksp
 	return identity, true
 }
 
-func strictKnowledgeInteger(raw string) (int, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+func strictKnowledgeInteger(values url.Values, key string) (int, error) {
+	rawValues, present := values[key]
+	if !present {
 		return 0, nil
+	}
+	if len(rawValues) != 1 {
+		return 0, contract.ErrInvalidKnowledgeQuery
+	}
+	raw := strings.TrimSpace(rawValues[0])
+	if raw == "" {
+		return 0, contract.ErrInvalidKnowledgeQuery
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value <= 0 {
