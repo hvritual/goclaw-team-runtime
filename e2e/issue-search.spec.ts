@@ -84,7 +84,7 @@ test("installed Issue search handles ranking, Unicode, closed state, pagination,
   expect(isolated.issues.some((issue) => issue.id === foreign.id)).toBe(false);
 
   await loginBrowserFixture(page);
-  await page.getByText("Search", { exact: true }).first().click();
+  await page.getByRole("button", { name: "Search..." }).click();
   const input = page.getByPlaceholder("Type a command or search...");
   await input.fill(`咖啡机 ${marker}`);
   await expect(page.getByText(chineseTitle, { exact: true })).toBeVisible();
