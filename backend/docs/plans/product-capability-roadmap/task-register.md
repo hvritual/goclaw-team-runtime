@@ -1214,3 +1214,29 @@ S02A without changing Task product behavior or activating S02B.
   3000/8080/9080 are closed.
 - r022 and PCR-S03A are closed. Release 1 remains active with no active task;
   S03B and S04 remain inactive pending a new approved plan.
+
+## PCR-001-S03B-R23
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S03B-R23`
+- Task-Revision: `r023`
+- Work-Item: `PCR-S03B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required after deterministic verification`
+- Base commit: `781471015ec8d759cd1209fd051e59fa91507eef`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v18`
+- Plan hash: `95ff6b597430cd3d58b8937eb9dae32f1e72ec6e00bb10f99d08fd6a9a0e7789`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/95ff6b597430cd3d58b8937eb9dae32f1e72ec6e00bb10f99d08fd6a9a0e7789`
+
+### Objective and acceptance
+
+- Install repository-backed Project search at `GET /api/projects/search`
+  using the public Project surface shape, shared deterministic Unicode
+  normalization, strict `title|description` sources, pagination, closed-state
+  filtering, cancellation, and Workspace isolation.
+- Prove projection synchronization/restart across both Project write stacks, a
+  strict cancellable Core boundary, shared Web/Desktop consumption, the frozen
+  2,000-Project latency budget, and installed Chrome acceptance.
+- Preserve `issue_search=true`; enable only `project_search`; keep S04 and
+  `pin_reorder` inactive until a later plan.

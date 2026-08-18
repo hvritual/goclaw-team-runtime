@@ -981,3 +981,29 @@ Known limitations, blockers, and next action
   active with no active task. S03B and S04 remain inactive until a new approved
   plan; no push, merge, deployment, later-story activation, or Release 1
   completion is claimed.
+
+## 2026-08-18 — J039 — v18/r023 Project search activated
+
+- Exact base `781471015ec8d759cd1209fd051e59fa91507eef` closes S03A with
+  independent review and leaves zero active tasks before this activation.
+- Bounded context discovery reached dependency closure with zero new
+  dependencies. Canonical Project HTTP CRUD exposes the public snake-case
+  `title` shape, while older local/Proto search exposes an internal `name`
+  model and performs full in-memory filtering. The installed client already
+  targets `GET /api/projects/search`; no Canonical HTTP route exists.
+- v18 freezes the installed Project surface contract as strict
+  `match_source=title|description`, reuses S03A Unicode NFKC/case-fold/
+  punctuation normalization, and adds derived migration `000014` with startup
+  rebuild and trigger synchronization for every write path.
+- The frozen target is 2,000 Projects with p50 no greater than 100ms and p95 no
+  greater than 250ms. Search requires `workspace.search.readable` and explicit
+  per-feature installation evidence, not the older Proto-only permission.
+- The Human Customer's standing direction to complete Release 1 activates
+  immutable v18/r023 for PCR-S03B only. S04 remains inactive.
+- Existing dirty generated protobuf, shared Input/Issue/modal files,
+  `.local-runtime/**`, `docs/code-to-product/**`, the untracked auth test, and
+  `ui/**` remain excluded. Protected Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; `server/**` remains permanently
+  read-only and currently has empty range/worktree diffs.
+- No S03B implementation, verification PASS, independent review, closure,
+  push, merge, deployment, S04 activation, or Release 1 completion is claimed.

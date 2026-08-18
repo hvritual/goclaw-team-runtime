@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v17`
-- Status: `Release 1 active; PCR-S03A complete-independent-reviewed under r022; no active task`
+- Plan-Version: `v18`
+- Status: `Release 1 active; PCR-S03B implementation active under r023`
 
 ## Delivery policy
 
@@ -92,6 +92,8 @@ Acceptance scenarios include Chinese and English queries, pagination,
 cancellation, empty query rules, closed inclusion, and workspace isolation.
 
 ### PCR-S03B — Search projects
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v18 / r023`
 
 As a member, I can find a project using the same stable search contract through
 the installed HTTP and shared client surfaces.
