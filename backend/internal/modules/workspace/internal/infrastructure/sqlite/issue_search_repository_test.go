@@ -139,6 +139,10 @@ func TestIssueSearchRepositoryTenThousandIssueLatencyBudget(t *testing.T) {
 	if _, total, err := repository.SearchIssues(context.Background(), query); err != nil || total != 200 {
 		t.Fatalf("warm search total=%d error=%v", total, err)
 	}
+	if raceDetectorEnabled {
+		t.Log("race instrumentation: correctness passed; latency budget is measured only by the non-instrumented gate")
+		return
+	}
 	durations := make([]time.Duration, 20)
 	for index := range durations {
 		started := time.Now()
