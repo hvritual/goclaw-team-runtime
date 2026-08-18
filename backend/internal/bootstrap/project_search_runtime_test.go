@@ -57,7 +57,7 @@ func TestSQLiteRuntimeProjectSearchInstalledJourneyAndRestart(t *testing.T) {
 	if configResponse.Code != http.StatusOK || json.Unmarshal(configResponse.Body.Bytes(), &body) != nil {
 		t.Fatalf("config = %d %s", configResponse.Code, configResponse.Body.String())
 	}
-	if !body.FeatureFlags["issue_search"] || !body.FeatureFlags["project_search"] || body.FeatureFlags["pin_reorder"] {
+	if !body.FeatureFlags["issue_search"] || !body.FeatureFlags["project_search"] || !body.FeatureFlags["pin_reorder"] {
 		t.Fatalf("feature flags = %+v", body.FeatureFlags)
 	}
 }

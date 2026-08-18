@@ -53,17 +53,26 @@ export function useReorderPins() {
   const userId = useAuthStore((s) => s.user?.id ?? "");
   return useMutation({
     mutationFn: (reorderedPins: PinnedItem[]) => {
-      const items = reorderedPins.map((p, i) => ({ id: p.id, position: i + 1 }));
-      return api.reorderPins({ items });
+      const expectedRevision = reorderedPins[0]?.order_revision;
+      if (!expectedRevision || reorderedPins.some((pin) => pin.order_revision !== expectedRevision)) {
+        throw new Error("Invalid Pin order revision");
+      }
+      const items = reorderedPins.map((pin) => ({ id: pin.id }));
+      return api.reorderPins({ items, expected_revision: expectedRevision });
     },
     onMutate: async (reorderedPins) => {
       await qc.cancelQueries({ queryKey: pinKeys.list(wsId, userId) });
       const prev = qc.getQueryData<PinnedItem[]>(pinKeys.list(wsId, userId));
-      qc.setQueryData<PinnedItem[]>(pinKeys.list(wsId, userId), reorderedPins);
+      if (prev !== undefined) {
+        qc.setQueryData<PinnedItem[]>(pinKeys.list(wsId, userId), reorderedPins);
+      }
       return { prev };
     },
     onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(pinKeys.list(wsId, userId), ctx.prev);
+      if (ctx?.prev !== undefined) qc.setQueryData(pinKeys.list(wsId, userId), ctx.prev);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: pinKeys.list(wsId, userId) });
     },
   });
 }

@@ -61,7 +61,7 @@ import { resolvePublicFileUrl } from "@multica/core/workspace/avatar-url";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@multica/core/api";
 import { useModalStore } from "@multica/core/modals";
-import { useConfigStore } from "@multica/core/config";
+import { featureFlagEnabled, useConfigStore } from "@multica/core/config";
 import { pinListOptions } from "@multica/core/pins/queries";
 import { useDeletePin, useReorderPins } from "@multica/core/pins/mutations";
 import { issueDetailOptions } from "@multica/core/issues/queries";
@@ -82,6 +82,10 @@ import { ShortcutKeycaps } from "../common/shortcut-keycaps";
 // sub-pages of itself.
 export function isNavActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+export function isPinReorderEnabled(configLoaded: boolean, featureFlags: Record<string, boolean>): boolean {
+  return configLoaded && featureFlagEnabled(featureFlags, "pin_reorder", false);
 }
 
 // Stable empty arrays for query defaults. Using an inline `= []` default on
@@ -154,6 +158,7 @@ function SortablePinItem({
   onUnpin,
   label,
   iconNode,
+  reorderEnabled,
 }: {
   pin: PinnedItem;
   href: string;
@@ -161,9 +166,10 @@ function SortablePinItem({
   onUnpin: () => void;
   label: string;
   iconNode: React.ReactNode;
+  reorderEnabled: boolean;
 }) {
   const { t } = useT("layout");
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pin.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pin.id, disabled: !reorderEnabled });
   const wasDragged = useRef(false);
 
   useEffect(() => {
@@ -240,12 +246,14 @@ function PinRow({
   pathname,
   onUnpin,
   wsId,
+  reorderEnabled,
 }: {
   pin: PinnedItem;
   href: string;
   pathname: string;
   onUnpin: () => void;
   wsId: string;
+  reorderEnabled: boolean;
 }) {
   const isIssue = pin.item_type === "issue";
   const issueQuery = useQuery({
@@ -283,6 +291,7 @@ function PinRow({
         onUnpin={onUnpin}
         label={label}
         iconNode={iconNode}
+        reorderEnabled={reorderEnabled}
       />
     );
   }
@@ -299,6 +308,7 @@ function PinRow({
       onUnpin={onUnpin}
       label={project.title}
       iconNode={iconNode}
+      reorderEnabled={reorderEnabled}
     />
   );
 }
@@ -336,6 +346,9 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const { data: workspaces = EMPTY_WORKSPACES } = useQuery(workspaceListOptions());
   const { data: myInvitations = EMPTY_INVITATIONS } = useQuery(myInvitationListOptions());
   const workspaceCreationDisabled = useConfigStore((s) => s.workspaceCreationDisabled);
+  const configLoaded = useConfigStore((state) => state.configLoaded);
+  const featureFlags = useConfigStore((state) => state.featureFlags);
+  const pinReorderEnabled = isPinReorderEnabled(configLoaded, featureFlags);
 
   const wsId = workspace?.id;
   const { data: pinnedItems = EMPTY_PINS } = useQuery({
@@ -371,11 +384,13 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
   const isActivePinnedRoute = visiblePinned.some((pin) => pathname === getPinHref(pin));
 
   const handleDragStart = useCallback(() => {
+    if (!pinReorderEnabled) return;
     isDraggingRef.current = true;
-  }, []);
+  }, [pinReorderEnabled]);
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       isDraggingRef.current = false;
+      if (!pinReorderEnabled) return;
       const { active, over } = event;
       if (!over || active.id === over.id) return;
       const oldIndex = localPinned.findIndex((p) => p.id === active.id);
@@ -385,7 +400,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
       setLocalPinned(reordered);
       reorderPins.mutate(reordered);
     },
-    [localPinned, reorderPins],
+    [localPinned, pinReorderEnabled, reorderPins],
   );
 
   const queryClient = useQueryClient();
@@ -619,6 +634,7 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
                               pathname={pathname}
                               onUnpin={() => deletePin.mutate({ itemType: pin.item_type, itemId: pin.item_id })}
                               wsId={wsId ?? ""}
+                              reorderEnabled={pinReorderEnabled}
                             />
                           ))}
                         </SidebarMenu>

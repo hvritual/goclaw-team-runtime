@@ -23,12 +23,45 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 14 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 15 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
 	if err := db.QueryRow(`SELECT name FROM workspaces WHERE id='workspace-1'`).Scan(&workspaceName); err != nil || workspaceName != "Acme" {
 		t.Fatalf("retained workspace = %q, %v", workspaceName, err)
+	}
+}
+
+func TestPinReorderMigrationBackfillsAndGuardsAdvancedRevision(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "pin-reorder")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := executePinReorderDownForTest(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_pins(id,workspace_id,user_id,item_type,item_id,position,created_at) VALUES('pin-1','workspace-1','user-1','issue','issue-1',1,'2026-08-18T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	var revision int64
+	if err := db.QueryRow(`SELECT revision FROM workspace_pin_order_revisions WHERE workspace_id='workspace-1' AND user_id='user-1'`).Scan(&revision); err != nil || revision != 1 {
+		t.Fatalf("backfilled revision = %d, %v", revision, err)
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_pins(id,workspace_id,user_id,item_type,item_id,position,created_at) VALUES('pin-2','workspace-1','user-1','project','project-1',2,'2026-08-18T00:00:01Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := executePinReorderDownForTest(context.Background(), db); err == nil {
+		t.Fatal("pin reorder down succeeded with advanced revision")
+	}
+	var tableCount, catalogCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='workspace_pin_order_revisions'`).Scan(&tableCount); err != nil || tableCount != 1 {
+		t.Fatalf("revision table count = %d, %v", tableCount, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000015_pin_reorder.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
+		t.Fatalf("revision catalog count = %d, %v", catalogCount, err)
 	}
 }
 
@@ -293,6 +326,22 @@ func TestTaskIssuePromotionDownRequiresEmptyTable(t *testing.T) {
 
 func executeTaskIssuePromotionDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000012_task_issue_promotion.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func executePinReorderDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000015_pin_reorder.down.sql")
 	if err != nil {
 		return err
 	}

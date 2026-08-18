@@ -13,6 +13,7 @@ export interface PinnedItem {
   item_type: PinnedItemType;
   item_id: string;
   position: number;
+  order_revision: number;
   created_at: string;
 }
 
@@ -22,5 +23,6 @@ export interface CreatePinRequest {
 }
 
 export interface ReorderPinsRequest {
-  items: { id: string; position: number }[];
+  items: { id: string }[];
+  expected_revision: number;
 }

@@ -296,8 +296,10 @@ func (r *ProjectSurfaceRepository) DeleteProject(ctx context.Context, workspaceI
 }
 
 func (r *ProjectSurfaceRepository) ListPins(ctx context.Context, workspaceID, userID string) ([]contract.Pin, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,workspace_id,user_id,item_type,item_id,position,created_at
-		FROM workspace_pins WHERE workspace_id=? AND user_id=? ORDER BY position,created_at,id`, workspaceID, userID)
+	rows, err := r.db.QueryContext(ctx, `SELECT p.id,p.workspace_id,p.user_id,p.item_type,p.item_id,p.position,o.revision,p.created_at
+		FROM workspace_pins p
+		JOIN workspace_pin_order_revisions o ON o.workspace_id=p.workspace_id AND o.user_id=p.user_id
+		WHERE p.workspace_id=? AND p.user_id=? ORDER BY p.position,p.created_at,p.id`, workspaceID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list pins: %w", err)
 	}
@@ -305,7 +307,7 @@ func (r *ProjectSurfaceRepository) ListPins(ctx context.Context, workspaceID, us
 	values := make([]contract.Pin, 0)
 	for rows.Next() {
 		var value contract.Pin
-		if err := rows.Scan(&value.ID, &value.WorkspaceID, &value.UserID, &value.ItemType, &value.ItemID, &value.Position, &value.CreatedAt); err != nil {
+		if err := rows.Scan(&value.ID, &value.WorkspaceID, &value.UserID, &value.ItemType, &value.ItemID, &value.Position, &value.OrderRevision, &value.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan pin: %w", err)
 		}
 		values = append(values, value)
@@ -381,6 +383,9 @@ func (r *ProjectSurfaceRepository) CreatePin(ctx context.Context, value contract
 		}
 		return contract.Pin{}, fmt.Errorf("create pin: %w", err)
 	}
+	if err := connection.QueryRowContext(ctx, `SELECT revision FROM workspace_pin_order_revisions WHERE workspace_id=? AND user_id=?`, value.WorkspaceID, value.UserID).Scan(&value.OrderRevision); err != nil {
+		return contract.Pin{}, fmt.Errorf("read created pin order revision: %w", err)
+	}
 	if _, err := connection.ExecContext(ctx, "COMMIT"); err != nil {
 		return contract.Pin{}, fmt.Errorf("commit pin: %w", err)
 	}
@@ -393,6 +398,98 @@ func (r *ProjectSurfaceRepository) DeletePin(ctx context.Context, workspaceID, u
 	if err != nil {
 		return fmt.Errorf("delete pin: %w", err)
 	}
+	return nil
+}
+
+func (r *ProjectSurfaceRepository) ReorderPins(ctx context.Context, workspaceID, userID string, ids []string, expectedRevision int64) (err error) {
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return fmt.Errorf("configure pin reorder connection: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return fmt.Errorf("begin pin reorder: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.Background(), "ROLLBACK")
+		}
+	}()
+
+	var currentRevision int64
+	err = connection.QueryRowContext(ctx, `SELECT revision FROM workspace_pin_order_revisions WHERE workspace_id=? AND user_id=?`, workspaceID, userID).Scan(&currentRevision)
+	if errors.Is(err, sql.ErrNoRows) {
+		return application.ErrInvalidProjectSurfaceRequest
+	}
+	if err != nil {
+		return fmt.Errorf("read pin order revision: %w", err)
+	}
+	if currentRevision != expectedRevision {
+		return contract.RevisionConflictError{CurrentRevision: currentRevision}
+	}
+
+	rows, err := connection.QueryContext(ctx, `SELECT id FROM workspace_pins WHERE workspace_id=? AND user_id=?`, workspaceID, userID)
+	if err != nil {
+		return fmt.Errorf("list pin reorder set: %w", err)
+	}
+	currentIDs := make(map[string]struct{}, len(ids))
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return fmt.Errorf("scan pin reorder set: %w", err)
+		}
+		currentIDs[id] = struct{}{}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return fmt.Errorf("iterate pin reorder set: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("close pin reorder set: %w", err)
+	}
+	if len(currentIDs) != len(ids) {
+		return application.ErrInvalidProjectSurfaceRequest
+	}
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if _, ok := currentIDs[id]; !ok {
+			return application.ErrInvalidProjectSurfaceRequest
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return application.ErrInvalidProjectSurfaceRequest
+		}
+		seen[id] = struct{}{}
+	}
+	for index, id := range ids {
+		result, updateErr := connection.ExecContext(ctx, `UPDATE workspace_pins SET position=? WHERE workspace_id=? AND user_id=? AND id=?`, index+1, workspaceID, userID, id)
+		if updateErr != nil {
+			return fmt.Errorf("update pin position: %w", updateErr)
+		}
+		affected, affectedErr := result.RowsAffected()
+		if affectedErr != nil || affected != 1 {
+			return application.ErrInvalidProjectSurfaceRequest
+		}
+	}
+	result, err := connection.ExecContext(ctx, `UPDATE workspace_pin_order_revisions SET revision=revision+1 WHERE workspace_id=? AND user_id=? AND revision=?`, workspaceID, userID, expectedRevision)
+	if err != nil {
+		return fmt.Errorf("advance pin order revision: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read pin order revision update: %w", err)
+	}
+	if affected != 1 {
+		return contract.RevisionConflictError{CurrentRevision: currentRevision}
+	}
+	if _, err = connection.ExecContext(ctx, "COMMIT"); err != nil {
+		return fmt.Errorf("commit pin reorder: %w", err)
+	}
+	committed = true
 	return nil
 }
 

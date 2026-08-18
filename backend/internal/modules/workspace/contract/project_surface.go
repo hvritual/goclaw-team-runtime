@@ -48,13 +48,14 @@ type ProjectSurfaceSearchResponse struct {
 }
 
 type Pin struct {
-	ID          string  `json:"id"`
-	WorkspaceID string  `json:"workspace_id"`
-	UserID      string  `json:"user_id"`
-	ItemType    string  `json:"item_type"`
-	ItemID      string  `json:"item_id"`
-	Position    float64 `json:"position"`
-	CreatedAt   string  `json:"created_at"`
+	ID            string  `json:"id"`
+	WorkspaceID   string  `json:"workspace_id"`
+	UserID        string  `json:"user_id"`
+	ItemType      string  `json:"item_type"`
+	ItemID        string  `json:"item_id"`
+	Position      float64 `json:"position"`
+	OrderRevision int64   `json:"order_revision"`
+	CreatedAt     string  `json:"created_at"`
 }
 
 type CreateProjectSurfaceRequest struct {
@@ -105,6 +106,15 @@ type CreatePinRequest struct {
 	ItemID   string `json:"item_id"`
 }
 
+type ReorderPinItem struct {
+	ID string `json:"id"`
+}
+
+type ReorderPinsRequest struct {
+	Items            []ReorderPinItem `json:"items"`
+	ExpectedRevision int64            `json:"expected_revision"`
+}
+
 type ProjectSurfaceService interface {
 	ListProjects(context.Context, string, string) (ProjectSurfaceList, error)
 	GetProject(context.Context, string, string) (ProjectSurfaceProject, error)
@@ -118,4 +128,8 @@ type ProjectSurfaceService interface {
 
 type ProjectSurfaceSearchService interface {
 	SearchProjects(context.Context, string, ProjectSurfaceSearchRequest) (ProjectSurfaceSearchResponse, error)
+}
+
+type PinReorderService interface {
+	ReorderPins(context.Context, string, string, ReorderPinsRequest) error
 }

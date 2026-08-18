@@ -148,7 +148,6 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"pin_reorder",
 		"skill_administration",
 		"skill_import",
 		"knowledge_query",
@@ -180,6 +179,9 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	}
 	if !body.FeatureFlags["project_search"] {
 		t.Error("project_search flag = false after the installed S03B runtime")
+	}
+	if !body.FeatureFlags["pin_reorder"] {
+		t.Error("pin_reorder flag = false after the installed S04 runtime")
 	}
 }
 

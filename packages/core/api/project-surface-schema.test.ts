@@ -27,6 +27,7 @@ const PIN = {
   item_type: "project",
   item_id: "project-1",
   position: 0,
+  order_revision: 1,
   created_at: "2026-08-14T00:00:00Z",
 };
 
@@ -75,5 +76,26 @@ describe("project surface API boundary", () => {
     await expect(client.listProjects()).resolves.toEqual({ projects: [], total: 0 });
     await expect(client.listProjects()).resolves.toEqual({ projects: [], total: 0 });
     await expect(client.listPins()).resolves.toEqual([{ ...PIN, position: 1.5 }]);
+  });
+
+  it("requires one consistent positive Pin order revision and sends the exact reorder contract", async () => {
+    const { order_revision: _revision, ...missingRevision } = PIN;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([missingRevision]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([PIN, { ...PIN, id: "pin-2", order_revision: 2 }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...PIN, unexpected: true }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:8000");
+
+    await expect(client.listPins()).resolves.toEqual([]);
+    await expect(client.listPins()).resolves.toEqual([]);
+    await expect(client.listPins()).resolves.toEqual([]);
+    await expect(client.reorderPins({ items: [{ id: "pin-2" }, { id: "pin-1" }], expected_revision: 7 })).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[3]?.[0]).toBe("http://localhost:8000/api/pins/reorder");
+    expect(fetchMock.mock.calls[3]?.[1]).toMatchObject({
+      method: "PUT",
+      body: JSON.stringify({ items: [{ id: "pin-2" }, { id: "pin-1" }], expected_revision: 7 }),
+    });
   });
 });

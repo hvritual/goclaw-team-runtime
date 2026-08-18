@@ -1046,10 +1046,16 @@ export const PinSchema = z.object({
   item_type: z.enum(["issue", "project"]),
   item_id: z.string().min(1),
   position: z.number().nonnegative(),
+  order_revision: z.number().int().positive(),
   created_at: z.string().min(1),
-}).loose();
+}).strict();
 
-export const PinsSchema = z.array(PinSchema);
+export const PinsSchema = z.array(PinSchema).superRefine((pins, ctx) => {
+  const revision = pins[0]?.order_revision;
+  if (revision !== undefined && pins.some((pin) => pin.order_revision !== revision)) {
+    ctx.addIssue({ code: "custom", message: "Pin order revisions must match" });
+  }
+});
 export const EMPTY_PINS: PinnedItem[] = [];
 
 export const OnboardingCompletionResponseSchema = z.object({

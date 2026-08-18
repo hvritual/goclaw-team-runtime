@@ -35,6 +35,9 @@ func (h *ProjectSurfaceHandler) Register(server *kratoshttp.Server) {
 	router.DELETE("/api/projects/{id}", h.deleteProject)
 	router.GET("/api/pins", h.listPins)
 	router.POST("/api/pins", h.createPin)
+	if _, ok := h.service.(contract.PinReorderService); ok {
+		router.PUT("/api/pins/reorder", h.reorderPins)
+	}
 	router.DELETE("/api/pins/{item_type}/{item_id}", h.deletePin)
 }
 
@@ -258,6 +261,49 @@ func (h *ProjectSurfaceHandler) deletePin(ctx kratoshttp.Context) error {
 	}
 	if err != nil {
 		return writeError(ctx, http.StatusInternalServerError, "failed to delete pin")
+	}
+	ctx.Response().WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+func (h *ProjectSurfaceHandler) reorderPins(ctx kratoshttp.Context) error {
+	userID, err := h.authenticateRequest(ctx.Request())
+	if err != nil {
+		return writeError(ctx, http.StatusUnauthorized, "user not authenticated")
+	}
+	if !hasWorkspaceIdentity(ctx) {
+		return writeError(ctx, http.StatusBadRequest, "workspace is required")
+	}
+	identity, err := h.workspaceIdentity(ctx.Request())
+	if err != nil {
+		return issueReadIdentityError(ctx, err)
+	}
+	if h.mutation == nil || h.mutation(ctx.Request()) != nil {
+		return writeError(ctx, http.StatusForbidden, "invalid CSRF token")
+	}
+	var request contract.ReorderPinsRequest
+	if err := decodeJSON(ctx.Request().Body, &request); err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid request body")
+	}
+	err = h.service.(contract.PinReorderService).ReorderPins(workspaceActorContext(ctx, identity), identity.WorkspaceID, userID, request)
+	var conflict contract.RevisionConflictError
+	if errors.As(err, &conflict) {
+		return ctx.JSON(http.StatusConflict, map[string]any{
+			"code": "revision_conflict", "current_revision": conflict.CurrentRevision,
+			"error": contract.ErrRevisionConflict.Error(),
+		})
+	}
+	if errors.Is(err, application.ErrInvalidProjectSurfaceRequest) {
+		return writeError(ctx, http.StatusBadRequest, "invalid pin reorder")
+	}
+	if errors.Is(err, contract.ErrWorkspacePermissionDenied) || errors.Is(err, contract.ErrWorkspaceActorRequired) {
+		return writeError(ctx, http.StatusForbidden, "pin reorder denied")
+	}
+	if projectSurfaceHidden(err) {
+		return writeError(ctx, http.StatusNotFound, "workspace not found")
+	}
+	if err != nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to reorder pins")
 	}
 	ctx.Response().WriteHeader(http.StatusNoContent)
 	return nil

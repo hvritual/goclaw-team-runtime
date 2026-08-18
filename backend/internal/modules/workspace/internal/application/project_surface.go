@@ -25,6 +25,7 @@ type ProjectSurfaceRepository interface {
 	InspectPin(context.Context, string, string, string, string) (bool, bool, error)
 	CreatePin(context.Context, contract.Pin) (contract.Pin, error)
 	DeletePin(context.Context, string, string, string, string) error
+	ReorderPins(context.Context, string, string, []string, int64) error
 	SearchProjects(context.Context, ProjectSurfaceSearchQuery) ([]ProjectSurfaceSearchResult, int, error)
 }
 
@@ -269,6 +270,30 @@ func (u *ProjectSurfaceUseCase) DeletePin(ctx context.Context, workspaceID, user
 		return err
 	}
 	return u.repository.DeletePin(ctx, workspaceID, userID, itemType, itemID)
+}
+
+func (u *ProjectSurfaceUseCase) ReorderPins(ctx context.Context, workspaceID, userID string, request contract.ReorderPinsRequest) error {
+	workspaceID, userID = strings.TrimSpace(workspaceID), strings.TrimSpace(userID)
+	if workspaceID == "" || userID == "" || request.ExpectedRevision < 1 || len(request.Items) == 0 {
+		return ErrInvalidProjectSurfaceRequest
+	}
+	ids := make([]string, len(request.Items))
+	seen := make(map[string]struct{}, len(request.Items))
+	for index, item := range request.Items {
+		id := strings.TrimSpace(item.ID)
+		if id == "" {
+			return ErrInvalidProjectSurfaceRequest
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return ErrInvalidProjectSurfaceRequest
+		}
+		seen[id] = struct{}{}
+		ids[index] = id
+	}
+	if err := u.authorizer.AuthorizeWorkspace(ctx, workspaceID, contract.PermissionPinReorder); err != nil {
+		return err
+	}
+	return u.repository.ReorderPins(ctx, workspaceID, userID, ids, request.ExpectedRevision)
 }
 
 func validProjectStatus(value string) bool {

@@ -159,7 +159,8 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 		workspacecontract.PermissionTaskCreate,
 		workspacecontract.PermissionTaskUpdateOwn,
 		workspacecontract.PermissionTaskManageWorkspace,
-		workspacecontract.PermissionSearchReadable:
+		workspacecontract.PermissionSearchReadable,
+		workspacecontract.PermissionPinReorder:
 		return true
 	default:
 		return p.next != nil && p.next.RoadmapCapabilityInstalled(permission)
@@ -168,7 +169,7 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 
 func (p installedRuntimeCapabilities) RoadmapFeatureInstalled(feature string) bool {
 	switch feature {
-	case "tasks", "issue_search", "project_search":
+	case "tasks", "issue_search", "project_search", "pin_reorder":
 		return true
 	default:
 		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {
