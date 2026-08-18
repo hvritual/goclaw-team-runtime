@@ -39,6 +39,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue SQLite persistence: %w", err)
 	}
+	issueSearchRepository, err := persistence.NewIssueSearchRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue search SQLite persistence: %w", err)
+	}
 	issueMetadata, err := persistence.NewIssueMetadataRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata SQLite persistence: %w", err)
@@ -124,6 +128,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue application: %w", err)
 	}
+	issueSearchService, err := application.NewIssueSearchUseCase(issueSearchRepository, dependencies.Authorizer)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue search application: %w", err)
+	}
 	baseIssueMetadataService, err := application.NewIssueMetadataUseCase(issueMetadata, dependencies.Authorizer, dependencies.Actors, now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata application: %w", err)
@@ -192,6 +200,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	}
 	module.extensions = append(module.extensions, newIssueReadExtension(
 		issueService,
+		issueSearchService,
 		issueCatalogService,
 		dependencies.HTTPIdentity,
 		dependencies.HTTPUserIdentity,

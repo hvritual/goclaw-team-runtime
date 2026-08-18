@@ -27,6 +27,7 @@ import type {
   SearchProjectResult,
 } from "@multica/core/types";
 import { api } from "@multica/core/api";
+import { featureFlagEnabled, useConfigStore } from "@multica/core/config";
 import {
   openCreateIssueWithPreference,
   selectRecentIssues,
@@ -157,6 +158,10 @@ export function SearchCommand() {
   const p: WorkspacePaths = useWorkspacePaths();
   const { theme, setTheme } = useTheme();
   const { data: members = [] } = useQuery(memberListOptions(wsId));
+  const configLoaded = useConfigStore((state) => state.configLoaded);
+  const featureFlags = useConfigStore((state) => state.featureFlags);
+  const issueSearchEnabled = !configLoaded || featureFlagEnabled(featureFlags, "issue_search");
+  const projectSearchEnabled = !configLoaded || featureFlagEnabled(featureFlags, "project_search");
 
   // Resolve each recent issue via its cached detail entry. Recent items are
   // typically already in the detail cache because the user has opened them;
@@ -420,18 +425,22 @@ export function SearchCommand() {
       abortRef.current = controller;
       try {
         const [issueRes, projectRes] = await Promise.all([
-          api.searchIssues({
-            q: q.trim(),
-            limit: 20,
-            include_closed: true,
-            signal: controller.signal,
-          }),
-          api.searchProjects({
-            q: q.trim(),
-            limit: 10,
-            include_closed: true,
-            signal: controller.signal,
-          }),
+          issueSearchEnabled
+            ? api.searchIssues({
+                q: q.trim(),
+                limit: 20,
+                include_closed: true,
+                signal: controller.signal,
+              })
+            : Promise.resolve({ issues: [], total: 0 }),
+          projectSearchEnabled
+            ? api.searchProjects({
+                q: q.trim(),
+                limit: 10,
+                include_closed: true,
+                signal: controller.signal,
+              })
+            : Promise.resolve({ projects: [], total: 0 }),
         ]);
         if (!controller.signal.aborted) {
           setResults({
@@ -446,7 +455,7 @@ export function SearchCommand() {
         }
       }
     }, 300);
-  }, []);
+  }, [issueSearchEnabled, projectSearchEnabled]);
 
   const handleValueChange = useCallback(
     (value: string) => {

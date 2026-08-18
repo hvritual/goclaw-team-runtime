@@ -158,10 +158,28 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 	case workspacecontract.PermissionTaskRead,
 		workspacecontract.PermissionTaskCreate,
 		workspacecontract.PermissionTaskUpdateOwn,
-		workspacecontract.PermissionTaskManageWorkspace:
+		workspacecontract.PermissionTaskManageWorkspace,
+		workspacecontract.PermissionSearchReadable:
 		return true
 	default:
 		return p.next != nil && p.next.RoadmapCapabilityInstalled(permission)
+	}
+}
+
+func (p installedRuntimeCapabilities) RoadmapFeatureInstalled(feature string) bool {
+	switch feature {
+	case "tasks", "issue_search":
+		return true
+	case "project_search":
+		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {
+			return next.RoadmapFeatureInstalled(feature)
+		}
+		return false
+	default:
+		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {
+			return next.RoadmapFeatureInstalled(feature)
+		}
+		return false
 	}
 }
 
@@ -212,7 +230,13 @@ func roadmapFeatureFlags(provider workspacecontract.RoadmapCapabilityProvider) m
 	}
 	flags := make(map[string]bool, len(permissions))
 	for name, permission := range permissions {
-		flags[name] = workspacecontract.RoadmapCapabilityInstalled(permission, provider)
+		if features, ok := provider.(workspacecontract.RoadmapFeatureProvider); ok {
+			flags[name] = features.RoadmapFeatureInstalled(name)
+		} else if name == "issue_search" || name == "project_search" {
+			flags[name] = false
+		} else {
+			flags[name] = workspacecontract.RoadmapCapabilityInstalled(permission, provider)
+		}
 	}
 	return flags
 }

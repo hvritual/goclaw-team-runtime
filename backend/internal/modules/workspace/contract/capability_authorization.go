@@ -111,6 +111,13 @@ type RoadmapCapabilityProvider interface {
 	RoadmapCapabilityInstalled(permission string) bool
 }
 
+// RoadmapFeatureProvider separates installed user-visible verticals from
+// shared authorization actions. One readable-search grant must not imply that
+// every search surface is installed.
+type RoadmapFeatureProvider interface {
+	RoadmapFeatureInstalled(feature string) bool
+}
+
 // RoadmapCapabilityInstalled remains false until the capability's delivery
 // story injects a provider that explicitly reports the known permission.
 func RoadmapCapabilityInstalled(permission string, providers ...RoadmapCapabilityProvider) bool {

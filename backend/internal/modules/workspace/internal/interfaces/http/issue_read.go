@@ -22,6 +22,7 @@ import (
 
 type IssueReadHandler struct {
 	service            contract.IssueMutationService
+	search             contract.IssueSearchService
 	catalog            contract.IssueCatalogService
 	identity           contract.WorkspaceHTTPIdentityResolver
 	authenticate       func(*http.Request) (string, error)
@@ -32,13 +33,16 @@ type IssueReadHandler struct {
 
 var errUnsupportedIssueQuery = errors.New("unsupported issue query")
 
-func NewIssueReadHandler(service contract.IssueMutationService, catalog contract.IssueCatalogService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled, attachmentsEnabled bool) *IssueReadHandler {
-	return &IssueReadHandler{service: service, catalog: catalog, identity: identity, authenticate: authenticate, mutation: mutation, createEnabled: createEnabled, attachmentsEnabled: attachmentsEnabled}
+func NewIssueReadHandler(service contract.IssueMutationService, search contract.IssueSearchService, catalog contract.IssueCatalogService, identity contract.WorkspaceHTTPIdentityResolver, authenticate func(*http.Request) (string, error), mutation func(*http.Request) error, createEnabled, attachmentsEnabled bool) *IssueReadHandler {
+	return &IssueReadHandler{service: service, search: search, catalog: catalog, identity: identity, authenticate: authenticate, mutation: mutation, createEnabled: createEnabled, attachmentsEnabled: attachmentsEnabled}
 }
 
 func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.GET("/api/issues", h.list)
+	if h.search != nil {
+		router.GET("/api/issues/search", h.searchIssues)
+	}
 	if h.createEnabled {
 		router.POST("/api/issues", h.create)
 	}
@@ -56,6 +60,70 @@ func (h *IssueReadHandler) Register(server *kratoshttp.Server) {
 	router.GET("/api/issues/{id}", h.get)
 	router.PUT("/api/issues/{id}", h.update)
 	router.POST("/api/issues/{id}/move", h.move)
+}
+
+func (h *IssueReadHandler) searchIssues(ctx kratoshttp.Context) error {
+	requestContext, workspaceID, err := h.requestIdentity(ctx)
+	if err != nil {
+		return issueReadIdentityError(ctx, err)
+	}
+	values := ctx.Request().URL.Query()
+	if strings.TrimSpace(values.Get("q")) == "" {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue search")
+	}
+	limit, err := strictSearchInteger(values.Get("limit"), 0, false)
+	if err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue search")
+	}
+	offset, err := strictSearchInteger(values.Get("offset"), 0, true)
+	if err != nil {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue search")
+	}
+	includeClosed := false
+	if raw := values.Get("include_closed"); raw != "" {
+		includeClosed, err = strconv.ParseBool(raw)
+		if err != nil {
+			return writeError(ctx, http.StatusBadRequest, "invalid issue search")
+		}
+	}
+	result, err := h.search.SearchIssues(requestContext, contract.SearchIssuesRequest{
+		WorkspaceID: workspaceID, Query: values.Get("q"), Limit: limit, Offset: offset, IncludeClosed: includeClosed,
+	})
+	if errors.Is(err, contract.ErrInvalidIssueSearch) {
+		return writeError(ctx, http.StatusBadRequest, "invalid issue search")
+	}
+	if errors.Is(err, contract.ErrWorkspacePermissionDenied) || errors.Is(err, contract.ErrWorkspaceActorRequired) {
+		return writeError(ctx, http.StatusForbidden, "issue search denied")
+	}
+	if err != nil {
+		return writeError(ctx, http.StatusInternalServerError, "failed to search issues")
+	}
+	issues := make([]publicIssueSearchResult, len(result.Issues))
+	for index, hit := range result.Issues {
+		issues[index] = publicIssueSearchResult{
+			publicIssue: toPublicIssue(hit.Issue), MatchSource: hit.MatchSource,
+			MatchedSnippet: hit.MatchedSnippet, MatchedDescriptionSnippet: hit.DescriptionSnippet,
+		}
+	}
+	return ctx.JSON(http.StatusOK, map[string]any{"issues": issues, "total": result.Total})
+}
+
+type publicIssueSearchResult struct {
+	publicIssue
+	MatchSource               string  `json:"match_source"`
+	MatchedSnippet            *string `json:"matched_snippet,omitempty"`
+	MatchedDescriptionSnippet *string `json:"matched_description_snippet,omitempty"`
+}
+
+func strictSearchInteger(raw string, defaultValue int, allowZero bool) (int, error) {
+	if raw == "" {
+		return defaultValue, nil
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 || (!allowZero && value == 0) {
+		return 0, contract.ErrInvalidIssueSearch
+	}
+	return value, nil
 }
 
 type createIssueHTTPRequest struct {

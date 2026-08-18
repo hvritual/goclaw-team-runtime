@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "@multica/core/i18n/react";
+import { configStore } from "@multica/core/config";
 import { SearchCommand } from "./search-command";
 import { useSearchStore } from "./search-store";
 import enCommon from "../locales/en/common.json";
@@ -241,6 +242,7 @@ describe("SearchCommand", () => {
     mockCommentExpandAll.mockReset();
     mockResolvedCollapseAll.mockReset();
     mockResolvedExpandAll.mockReset();
+    configStore.setState({ configLoaded: false, featureFlags: {} });
 
     // cmdk calls scrollIntoView on the first selected item, which jsdom doesn't implement
     Element.prototype.scrollIntoView = vi.fn();
@@ -248,6 +250,20 @@ describe("SearchCommand", () => {
     act(() => {
       useSearchStore.setState({ open: true });
     });
+  });
+
+  it("calls only the installed Issue search vertical", async () => {
+    const user = userEvent.setup();
+    configStore.setState({
+      configLoaded: true,
+      featureFlags: { issue_search: true, project_search: false },
+    });
+    renderSearch();
+
+    await user.type(screen.getByPlaceholderText("Type a command or search..."), "coffee");
+
+    await waitFor(() => expect(mockSearchIssues).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    expect(mockSearchProjects).not.toHaveBeenCalled();
   });
 
   it("closes on a single Escape press from the search input", async () => {

@@ -18,6 +18,26 @@ type recordingIssueListService struct {
 	request contract.ListIssuesRequest
 }
 
+type recordingIssueSearchService struct {
+	request contract.SearchIssuesRequest
+	err     error
+}
+
+func (s *recordingIssueSearchService) SearchIssues(_ context.Context, request contract.SearchIssuesRequest) (contract.SearchIssuesResponse, error) {
+	s.request = request
+	if s.err != nil {
+		return contract.SearchIssuesResponse{}, s.err
+	}
+	return contract.SearchIssuesResponse{Issues: []contract.IssueSearchResult{{
+		Issue: contract.Issue{
+			Id: "issue-41", WorkspaceId: "workspace-1", Number: 41, Identifier: "WSP-41",
+			Title: "Search issue", Status: "todo", Priority: "none", CreatorType: "member", CreatorId: "member-1",
+			CreatedAt: "2026-08-18T00:00:00Z", UpdatedAt: "2026-08-18T00:00:00Z",
+		},
+		MatchSource: "identifier",
+	}}, Total: 1}, nil
+}
+
 func (s *recordingIssueListService) ListIssues(_ context.Context, request contract.ListIssuesRequest) (contract.ListIssuesResponse, error) {
 	s.request = request
 	return contract.ListIssuesResponse{Issues: []contract.Issue{{
@@ -37,7 +57,7 @@ func (attachmentConflictIssueService) UpdateIssue(context.Context, contract.Upda
 func TestIssueAttachmentConflictReturnsCanonical409(t *testing.T) {
 	server := kratoshttp.NewServer()
 	handler := NewIssueReadHandler(
-		attachmentConflictIssueService{}, nil,
+		attachmentConflictIssueService{}, nil, nil,
 		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
 			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
 		},
@@ -59,7 +79,7 @@ func TestIssueListPushesSingularStatusIntoServiceQuery(t *testing.T) {
 	service := &recordingIssueListService{}
 	server := kratoshttp.NewServer()
 	handler := NewIssueReadHandler(
-		service, nil,
+		service, nil, nil,
 		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
 			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
 		},
@@ -75,6 +95,58 @@ func TestIssueListPushesSingularStatusIntoServiceQuery(t *testing.T) {
 	}
 	if service.request.Status != "blocked" {
 		t.Fatalf("service status = %q, want blocked", service.request.Status)
+	}
+}
+
+func TestIssueSearchRoutePrecedesIdentifierAndMapsFrozenQuery(t *testing.T) {
+	search := &recordingIssueSearchService{}
+	server := kratoshttp.NewServer()
+	NewIssueReadHandler(
+		&recordingIssueListService{}, search, nil,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		}, nil, nil, false, false,
+	).Register(server)
+
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/issues/search?q=WSP-41&limit=50&offset=2&include_closed=true", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("search = %d %s", response.Code, response.Body.String())
+	}
+	if search.request.WorkspaceID != "workspace-1" || search.request.Query != "WSP-41" || search.request.Limit != 50 || search.request.Offset != 2 || !search.request.IncludeClosed {
+		t.Fatalf("request = %+v", search.request)
+	}
+	body := strings.TrimSpace(response.Body.String())
+	if !strings.Contains(body, `"identifier":"WSP-41"`) || !strings.Contains(body, `"match_source":"identifier"`) || !strings.Contains(body, `"total":1`) {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestIssueSearchRejectsInvalidQueryAndMapsDenial(t *testing.T) {
+	for _, path := range []string{
+		"/api/issues/search", "/api/issues/search?q=issue&limit=0", "/api/issues/search?q=issue&offset=-1", "/api/issues/search?q=issue&include_closed=maybe",
+	} {
+		server := kratoshttp.NewServer()
+		NewIssueReadHandler(&recordingIssueListService{}, &recordingIssueSearchService{}, nil,
+			func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+				return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+			}, nil, nil, false, false).Register(server)
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("%s = %d %s", path, response.Code, response.Body.String())
+		}
+	}
+
+	server := kratoshttp.NewServer()
+	NewIssueReadHandler(&recordingIssueListService{}, &recordingIssueSearchService{err: contract.ErrWorkspacePermissionDenied}, nil,
+		func(*http.Request) (contract.WorkspaceHTTPIdentity, error) {
+			return contract.WorkspaceHTTPIdentity{WorkspaceID: "workspace-1", ActorType: "member", ActorID: "member-1"}, nil
+		}, nil, nil, false, false).Register(server)
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/issues/search?q=issue", nil))
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("denied = %d %s", response.Code, response.Body.String())
 	}
 }
 

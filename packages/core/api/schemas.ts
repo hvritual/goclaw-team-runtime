@@ -741,16 +741,16 @@ export const EMPTY_LIST_ISSUES_RESPONSE: ListIssuesResponse = {
 };
 
 const SearchIssueResultSchema = IssueSchema.extend({
-  match_source: z.string(),
+  match_source: z.enum(["identifier", "title", "description"]),
   matched_snippet: z.string().optional(),
   matched_description_snippet: z.string().optional(),
   matched_comment_snippet: z.string().optional(),
-}).loose();
+}).strict();
 
 export const SearchIssuesResponseSchema = z.object({
   issues: z.array(SearchIssueResultSchema).default([]),
   total: z.number().default(0),
-}).loose();
+}).strict();
 
 export const EMPTY_SEARCH_ISSUES_RESPONSE: SearchIssuesResponse = {
   issues: [],

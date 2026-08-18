@@ -134,7 +134,7 @@ func TestRuntimeUsesExplicitHTTPTimeout(t *testing.T) {
 	}
 }
 
-func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *testing.T) {
+func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	runtime := newTestRuntime(t)
 	response := httptest.NewRecorder()
 	runtime.HTTPServer().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/config", nil))
@@ -148,7 +148,6 @@ func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *tes
 		t.Fatalf("decode response: %v", err)
 	}
 	for _, capability := range []string{
-		"issue_search",
 		"project_search",
 		"pin_reorder",
 		"skill_administration",
@@ -177,16 +176,28 @@ func TestRuntimeReportsUninstalledRoadmapCapabilitiesAsExplicitlyDisabled(t *tes
 	if !body.FeatureFlags["tasks"] {
 		t.Error("tasks flag = false after the installed S02A runtime")
 	}
+	if !body.FeatureFlags["issue_search"] {
+		t.Error("issue_search flag = false after the installed S03A runtime")
+	}
+	if body.FeatureFlags["project_search"] {
+		t.Error("project_search flag = true before S03B installation")
+	}
 }
 
 func TestRoadmapFeatureFlagsRequireAnInstalledProvider(t *testing.T) {
-	provider := runtimeCapabilityProviderStub{workspacecontract.PermissionTaskRead: true}
+	provider := runtimeCapabilityProviderStub{
+		workspacecontract.PermissionTaskRead:       true,
+		workspacecontract.PermissionSearchReadable: true,
+	}
 	flags := roadmapFeatureFlags(provider)
 	if !flags["tasks"] {
 		t.Error("tasks flag = false after its provider reported installed")
 	}
 	if flags["issue_search"] {
-		t.Error("issue_search flag = true without its provider")
+		t.Error("issue_search flag = true from shared permission without per-feature evidence")
+	}
+	if flags["project_search"] {
+		t.Error("project_search flag = true from shared permission without per-feature evidence")
 	}
 	for name, enabled := range roadmapFeatureFlags(nil) {
 		if enabled {
