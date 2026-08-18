@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v19.md](plan_v19.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `19`
-- Active step: `PCR-S04 Pin reorder under r024`
-- Status: `Release 1 active; PCR-S04 implementation active`
+- Active step: `none`
+- Status: `Release 1 complete-independent-reviewed; no active task`
 - Plan base commit: `b86447909e1a7614c539769514008e010b478140`
-- Last closed task base commit: `c9e905bc7675d253991c0a816bcd19985a49c10b`
+- Last closed task candidate: `bd757d1d5203988d4fb924818e71f7e3b7fb1563`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -32,6 +32,13 @@ The Human Customer's standing direction to complete Release 1 activates
 Only PCR-S04 atomic revisioned Pin reorder is active. Existing Issue and
 Project search remain installed. No Release 2 story, push, merge, deployment,
 or Release 1 completion is authorized or claimed.
+
+v19/r024 exact candidate `bd757d1d5203988d4fb924818e71f7e3b7fb1563`
+passes backend check/race, root typecheck/test, production-build,
+fresh-database installed-Chrome, scope/process-cleanup, traceability, and fresh
+independent-review gates. PCR-S04 and Release 1 are
+`complete-independent-reviewed`; no task is active. Release 2 remains inactive,
+and no push, merge, or deployment is claimed.
 
 Candidate `5062e84` passed every frozen deterministic gate, but its independent
 review returned `SPEC BLOCK` for authority mapping, canonical request hashing,

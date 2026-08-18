@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v14`
-- Registry status: `Release 1 active; PCR-001-S02B-R20 is the sole active task`
-- Registry revision: `r020`
+- Plan-Version: `v19`
+- Registry status: `Release 1 complete-independent-reviewed; no active task`
+- Registry revision: `r024`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1281,9 +1281,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S04-R24`
 - Task-Revision: `r024`
 - Work-Item: `PCR-S04`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after deterministic verification`
+- Independent reviewer: `SPEC PASS and CODE QUALITY PASS on bd757d1d`
 - Base commit: `b86447909e1a7614c539769514008e010b478140`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v19`
 - Plan hash: `c39bce662586248b0b652e93a940f3feb7897c2e6d1761b55635594172ddd800`
@@ -1301,3 +1301,36 @@ S02A without changing Task product behavior or activating S02B.
   persistence/concurrency acceptance.
 - Preserve both installed search features and keep all Release 2 stories
   inactive.
+
+### Verification and review outcome
+
+- Exact candidate: `bd757d1d5203988d4fb924818e71f7e3b7fb1563`; implementation
+  commit: `1b64c8895572128ad0acdb7e3dd0f832aef9802a`.
+- Application, HTTP, repository, migration, runtime, Core, and Views tests prove
+  strict complete-set validation, authentication/trusted identity/CSRF,
+  authorization, canonical conflict shape, cancellation, rollback, revision
+  monotonicity, restart persistence, scoped optimistic recovery, and loaded
+  explicit drag gating.
+- Exact-tree backend `make check` and clean-cache official `make test-race`
+  pass with MinGW GCC 15.2.0. Root typecheck passes 6/6 and root tests pass 5/5;
+  production Web build passes. Root `make check` exited zero but reported that
+  Docker Desktop was unavailable, so it is recorded only as an environment-
+  warned script result and is not used as the complete acceptance gate.
+- A fresh migrated SQLite database and canonical fixture pass installed Chrome
+  `e2e/pin-reorder.spec.ts` 1/1 with retries disabled. The journey proves stale
+  409 rollback/refetch, successful 204 complete reorder, contiguous persisted
+  positions, one shared revision, and reload persistence through the sidebar.
+- The first E2E attempt exposed an ambiguous link selector; the second exposed
+  native `dragTo` incompatibility with dnd-kit. Stable sidebar selectors and a
+  real pointer sequence closed both test-driver gaps before the fresh-db PASS.
+- Two unpublished commit trailers initially carried incorrect policy hashes.
+  They were rewritten to the activation bundle without changing final tree
+  `41525376c8b8563eccaff7ad05931ec78e6cc85d`; all r024 commits now carry the
+  correct CLAUDE/backend AGENTS/v19 hashes.
+- `server/**` candidate and worktree diffs are empty; protected Input remains
+  blob `a830fd2f0f82770563908d512558fe6ba48f50dd`. Candidate tracked state is clean
+  apart from recorded `.local-runtime/**` and dependency artifacts. Exact
+  backend/Web processes were stopped and ports 3000/8080/9080 are closed.
+- Fresh independent read-only review returns SPEC PASS and CODE QUALITY PASS.
+  r024, PCR-S04, and Release 1 are closed. Release 2 remains inactive; no push,
+  merge, or deployment is claimed.

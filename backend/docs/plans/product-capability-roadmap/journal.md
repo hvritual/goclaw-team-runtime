@@ -1067,3 +1067,42 @@ Known limitations, blockers, and next action
   read-only and has empty range/worktree diffs.
 - No S04 implementation, verification PASS, independent review, closure,
   push, merge, deployment, or Release 1 completion is claimed.
+
+## 2026-08-18 — J042 — v19/r024, PCR-S04, and Release 1 closed
+
+- Exact candidate `bd757d1d5203988d4fb924818e71f7e3b7fb1563` installs strict,
+  revisioned `PUT /api/pins/reorder` for the authenticated user's complete Pin
+  set in the trusted Workspace. One `BEGIN IMMEDIATE` transaction validates
+  revision, exact membership, ownership, and Workspace before writing all
+  contiguous positions and advancing the collection revision once.
+- Migration `000015` backfills collection revisions and advances them for Pin
+  create/effective delete; its guarded down migration cannot discard an
+  advanced concurrency token. No foreign key, cascade, source Pin rewrite, or
+  `server/**` change is present.
+- RED/GREEN coverage spans application, strict HTTP/auth/identity/CSRF/error
+  mapping, repository atomicity/cancellation/forced-failure rollback,
+  migration/restart, installed runtime config, strict Core schema/request and
+  Workspace/user-scoped optimistic recovery, and loaded explicit UI gating.
+- Exact-tree backend `make check` and clean-cache official `make test-race`
+  pass with MinGW GCC 15.2.0. Root typecheck passes 6/6, root tests pass 5/5,
+  and production Web build passes. Root `make check` also exited zero but
+  warned that Docker Desktop was unavailable; it is not treated as the
+  complete acceptance gate.
+- A fresh migrated SQLite database and canonical fixture pass installed Chrome
+  `e2e/pin-reorder.spec.ts` 1/1 with retries disabled. It proves stale 409
+  rollback/refetch, successful 204 reorder, exact persisted IDs/positions/
+  revision, and reload persistence. Two earlier runs correctly failed on test-
+  driver selector/native-drag gaps and were fixed before the fresh-db PASS.
+- Incorrect policy trailers on two unpublished commits were rewritten to the
+  activation bundle. Old and new candidates share exact tree
+  `41525376c8b8563eccaff7ad05931ec78e6cc85d`; final r024 commits carry correct
+  CLAUDE, backend AGENTS, and v19 hashes.
+- Scope and cleanup pass: candidate/worktree `server/**` diffs are empty;
+  protected Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; recorded runtime/dependency
+  artifacts remain untracked; exact backend/Web processes were stopped and
+  ports 3000/8080/9080 are closed.
+- Fresh independent review returns SPEC PASS and CODE QUALITY PASS with no
+  concrete blocker. r024 and PCR-S04 are `complete-independent-reviewed`;
+  Release 1 is complete with no active task. Release 2 remains inactive, and
+  no push, merge, or deployment is claimed.
