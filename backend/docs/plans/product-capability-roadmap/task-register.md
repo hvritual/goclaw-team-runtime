@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v20`
-- Registry status: `Release 2 active; PCR-S05A complete-independent-reviewed; no active task`
-- Registry revision: `r025`
+- Plan-Version: `v21`
+- Registry status: `Release 2 active; PCR-S05B r026 active`
+- Registry revision: `r026`
 - Updated: `2026-08-18`
 
 ## Frozen policy bundle
@@ -1393,3 +1393,43 @@ S02A without changing Task product behavior or activating S02B.
   QUALITY PASS with no blocker. Candidate and worktree `server/**` diffs are
   empty, the eight governance trailers parse, and recorded dirty paths remain
   excluded. PCR-S05A is closed; S05B remains inactive pending a new frozen plan.
+
+## PCR-001-S05B-R26
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S05B-R26`
+- Task-Revision: `r026`
+- Work-Item: `PCR-S05B`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `pending`
+- Base commit: `27def068f07cb56ef7e58471fbfacb397b11b639`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v21`
+- Plan hash: `e7db2df5d92345dfe0e988af3f1c1f353ddd519bda8bf07bfbfcf6a472f9544e`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/e7db2df5d92345dfe0e988af3f1c1f353ddd519bda8bf07bfbfcf6a472f9544e`
+
+### Objective and acceptance
+
+- Install safe archive/recognized-URL preview and import, immutable
+  version-scoped logical manifests, Space-owned quarantined objects, exact
+  checksums, file add/replace/delete/download, and retained historical reads.
+- Enforce every frozen path/type/count/size/depth/source limit, idempotency,
+  exact revisions, owner/admin mutation, member published reads, Agent exact
+  bindings, strict clients, and installed-browser acceptance with zero leaks.
+- Enable only `skill_import` in addition to completed flags. Keep S06A/S06B,
+  push, merge, deployment, and Release 2 completion inactive.
+
+### Activation evidence
+
+- Exact base `27def068f07cb56ef7e58471fbfacb397b11b639` closes S05A with
+  fresh independent SPEC PASS and CODE QUALITY PASS and has no active task.
+- Three bounded discovery rounds end with `new_dependencies=0`, no retrievable
+  blocker, contradiction, blocking unknown, or unresolved human decision.
+  Existing URL UI/API shape, archive contract, Space ownership, and the
+  unimplemented generated Asset scaffold are explicitly classified in v21.
+- Policy bundle freezes current CLAUDE, backend AGENTS, and immutable v21 hashes.
+  Protected Input worktree blob remains
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; generated protobuf and all other
+  recorded dirty paths remain excluded.
+- `server/**` activation range and worktree diffs are empty. No implementation,
+  PASS, independent review, closure, push, merge, or deployment is claimed.

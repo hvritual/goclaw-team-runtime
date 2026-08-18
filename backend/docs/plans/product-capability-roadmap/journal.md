@@ -1185,3 +1185,29 @@ Known limitations, blockers, and next action
   recorded dirty paths remain excluded. PCR-S05A is
   `complete-independent-reviewed`; Release 2 remains active with no active task.
   S05B needs a new frozen plan. No push, merge, or deployment is claimed.
+
+## 2026-08-18 — J046 — v21/r026 activates PCR-S05B
+
+- Exact base `27def068f07cb56ef7e58471fbfacb397b11b639` closes PCR-S05A
+  with final independent SPEC PASS and CODE QUALITY PASS and leaves no active
+  task before this activation.
+- Three bounded read-only discovery rounds reached dependency closure. Frozen
+  contracts require archive preview/import, exact adversarial limits, immutable
+  version-scoped manifests, Space-owned bytes, checksum/download, and safe
+  cleanup. Shared Core/Views retain a URL import and file editor shape while the
+  Canonical backend deliberately rejects S05B. Read-only legacy evidence offers
+  URL/archive behavior but is not safe authority. The generated Space
+  AssetService remains an unimplemented scaffold; existing attachment object
+  mechanics are reusable only through a new narrow hand-owned contract.
+- Immutable v21 freezes recognized-provider HTTPS URL adapters plus multipart
+  archive input, one preview/commit validator, opaque tokens, idempotency,
+  default new-version conflict, non-mutating explicit replacement, canonical
+  paths, exact limits, Space quarantine/promotion/reconciliation, System logical
+  manifests, strict authorization, and version-aware shared UI behavior.
+- Policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/e7db2df5d92345dfe0e988af3f1c1f353ddd519bda8bf07bfbfcf6a472f9544e`.
+  Protected Input worktree blob stays
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; generated protobuf and recorded
+  dirty paths remain excluded. `server/**` diffs are empty.
+- Only PCR-S05B is active. Knowledge, push, merge, deployment, and Release 2
+  completion remain inactive; no implementation or verification PASS is claimed.
