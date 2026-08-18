@@ -109,8 +109,8 @@
       "toast_updated": "Skill のライフサイクルを更新しました",
       "toast_failed": "Skill のライフサイクルを更新できませんでした"
     },
-    "delete_aria": "スキルを削除",
-    "delete_tooltip": "スキルを削除",
+    "delete_aria": "スキルをアーカイブ",
+    "delete_tooltip": "スキルをアーカイブ",
     "supporting_data_warning": "一部のワークスペースデータを読み込めませんでした。次回の更新まで、作成者の表示、ランタイム名、編集権限が不完全に見える場合があります。",
     "files_label": "ファイル · {{count}}",
     "add_file_aria": "ファイルを追加",
@@ -151,7 +151,7 @@
       "origin": "ソース",
       "used_by_other": "{{count}} 個のエージェントが使用中",
       "permissions": "権限",
-      "permissions_owner": "このスキルを編集および削除できます。変更は次回のエージェント実行から有効になります。",
+      "permissions_owner": "このスキルを編集およびアーカイブできます。変更は次回のエージェント実行から有効になります。",
       "permissions_locked_creator": "このスキルを編集できるのは作成者（{{name}}）またはワークスペース管理者のみです。",
       "permissions_locked": "このスキルを編集できるのは作成者またはワークスペース管理者のみです。",
       "used_by_empty": "まだどのエージェントにも割り当てられていません。エージェントのスキルタブを開いて割り当ててください。"
@@ -165,21 +165,21 @@
     },
     "not_found": {
       "title": "スキルが見つかりません",
-      "fallback": "このスキルは削除されたか、アクセス権を失った可能性があります。",
+      "fallback": "このスキルは利用できないか、アクセス権を失った可能性があります。",
       "back": "スキルに戻る"
     },
     "toast_saved": "スキルを保存しました",
     "toast_save_failed": "スキルを保存できませんでした",
-    "toast_deleted": "スキルを削除しました",
-    "toast_delete_failed": "スキルを削除できませんでした",
+    "toast_deleted": "スキルをアーカイブしました",
+    "toast_delete_failed": "スキルをアーカイブできませんでした",
     "delete_dialog": {
-      "title": "スキルを削除しますか？",
-      "description_with_agents_other": "「{{name}}」を完全に削除し、現在使用中の {{count}} 個のエージェントから削除します。",
-      "description": "「{{name}}」を完全に削除します。",
-      "warning": "この操作は元に戻せません。",
+      "title": "スキルをアーカイブしますか？",
+      "description_with_agents_other": "「{{name}}」をアーカイブし、バージョンと {{count}} 個のエージェントのバインドを保持します。",
+      "description": "「{{name}}」をアーカイブし、バージョンとバインドを保持します。",
+      "warning": "このスキルは後で復元できます。",
       "cancel": "キャンセル",
-      "confirm": "完全に削除",
-      "deleting": "削除中…"
+      "confirm": "スキルをアーカイブ",
+      "deleting": "アーカイブ中…"
     },
     "add_file": {
       "placeholder": "templates/review.md",

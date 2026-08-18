@@ -112,8 +112,8 @@
       "toast_updated": "已更新 skill 生命周期",
       "toast_failed": "无法更新 skill 生命周期"
     },
-    "delete_aria": "删除 skill",
-    "delete_tooltip": "删除 skill",
+    "delete_aria": "归档 skill",
+    "delete_tooltip": "归档 skill",
     "supporting_data_warning": "部分工作区数据加载失败。创建者归属、运行时名称、编辑权限可能要等下次刷新才完整。",
     "files_label": "文件 · {{count}}",
     "add_file_aria": "添加文件",
@@ -154,7 +154,7 @@
       "origin": "来源",
       "used_by_other": "被 {{count}} 个智能体使用",
       "permissions": "权限",
-      "permissions_owner": "你可以编辑和删除这个 skill。修改在智能体下次运行时生效。",
+      "permissions_owner": "你可以编辑和归档这个 skill。修改在智能体下次运行时生效。",
       "permissions_locked_creator": "只有创建者（{{name}}）或工作区管理员能编辑这个 skill。",
       "permissions_locked": "只有创建者或工作区管理员能编辑这个 skill。",
       "used_by_empty": "还未分配给任何智能体。打开某个智能体的 Skills 标签页进行分配。"
@@ -168,7 +168,7 @@
     },
     "not_found": {
       "title": "未找到该 skill",
-      "fallback": "这个 skill 可能已被删除，或你没有访问权限。",
+      "fallback": "这个 skill 不可用，或你没有访问权限。",
       "back": "返回 Skills"
     },
     "toast_saved": "已保存 skill",
@@ -177,7 +177,7 @@
     "toast_delete_failed": "归档 skill 失败",
     "delete_dialog": {
       "title": "归档这个 skill？",
-      "description_with_agents_other": "将永久删除\"{{name}}\"，并从当前正在使用它的 {{count}} 个智能体上移除。",
+      "description_with_agents_other": "将归档“{{name}}”，并保留其版本以及 {{count}} 个智能体的绑定。",
       "description": "将归档“{{name}}”，并保留其版本与绑定。",
       "warning": "之后可以恢复这个 skill。",
       "cancel": "取消",

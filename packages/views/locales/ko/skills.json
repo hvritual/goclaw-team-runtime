@@ -106,8 +106,8 @@
       "toast_updated": "Skill 수명 주기를 업데이트했습니다",
       "toast_failed": "Skill 수명 주기를 업데이트하지 못했습니다"
     },
-    "delete_aria": "스킬 삭제",
-    "delete_tooltip": "스킬 삭제",
+    "delete_aria": "스킬 보관",
+    "delete_tooltip": "스킬 보관",
     "supporting_data_warning": "일부 워크스페이스 데이터를 불러오지 못했습니다. 다음 새로고침 전까지 생성자 표시, 런타임 이름, 수정 권한이 불완전하게 보일 수 있습니다.",
     "files_label": "파일 · {{count}}",
     "add_file_aria": "파일 추가",
@@ -148,7 +148,7 @@
       "origin": "출처",
       "used_by_other": "에이전트 {{count}}개가 사용 중",
       "permissions": "권한",
-      "permissions_owner": "이 스킬을 수정하고 삭제할 수 있습니다. 변경사항은 다음 에이전트 실행부터 적용됩니다.",
+      "permissions_owner": "이 스킬을 수정하고 보관할 수 있습니다. 변경사항은 다음 에이전트 실행부터 적용됩니다.",
       "permissions_locked_creator": "생성자({{name}}) 또는 워크스페이스 관리자만 이 스킬을 수정할 수 있습니다.",
       "permissions_locked": "생성자 또는 워크스페이스 관리자만 이 스킬을 수정할 수 있습니다.",
       "used_by_empty": "아직 어떤 에이전트에도 할당되지 않았습니다. 에이전트의 스킬 탭에서 할당하세요."
@@ -162,21 +162,21 @@
     },
     "not_found": {
       "title": "스킬을 찾을 수 없습니다",
-      "fallback": "이 스킬이 삭제되었거나 접근 권한을 잃었을 수 있습니다.",
+      "fallback": "이 스킬을 사용할 수 없거나 접근 권한을 잃었을 수 있습니다.",
       "back": "스킬로 돌아가기"
     },
     "toast_saved": "스킬을 저장했습니다",
     "toast_save_failed": "스킬을 저장하지 못했습니다",
-    "toast_deleted": "스킬을 삭제했습니다",
-    "toast_delete_failed": "스킬을 삭제하지 못했습니다",
+    "toast_deleted": "스킬을 보관했습니다",
+    "toast_delete_failed": "스킬을 보관하지 못했습니다",
     "delete_dialog": {
-      "title": "스킬을 삭제할까요?",
-      "description_with_agents_other": "\"{{name}}\"을(를) 영구 삭제하고 현재 사용 중인 에이전트 {{count}}개에서 제거합니다.",
-      "description": "\"{{name}}\"을(를) 영구 삭제합니다.",
-      "warning": "이 작업은 되돌릴 수 없습니다.",
+      "title": "스킬을 보관할까요?",
+      "description_with_agents_other": "\"{{name}}\"을(를) 보관하고 버전과 에이전트 {{count}}개의 바인딩을 유지합니다.",
+      "description": "\"{{name}}\"을(를) 보관하고 버전과 바인딩을 유지합니다.",
+      "warning": "나중에 이 스킬을 복원할 수 있습니다.",
       "cancel": "취소",
-      "confirm": "영구 삭제",
-      "deleting": "삭제하는 중..."
+      "confirm": "스킬 보관",
+      "deleting": "보관하는 중..."
     },
     "add_file": {
       "placeholder": "templates/review.md",

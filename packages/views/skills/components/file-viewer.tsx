@@ -46,10 +46,12 @@ function FrontmatterCard({ data }: { data: SkillFrontmatter }) {
 export function FileViewer({
   path,
   content,
+  editable,
   onChange,
 }: {
   path: string;
   content: string;
+  editable: boolean;
   onChange: (content: string) => void;
 }) {
   const { t } = useT("skills");
@@ -69,7 +71,7 @@ export function FileViewer({
           {path}
         </span>
         <div className="flex items-center gap-1">
-          {isMd && (
+          {isMd && editable && (
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -99,7 +101,7 @@ export function FileViewer({
 
       {/* File content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {isMd && !editing ? (
+        {isMd && (!editable || !editing) ? (
           <div className="p-4 sm:p-6">
             {frontmatter && <FrontmatterCard data={frontmatter} />}
             <RichContent

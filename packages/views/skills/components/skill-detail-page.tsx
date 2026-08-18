@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Archive,
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
@@ -563,7 +564,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                         className="text-muted-foreground hover:text-destructive"
                         aria-label={t(($) => $.detail.delete_aria)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Archive className="h-3.5 w-3.5" />
                       </Button>
                     }
                   />
@@ -759,6 +760,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               key={selectedPath}
               path={selectedPath}
               content={selectedContent}
+              editable={canEditFiles}
               onChange={handleFileContentChange}
             />
           </div>
@@ -917,7 +919,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                 </>
               ) : (
                 <>
-                  <Trash2 className="h-3 w-3" />
+                  <Archive className="h-3 w-3" />
                   {t(($) => $.detail.delete_dialog.confirm)}
                 </>
               )}

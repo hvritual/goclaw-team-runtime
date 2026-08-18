@@ -41,6 +41,9 @@ func (h *SkillCatalogHandler) list(ctx kratoshttp.Context) error {
 	if err != nil {
 		return h.writeError(ctx, err)
 	}
+	if values == nil {
+		values = []contract.SkillCatalogEntry{}
+	}
 	return ctx.JSON(http.StatusOK, values)
 }
 

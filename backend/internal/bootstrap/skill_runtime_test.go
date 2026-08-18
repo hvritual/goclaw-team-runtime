@@ -4,11 +4,33 @@ import (
 	"encoding/json"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/hvritual/workspace/internal/modules/auth"
 )
+
+func TestSQLiteRuntimeEmptySkillListReturnsJSONArray(t *testing.T) {
+	runtime := newRuntimeForConfig(t, Config{
+		Name: "backend-test", Version: "test",
+		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
+		SQLitePath:            filepath.Join(t.TempDir(), "empty-skills.db"),
+		WorkspaceDependencies: FailClosedWorkspaceDependencies(),
+		LocalAuth:             auth.LocalAuthConfig{VerificationCode: "888888"},
+	})
+	login := verifyRuntimeLogin(t, runtime, "empty-skills-owner@example.com")
+	if response := runtimeRequest(runtime, http.MethodPost, "/api/workspaces", `{"name":"Empty Skills","slug":"empty-skills"}`, map[string]string{
+		"Authorization": "Bearer " + login.Token, "Content-Type": "application/json",
+	}); response.Code != http.StatusCreated {
+		t.Fatalf("create workspace = %d %s", response.Code, response.Body.String())
+	}
+
+	listed := runtimeRequest(runtime, http.MethodGet, "/api/skills", "", collaborationHeaders(login.Token, "empty-skills"))
+	if listed.Code != http.StatusOK || strings.TrimSpace(listed.Body.String()) != "[]" {
+		t.Fatalf("empty list = %d %q, want 200 []", listed.Code, listed.Body.String())
+	}
+}
 
 func TestSQLiteRuntimeSkillAdminCreatesFirstDraftVersion(t *testing.T) {
 	runtime := newRuntimeForConfig(t, Config{
