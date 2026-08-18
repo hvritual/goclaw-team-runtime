@@ -1165,9 +1165,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S03A-R22`
 - Task-Revision: `r022`
 - Work-Item: `PCR-S03A`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required after deterministic verification`
+- Independent reviewer: `PASS on 7479e07; S03A closure allowed after blocker remediation`
 - Base commit: `2439e9c2edd3c557e849fb695210b2eab95bbb9d`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v17`
 - Plan hash: `f08ace3cbecf964df88b0f22e551fe60b2f133699fb22322244e17874d61fab1`
@@ -1183,16 +1183,34 @@ S02A without changing Task product behavior or activating S02B.
   and installed Chrome acceptance.
 - Enable only `issue_search`; `project_search`, S03B, and S04 remain inactive.
 
-### Activation evidence
+### Verification and review outcome
 
-- Exact base `2439e9c` closes S02B with independent review and has zero active
-  tasks before r022 activation.
-- Three bounded read-only discovery rounds found the existing shared UI/client,
-  Canonical Issue repository/write paths, authorization provider, route
-  composition, and modernc SQLite FTS5/UDF support. No unresolved human-owned
-  decision remains.
-- Existing dirty generated protobuf, shared Input/Issue/modal files, local
-  runtime, code-to-product, auth test, and UI artifacts remain excluded.
-- No S03A implementation, deterministic PASS, independent review, S03A
-  closure, push, merge, deployment, S03B activation, or Release 1 completion
-  is claimed by activation.
+- Exact candidate: `7479e07adcc1c703a52cb348af7919df2cc68553`.
+- RED/GREEN covers Unicode normalization, ranking, pagination, closed state,
+  Workspace isolation, cancellation, HTTP/auth boundaries, projection
+  synchronization/restart, strict Core parsing, feature flags, the fixture
+  binary UDF registration, browser cookie authentication, locale stability,
+  and the independent-review Project-search loading-window blocker.
+- The 10,000-Issue non-race acceptance measured p50/p95 at
+  20.9999/23.1776ms and 25.3918/39.5394ms, within 100/250ms. Race execution
+  retains the 10,000-row functional check without treating instrumented
+  latency as production performance.
+- Forced root typecheck passes 6/6 with zero cache. Forced root tests pass 5/5
+  with zero cache and controlled concurrency; final Views passes 166 files and
+  1675 tests. Exact-candidate backend `make check` and official
+  `go clean -testcache; make test-race` pass with MinGW GCC 15.2.0.
+- Exact-candidate production Web build passes. A fresh migrated SQLite database
+  and fixture pass installed Chrome `e2e/issue-search.spec.ts` 1/1 with
+  Playwright retries disabled, covering English/Chinese, identifier/number,
+  closed filtering, pagination, isolation, and the shared UI.
+- Fresh independent review first blocked Project search while config was still
+  loading. Candidate `7479e07` makes Project search require loaded explicit
+  installation evidence, adds the failing/passing regression, repeats all
+  affected gates, and receives fresh independent PASS.
+- `server/**` candidate scope is empty; policy hashes and the protected Input
+  blob match v17. Candidate tracked state is clean apart from recorded
+  `.local-runtime/**` and `node_modules.main-link-r019/**` environment
+  artifacts; exact backend/Web processes were stopped and ports
+  3000/8080/9080 are closed.
+- r022 and PCR-S03A are closed. Release 1 remains active with no active task;
+  S03B and S04 remain inactive pending a new approved plan.

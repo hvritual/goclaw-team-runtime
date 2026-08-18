@@ -931,3 +931,53 @@ Known limitations, blockers, and next action
   `ui/**` remain excluded. `server/**` remains permanently read-only.
 - No S03A implementation, verification PASS, independent review, closure,
   push, merge, deployment, S03B activation, or Release 1 completion is claimed.
+
+## 2026-08-18 — J038 — v17/r022 and PCR-S03A closed
+
+- Exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553` installs ranked
+  repository-backed `GET /api/issues/search`, deterministic Unicode NFKC/
+  case-fold/punctuation normalization, identifier/number matching, stable
+  pagination, closed filtering, cancellation, authorization, Workspace
+  isolation, projection migration `000013`, synchronization triggers, and
+  startup rebuild. Runtime reports only `issue_search=true`;
+  `project_search=false`.
+- RED/GREEN evidence includes application/HTTP/repository/runtime/Core/Views
+  contracts. Browser discovery exposed and fixed a missing fixture-process UDF
+  registration, obsolete localStorage-only authentication, locale-dependent
+  selectors, and the actual `Search...` accessible name. Each failure was
+  retained as evidence and rerun after a bounded fix.
+- The 10,000-Issue non-race gate measured p50/p95 at
+  20.9999/23.1776ms and 25.3918/39.5394ms, below the frozen 100/250ms limits.
+  The first official race attempt incorrectly asserted production latency under
+  instrumentation; the final split keeps 10,000-row functional coverage under
+  race and measures latency only without race. Direct Windows `go test -race`
+  later hit known `0xc0000139` and was not counted as PASS; the official MinGW
+  wrapper passed.
+- The initial full root run had two unrelated five-second Views timeouts; both
+  focused files passed, and the controlled-concurrency full run passed. On the
+  final candidate, forced root typecheck passes 6/6 with zero cache and forced
+  root tests pass 5/5 with zero cache; Views passes 166 files/1675 tests.
+  Exact-candidate backend `make check` and official clean-cache
+  `make test-race` pass with MinGW GCC 15.2.0.
+- Production Web build passes. A fresh migrated database and fixture pass
+  installed Chrome `e2e/issue-search.spec.ts` 1/1 in 4.1 seconds with retries
+  disabled, covering English, Chinese, identifier/number, default and explicit
+  closed state, pagination, cross-Workspace isolation, and shared UI results.
+- Fresh independent review first returned BLOCK because config-unloaded UI
+  could call the inactive Project-search vertical. RED reproduced one Project
+  call; `7479e07` requires loaded explicit `project_search` evidence and adds a
+  passing regression while retaining Issue search. Repeated focused/full/
+  build/browser gates pass, and independent re-review returns PASS.
+- Scope and cleanup pass: candidate `server/**` count is zero; CLAUDE,
+  backend AGENTS, and v17 SHA-256 values match the frozen policy bundle; the
+  protected Input blob remains `a830fd2f0f82770563908d512558fe6ba48f50dd`;
+  candidate tracked state is clean except recorded runtime/dependency artifacts;
+  exact backend/Web processes were stopped and ports 3000/8080/9080 are closed.
+- The interrupted-install `r022-59d314a` Git worktree registration was removed;
+  Windows left an unregistered residual directory and execution policy refused
+  recursive deletion. It contains no candidate source authority or running
+  process and is not treated as a product PASS.
+- r022 and PCR-S03A are `complete-independent-reviewed`. Release 1 remains
+  active with no active task. S03B and S04 remain inactive until a new approved
+  plan; no push, merge, deployment, later-story activation, or Release 1
+  completion is claimed.

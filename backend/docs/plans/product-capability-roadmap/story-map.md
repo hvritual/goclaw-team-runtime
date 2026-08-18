@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v17`
-- Status: `Release 1 active; PCR-S03A active under r022`
+- Status: `Release 1 active; PCR-S03A complete-independent-reviewed under r022; no active task`
 
 ## Delivery policy
 
@@ -83,7 +83,7 @@ Acceptance scenarios:
 
 ### PCR-S03A — Search Issues
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v17 / r022`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v17 / r022`
 
 As a member, I can find an Issue by title, description, human identifier, or
 number with stable ranking and closed-state filters.

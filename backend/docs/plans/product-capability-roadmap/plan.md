@@ -4,16 +4,22 @@ The approved execution snapshot is [plan_v17.md](plan_v17.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `17`
-- Active step: `PCR-S03A Issue search`
-- Status: `Release 1 active; PCR-S03A active`
+- Active step: `none`
+- Status: `Release 1 active; PCR-S03A complete-independent-reviewed; no active task`
 - Plan base commit: `45213820fade7f61294d2287e063bf19fbd015ee`
-- Active task base commit: `2439e9c2edd3c557e849fb695210b2eab95bbb9d`
+- Last closed task base commit: `2439e9c2edd3c557e849fb695210b2eab95bbb9d`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
 - Task register: [task-register.md](task-register.md)
 - Evidence journal: [journal.md](journal.md)
 - S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
+
+v17/r022 exact candidate `7479e07adcc1c703a52cb348af7919df2cc68553`
+passes deterministic, performance, production-build, installed-Chrome, scope,
+process-cleanup, and fresh independent-review gates. PCR-S03A is
+`complete-independent-reviewed`. Release 1 remains active with no active task;
+S03B and S04 require a new approved plan version.
 
 Candidate `5062e84` passed every frozen deterministic gate, but its independent
 review returned `SPEC BLOCK` for authority mapping, canonical request hashing,
