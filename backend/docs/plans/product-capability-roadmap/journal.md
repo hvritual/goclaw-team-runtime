@@ -1480,3 +1480,25 @@ Known limitations, blockers, and next action
 - r030 and PCR-S06B are `complete-independent-reviewed`. PCR-S05A, PCR-S05B,
   PCR-S06A, and PCR-S06B are all closed; Release 2 is complete with zero active
   tasks. Release 3, push, merge, and deployment remain inactive and unclaimed.
+
+## 2026-08-19 — J057 — v26/r031 activates PCR-S07A
+
+- The Human Customer confirmed the reviewed Release 3 execution plan and the
+  recommended safe connection-state policy. Exact base
+  `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b` closes Release 2 and has no
+  active task before activation.
+- Bounded read-only discovery reached dependency closure for S07A. Existing
+  Core/shared UI declares GitHub-only Resource shapes, but Canonical has no
+  Resource authority table, route, repository, installed capability, generic
+  URL semantics, strict response schema, or installed acceptance.
+- Immutable v26 freezes local credential-free normalization, typed connection
+  projection without generic network fetch, revisioned reorder/archive/restore,
+  Project-lead authorization, atomic Project create/delete behavior, exact
+  counts, strict clients, and installed-browser acceptance.
+- The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/9666afbc4408eacd684d799d17acc7e3dfb39ff3fd8448a4f010ed526644d3e2`.
+- Work executes on branch `codex/release3-s07a-r031` in isolated worktree
+  `F:\code\ai\goclaw-team-runtime-release3`. Original tracked/untracked dirty
+  files, generated protobufs, unrelated Input/Issue UI, and `server/**` remain
+  excluded. Only r031 is active; no product change or verification PASS is
+  claimed.

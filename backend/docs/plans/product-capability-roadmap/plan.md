@@ -1,19 +1,28 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v25.md](plan_v25.md).
+The approved execution snapshot is [plan_v26.md](plan_v26.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `25`
-- Active step: `none`
-- Status: `Release 2 complete; Release 3 inactive`
-- Plan base commit: `33ec500fcfe9d3bb751d898dfbbdd9bce664aa48`
-- Last closed task candidate: `32f273e47e6b9863b4ef462f28eed3e91da654d0`
+- Approved version: `26`
+- Active step: `PCR-S07A R31.1`
+- Status: `Release 3 active; PCR-S07A active`
+- Plan base commit: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Last closed task candidate: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
 - Task register: [task-register.md](task-register.md)
 - Evidence journal: [journal.md](journal.md)
 - S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
+
+The Human Customer confirmed execution of the reviewed Release 3 plan on
+2026-08-19. `PRODUCT-CAPABILITY-ROADMAP-001 v26 / r031` starts from exact
+Release 2 closure `80d92b14` and activates only PCR-S07A governed Project
+Resources. S07B, S07C, S07D, Release 3 completion, push, merge, and deployment
+remain inactive. The approved connection policy saves locally valid,
+credential-free Resources independently of external reachability; typed adapter
+failure projects a safe degraded/unavailable state and never deletes an
+external target.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

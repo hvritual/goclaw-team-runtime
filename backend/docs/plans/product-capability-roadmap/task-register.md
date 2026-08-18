@@ -1,10 +1,10 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v25`
-- Registry status: `Release 2 complete; Release 3 inactive; no active task`
-- Registry revision: `r030`
-- Updated: `2026-08-18`
+- Plan-Version: `v26`
+- Registry status: `Release 3 active; PCR-S07A is the sole active task`
+- Registry revision: `r031`
+- Updated: `2026-08-19`
 
 ## Frozen policy bundle
 
@@ -1709,3 +1709,39 @@ S02A without changing Task product behavior or activating S02B.
 - r030 and PCR-S06B are `complete-independent-reviewed`. All four Release 2
   stories are closed, so Release 2 is complete with zero active tasks. Release
   3, push, merge, and deployment remain inactive.
+
+## PCR-001-S07A-R31
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07A-R31`
+- Task-Revision: `r031`
+- Work-Item: `PCR-S07A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `not yet assigned`
+- Base commit: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v26`
+- Plan hash: `9666afbc4408eacd684d799d17acc7e3dfb39ff3fd8448a4f010ed526644d3e2`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/9666afbc4408eacd684d799d17acc7e3dfb39ff3fd8448a4f010ed526644d3e2`
+
+### Objective and acceptance
+
+- Install governed GitHub repository and generic URL Resources through the real
+  Canonical SQLite/HTTP/Core/shared UI vertical.
+- Prove local credential-free normalization, duplicate denial, revisioned
+  reorder/archive/restore, safe unavailable refresh, Project-lead authorization,
+  atomic Project creation/deletion semantics, count projection, restart, and
+  malformed-client denial.
+- Keep S07B-D, Release 3 completion, push, merge, deployment, generated
+  protobufs, original dirty files, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Exact base `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b` closes Release 2
+  with zero active tasks before this activation.
+- Bounded read-only discovery found partial GitHub-only UI/Core declarations but
+  no Canonical Resource table, route, repository, installed capability, generic
+  URL, strict schema, or acceptance journey.
+- Human Customer confirmed the reviewed execution plan and connection-state
+  default on 2026-08-19. Immutable v26 freezes r031 only. No implementation,
+  verification PASS, closure, push, merge, or deployment is claimed here.

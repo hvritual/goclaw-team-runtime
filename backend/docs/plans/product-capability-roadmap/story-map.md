@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v25`
-- Status: `Release 2 complete; Release 3 inactive`
+- Plan-Version: `v26`
+- Status: `Release 3 active; PCR-S07A active`
 
 ## Delivery policy
 
@@ -157,6 +157,8 @@ source evidence, admin emergency reason, immutable audit, and realtime update.
 ## Release 3 — Complete project context
 
 ### PCR-S07A — Manage project Resources
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v26 / r031`
 
 As a project member, I can add, validate, reorder, archive, and restore GitHub
 repository and generic URL resources without storing external credentials in
