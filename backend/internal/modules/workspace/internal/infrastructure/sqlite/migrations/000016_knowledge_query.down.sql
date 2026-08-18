@@ -3,7 +3,11 @@ CREATE TEMP TABLE knowledge_query_rollback_guard (
 );
 
 INSERT INTO knowledge_query_rollback_guard(safe)
-SELECT CASE WHEN EXISTS (SELECT 1 FROM workspace_governed_knowledge) THEN 0 ELSE 1 END;
+SELECT CASE WHEN
+    EXISTS (SELECT 1 FROM workspace_governed_knowledge)
+    OR EXISTS (SELECT 1 FROM workspace_knowledge_revisions)
+    OR EXISTS (SELECT 1 FROM workspace_knowledge_source_refs)
+THEN 0 ELSE 1 END;
 
 DROP TABLE knowledge_query_rollback_guard;
 DROP INDEX workspace_knowledge_source_lookup_idx;

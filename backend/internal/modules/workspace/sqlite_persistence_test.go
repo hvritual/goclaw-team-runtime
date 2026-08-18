@@ -65,6 +65,46 @@ func TestPinReorderMigrationBackfillsAndGuardsAdvancedRevision(t *testing.T) {
 	}
 }
 
+func TestKnowledgeQueryDownMigrationRejectsEveryRetainedTable(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		statement string
+	}{
+		{
+			name:      "governed entry",
+			statement: `INSERT INTO workspace_governed_knowledge(id,workspace_id,kind,status,current_revision,created_at,updated_at) VALUES('knowledge-1','workspace-1','procedure','published',1,'2026-08-18T00:00:00Z','2026-08-18T00:00:00Z')`,
+		},
+		{
+			name:      "orphan revision",
+			statement: `INSERT INTO workspace_knowledge_revisions(knowledge_id,revision,supersedes_revision,title,content,created_by,created_at) VALUES('knowledge-1',1,0,'Title','Body','user-1','2026-08-18T00:00:00Z')`,
+		},
+		{
+			name:      "orphan source reference",
+			statement: `INSERT INTO workspace_knowledge_source_refs(knowledge_id,revision,ordinal,source_type,source_id,source_revision,citation) VALUES('knowledge-1',1,0,'acceptance_conclusion','issue-1','sha256:abc','Accepted')`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := openUnmigratedWorkspaceDB(t, "knowledge-query-down-"+strings.ReplaceAll(test.name, " ", "-"))
+			if err := MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(test.statement); err != nil {
+				t.Fatal(err)
+			}
+			if err := executeKnowledgeQueryDownForTest(context.Background(), db); err == nil {
+				t.Fatal("knowledge query down succeeded with retained data")
+			}
+			var tableCount, catalogCount int
+			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('workspace_governed_knowledge','workspace_knowledge_revisions','workspace_knowledge_source_refs')`).Scan(&tableCount); err != nil || tableCount != 3 {
+				t.Fatalf("knowledge table count = %d, %v", tableCount, err)
+			}
+			if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000016_knowledge_query.up.sql'`).Scan(&catalogCount); err != nil || catalogCount != 1 {
+				t.Fatalf("knowledge catalog count = %d, %v", catalogCount, err)
+			}
+		})
+	}
+}
+
 func TestTaskIssuePromotionMigrationInstallsImmutableLink(t *testing.T) {
 	db := openUnmigratedWorkspaceDB(t, "task-issue-promotion")
 	if err := MigrateSqlite(context.Background(), db); err != nil {
@@ -342,6 +382,22 @@ func executeTaskIssuePromotionDownForTest(ctx context.Context, db *sql.DB) error
 
 func executePinReorderDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000015_pin_reorder.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func executeKnowledgeQueryDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000016_knowledge_query.down.sql")
 	if err != nil {
 		return err
 	}
