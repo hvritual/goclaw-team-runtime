@@ -207,8 +207,16 @@ import {
   WorkspaceSchema,
   EMPTY_WORKSPACE_LIST,
   OnboardingCompletionResponseSchema,
+  SkillSummarySchema,
+  SkillListSchema,
+  EMPTY_SKILLS,
 } from "./schemas";
 
+function parseSkillResponse(raw: unknown): Skill {
+  const parsed = SkillSummarySchema.safeParse(raw);
+  if (!parsed.success) throw new Error("Invalid skill response");
+  return { ...parsed.data, content: "", files: [] };
+}
 /** Identifies the calling client to the server.
  *  Sent on every HTTP request as X-Client-Platform / X-Client-Version /
  *  X-Client-OS so the backend can log, gate, or split metrics by client.
@@ -1238,29 +1246,64 @@ export class ApiClient {
 
   // Skills
   async listSkills(): Promise<SkillSummary[]> {
-    return this.fetch("/api/skills");
+    const raw = await this.fetch<unknown>("/api/skills");
+    return parseWithFallback(raw, SkillListSchema, EMPTY_SKILLS, {
+      endpoint: "GET /api/skills",
+    });
   }
 
-  async getSkill(id: string): Promise<Skill> {
-    return this.fetch(`/api/skills/${id}`);
+  async getSkill(id: string, versionId?: string): Promise<Skill> {
+    const versionQuery = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+    const raw = await this.fetch<unknown>(`/api/skills/${id}${versionQuery}`);
+    return parseSkillResponse(raw);
   }
 
   async createSkill(data: CreateSkillRequest): Promise<Skill> {
-    return this.fetch("/api/skills", {
+    const raw = await this.fetch<unknown>("/api/skills", {
       method: "POST",
       body: JSON.stringify(data),
     });
+    return parseSkillResponse(raw);
   }
 
   async updateSkill(id: string, data: UpdateSkillRequest): Promise<Skill> {
-    return this.fetch(`/api/skills/${id}`, {
+    const { content: _content, files: _files, ...metadata } = data;
+    const raw = await this.fetch<unknown>(`/api/skills/${id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify(metadata),
+    });
+    return parseSkillResponse(raw);
+  }
+
+  async publishSkill(id: string, versionId: string, expectedRevision: number): Promise<Skill> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/versions/${versionId}/publish`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+    return parseSkillResponse(raw);
+  }
+
+  async deprecateSkill(id: string, versionId: string, expectedRevision: number): Promise<Skill> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/versions/${versionId}/deprecate`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+    return parseSkillResponse(raw);
+  }
+
+  async deleteSkill(id: string, expectedRevision: number): Promise<void> {
+    await this.fetch(`/api/skills/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
     });
   }
 
-  async deleteSkill(id: string): Promise<void> {
-    await this.fetch(`/api/skills/${id}`, { method: "DELETE" });
+  async restoreSkill(id: string, expectedRevision: number): Promise<Skill> {
+    const raw = await this.fetch<unknown>(`/api/skills/${id}/restore`, {
+      method: "POST",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
+    });
+    return parseSkillResponse(raw);
   }
 
   async importSkill(data: { url: string }): Promise<Skill> {

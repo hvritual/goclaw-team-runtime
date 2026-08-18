@@ -24,6 +24,7 @@ import { api } from "@multica/core/api";
 import { useTimeAgo } from "../../i18n";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
+import { useFeatureEnabled } from "@multica/core/config";
 import {
   memberListOptions,
   skillDetailOptions,
@@ -74,7 +75,8 @@ function useValidateNewFilePath() {
     const p = path.trim();
     if (!p) return t(($) => $.detail.add_file.errors.empty);
     if (p.startsWith("/")) return t(($) => $.detail.add_file.errors.absolute);
-    if (p.split("/").includes("..")) return t(($) => $.detail.add_file.errors.double_dot);
+    if (p.split("/").includes(".."))
+      return t(($) => $.detail.add_file.errors.double_dot);
     if (p === SKILL_MD) return t(($) => $.detail.add_file.errors.reserved);
     if (existing.includes(p)) return t(($) => $.detail.add_file.errors.exists);
     return "";
@@ -147,10 +149,10 @@ function OriginSidebarCard({ origin }: { origin: OriginInfo }) {
 
   const label =
     origin.type === "clawhub"
-        ? t(($) => $.detail.origin_card.imported_clawhub)
-        : origin.type === "github"
-          ? t(($) => $.detail.origin_card.imported_github)
-          : t(($) => $.detail.origin_card.imported_skills_sh);
+      ? t(($) => $.detail.origin_card.imported_clawhub)
+      : origin.type === "github"
+      ? t(($) => $.detail.origin_card.imported_github)
+      : t(($) => $.detail.origin_card.imported_skills_sh);
 
   return (
     <div className="rounded-md border bg-muted/30 p-3">
@@ -169,7 +171,9 @@ function OriginSidebarCard({ origin }: { origin: OriginInfo }) {
       )}
       {origin.provider && (
         <div className="mt-1 font-mono text-xs text-muted-foreground">
-          {t(($) => $.detail.origin_card.provider, { provider: origin.provider })}
+          {t(($) => $.detail.origin_card.provider, {
+            provider: origin.provider,
+          })}
         </div>
       )}
     </div>
@@ -187,6 +191,11 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   const qc = useQueryClient();
   const paths = useWorkspacePaths();
   const navigation = useNavigation();
+  const administrationInstalled = useFeatureEnabled(
+    "skill_administration",
+    false
+  );
+  const fileManagementInstalled = useFeatureEnabled("skill_import", false);
 
   const {
     data: skill,
@@ -194,12 +203,13 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     error,
   } = useQuery(skillDetailOptions(wsId, skillId));
   const { data: members = [], error: membersError } = useQuery(
-    memberListOptions(wsId),
+    memberListOptions(wsId)
   );
 
-  const canEdit = useCanEditSkill(skill, wsId);
+  const roleCanEdit = useCanEditSkill(skill, wsId);
+  const canEdit = administrationInstalled && roleCanEdit;
+  const canEditFiles = canEdit && fileManagementInstalled;
   const skillPermissions = useSkillPermissions(skill ?? null, wsId);
-
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -208,6 +218,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   const [selectedPath, setSelectedPath] = useState(SKILL_MD);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [addingFile, setAddingFile] = useState(false);
   const [conflictPending, setConflictPending] = useState(false);
@@ -229,10 +240,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     if (sameSkill) {
       const d = draftRef.current;
       const serverFilesJson = JSON.stringify(
-        (skill.files ?? []).map((f) => ({ path: f.path, content: f.content })),
+        (skill.files ?? []).map((f) => ({ path: f.path, content: f.content }))
       );
       const draftFilesJson = JSON.stringify(
-        d.files.map((f) => ({ path: f.path, content: f.content })),
+        d.files.map((f) => ({ path: f.path, content: f.content }))
       );
       const hasEdits =
         d.name.trim() !== skill.name ||
@@ -255,7 +266,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         id: f.id,
         path: f.path,
         content: f.content,
-      })),
+      }))
     );
     if (!sameSkill) setSelectedPath(SKILL_MD);
   }, [skill, wsId]);
@@ -265,13 +276,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
       skill?.created_by
         ? members.find((m) => m.user_id === skill.created_by) ?? null
         : null,
-    [members, skill?.created_by],
+    [members, skill?.created_by]
   );
 
-  const origin = useMemo(
-    () => (skill ? readOrigin(skill) : null),
-    [skill],
-  );
+  const origin = useMemo(() => (skill ? readOrigin(skill) : null), [skill]);
 
   const fileMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -298,10 +306,11 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     return (
       name.trim() !== skill.name ||
       description.trim() !== skill.description ||
-      content !== skill.content ||
-      JSON.stringify(draftFiles) !== JSON.stringify(serverFiles)
+      (fileManagementInstalled &&
+        (content !== skill.content ||
+          JSON.stringify(draftFiles) !== JSON.stringify(serverFiles)))
     );
-  }, [skill, name, description, content, files]);
+  }, [skill, name, description, content, files, fileManagementInstalled]);
 
   const seedFromSkill = (s: Skill) => {
     setName(s.name);
@@ -312,7 +321,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         id: f.id,
         path: f.path,
         content: f.content,
-      })),
+      }))
     );
   };
 
@@ -325,14 +334,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
       const payload: UpdateSkillRequest = {
         name: trimmedName,
         description: trimmedDesc,
-        content,
-        files: files.filter((f) => f.path.trim()),
+        expected_revision: skill.revision,
       };
       const updated = await api.updateSkill(skill.id, payload);
-      qc.setQueryData(
-        skillDetailOptions(wsId, skill.id).queryKey,
-        updated,
-      );
+      qc.setQueryData(skillDetailOptions(wsId, skill.id).queryKey, updated);
       seedFromSkill(updated);
       seededKeyRef.current = `${wsId}:${updated.id}@${updated.updated_at}`;
       setConflictPending(false);
@@ -342,9 +347,39 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
       });
       toast.success(t(($) => $.detail.toast_saved));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t(($) => $.detail.toast_save_failed));
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : t(($) => $.detail.toast_save_failed)
+      );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleLifecycle = async (
+    action: "publish" | "deprecate" | "restore"
+  ) => {
+    if (!skill || !canEdit) return;
+    setTransitioning(true);
+    try {
+      const updated =
+        action === "publish"
+          ? await api.publishSkill(skill.id, skill.version_id, skill.revision)
+          : action === "deprecate"
+          ? await api.deprecateSkill(skill.id, skill.version_id, skill.revision)
+          : await api.restoreSkill(skill.id, skill.revision);
+      qc.setQueryData(skillDetailOptions(wsId, skill.id).queryKey, updated);
+      void qc.invalidateQueries({ queryKey: workspaceKeys.skills(wsId) });
+      toast.success(t(($) => $.detail.lifecycle.toast_updated));
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : t(($) => $.detail.lifecycle.toast_failed)
+      );
+    } finally {
+      setTransitioning(false);
     }
   };
 
@@ -359,7 +394,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     if (!skill) return;
     setDeleting(true);
     try {
-      await api.deleteSkill(skill.id);
+      await api.deleteSkill(skill.id, skill.revision);
       navigation.replace(paths.skills());
       qc.removeQueries({
         queryKey: skillDetailOptions(wsId, skill.id).queryKey,
@@ -368,7 +403,9 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
       toast.success(t(($) => $.detail.toast_deleted));
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : t(($) => $.detail.toast_delete_failed),
+        err instanceof Error
+          ? err.message
+          : t(($) => $.detail.toast_delete_failed)
       );
       setDeleting(false);
       setConfirmDelete(false);
@@ -388,14 +425,14 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   };
 
   const handleFileContentChange = (newContent: string) => {
-    if (!canEdit) return;
+    if (!canEditFiles) return;
     if (selectedPath === SKILL_MD) {
       setContent(newContent);
     } else {
       setFiles((prev) =>
         prev.map((f) =>
-          f.path === selectedPath ? { ...f, content: newContent } : f,
-        ),
+          f.path === selectedPath ? { ...f, content: newContent } : f
+        )
       );
     }
   };
@@ -435,13 +472,20 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
           <AlertCircle className="h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm font-medium">{t(($) => $.detail.not_found.title)}</p>
+          <p className="text-sm font-medium">
+            {t(($) => $.detail.not_found.title)}
+          </p>
           <p className="max-w-xs text-xs text-muted-foreground">
-            {error instanceof Error ? error.message : t(($) => $.detail.not_found.fallback)}
+            {error instanceof Error
+              ? error.message
+              : t(($) => $.detail.not_found.fallback)}
           </p>
           <AppLink
             href={paths.skills()}
-            className={`${buttonVariants({ variant: "outline", size: "xs" })} mt-2`}
+            className={`${buttonVariants({
+              variant: "outline",
+              size: "xs",
+            })} mt-2`}
           >
             {t(($) => $.detail.not_found.back)}
           </AppLink>
@@ -453,9 +497,12 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   // --- Sub-line metadata for the header ---
   const originLabel = (() => {
     if (!origin) return null;
-    if (origin.type === "clawhub") return t(($) => $.detail.subline.origin_clawhub);
-    if (origin.type === "skills_sh") return t(($) => $.detail.subline.origin_skills_sh);
-    if (origin.type === "github") return t(($) => $.detail.subline.origin_github);
+    if (origin.type === "clawhub")
+      return t(($) => $.detail.subline.origin_clawhub);
+    if (origin.type === "skills_sh")
+      return t(($) => $.detail.subline.origin_skills_sh);
+    if (origin.type === "github")
+      return t(($) => $.detail.subline.origin_github);
     return t(($) => $.detail.subline.origin_workspace);
   })();
 
@@ -477,22 +524,54 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               </span>
             )}
             {canEdit && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => setConfirmDelete(true)}
-                      className="text-muted-foreground hover:text-destructive"
-                      aria-label={t(($) => $.detail.delete_aria)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  }
-                />
-                <TooltipContent>{t(($) => $.detail.delete_tooltip)}</TooltipContent>
-              </Tooltip>
+              <>
+                {skill.archived ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={transitioning}
+                    onClick={() => void handleLifecycle("restore")}
+                  >
+                    {t(($) => $.detail.lifecycle.restore)}
+                  </Button>
+                ) : skill.status === "draft" ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={transitioning}
+                    onClick={() => void handleLifecycle("publish")}
+                  >
+                    {t(($) => $.detail.lifecycle.publish)}
+                  </Button>
+                ) : skill.status === "published" ? (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={transitioning}
+                    onClick={() => void handleLifecycle("deprecate")}
+                  >
+                    {t(($) => $.detail.lifecycle.deprecate)}
+                  </Button>
+                ) : null}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setConfirmDelete(true)}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label={t(($) => $.detail.delete_aria)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>
+                    {t(($) => $.detail.delete_tooltip)}
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
           </>
         }
@@ -526,7 +605,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {t(($) => $.detail.files_label, { count: totalFileCount(skill) })}
             </span>
-            {canEdit && (
+            {canEditFiles && (
               <Tooltip>
                 <TooltipTrigger
                   render={
@@ -542,7 +621,9 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                     </Button>
                   }
                 />
-                <TooltipContent>{t(($) => $.detail.add_file_tooltip)}</TooltipContent>
+                <TooltipContent>
+                  {t(($) => $.detail.add_file_tooltip)}
+                </TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -560,7 +641,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               onSelect={setSelectedPath}
             />
           </div>
-          {selectedPath !== SKILL_MD && canEdit && (
+          {selectedPath !== SKILL_MD && canEditFiles && (
             <div className="border-t px-3 py-2">
               <Button
                 type="button"
@@ -624,6 +705,15 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                     when: timeAgo(skill.updated_at),
                   })}
                 </span>
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden>·</span>
+                  <span>
+                    {t(($) => $.detail.lifecycle.version_status, {
+                      version: skill.version,
+                      status: skill.status,
+                    })}
+                  </span>
+                </span>
               </span>
               {creator && (
                 <span className="inline-flex items-center gap-2">
@@ -635,7 +725,9 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                       avatarUrl={resolvePublicFileUrl(creator.avatar_url)}
                       size="xs"
                     />
-                    {t(($) => $.detail.subline.by_creator, { name: creator.name })}
+                    {t(($) => $.detail.subline.by_creator, {
+                      name: creator.name,
+                    })}
                   </span>
                 </span>
               )}
@@ -725,17 +817,13 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                 <dt className="min-w-20 text-muted-foreground">
                   {t(($) => $.detail.sidebar.created)}
                 </dt>
-                <dd className="min-w-0 flex-1">
-                  {timeAgo(skill.created_at)}
-                </dd>
+                <dd className="min-w-0 flex-1">{timeAgo(skill.created_at)}</dd>
               </div>
               <div className="flex gap-2">
                 <dt className="min-w-20 text-muted-foreground">
                   {t(($) => $.detail.sidebar.updated)}
                 </dt>
-                <dd className="min-w-0 flex-1">
-                  {timeAgo(skill.updated_at)}
-                </dd>
+                <dd className="min-w-0 flex-1">{timeAgo(skill.updated_at)}</dd>
               </div>
               {creator && (
                 <div className="flex gap-2">
@@ -751,10 +839,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                 </dt>
                 <dd className="min-w-0 flex-1">{totalFileCount(skill)}</dd>
               </div>
-              <div
-                className="flex gap-2"
-                title={skill.id}
-              >
+              <div className="flex gap-2" title={skill.id}>
                 <dt className="min-w-20 text-muted-foreground">
                   {t(($) => $.detail.sidebar.id)}
                 </dt>
@@ -782,8 +867,10 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               {canEdit
                 ? t(($) => $.detail.sidebar.permissions_owner)
                 : creator
-                  ? t(($) => $.detail.sidebar.permissions_locked_creator, { name: creator.name })
-                  : t(($) => $.detail.sidebar.permissions_locked)}
+                ? t(($) => $.detail.sidebar.permissions_locked_creator, {
+                    name: creator.name,
+                  })
+                : t(($) => $.detail.sidebar.permissions_locked)}
             </p>
           </div>
         </aside>
@@ -838,7 +925,6 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

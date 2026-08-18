@@ -49,10 +49,21 @@ export function skillListOptions(wsId: string) {
   });
 }
 
-export function skillDetailOptions(wsId: string, skillId: string) {
+export function skillDetailOptions(
+  wsId: string,
+  skillId: string,
+  versionId?: string
+) {
   return queryOptions({
-    queryKey: [...workspaceKeys.skills(wsId), skillId] as const,
-    queryFn: () => api.getSkill(skillId),
+    queryKey: versionId
+      ? ([
+          ...workspaceKeys.skills(wsId),
+          skillId,
+          "versions",
+          versionId,
+        ] as const)
+      : ([...workspaceKeys.skills(wsId), skillId] as const),
+    queryFn: () => api.getSkill(skillId, versionId),
     enabled: !!skillId,
   });
 }

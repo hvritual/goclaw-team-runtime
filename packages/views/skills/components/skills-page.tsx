@@ -6,6 +6,8 @@ import { AlertCircle, BookOpen, Plus, Search } from "lucide-react";
 import type { SkillSummary } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
+import { useFeatureEnabled } from "@multica/core/config";
+import { useCurrentMember } from "@multica/core/permissions";
 import {
   memberListOptions,
   skillListOptions,
@@ -27,6 +29,14 @@ export default function SkillsPage() {
   const workspaceId = useWorkspaceId();
   const paths = useWorkspacePaths();
   const navigation = useNavigation();
+  const administrationInstalled = useFeatureEnabled(
+    "skill_administration",
+    false
+  );
+  const currentMember = useCurrentMember(workspaceId);
+  const canAdminister =
+    administrationInstalled &&
+    (currentMember.role === "owner" || currentMember.role === "admin");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const {
@@ -37,7 +47,7 @@ export default function SkillsPage() {
   const { data: members = [] } = useQuery(memberListOptions(workspaceId));
   const memberNames = useMemo(
     () => new Map(members.map((member) => [member.user_id, member.name])),
-    [members],
+    [members]
   );
   const visibleSkills = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -45,7 +55,7 @@ export default function SkillsPage() {
     return skills.filter(
       (skill) =>
         skill.name.toLocaleLowerCase().includes(query) ||
-        skill.description.toLocaleLowerCase().includes(query),
+        skill.description.toLocaleLowerCase().includes(query)
     );
   }, [search, skills]);
 
@@ -61,11 +71,13 @@ export default function SkillsPage() {
         count={skills.length}
         description={t(($) => $.page.tagline)}
         actions={
-          <CollectionPageHeaderAction
-            icon={Plus}
-            label={t(($) => $.page.new_skill)}
-            onClick={() => setCreateOpen(true)}
-          />
+          canAdminister ? (
+            <CollectionPageHeaderAction
+              icon={Plus}
+              label={t(($) => $.page.new_skill)}
+              onClick={() => setCreateOpen(true)}
+            />
+          ) : undefined
         }
       />
 
@@ -86,7 +98,11 @@ export default function SkillsPage() {
             tone="destructive"
             icon={AlertCircle}
             title={t(($) => $.page.list_error.title)}
-            description={error instanceof Error ? error.message : t(($) => $.page.list_error.fallback)}
+            description={
+              error instanceof Error
+                ? error.message
+                : t(($) => $.page.list_error.fallback)
+            }
             actions={
               <Button variant="outline" onClick={() => void refetch()}>
                 {t(($) => $.page.list_error.retry)}
@@ -114,7 +130,9 @@ export default function SkillsPage() {
           <div className="overflow-hidden rounded-lg border bg-card">
             <div className="grid grid-cols-[minmax(0,1fr)_10rem_8rem] gap-4 border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">
               <span>{t(($) => $.table.name)}</span>
-              <span className="hidden sm:block">{t(($) => $.table.created_by)}</span>
+              <span className="hidden sm:block">
+                {t(($) => $.table.created_by)}
+              </span>
               <span className="text-right">{t(($) => $.table.updated)}</span>
             </div>
             <ul className="divide-y">
@@ -126,7 +144,9 @@ export default function SkillsPage() {
                     className="grid w-full grid-cols-[minmax(0,1fr)_10rem_8rem] gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/40"
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium">{skill.name}</span>
+                      <span className="block truncate text-sm font-medium">
+                        {skill.name}
+                      </span>
                       {skill.description ? (
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                           {skill.description}
@@ -149,7 +169,7 @@ export default function SkillsPage() {
         )}
       </main>
 
-      {createOpen ? (
+      {createOpen && canAdminister ? (
         <CreateSkillDialog
           onClose={() => setCreateOpen(false)}
           onCreated={openSkill}

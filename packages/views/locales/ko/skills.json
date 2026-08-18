@@ -7,8 +7,14 @@
     "search_placeholder": "스킬 검색...",
     "scopes": {
       "all": { "label": "전체", "description": "이 워크스페이스의 모든 스킬" },
-      "used": { "label": "사용 중", "description": "하나 이상의 에이전트에 할당된 스킬" },
-      "unused": { "label": "미사용", "description": "어떤 에이전트에도 할당되지 않은 스킬" },
+      "used": {
+        "label": "사용 중",
+        "description": "하나 이상의 에이전트에 할당된 스킬"
+      },
+      "unused": {
+        "label": "미사용",
+        "description": "어떤 에이전트에도 할당되지 않은 스킬"
+      },
       "mine": { "label": "내가 만든 스킬", "description": "내가 생성한 스킬" }
     },
     "empty": {
@@ -92,6 +98,14 @@
   "detail": {
     "all_skills": "모든 스킬",
     "read_only": "읽기 전용",
+    "lifecycle": {
+      "version_status": "버전 {{version}} · {{status}}",
+      "publish": "게시",
+      "deprecate": "사용 중단",
+      "restore": "복원",
+      "toast_updated": "Skill 수명 주기를 업데이트했습니다",
+      "toast_failed": "Skill 수명 주기를 업데이트하지 못했습니다"
+    },
     "delete_aria": "스킬 삭제",
     "delete_tooltip": "스킬 삭제",
     "supporting_data_warning": "일부 워크스페이스 데이터를 불러오지 못했습니다. 다음 새로고침 전까지 생성자 표시, 런타임 이름, 수정 권한이 불완전하게 보일 수 있습니다.",

@@ -1,12 +1,17 @@
 export interface SkillSummary {
   id: string;
   workspace_id: string;
+  version_id: string;
+  version: string;
   name: string;
   description: string;
   config: Record<string, unknown>;
-  created_by: string | null;
+  status: "draft" | "published" | "deprecated" | "archived";
+  revision: number;
+  created_by: string;
   created_at: string;
   updated_at: string;
+  archived: boolean;
 }
 
 export interface Skill extends SkillSummary {
@@ -37,4 +42,5 @@ export interface UpdateSkillRequest {
   content?: string;
   config?: Record<string, unknown>;
   files?: { path: string; content: string }[];
+  expected_revision?: number;
 }

@@ -8,8 +8,8 @@ import { memberListOptions } from "@multica/core/workspace/queries";
 /**
  * Whether the current user may edit/delete the given skill.
  *
- * Rule: workspace admins & owners can edit any skill; everyone else can only
- * edit skills they created. Server enforces this independently; the hook
+ * Rule: only workspace admins and owners can edit a skill. Server enforces
+ * this independently; the hook
  * mirrors it so the UI can hide/disable actions instead of waiting for a 403.
  *
  * `wsId` is explicit (not read from `WorkspaceIdProvider`) so this hook stays
@@ -19,7 +19,7 @@ import { memberListOptions } from "@multica/core/workspace/queries";
  */
 export function useCanEditSkill(
   skill: SkillSummary | null | undefined,
-  wsId: string,
+  wsId: string
 ): boolean {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const { data: members = [] } = useQuery(memberListOptions(wsId));
@@ -34,9 +34,9 @@ export function useCanEditSkill(
  * (e.g. list rows that compute role once for the whole page).
  */
 export function canEditSkill(
-  skill: SkillSummary,
-  opts: { userId: string | null; role: MemberRole | null },
+  _skill: SkillSummary,
+  opts: { userId: string | null; role: MemberRole | null }
 ): boolean {
   if (opts.role === "admin" || opts.role === "owner") return true;
-  return skill.created_by === opts.userId;
+  return false;
 }

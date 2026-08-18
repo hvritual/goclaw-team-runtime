@@ -7,8 +7,14 @@
     "search_placeholder": "Search skills…",
     "scopes": {
       "all": { "label": "All", "description": "All skills in this workspace" },
-      "used": { "label": "In use", "description": "Skills assigned to at least one agent" },
-      "unused": { "label": "Unused", "description": "Skills not assigned to any agent" },
+      "used": {
+        "label": "In use",
+        "description": "Skills assigned to at least one agent"
+      },
+      "unused": {
+        "label": "Unused",
+        "description": "Skills not assigned to any agent"
+      },
       "mine": { "label": "Created by me", "description": "Skills you created" }
     },
     "empty": {
@@ -97,6 +103,14 @@
   "detail": {
     "all_skills": "All skills",
     "read_only": "Read-only",
+    "lifecycle": {
+      "version_status": "Version {{version}} · {{status}}",
+      "publish": "Publish",
+      "deprecate": "Deprecate",
+      "restore": "Restore",
+      "toast_updated": "Skill lifecycle updated",
+      "toast_failed": "Couldn't update skill lifecycle"
+    },
     "delete_aria": "Delete skill",
     "delete_tooltip": "Delete skill",
     "supporting_data_warning": "Some workspace data failed to load. Creator attribution, runtime names, or edit permissions may appear incomplete until the next refresh.",
@@ -159,17 +173,17 @@
     },
     "toast_saved": "Skill saved",
     "toast_save_failed": "Failed to save skill",
-    "toast_deleted": "Skill deleted",
-    "toast_delete_failed": "Failed to delete skill",
+    "toast_deleted": "Skill archived",
+    "toast_delete_failed": "Failed to archive skill",
     "delete_dialog": {
-      "title": "Delete skill?",
+      "title": "Archive skill?",
       "description_with_agents_one": "This will permanently delete \"{{name}}\" and remove it from {{count}} agent currently using it.",
       "description_with_agents_other": "This will permanently delete \"{{name}}\" and remove it from {{count}} agents currently using it.",
-      "description": "This will permanently delete \"{{name}}\".",
-      "warning": "This action cannot be undone.",
+      "description": "This will archive \"{{name}}\" while retaining its versions and bindings.",
+      "warning": "You can restore this skill later.",
       "cancel": "Cancel",
-      "confirm": "Delete permanently",
-      "deleting": "Deleting…"
+      "confirm": "Archive skill",
+      "deleting": "Archiving…"
     },
     "add_file": {
       "placeholder": "templates/review.md",

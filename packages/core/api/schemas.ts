@@ -23,11 +23,31 @@ import type {
   SearchProjectsResponse,
   ListProjectsResponse,
   PinnedItem,
+  SkillSummary,
   TimelineEntry,
   User,
   Workspace,
   WorkspacePermissionCatalog,
 } from "../types";
+export const SkillSummarySchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  version_id: z.string().min(1),
+  version: z.string().regex(/^\d+$/),
+  name: z.string().min(1),
+  description: z.string(),
+  config: z.record(z.string(), z.unknown()),
+  status: z.enum(["draft", "published", "deprecated", "archived"]),
+  revision: z.number().int().positive(),
+  created_by: z.string().min(1),
+  created_at: z.string().min(1),
+  updated_at: z.string().min(1),
+  archived: z.boolean(),
+}).strict();
+
+export const SkillListSchema = z.array(SkillSummarySchema);
+export const EMPTY_SKILLS: SkillSummary[] = [];
+
 import type { CreateFeedbackResponse } from "../feedback/types";
 
 const WORKSPACE_PERMISSION_ROLES = ["owner", "admin", "member"] as const;
@@ -89,7 +109,6 @@ export const EMPTY_WORKSPACE_PERMISSION_CATALOG: WorkspacePermissionCatalog = {
   roles: [],
   capabilities: [],
 };
-
 export const MemberWithUserSchema = z
   .object({
     id: z.string(),

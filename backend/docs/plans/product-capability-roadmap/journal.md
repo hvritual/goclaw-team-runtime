@@ -1127,3 +1127,28 @@ Known limitations, blockers, and next action
   blobs equal the index; recorded UI/runtime/dependency paths remain excluded.
 - Activation `server/**` range and worktree diffs are empty. No push, merge, or
   deployment is authorized or claimed.
+
+## 2026-08-18 — J044 — v20/r025 S05A implementation candidate
+
+- Installed the System-owned Skill definition/version catalog, guarded SQLite
+  migration, immutable audit evidence, trusted HTTP lifecycle, Workspace-owned
+  visibility references, and explicit exact-version Agent binding boundary.
+  S05B file bodies/import remain explicitly unavailable.
+- RED/GREEN coverage now proves draft creation, immutable numbered versions,
+  publish/deprecate/archive/restore, exact revision conflicts, deterministic
+  concurrent mutation serialization, audit rollback, binding compensation,
+  restart persistence, cross-Workspace isolation, authentication, Cookie CSRF,
+  owner/admin mutations, member published reads, and explicit Agent binding.
+- Core uses strict Skill schemas, Workspace/Skill/version query keys, exact
+  lifecycle routes, and fail-closed malformed responses. Shared Skills UI
+  requires loaded `skill_administration=true`; file controls remain gated by
+  the still-false `skill_import` flag, and creator-based mutation permission is
+  removed.
+- Focused backend/Core/Views tests, Core/Views typecheck and lint, and backend
+  `make check` pass. The parallel root test run passed Core/Web/Desktop/Docs but
+  timed out three unrelated Views tests; all three pass together on immediate
+  focused rerun, so the root aggregate is recorded as partial rather than PASS.
+- Protected Input remains blob
+  `a830fd2f0f82770563908d512558fe6ba48f50dd`; `server/**` remains unchanged.
+  Browser, production build, official race, independent review, and S05A
+  closure are still pending.

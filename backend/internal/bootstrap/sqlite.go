@@ -16,6 +16,7 @@ import (
 	"github.com/hvritual/workspace/internal/modules/space"
 	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	systemmodule "github.com/hvritual/workspace/internal/modules/system"
+	systemcontract "github.com/hvritual/workspace/internal/modules/system/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	canonicalrealtime "github.com/hvritual/workspace/internal/realtime"
@@ -62,6 +63,9 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		return nil, nil, nil, nil, err
 	}
 	if err := space.MigrateSqlite(ctx, db); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := systemmodule.MigrateSqlite(ctx, db); err != nil {
 		return nil, nil, nil, nil, err
 	}
 	if err := normalizeRetainedIssueMemberActors(ctx, db); err != nil {
@@ -140,8 +144,45 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("configure Workspace governance outbox: %w", err)
 	}
+	skillVisibility, err := workspace.NewSQLiteSkillVisibilityService(db, memberships)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("configure Workspace Skill visibility: %w", err)
+	}
+	systemModule, err := systemmodule.NewWithSQLiteSkillCatalog(db, systemmodule.SkillCatalogDependencies{
+		Identity: func(request *http.Request) (systemcontract.SkillIdentity, error) {
+			identity, resolveErr := workspaceIdentity(request)
+			return systemcontract.SkillIdentity{WorkspaceID: identity.WorkspaceID, ActorType: identity.ActorType, ActorID: identity.ActorID}, resolveErr
+		},
+		Mutation: authModule.AuthorizeHTTPMutation,
+		Authorize: func(requestContext context.Context, identity systemcontract.SkillIdentity, permission string) error {
+			actorContext := contract.WithWorkspaceActor(requestContext, identity.ActorType, identity.ActorID)
+			return memberships.AuthorizeWorkspace(actorContext, identity.WorkspaceID, permission)
+		},
+		Bind: func(requestContext context.Context, identity systemcontract.SkillIdentity, skillID, versionID string) error {
+			actorContext := contract.WithWorkspaceActor(requestContext, identity.ActorType, identity.ActorID)
+			return skillVisibility.BindInitialSkill(actorContext, contract.BindInitialSkillRequest{WorkspaceID: identity.WorkspaceID, SkillID: skillID, VersionID: versionID})
+		},
+		Resolve: func(requestContext context.Context, workspaceID, skillID string) (systemcontract.SkillVisibilityReference, error) {
+			value, resolveErr := skillVisibility.ResolveSkill(requestContext, workspaceID, skillID)
+			return systemcontract.SkillVisibilityReference{WorkspaceID: value.WorkspaceID, SkillID: value.SkillID, VersionID: value.VersionID, Enabled: value.Enabled, AgentIDs: value.AgentIDs}, resolveErr
+		},
+		List: func(requestContext context.Context, workspaceID string) ([]systemcontract.SkillVisibilityReference, error) {
+			values, listErr := skillVisibility.ListSkills(requestContext, workspaceID)
+			if listErr != nil {
+				return nil, listErr
+			}
+			result := make([]systemcontract.SkillVisibilityReference, len(values))
+			for index, value := range values {
+				result[index] = systemcontract.SkillVisibilityReference{WorkspaceID: value.WorkspaceID, SkillID: value.SkillID, VersionID: value.VersionID, Enabled: value.Enabled, AgentIDs: value.AgentIDs}
+			}
+			return result, nil
+		},
+	})
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("configure System Skill catalog: %w", err)
+	}
 	failed = false
-	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemmodule.New()), realtimeHub, governance, nil
+	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemModule), realtimeHub, governance, nil
 }
 
 type realtimeOutboxSink struct {
