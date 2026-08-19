@@ -44,13 +44,14 @@ type ProjectRetrospectiveRevision struct {
 }
 
 type ProjectRetrospectiveActionLink struct {
-	ActionItemID   string `json:"action_item_id"`
-	SourceRevision int64  `json:"source_revision"`
-	State          string `json:"state"`
-	TargetKind     string `json:"target_kind"`
-	TargetID       string `json:"target_id,omitempty"`
-	CreatedBy      string `json:"created_by"`
-	CreatedAt      string `json:"created_at"`
+	RetrospectiveID string `json:"retrospective_id"`
+	ActionItemID    string `json:"action_item_id"`
+	SourceRevision  int64  `json:"source_revision"`
+	State           string `json:"state"`
+	TargetKind      string `json:"target_kind"`
+	TargetID        string `json:"target_id,omitempty"`
+	CreatedBy       string `json:"created_by"`
+	CreatedAt       string `json:"created_at"`
 }
 
 type ProjectRetrospectiveAccess struct {
@@ -114,7 +115,7 @@ type UpdateProjectRetrospectiveRequest struct {
 }
 
 type CreateProjectRetrospectiveTargetRequest struct {
-	TargetKind string `json:"target_kind,omitempty"`
+	TargetKind *string `json:"target_kind,omitempty"`
 }
 
 type ProjectRetrospectiveService interface {

@@ -2,7 +2,9 @@ package sqlite
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +18,10 @@ import (
 )
 
 const (
-	projectRetrospectiveCreateAction = "workspace.project.retrospective.create"
-	projectRetrospectiveResourceKind = "project_retrospective"
+	projectRetrospectiveCreateAction       = "workspace.project.retrospective.create"
+	projectRetrospectiveTargetAction       = "workspace.project.retrospective.action_item.target"
+	projectRetrospectiveTargetLinkedAction = "workspace.project.retrospective.action_item_linked"
+	projectRetrospectiveResourceKind       = "project_retrospective"
 )
 
 type ProjectRetrospectiveRepository struct {
@@ -29,6 +33,11 @@ type projectRetrospectiveCreateReplay struct {
 	ID       string                              `json:"id"`
 	Revision int64                               `json:"revision"`
 	Access   contract.ProjectRetrospectiveAccess `json:"access"`
+}
+
+type projectRetrospectiveTargetReplay struct {
+	Version int                                     `json:"version"`
+	Link    contract.ProjectRetrospectiveActionLink `json:"link"`
 }
 
 func NewProjectRetrospectiveRepository(config Config) (*ProjectRetrospectiveRepository, error) {
@@ -201,6 +210,314 @@ func (r *ProjectRetrospectiveRepository) ReadProjectRetrospective(ctx context.Co
 	}
 	committed = true
 	return result, nil
+}
+
+func (r *ProjectRetrospectiveRepository) ListProjectRetrospectives(ctx context.Context, query application.ProjectRetrospectiveListQuery) (page application.ProjectRetrospectivePage, err error) {
+	query.WorkspaceID = strings.TrimSpace(query.WorkspaceID)
+	query.ProjectID = strings.TrimSpace(query.ProjectID)
+	if query.WorkspaceID == "" || query.ProjectID == "" || query.Limit < 1 || query.Limit > application.MaxProjectRetrospectiveListLimit {
+		return application.ProjectRetrospectivePage{}, contract.ErrInvalidProjectRetrospective
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return application.ProjectRetrospectivePage{}, fmt.Errorf("acquire Project Retrospective list connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `BEGIN`); err != nil {
+		return application.ProjectRetrospectivePage{}, fmt.Errorf("begin Project Retrospective list: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	authority, err := loadProjectRetrospectiveAuthority(ctx, connection, query.WorkspaceID, query.ProjectID, query.Actor)
+	if err != nil {
+		return application.ProjectRetrospectivePage{}, err
+	}
+	statement := `SELECT id,workspace_id,project_id,status,current_revision,published_revision,created_by,created_at,updated_at
+		FROM workspace_project_retrospectives WHERE workspace_id=? AND project_id=?`
+	arguments := []any{query.WorkspaceID, query.ProjectID}
+	if !query.IncludeArchived {
+		statement += ` AND status<>'archived'`
+	}
+	if query.Cursor != nil {
+		if strings.TrimSpace(query.Cursor.UpdatedAt) == "" || strings.TrimSpace(query.Cursor.ID) == "" {
+			return application.ProjectRetrospectivePage{}, contract.ErrInvalidProjectRetrospective
+		}
+		statement += ` AND (updated_at<? OR (updated_at=? AND id<?))`
+		arguments = append(arguments, query.Cursor.UpdatedAt, query.Cursor.UpdatedAt, query.Cursor.ID)
+	}
+	statement += ` ORDER BY updated_at DESC,id DESC LIMIT ?`
+	arguments = append(arguments, query.Limit+1)
+	rows, err := connection.QueryContext(ctx, statement, arguments...)
+	if err != nil {
+		return application.ProjectRetrospectivePage{}, fmt.Errorf("list Project Retrospective identities: %w", err)
+	}
+	values := make([]contract.ProjectRetrospective, 0, query.Limit+1)
+	for rows.Next() {
+		value, scanErr := scanProjectRetrospectiveHead(rows)
+		if scanErr != nil {
+			rows.Close()
+			return application.ProjectRetrospectivePage{}, scanErr
+		}
+		values = append(values, value)
+	}
+	if err = rows.Close(); err != nil {
+		return application.ProjectRetrospectivePage{}, err
+	}
+	if len(values) > query.Limit {
+		page.HasMore = true
+		values = values[:query.Limit]
+	}
+	if err = hydrateProjectRetrospectivesOnConnection(ctx, connection, query.WorkspaceID, query.ProjectID, values, authority); err != nil {
+		return application.ProjectRetrospectivePage{}, err
+	}
+	page.Retrospectives = values
+	if _, err = connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return application.ProjectRetrospectivePage{}, fmt.Errorf("commit Project Retrospective list: %w", err)
+	}
+	committed = true
+	return page, nil
+}
+
+func (r *ProjectRetrospectiveRepository) PrepareProjectRetrospectiveTarget(ctx context.Context, command application.PrepareProjectRetrospectiveTargetCommand) (claim application.ProjectRetrospectiveTargetClaim, err error) {
+	command.WorkspaceID = strings.TrimSpace(command.WorkspaceID)
+	command.ProjectID = strings.TrimSpace(command.ProjectID)
+	command.RetrospectiveID = strings.TrimSpace(command.RetrospectiveID)
+	command.ActionItemID = strings.TrimSpace(command.ActionItemID)
+	command.TargetKind = strings.TrimSpace(command.TargetKind)
+	command.IdempotencyKey = strings.TrimSpace(command.IdempotencyKey)
+	if command.WorkspaceID == "" || command.ProjectID == "" || command.RetrospectiveID == "" || command.ActionItemID == "" ||
+		(command.TargetKind != "task" && command.TargetKind != "issue") || command.IdempotencyKey == "" || len(command.IdempotencyKey) > 200 || len(command.RequestHash) != 64 {
+		return application.ProjectRetrospectiveTargetClaim{}, contract.ErrInvalidProjectRetrospective
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("acquire Project Retrospective target claim connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("configure Project Retrospective target claim lock wait: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("begin Project Retrospective target claim: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	authority, err := loadProjectRetrospectiveAuthority(ctx, connection, command.WorkspaceID, command.ProjectID, command.Actor)
+	if err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, err
+	}
+	value, err := readProjectRetrospectiveOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, authority)
+	if err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, err
+	}
+	if !projectRetrospectiveTargetAuthorized(value, authority) {
+		return application.ProjectRetrospectiveTargetClaim{}, contract.ErrWorkspacePermissionDenied
+	}
+	actionItem, found := projectRetrospectiveActionItem(value, command.ActionItemID)
+	if !found {
+		return application.ProjectRetrospectiveTargetClaim{}, contract.ErrProjectRetrospectiveTargetConflict
+	}
+	var storedHash, responseBody string
+	replayErr := connection.QueryRowContext(ctx, `SELECT request_hash,response_body FROM workspace_mutation_idempotency
+		WHERE workspace_id=? AND action=? AND idempotency_key=?`, command.WorkspaceID, projectRetrospectiveTargetAction, command.IdempotencyKey).Scan(&storedHash, &responseBody)
+	if replayErr == nil {
+		if storedHash != command.RequestHash {
+			return application.ProjectRetrospectiveTargetClaim{}, contract.ErrIdempotencyConflict
+		}
+		var replay projectRetrospectiveTargetReplay
+		if err = json.Unmarshal([]byte(responseBody), &replay); err != nil || replay.Version != 1 {
+			return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("decode Project Retrospective target replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		stored, exists, readErr := readProjectRetrospectiveTargetLinkOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID)
+		if readErr != nil {
+			return application.ProjectRetrospectiveTargetClaim{}, readErr
+		}
+		if !exists || stored.RequestHash != command.RequestHash || stored.Link != replay.Link || replay.Link.State != "linked" || replay.Link.TargetKind != command.TargetKind || replay.Link.ActionItemID != command.ActionItemID || replay.Link.TargetID == "" {
+			return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("validate Project Retrospective target replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		if _, err = connection.ExecContext(ctx, `ROLLBACK`); err != nil {
+			return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("finish Project Retrospective target replay: %w", err)
+		}
+		committed = true
+		return application.ProjectRetrospectiveTargetClaim{
+			ActionItem: actionItem, SourceRevision: replay.Link.SourceRevision, TargetKind: replay.Link.TargetKind,
+			TargetID: replay.Link.TargetID, ChildIdempotencyKey: projectRetrospectiveTargetChildKey(command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID, replay.Link.SourceRevision, replay.Link.TargetKind),
+		}, nil
+	}
+	if !errors.Is(replayErr, sql.ErrNoRows) {
+		return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("read Project Retrospective target replay: %w", replayErr)
+	}
+	if value.Status != retrospectiveDomain.StatusPublished {
+		return application.ProjectRetrospectiveTargetClaim{}, contract.ErrProjectRetrospectiveStateConflict
+	}
+	stored, exists, err := readProjectRetrospectiveTargetLinkOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID)
+	if err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, err
+	}
+	if exists {
+		if stored.RequestHash != command.RequestHash || stored.Link.TargetKind != command.TargetKind {
+			return application.ProjectRetrospectiveTargetClaim{}, contract.ErrProjectRetrospectiveTargetConflict
+		}
+	} else {
+		timestamp := command.OccurredAt.UTC().Format(time.RFC3339Nano)
+		if _, err = connection.ExecContext(ctx, `INSERT INTO workspace_project_retrospective_action_links(
+			workspace_id,project_id,retrospective_id,action_item_id,source_revision,state,target_kind,target_id,request_hash,claimed_by,claimed_at,linked_by,linked_at
+		) VALUES(?,?,?,?,?,'pending',?,NULL,?,?,?,NULL,NULL)`, command.WorkspaceID, command.ProjectID, command.RetrospectiveID,
+			command.ActionItemID, value.CurrentRevision, command.TargetKind, command.RequestHash, command.Actor.ID, timestamp); err != nil {
+			return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("insert Project Retrospective target claim: %w", err)
+		}
+		stored = storedProjectRetrospectiveTargetLink{
+			Link: contract.ProjectRetrospectiveActionLink{
+				RetrospectiveID: command.RetrospectiveID, ActionItemID: command.ActionItemID, SourceRevision: value.CurrentRevision, State: "pending", TargetKind: command.TargetKind,
+				CreatedBy: command.Actor.ID, CreatedAt: timestamp,
+			},
+			RequestHash: command.RequestHash,
+		}
+	}
+	if _, err = connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return application.ProjectRetrospectiveTargetClaim{}, fmt.Errorf("commit Project Retrospective target claim: %w", err)
+	}
+	committed = true
+	return application.ProjectRetrospectiveTargetClaim{
+		ActionItem: actionItem, SourceRevision: stored.Link.SourceRevision, TargetKind: stored.Link.TargetKind,
+		TargetID: stored.Link.TargetID, ChildIdempotencyKey: projectRetrospectiveTargetChildKey(command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID, stored.Link.SourceRevision, stored.Link.TargetKind),
+	}, nil
+}
+
+func (r *ProjectRetrospectiveRepository) CompleteProjectRetrospectiveTarget(ctx context.Context, command application.CompleteProjectRetrospectiveTargetCommand) (link contract.ProjectRetrospectiveActionLink, err error) {
+	command.WorkspaceID = strings.TrimSpace(command.WorkspaceID)
+	command.ProjectID = strings.TrimSpace(command.ProjectID)
+	command.RetrospectiveID = strings.TrimSpace(command.RetrospectiveID)
+	command.ActionItemID = strings.TrimSpace(command.ActionItemID)
+	command.TargetKind = strings.TrimSpace(command.TargetKind)
+	command.TargetID = strings.TrimSpace(command.TargetID)
+	command.IdempotencyKey = strings.TrimSpace(command.IdempotencyKey)
+	if command.WorkspaceID == "" || command.ProjectID == "" || command.RetrospectiveID == "" || command.ActionItemID == "" || command.SourceRevision < 1 ||
+		(command.TargetKind != "task" && command.TargetKind != "issue") || command.TargetID == "" || command.IdempotencyKey == "" || len(command.IdempotencyKey) > 200 || len(command.RequestHash) != 64 {
+		return contract.ProjectRetrospectiveActionLink{}, contract.ErrInvalidProjectRetrospective
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("acquire Project Retrospective target completion connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("configure Project Retrospective target completion lock wait: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("begin Project Retrospective target completion: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	authority, err := loadProjectRetrospectiveAuthority(ctx, connection, command.WorkspaceID, command.ProjectID, command.Actor)
+	if err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, err
+	}
+	value, err := readProjectRetrospectiveOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, authority)
+	if err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, err
+	}
+	if !projectRetrospectiveTargetAuthorized(value, authority) {
+		return contract.ProjectRetrospectiveActionLink{}, contract.ErrWorkspacePermissionDenied
+	}
+	if _, found := projectRetrospectiveActionItem(value, command.ActionItemID); !found {
+		return contract.ProjectRetrospectiveActionLink{}, contract.ErrProjectRetrospectiveTargetConflict
+	}
+	var storedHash, responseBody string
+	replayErr := connection.QueryRowContext(ctx, `SELECT request_hash,response_body FROM workspace_mutation_idempotency
+		WHERE workspace_id=? AND action=? AND idempotency_key=?`, command.WorkspaceID, projectRetrospectiveTargetAction, command.IdempotencyKey).Scan(&storedHash, &responseBody)
+	if replayErr == nil {
+		if storedHash != command.RequestHash {
+			return contract.ProjectRetrospectiveActionLink{}, contract.ErrIdempotencyConflict
+		}
+		var replay projectRetrospectiveTargetReplay
+		if err = json.Unmarshal([]byte(responseBody), &replay); err != nil || replay.Version != 1 {
+			return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("decode Project Retrospective target completion replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		stored, exists, readErr := readProjectRetrospectiveTargetLinkOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID)
+		if readErr != nil {
+			return contract.ProjectRetrospectiveActionLink{}, readErr
+		}
+		if !exists || stored.RequestHash != command.RequestHash || stored.Link != replay.Link || replay.Link.State != "linked" || replay.Link.TargetID == "" || replay.Link.TargetKind != command.TargetKind || replay.Link.SourceRevision != command.SourceRevision {
+			return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("validate Project Retrospective target completion replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		if _, err = connection.ExecContext(ctx, `ROLLBACK`); err != nil {
+			return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("finish Project Retrospective target completion replay: %w", err)
+		}
+		committed = true
+		return replay.Link, nil
+	}
+	if !errors.Is(replayErr, sql.ErrNoRows) {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("read Project Retrospective target completion replay: %w", replayErr)
+	}
+	stored, exists, err := readProjectRetrospectiveTargetLinkOnConnection(ctx, connection, command.WorkspaceID, command.ProjectID, command.RetrospectiveID, command.ActionItemID)
+	if err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, err
+	}
+	if !exists || stored.RequestHash != command.RequestHash || stored.Link.SourceRevision != command.SourceRevision || stored.Link.TargetKind != command.TargetKind {
+		return contract.ProjectRetrospectiveActionLink{}, contract.ErrProjectRetrospectiveTargetConflict
+	}
+	linkedNow := false
+	switch stored.Link.State {
+	case "pending":
+		if value.Status != retrospectiveDomain.StatusPublished {
+			return contract.ProjectRetrospectiveActionLink{}, contract.ErrProjectRetrospectiveStateConflict
+		}
+		timestamp := command.OccurredAt.UTC().Format(time.RFC3339Nano)
+		result, updateErr := connection.ExecContext(ctx, `UPDATE workspace_project_retrospective_action_links
+			SET state='linked',target_id=?,linked_by=?,linked_at=?
+			WHERE workspace_id=? AND project_id=? AND retrospective_id=? AND action_item_id=? AND state='pending' AND source_revision=? AND target_kind=? AND request_hash=?`,
+			command.TargetID, command.Actor.ID, timestamp, command.WorkspaceID, command.ProjectID, command.RetrospectiveID,
+			command.ActionItemID, command.SourceRevision, command.TargetKind, command.RequestHash)
+		if updateErr != nil {
+			return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("link Project Retrospective target: %w", updateErr)
+		}
+		if affected, rowsErr := result.RowsAffected(); rowsErr != nil || affected != 1 {
+			return contract.ProjectRetrospectiveActionLink{}, contract.ErrProjectRetrospectiveTargetConflict
+		}
+		stored.Link.State = "linked"
+		stored.Link.TargetID = command.TargetID
+		linkedNow = true
+	case "linked":
+		if stored.Link.TargetID != command.TargetID {
+			return contract.ProjectRetrospectiveActionLink{}, contract.ErrProjectRetrospectiveTargetConflict
+		}
+	default:
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("validate Project Retrospective target state: %w", contract.ErrInvalidGovernanceMutation)
+	}
+	if linkedNow {
+		if err = insertProjectRetrospectiveTargetAuditAndOutbox(ctx, connection, command, stored.Link); err != nil {
+			return contract.ProjectRetrospectiveActionLink{}, err
+		}
+	}
+	replay, err := json.Marshal(projectRetrospectiveTargetReplay{Version: 1, Link: stored.Link})
+	if err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("encode Project Retrospective target replay: %w", err)
+	}
+	timestamp := command.OccurredAt.UTC().Format(time.RFC3339Nano)
+	if _, err = connection.ExecContext(ctx, `INSERT INTO workspace_mutation_idempotency(
+		workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at
+	) VALUES(?,?,?,?,?,?,?,?,?,?)`, command.WorkspaceID, projectRetrospectiveTargetAction, command.IdempotencyKey, command.RequestHash,
+		projectRetrospectiveResourceKind, command.RetrospectiveID, command.SourceRevision, 201, string(replay), timestamp); err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("record Project Retrospective target replay: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return contract.ProjectRetrospectiveActionLink{}, fmt.Errorf("commit Project Retrospective target completion: %w", err)
+	}
+	committed = true
+	return stored.Link, nil
 }
 
 func (r *ProjectRetrospectiveRepository) MutateProjectRetrospective(ctx context.Context, command application.MutateProjectRetrospectiveCommand) (result contract.ProjectRetrospective, err error) {
@@ -585,139 +902,302 @@ func readProjectRetrospectiveLinkedActionItems(ctx context.Context, connection *
 	return result, rows.Err()
 }
 
+type storedProjectRetrospectiveTargetLink struct {
+	Link        contract.ProjectRetrospectiveActionLink
+	RequestHash string
+}
+
+func readProjectRetrospectiveTargetLinkOnConnection(ctx context.Context, connection *sql.Conn, workspaceID, projectID, retrospectiveID, actionItemID string) (storedProjectRetrospectiveTargetLink, bool, error) {
+	var stored storedProjectRetrospectiveTargetLink
+	var targetID sql.NullString
+	err := connection.QueryRowContext(ctx, `SELECT action_item_id,source_revision,state,target_kind,target_id,request_hash,claimed_by,claimed_at
+		FROM workspace_project_retrospective_action_links
+		WHERE workspace_id=? AND project_id=? AND retrospective_id=? AND action_item_id=?`, workspaceID, projectID, retrospectiveID, actionItemID).Scan(
+		&stored.Link.ActionItemID, &stored.Link.SourceRevision, &stored.Link.State, &stored.Link.TargetKind, &targetID,
+		&stored.RequestHash, &stored.Link.CreatedBy, &stored.Link.CreatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return storedProjectRetrospectiveTargetLink{}, false, nil
+	}
+	if err != nil {
+		return storedProjectRetrospectiveTargetLink{}, false, fmt.Errorf("read Project Retrospective target link: %w", err)
+	}
+	stored.Link.RetrospectiveID = retrospectiveID
+	stored.Link.TargetID = nullableText(targetID)
+	if stored.Link.ActionItemID == "" || stored.Link.SourceRevision < 1 || (stored.Link.TargetKind != "task" && stored.Link.TargetKind != "issue") || len(stored.RequestHash) != 64 ||
+		(stored.Link.State == "pending" && stored.Link.TargetID != "") || (stored.Link.State == "linked" && stored.Link.TargetID == "") || (stored.Link.State != "pending" && stored.Link.State != "linked") {
+		return storedProjectRetrospectiveTargetLink{}, false, fmt.Errorf("validate Project Retrospective target link: %w", contract.ErrInvalidGovernanceMutation)
+	}
+	return stored, true, nil
+}
+
+func projectRetrospectiveTargetAuthorized(value contract.ProjectRetrospective, authority projectRetrospectiveAuthority) bool {
+	if value.Current == nil {
+		return false
+	}
+	participants := make([]retrospectiveDomain.Participant, len(value.Current.Participants))
+	for index, participant := range value.Current.Participants {
+		participants[index] = retrospectiveDomain.Participant{MemberID: participant.MemberID, Role: participant.Role}
+	}
+	return authority.manager() || projectRetrospectiveHasFacilitator(participants, authority.membership.MemberID)
+}
+
+func projectRetrospectiveActionItem(value contract.ProjectRetrospective, actionItemID string) (contract.ProjectRetrospectiveActionItem, bool) {
+	if value.Current == nil {
+		return contract.ProjectRetrospectiveActionItem{}, false
+	}
+	for _, item := range value.Current.Content.ActionItems {
+		if item.ID == actionItemID {
+			return item, true
+		}
+	}
+	return contract.ProjectRetrospectiveActionItem{}, false
+}
+
+func projectRetrospectiveTargetChildKey(workspaceID, projectID, retrospectiveID, actionItemID string, sourceRevision int64, targetKind string) string {
+	payload := strings.Join([]string{
+		"project-retrospective-target-child-v1", workspaceID, projectID, retrospectiveID, actionItemID,
+		strconv.FormatInt(sourceRevision, 10), targetKind,
+	}, "\x00")
+	sum := sha256.Sum256([]byte(payload))
+	return "retro-target-" + hex.EncodeToString(sum[:])
+}
+
+func insertProjectRetrospectiveTargetAuditAndOutbox(ctx context.Context, connection *sql.Conn, command application.CompleteProjectRetrospectiveTargetCommand, link contract.ProjectRetrospectiveActionLink) error {
+	metadata, _ := json.Marshal(map[string]any{
+		"version": "project-retrospective-target-v1", "action_item_id": link.ActionItemID,
+		"source_revision": link.SourceRevision, "target_kind": link.TargetKind, "target_id": link.TargetID,
+	})
+	payload, _ := json.Marshal(map[string]any{
+		"version": "project-retrospective-target-v1", "retrospective_id": command.RetrospectiveID,
+		"project_id": command.ProjectID, "action_item_id": link.ActionItemID, "source_revision": link.SourceRevision,
+		"target_kind": link.TargetKind, "target_id": link.TargetID,
+	})
+	timestamp := command.OccurredAt.UTC().Format(time.RFC3339Nano)
+	auditID := command.RetrospectiveID + "-" + command.ActionItemID + "-target-linked-audit"
+	if _, err := connection.ExecContext(ctx, `INSERT INTO workspace_audit_entries(
+		workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json
+	) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, command.WorkspaceID, timestamp, auditID, command.Actor.Type, command.Actor.ID,
+		projectRetrospectiveTargetLinkedAction, projectRetrospectiveResourceKind, command.RetrospectiveID, link.SourceRevision,
+		command.IdempotencyKey, string(metadata)); err != nil {
+		return fmt.Errorf("record Project Retrospective target audit: %w", err)
+	}
+	eventID := command.RetrospectiveID + "-" + command.ActionItemID + "-target-linked-event"
+	if _, err := connection.ExecContext(ctx, `INSERT INTO workspace_outbox_events(
+		state,available_at,workspace_id,id,event_type,aggregate_kind,aggregate_id,aggregate_revision,payload_json,actor_type,actor_id,attempt_count,created_at
+	) VALUES('ready',?,?,?,?,?,?,?,?,?,?,0,?)`, timestamp, command.WorkspaceID, eventID, "retrospective:action_item_linked",
+		projectRetrospectiveResourceKind, command.RetrospectiveID, link.SourceRevision, string(payload), command.Actor.Type, command.Actor.ID, timestamp); err != nil {
+		return fmt.Errorf("record Project Retrospective target outbox: %w", err)
+	}
+	return nil
+}
+
 func readProjectRetrospectiveOnConnection(ctx context.Context, connection *sql.Conn, workspaceID, projectID, retrospectiveID string, authority projectRetrospectiveAuthority) (contract.ProjectRetrospective, error) {
-	var result contract.ProjectRetrospective
-	var published sql.NullInt64
-	if err := connection.QueryRowContext(ctx, `SELECT id,workspace_id,project_id,status,current_revision,published_revision,created_by,created_at,updated_at
-		FROM workspace_project_retrospectives WHERE workspace_id=? AND project_id=? AND id=?`, workspaceID, projectID, retrospectiveID).Scan(
-		&result.ID, &result.WorkspaceID, &result.ProjectID, &result.Status, &result.CurrentRevision, &published, &result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
-	); errors.Is(err, sql.ErrNoRows) {
+	result, err := scanProjectRetrospectiveHead(connection.QueryRowContext(ctx, `SELECT id,workspace_id,project_id,status,current_revision,published_revision,created_by,created_at,updated_at
+		FROM workspace_project_retrospectives WHERE workspace_id=? AND project_id=? AND id=?`, workspaceID, projectID, retrospectiveID))
+	if errors.Is(err, sql.ErrNoRows) {
 		return contract.ProjectRetrospective{}, contract.ErrProjectRetrospectiveNotFound
 	} else if err != nil {
 		return contract.ProjectRetrospective{}, fmt.Errorf("read Project Retrospective head: %w", err)
+	}
+	values := []contract.ProjectRetrospective{result}
+	if err = hydrateProjectRetrospectivesOnConnection(ctx, connection, workspaceID, projectID, values, authority); err != nil {
+		return contract.ProjectRetrospective{}, err
+	}
+	return values[0], nil
+}
+
+type projectRetrospectiveScanner interface {
+	Scan(...any) error
+}
+
+func scanProjectRetrospectiveHead(scanner projectRetrospectiveScanner) (contract.ProjectRetrospective, error) {
+	var result contract.ProjectRetrospective
+	var published sql.NullInt64
+	if err := scanner.Scan(
+		&result.ID, &result.WorkspaceID, &result.ProjectID, &result.Status, &result.CurrentRevision, &published,
+		&result.CreatedBy, &result.CreatedAt, &result.UpdatedAt,
+	); err != nil {
+		return contract.ProjectRetrospective{}, err
 	}
 	if published.Valid {
 		value := published.Int64
 		result.PublishedRevision = &value
 	}
-	revisionRows, err := connection.QueryContext(ctx, `SELECT revision,lifecycle_status,action,content_json,actor_id,created_at
-		FROM workspace_project_retrospective_revisions WHERE workspace_id=? AND project_id=? AND retrospective_id=? ORDER BY revision`, workspaceID, projectID, retrospectiveID)
+	return result, nil
+}
+
+func hydrateProjectRetrospectivesOnConnection(
+	ctx context.Context,
+	connection *sql.Conn,
+	workspaceID, projectID string,
+	values []contract.ProjectRetrospective,
+	authority projectRetrospectiveAuthority,
+) error {
+	if len(values) == 0 {
+		return nil
+	}
+	indexes := make(map[string]int, len(values))
+	arguments := make([]any, 0, len(values)+2)
+	arguments = append(arguments, workspaceID, projectID)
+	for index := range values {
+		value := &values[index]
+		if value.ID == "" || value.WorkspaceID != workspaceID || value.ProjectID != projectID || value.CurrentRevision < 1 {
+			return fmt.Errorf("validate Project Retrospective head: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		if value.PublishedRevision != nil && (*value.PublishedRevision < 1 || *value.PublishedRevision > value.CurrentRevision) {
+			return fmt.Errorf("validate Project Retrospective published revision: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		if _, duplicate := indexes[value.ID]; duplicate {
+			return fmt.Errorf("validate Project Retrospective head identity: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		indexes[value.ID] = index
+		arguments = append(arguments, value.ID)
+		value.Current = nil
+		value.History = make([]contract.ProjectRetrospectiveRevision, 0, value.CurrentRevision)
+		value.ActionLinks = []contract.ProjectRetrospectiveActionLink{}
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(values)), ",")
+	revisionRows, err := connection.QueryContext(ctx, `SELECT retrospective_id,revision,lifecycle_status,action,content_json,actor_id,created_at
+		FROM workspace_project_retrospective_revisions WHERE workspace_id=? AND project_id=? AND retrospective_id IN (`+placeholders+`)
+		ORDER BY retrospective_id,revision`, arguments...)
 	if err != nil {
-		return contract.ProjectRetrospective{}, fmt.Errorf("read Project Retrospective history: %w", err)
+		return fmt.Errorf("read Project Retrospective history: %w", err)
 	}
 	for revisionRows.Next() {
+		var retrospectiveID string
 		var revision contract.ProjectRetrospectiveRevision
 		var lifecycleStatus, contentJSON string
-		if err = revisionRows.Scan(&revision.Revision, &lifecycleStatus, &revision.Action, &contentJSON, &revision.ActorID, &revision.CreatedAt); err != nil {
+		if err = revisionRows.Scan(&retrospectiveID, &revision.Revision, &lifecycleStatus, &revision.Action, &contentJSON, &revision.ActorID, &revision.CreatedAt); err != nil {
 			revisionRows.Close()
-			return contract.ProjectRetrospective{}, err
+			return err
+		}
+		index, found := indexes[retrospectiveID]
+		if !found {
+			revisionRows.Close()
+			return fmt.Errorf("validate Project Retrospective history ownership: %w", contract.ErrInvalidProjectRetrospective)
 		}
 		var content retrospectiveDomain.Content
 		if err = json.Unmarshal([]byte(contentJSON), &content); err != nil {
 			revisionRows.Close()
-			return contract.ProjectRetrospective{}, fmt.Errorf("decode Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
+			return fmt.Errorf("decode Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
 		}
 		content, err = retrospectiveDomain.NormalizeContent(content)
 		if err != nil {
 			revisionRows.Close()
-			return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
+			return fmt.Errorf("validate Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
 		}
 		revision.Status = lifecycleStatus
-		if lifecycleStatus == retrospectiveDomain.StatusPublished && published.Valid && revision.Revision < published.Int64 {
+		if lifecycleStatus == retrospectiveDomain.StatusPublished && values[index].PublishedRevision != nil && revision.Revision < *values[index].PublishedRevision {
 			revision.Status = "superseded"
 		}
 		revision.Content = projectRetrospectiveContentToContract(content)
-		result.History = append(result.History, revision)
+		values[index].History = append(values[index].History, revision)
 	}
 	if err = revisionRows.Close(); err != nil {
-		return contract.ProjectRetrospective{}, err
+		return err
 	}
-	if len(result.History) != int(result.CurrentRevision) {
-		return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
-	}
-	participantRows, err := connection.QueryContext(ctx, `SELECT revision,member_id,role FROM workspace_project_retrospective_participants
-		WHERE workspace_id=? AND project_id=? AND retrospective_id=? ORDER BY revision,member_id`, workspaceID, projectID, retrospectiveID)
+	participantRows, err := connection.QueryContext(ctx, `SELECT retrospective_id,revision,member_id,role FROM workspace_project_retrospective_participants
+		WHERE workspace_id=? AND project_id=? AND retrospective_id IN (`+placeholders+`) ORDER BY retrospective_id,revision,member_id`, arguments...)
 	if err != nil {
-		return contract.ProjectRetrospective{}, fmt.Errorf("read Project Retrospective history participants: %w", err)
+		return fmt.Errorf("read Project Retrospective history participants: %w", err)
 	}
-	participantCounts := make(map[int64]int)
+	participantCounts := make(map[string]int)
+	participantMembers := make(map[string]struct{})
 	for participantRows.Next() {
+		var retrospectiveID string
 		var revision int64
 		var participant contract.ProjectRetrospectiveParticipant
-		if err = participantRows.Scan(&revision, &participant.MemberID, &participant.Role); err != nil {
+		if err = participantRows.Scan(&retrospectiveID, &revision, &participant.MemberID, &participant.Role); err != nil {
 			participantRows.Close()
-			return contract.ProjectRetrospective{}, err
+			return err
 		}
-		if revision < 1 || revision > result.CurrentRevision || participant.MemberID == "" || (participant.Role != retrospectiveDomain.RoleParticipant && participant.Role != retrospectiveDomain.RoleFacilitator) {
+		index, found := indexes[retrospectiveID]
+		if !found || revision < 1 || revision > values[index].CurrentRevision || participant.MemberID == "" || (participant.Role != retrospectiveDomain.RoleParticipant && participant.Role != retrospectiveDomain.RoleFacilitator) {
 			participantRows.Close()
-			return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history participants: %w", contract.ErrInvalidProjectRetrospective)
+			return fmt.Errorf("validate Project Retrospective history participants: %w", contract.ErrInvalidProjectRetrospective)
 		}
-		index := int(revision - 1)
-		if result.History[index].Revision != revision {
+		historyIndex := int(revision - 1)
+		if historyIndex >= len(values[index].History) || values[index].History[historyIndex].Revision != revision {
 			participantRows.Close()
-			return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history sequence: %w", contract.ErrInvalidProjectRetrospective)
+			return fmt.Errorf("validate Project Retrospective history sequence: %w", contract.ErrInvalidProjectRetrospective)
 		}
-		result.History[index].Participants = append(result.History[index].Participants, participant)
-		participantCounts[revision]++
-		if participantCounts[revision] > 100 {
+		countKey := retrospectiveID + "\x00" + strconv.FormatInt(revision, 10)
+		memberKey := countKey + "\x00" + participant.MemberID
+		if _, duplicate := participantMembers[memberKey]; duplicate {
 			participantRows.Close()
-			return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history participants: %w", contract.ErrInvalidProjectRetrospective)
+			return fmt.Errorf("validate Project Retrospective history participant identity: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		participantMembers[memberKey] = struct{}{}
+		values[index].History[historyIndex].Participants = append(values[index].History[historyIndex].Participants, participant)
+		participantCounts[countKey]++
+		if participantCounts[countKey] > 100 {
+			participantRows.Close()
+			return fmt.Errorf("validate Project Retrospective history participants: %w", contract.ErrInvalidProjectRetrospective)
 		}
 	}
 	if err = participantRows.Close(); err != nil {
-		return contract.ProjectRetrospective{}, err
+		return err
 	}
-	for index := range result.History {
-		if result.History[index].Revision != int64(index+1) || len(result.History[index].Participants) == 0 {
-			return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective history sequence: %w", contract.ErrInvalidProjectRetrospective)
-		}
-		if result.History[index].Revision == result.CurrentRevision {
-			if result.History[index].Status != result.Status {
-				return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective current status: %w", contract.ErrInvalidProjectRetrospective)
-			}
-			result.Current = &result.History[index]
-		}
-	}
-	if result.Current == nil {
-		return contract.ProjectRetrospective{}, fmt.Errorf("validate Project Retrospective current revision: %w", contract.ErrInvalidProjectRetrospective)
-	}
-	linkRows, err := connection.QueryContext(ctx, `SELECT action_item_id,source_revision,state,target_kind,target_id,claimed_by,claimed_at
-		FROM workspace_project_retrospective_action_links WHERE workspace_id=? AND project_id=? AND retrospective_id=? ORDER BY action_item_id`, workspaceID, projectID, retrospectiveID)
+	linkRows, err := connection.QueryContext(ctx, `SELECT retrospective_id,action_item_id,source_revision,state,target_kind,target_id,claimed_by,claimed_at
+		FROM workspace_project_retrospective_action_links WHERE workspace_id=? AND project_id=? AND retrospective_id IN (`+placeholders+`) ORDER BY retrospective_id,action_item_id`, arguments...)
 	if err != nil {
-		return contract.ProjectRetrospective{}, fmt.Errorf("read Project Retrospective links: %w", err)
+		return fmt.Errorf("read Project Retrospective links: %w", err)
 	}
 	for linkRows.Next() {
+		var retrospectiveID string
 		var link contract.ProjectRetrospectiveActionLink
 		var targetID sql.NullString
-		if err = linkRows.Scan(&link.ActionItemID, &link.SourceRevision, &link.State, &link.TargetKind, &targetID, &link.CreatedBy, &link.CreatedAt); err != nil {
+		if err = linkRows.Scan(&retrospectiveID, &link.ActionItemID, &link.SourceRevision, &link.State, &link.TargetKind, &targetID, &link.CreatedBy, &link.CreatedAt); err != nil {
 			linkRows.Close()
-			return contract.ProjectRetrospective{}, err
+			return err
 		}
+		index, found := indexes[retrospectiveID]
+		if !found || link.ActionItemID == "" || link.SourceRevision < 1 || link.SourceRevision > values[index].CurrentRevision {
+			linkRows.Close()
+			return fmt.Errorf("validate Project Retrospective link ownership: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		link.RetrospectiveID = retrospectiveID
 		link.TargetID = nullableText(targetID)
-		result.ActionLinks = append(result.ActionLinks, link)
+		values[index].ActionLinks = append(values[index].ActionLinks, link)
 	}
 	if err = linkRows.Close(); err != nil {
-		return contract.ProjectRetrospective{}, err
+		return err
 	}
-	currentParticipants := make([]retrospectiveDomain.Participant, len(result.Current.Participants))
-	for index, participant := range result.Current.Participants {
-		currentParticipants[index] = retrospectiveDomain.Participant{MemberID: participant.MemberID, Role: participant.Role}
+	for valueIndex := range values {
+		value := &values[valueIndex]
+		if len(value.History) != int(value.CurrentRevision) {
+			return fmt.Errorf("validate Project Retrospective history: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		for historyIndex := range value.History {
+			revision := &value.History[historyIndex]
+			if revision.Revision != int64(historyIndex+1) || len(revision.Participants) == 0 {
+				return fmt.Errorf("validate Project Retrospective history sequence: %w", contract.ErrInvalidProjectRetrospective)
+			}
+			if revision.Revision == value.CurrentRevision {
+				if revision.Status != value.Status {
+					return fmt.Errorf("validate Project Retrospective current status: %w", contract.ErrInvalidProjectRetrospective)
+				}
+				value.Current = revision
+			}
+		}
+		if value.Current == nil {
+			return fmt.Errorf("validate Project Retrospective current revision: %w", contract.ErrInvalidProjectRetrospective)
+		}
+		currentParticipants := make([]retrospectiveDomain.Participant, len(value.Current.Participants))
+		for index, participant := range value.Current.Participants {
+			currentParticipants[index] = retrospectiveDomain.Participant{MemberID: participant.MemberID, Role: participant.Role}
+		}
+		creator := value.CreatedBy == authority.actorID || value.CreatedBy == authority.membership.MemberID || value.CreatedBy == authority.membership.UserID
+		facilitator := projectRetrospectiveHasFacilitator(currentParticipants, authority.membership.MemberID)
+		privileged := authority.manager() || facilitator
+		value.Access = contract.ProjectRetrospectiveAccess{
+			CanEdit:    value.Status == retrospectiveDomain.StatusDraft && (creator || privileged),
+			CanPublish: value.Status != retrospectiveDomain.StatusArchived && privileged,
+			CanArchive: value.Status != retrospectiveDomain.StatusArchived && privileged,
+		}
 	}
-	creator := result.CreatedBy == authority.actorID || result.CreatedBy == authority.membership.MemberID || result.CreatedBy == authority.membership.UserID
-	facilitator := projectRetrospectiveHasFacilitator(currentParticipants, authority.membership.MemberID)
-	privileged := authority.manager() || facilitator
-	result.Access = contract.ProjectRetrospectiveAccess{
-		CanEdit:    result.Status == retrospectiveDomain.StatusDraft && (creator || privileged),
-		CanPublish: result.Status != retrospectiveDomain.StatusArchived && privileged,
-		CanArchive: result.Status != retrospectiveDomain.StatusArchived && privileged,
-	}
-	if result.History == nil {
-		result.History = []contract.ProjectRetrospectiveRevision{}
-	}
-	if result.ActionLinks == nil {
-		result.ActionLinks = []contract.ProjectRetrospectiveActionLink{}
-	}
-	return result, nil
+	return nil
 }
 
 func nullableInt64Value(value sql.NullInt64) any {

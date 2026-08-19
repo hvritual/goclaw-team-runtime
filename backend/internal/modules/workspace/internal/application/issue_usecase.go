@@ -42,6 +42,16 @@ type IssueRepository interface {
 	WouldCreateParentCycle(context.Context, string, string, string) (bool, error)
 }
 
+type IdempotentIssueCreateCommand struct {
+	Value          issueDomain.Issue
+	IdempotencyKey string
+	RequestHash    string
+}
+
+type IdempotentIssueRepository interface {
+	CreateIdempotently(context.Context, IdempotentIssueCreateCommand) (issueDomain.Issue, bool, error)
+}
+
 type IssueUpdateCommand struct {
 	WorkspaceID      string
 	IssueID          string
@@ -159,6 +169,65 @@ func (s *IssueUseCase) CreateIssue(ctx context.Context, request contract.CreateI
 	}
 	result := issueToContract(created)
 	return contract.CreateIssueResponse{Issue: &result}, nil
+}
+
+func (s *IssueUseCase) CreateIssueIdempotently(ctx context.Context, request contract.IdempotentCreateIssueRequest) (contract.IdempotentCreateIssueResponse, error) {
+	idempotencyKey := strings.TrimSpace(request.IdempotencyKey)
+	if idempotencyKey == "" || len(idempotencyKey) > 200 || len(request.RequestHash) != 64 {
+		return contract.IdempotentCreateIssueResponse{}, fmt.Errorf("%w: valid idempotency metadata is required", contract.ErrInvalidIssue)
+	}
+	workspaceID := strings.TrimSpace(request.WorkspaceId)
+	if workspaceID == "" {
+		return contract.IdempotentCreateIssueResponse{}, fmt.Errorf("%w: workspace id is required", contract.ErrInvalidIssue)
+	}
+	if err := s.authorizer.AuthorizeWorkspace(ctx, workspaceID, PermissionIssueCreate); err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	actor, ok := contract.WorkspaceActorFromContext(ctx)
+	if !ok {
+		return contract.IdempotentCreateIssueResponse{}, contract.ErrWorkspaceActorRequired
+	}
+	if err := s.requireActor(ctx, workspaceID, actor.Type, actor.ID); err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	projectID := cleanOptionalString(request.ProjectId)
+	if err := s.validateProject(ctx, workspaceID, projectID); err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	parentID, err := s.canonicalParent(ctx, workspaceID, cleanOptionalString(request.ParentIssueId))
+	if err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	if err := s.validateActorPair(ctx, workspaceID, request.AssigneeType, request.AssigneeId); err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	if err := s.validateAssets(ctx, workspaceID, request.AssetIds); err != nil {
+		return contract.IdempotentCreateIssueResponse{}, err
+	}
+	id, err := s.newID(ctx)
+	if err != nil {
+		return contract.IdempotentCreateIssueResponse{}, fmt.Errorf("generate Issue id: %w", err)
+	}
+	value, err := issueDomain.New(
+		id, workspaceID, request.Title, request.Description, request.Status, request.Priority,
+		request.AssigneeType, request.AssigneeId, parentID, projectID, actor.Type, actor.ID,
+		request.Position, request.Stage, request.StartDate, request.DueDate, request.AssetIds, s.now(),
+	)
+	if err != nil {
+		return contract.IdempotentCreateIssueResponse{}, fmt.Errorf("%w: %v", contract.ErrInvalidIssue, err)
+	}
+	repository, ok := s.repository.(IdempotentIssueRepository)
+	if !ok {
+		return contract.IdempotentCreateIssueResponse{}, errors.New("idempotent Issue repository is required")
+	}
+	created, replayed, err := repository.CreateIdempotently(ctx, IdempotentIssueCreateCommand{
+		Value: value, IdempotencyKey: idempotencyKey, RequestHash: request.RequestHash,
+	})
+	if err != nil {
+		return contract.IdempotentCreateIssueResponse{}, fmt.Errorf("create idempotent Issue: %w", err)
+	}
+	result := issueToContract(created)
+	return contract.IdempotentCreateIssueResponse{Issue: &result, Replayed: replayed}, nil
 }
 
 func (s *IssueUseCase) GetIssue(ctx context.Context, request contract.GetIssueRequest) (contract.GetIssueResponse, error) {

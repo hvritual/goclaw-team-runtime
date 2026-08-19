@@ -80,6 +80,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Canonical Project Requirement SQLite persistence: %w", err)
 	}
+	projectRetrospectiveRepository, err := persistence.NewProjectRetrospectiveRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Canonical Project Retrospective SQLite persistence: %w", err)
+	}
 	settings, err := persistence.NewSettingRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Setting SQLite persistence: %w", err)
@@ -140,6 +144,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	}
 	knowledgeCursorSigningKey := sha256.Sum256(append(append([]byte(nil), taskCursorSigningKey...), []byte("workspace.knowledge.query.cursor.v1")...))
 	knowledgeReviewSigningKey := sha256.Sum256(append(append([]byte(nil), taskCursorSigningKey...), []byte("workspace.knowledge.review.cursor.v1")...))
+	projectRetrospectiveSigningKey := sha256.Sum256(append(append([]byte(nil), taskCursorSigningKey...), []byte("workspace.project.retrospective.cursor.v1")...))
 
 	todoService, err := application.NewTodoUseCase(todos, projects, issues, dependencies.Authorizer, dependencies.Actors, newID(dependencies.NewTodoID), now, taskCursorSigningKey)
 	if err != nil {
@@ -211,6 +216,18 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Canonical Project Requirement application: %w", err)
 	}
+	projectRetrospectiveService, err := application.NewProjectRetrospectiveUseCase(
+		projectRetrospectiveRepository,
+		todoService,
+		baseIssueService,
+		newID(dependencies.NewProjectRetrospectiveID),
+		newID(dependencies.NewProjectRetrospectiveActionItemID),
+		now,
+		projectRetrospectiveSigningKey[:],
+	)
+	if err != nil {
+		return nil, fmt.Errorf("configure Canonical Project Retrospective application: %w", err)
+	}
 	settingService, err := application.NewSettingUseCase(settings, dependencies.Authorizer, dependencies.Actors, dependencies.Skills, now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Setting application: %w", err)
@@ -272,6 +289,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectResourceExtension(projectResources, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectRequirementExtension(projectRequirementService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+		module.extensions = append(module.extensions, newProjectRetrospectiveExtension(projectRetrospectiveService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
 		var creator contract.WorkspaceCreationService

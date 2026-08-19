@@ -17,9 +17,17 @@ import (
 	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 )
 
-const issueColumns = `id, workspace_id, number, identifier, title, description, status, priority,
-	assignee_type, assignee_id, creator_type, creator_id, parent_issue_id, project_id, position,
-	stage, start_date, due_date, created_at, updated_at, metadata, properties, asset_ids`
+const (
+	issueColumns = `id, workspace_id, number, identifier, title, description, status, priority,
+		assignee_type, assignee_id, creator_type, creator_id, parent_issue_id, project_id, position,
+		stage, start_date, due_date, created_at, updated_at, metadata, properties, asset_ids`
+	issueIdempotentCreateAction = "workspace.issue.create.idempotent"
+)
+
+type issueIdempotentCreateReplay struct {
+	Version int    `json:"version"`
+	ID      string `json:"id"`
+}
 
 type issueRepository struct {
 	db                   *sql.DB
@@ -95,6 +103,109 @@ func (r *issueRepository) Create(ctx context.Context, value issueDomain.Issue) (
 	}
 	committed = true
 	return created, nil
+}
+
+func (r *issueRepository) CreateIdempotently(ctx context.Context, command application.IdempotentIssueCreateCommand) (created issueDomain.Issue, replayed bool, err error) {
+	command.IdempotencyKey = strings.TrimSpace(command.IdempotencyKey)
+	if strings.TrimSpace(command.Value.WorkspaceID) == "" || strings.TrimSpace(command.Value.ID) == "" || command.IdempotencyKey == "" || len(command.IdempotencyKey) > 200 || len(command.RequestHash) != 64 {
+		return issueDomain.Issue{}, false, contract.ErrInvalidIssue
+	}
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("acquire idempotent Issue transaction connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, `PRAGMA busy_timeout = 5000`); err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("configure idempotent Issue transaction lock wait: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("begin immediate idempotent Issue creation: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_, _ = connection.ExecContext(context.WithoutCancel(ctx), `ROLLBACK`)
+		}
+	}()
+	var storedHash, responseBody string
+	replayErr := connection.QueryRowContext(ctx, `SELECT request_hash,response_body FROM workspace_mutation_idempotency
+		WHERE workspace_id=? AND action=? AND idempotency_key=?`, command.Value.WorkspaceID, issueIdempotentCreateAction, command.IdempotencyKey).Scan(&storedHash, &responseBody)
+	if replayErr == nil {
+		if storedHash != command.RequestHash {
+			return issueDomain.Issue{}, false, contract.ErrIdempotencyConflict
+		}
+		var replay issueIdempotentCreateReplay
+		if err = json.Unmarshal([]byte(responseBody), &replay); err != nil || replay.Version != 1 || strings.TrimSpace(replay.ID) == "" {
+			return issueDomain.Issue{}, false, fmt.Errorf("decode idempotent Issue replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		created, err = scanIssue(connection.QueryRowContext(ctx, `SELECT `+issueColumns+`
+			FROM workspace_issues WHERE workspace_id=? AND id=?`, command.Value.WorkspaceID, replay.ID))
+		if errors.Is(err, application.ErrIssueRecordNotFound) || errors.Is(err, sql.ErrNoRows) {
+			return issueDomain.Issue{}, false, fmt.Errorf("read idempotent Issue replay: %w", contract.ErrInvalidGovernanceMutation)
+		}
+		if err != nil {
+			return issueDomain.Issue{}, false, fmt.Errorf("read idempotent Issue replay: %w", err)
+		}
+		if _, err = connection.ExecContext(ctx, `ROLLBACK`); err != nil {
+			return issueDomain.Issue{}, false, fmt.Errorf("finish idempotent Issue replay: %w", err)
+		}
+		committed = true
+		return created, true, nil
+	}
+	if !errors.Is(replayErr, sql.ErrNoRows) {
+		return issueDomain.Issue{}, false, fmt.Errorf("read idempotent Issue replay: %w", replayErr)
+	}
+	if len(command.Value.AssetIDs) > 0 && r.attachmentReferences != nil {
+		if err := r.attachmentReferences.ValidateReferences(ctx, connection, command.Value.WorkspaceID, command.Value.AssetIDs); err != nil {
+			return issueDomain.Issue{}, false, fmt.Errorf("validate idempotent Issue attachment references: %w", issueAttachmentReferenceError(err))
+		}
+	}
+	var prefix string
+	var number int32
+	now := command.Value.UpdatedAt.Format(time.RFC3339Nano)
+	if err := connection.QueryRowContext(ctx, `UPDATE workspaces
+		SET next_issue_number = next_issue_number + 1, updated_at = ?
+		WHERE id = ? RETURNING issue_prefix, next_issue_number - 1`, now, command.Value.WorkspaceID).Scan(&prefix, &number); errors.Is(err, sql.ErrNoRows) {
+		return issueDomain.Issue{}, false, application.ErrWorkspaceNotFound
+	} else if err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("allocate idempotent Workspace Issue number: %w", err)
+	}
+	created, err = command.Value.AssignIdentity(number, prefix)
+	if err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("assign idempotent Workspace Issue identifier: %w", err)
+	}
+	metadata, properties, assets, err := encodeIssueJSON(created)
+	if err != nil {
+		return issueDomain.Issue{}, false, err
+	}
+	if _, err = connection.ExecContext(ctx, `INSERT INTO workspace_issues(
+		id, workspace_id, number, identifier, title, description, status, priority,
+		assignee_type, assignee_id, creator_type, creator_id, parent_issue_id, project_id,
+		position, stage, start_date, due_date, metadata, properties, asset_ids, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		created.ID, created.WorkspaceID, created.Number, created.Identifier, created.Title, nullableString(created.Description),
+		created.Status, created.Priority, nullableString(created.AssigneeType), nullableString(created.AssigneeID),
+		created.CreatorType, created.CreatorID, nullableString(created.ParentIssueID), nullableString(created.ProjectID),
+		created.Position, nullableInt32(created.Stage), nullableString(created.StartDate), nullableString(created.DueDate),
+		metadata, properties, assets, created.CreatedAt.Format(time.RFC3339Nano), created.UpdatedAt.Format(time.RFC3339Nano),
+	); err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("insert idempotent Workspace Issue: %w", err)
+	}
+	replay, err := json.Marshal(issueIdempotentCreateReplay{Version: 1, ID: created.ID})
+	if err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("encode idempotent Issue replay: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `INSERT INTO workspace_mutation_idempotency(
+		workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at
+	) VALUES(?,?,?,?,?,?,1,201,?,?)`, created.WorkspaceID, issueIdempotentCreateAction, command.IdempotencyKey,
+		command.RequestHash, "issue", created.ID, string(replay), now); err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("record idempotent Issue replay: %w", err)
+	}
+	if _, err = connection.ExecContext(ctx, `COMMIT`); err != nil {
+		return issueDomain.Issue{}, false, fmt.Errorf("commit idempotent Workspace Issue creation: %w", err)
+	}
+	committed = true
+	return created, false, nil
 }
 
 func (r *issueRepository) FindByIDOrIdentifier(ctx context.Context, workspaceID, issueID string) (issueDomain.Issue, error) {

@@ -21,37 +21,39 @@ import (
 // migrated Workspace services. Each opt-in constructor validates the subset it
 // requires; the default module does not invent permissive implementations.
 type WorkspaceServiceDependencies struct {
-	Authorizer                       contract.WorkspaceAccessAuthorizer
-	Actors                           contract.WorkspaceActorReader
-	Assets                           contract.WorkspaceAssetReader
-	Skills                           contract.SkillReferenceReader
-	NewProjectID                     func(context.Context) (string, error)
-	NewProjectResourceID             func(context.Context) (string, error)
-	NewTodoID                        func(context.Context) (string, error)
-	NewIssueID                       func(context.Context) (string, error)
-	NewIssueCollaborationID          func(context.Context) (string, error)
-	NewKnowledgeID                   func(context.Context) (string, error)
-	NewRequirementID                 func(context.Context) (string, error)
-	NewRequirementVersionID          func(context.Context) (string, error)
-	NewProjectRequirementID          func(context.Context) (string, error)
-	NewProjectOutlineNodeID          func(context.Context) (string, error)
-	Now                              func() time.Time
-	HTTPIdentity                     contract.WorkspaceHTTPIdentityResolver
-	HTTPMutationAuthorizer           func(*http.Request) error
-	IssueMetadataEnabled             *bool
-	IssueCreateEnabled               *bool
-	IssueAttachmentsEnabled          *bool
-	Events                           contract.WorkspaceEventPublisher
-	Selection                        contract.WorkspaceSelectionService
-	WorkspaceMemberships             contract.WorkspaceMembershipReader
-	HTTPUserIdentity                 HTTPUserIDResolver
-	WorkspaceOwnerWriter             authcontract.SQLiteWorkspaceOwnerWriter
-	IssueAttachments                 contract.IssueAttachmentProjectionReader
-	AttachmentCleanup                spacecontract.AttachmentCleanupService
-	AttachmentReferences             spacecontract.AttachmentReferenceValidator
-	ProjectResourceConnectionChecker application.ProjectResourceConnectionChecker
-	NewWorkspaceID                   func(context.Context) (string, error)
-	NewWorkspaceMemberID             func(context.Context) (string, error)
+	Authorizer                          contract.WorkspaceAccessAuthorizer
+	Actors                              contract.WorkspaceActorReader
+	Assets                              contract.WorkspaceAssetReader
+	Skills                              contract.SkillReferenceReader
+	NewProjectID                        func(context.Context) (string, error)
+	NewProjectResourceID                func(context.Context) (string, error)
+	NewTodoID                           func(context.Context) (string, error)
+	NewIssueID                          func(context.Context) (string, error)
+	NewIssueCollaborationID             func(context.Context) (string, error)
+	NewKnowledgeID                      func(context.Context) (string, error)
+	NewRequirementID                    func(context.Context) (string, error)
+	NewRequirementVersionID             func(context.Context) (string, error)
+	NewProjectRequirementID             func(context.Context) (string, error)
+	NewProjectOutlineNodeID             func(context.Context) (string, error)
+	NewProjectRetrospectiveID           func(context.Context) (string, error)
+	NewProjectRetrospectiveActionItemID func(context.Context) (string, error)
+	Now                                 func() time.Time
+	HTTPIdentity                        contract.WorkspaceHTTPIdentityResolver
+	HTTPMutationAuthorizer              func(*http.Request) error
+	IssueMetadataEnabled                *bool
+	IssueCreateEnabled                  *bool
+	IssueAttachmentsEnabled             *bool
+	Events                              contract.WorkspaceEventPublisher
+	Selection                           contract.WorkspaceSelectionService
+	WorkspaceMemberships                contract.WorkspaceMembershipReader
+	HTTPUserIdentity                    HTTPUserIDResolver
+	WorkspaceOwnerWriter                authcontract.SQLiteWorkspaceOwnerWriter
+	IssueAttachments                    contract.IssueAttachmentProjectionReader
+	AttachmentCleanup                   spacecontract.AttachmentCleanupService
+	AttachmentReferences                spacecontract.AttachmentReferenceValidator
+	ProjectResourceConnectionChecker    application.ProjectResourceConnectionChecker
+	NewWorkspaceID                      func(context.Context) (string, error)
+	NewWorkspaceMemberID                func(context.Context) (string, error)
 }
 
 // NewWithSqliteWorkspaceServices explicitly selects the migrated Project and

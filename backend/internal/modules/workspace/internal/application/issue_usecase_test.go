@@ -11,12 +11,14 @@ import (
 )
 
 type issueRepositoryStub struct {
-	value                                      issueDomain.Issue
-	values                                     []issueDomain.Issue
-	query                                      IssueListQuery
-	err                                        error
-	createCalls, findCalls, listCalls, updates int
-	cycle                                      bool
+	value                                                             issueDomain.Issue
+	values                                                            []issueDomain.Issue
+	query                                                             IssueListQuery
+	err                                                               error
+	createCalls, idempotentCreateCalls, findCalls, listCalls, updates int
+	idempotencyKey, requestHash                                       string
+	replayed                                                          bool
+	cycle                                                             bool
 }
 
 func (s *issueRepositoryStub) Create(_ context.Context, value issueDomain.Issue) (issueDomain.Issue, error) {
@@ -27,6 +29,16 @@ func (s *issueRepositoryStub) Create(_ context.Context, value issueDomain.Issue)
 	created, err := value.AssignIdentity(1, "WSP")
 	s.value = created
 	return created, err
+}
+func (s *issueRepositoryStub) CreateIdempotently(_ context.Context, command IdempotentIssueCreateCommand) (issueDomain.Issue, bool, error) {
+	s.idempotentCreateCalls++
+	s.idempotencyKey, s.requestHash = command.IdempotencyKey, command.RequestHash
+	if s.err != nil {
+		return issueDomain.Issue{}, false, s.err
+	}
+	created, err := command.Value.AssignIdentity(1, "WSP")
+	s.value = created
+	return created, s.replayed, err
 }
 func (s *issueRepositoryStub) FindByIDOrIdentifier(context.Context, string, string) (issueDomain.Issue, error) {
 	s.findCalls++
@@ -115,6 +127,35 @@ func TestIssueUseCaseCreateUsesTrustedReferencesAndAtomicRepository(t *testing.T
 	}
 	if repository.createCalls != 1 || actors.calls != 2 || assets.calls != 1 {
 		t.Fatalf("calls = repo:%d actors:%d assets:%d", repository.createCalls, actors.calls, assets.calls)
+	}
+}
+
+func TestIssueUseCaseIdempotentCreateUsesPrivateRepositoryContract(t *testing.T) {
+	repository := &issueRepositoryStub{replayed: true}
+	actors := &actorReaderStub{belongs: true}
+	service := newIssueApplicationService(t, repository, &accessAuthorizerStub{}, actors, &issueAssetReaderStub{belongs: true})
+	ctx := contract.WithWorkspaceActor(context.Background(), "member", "member-1")
+	hash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	response, err := service.CreateIssueIdempotently(ctx, contract.IdempotentCreateIssueRequest{
+		CreateIssueRequest: contract.CreateIssueRequest{WorkspaceId: "workspace-1", Title: "Follow up"},
+		IdempotencyKey:     " issue-target-key ", RequestHash: hash,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Issue == nil || response.Issue.Id != "issue-new" || !response.Replayed {
+		t.Fatalf("idempotent response = %#v", response)
+	}
+	if repository.idempotentCreateCalls != 1 || repository.createCalls != 0 || repository.idempotencyKey != "issue-target-key" || repository.requestHash != hash || actors.calls != 1 {
+		t.Fatalf("idempotent calls = %#v", repository)
+	}
+	for _, invalid := range []contract.IdempotentCreateIssueRequest{
+		{CreateIssueRequest: contract.CreateIssueRequest{WorkspaceId: "workspace-1", Title: "Follow up"}, RequestHash: hash},
+		{CreateIssueRequest: contract.CreateIssueRequest{WorkspaceId: "workspace-1", Title: "Follow up"}, IdempotencyKey: "key", RequestHash: "short"},
+	} {
+		if _, err = service.CreateIssueIdempotently(ctx, invalid); !errors.Is(err, contract.ErrInvalidIssue) {
+			t.Fatalf("invalid idempotent request error = %v", err)
+		}
 	}
 }
 

@@ -4,16 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
+	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 	retrospectiveDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/retrospective"
 	persistence "github.com/hvritual/workspace/internal/modules/workspace/internal/infrastructure/sqlite"
+	moderncSQLite "modernc.org/sqlite"
 )
 
 func TestProjectRetrospectiveRepositoryCreatesGovernedDraftAndReplays(t *testing.T) {
@@ -536,4 +541,368 @@ func TestProjectRetrospectiveRepositoryReadsRestartedHistoryAndFailsClosed(t *te
 			}
 		})
 	}
+}
+
+func TestProjectRetrospectiveRepositoryListsStablePagesAndExcludesArchivedByDefault(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	repository, err := persistence.NewProjectRetrospectiveRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+	base := time.Date(2026, 8, 19, 20, 0, 0, 0, time.UTC)
+	for index, id := range []string{"retro-a", "retro-b", "retro-c"} {
+		created, createErr := repository.CreateProjectRetrospective(context.Background(), application.CreateProjectRetrospectiveCommand{
+			WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: id,
+			Content:        retrospectiveDomain.Content{Summary: id, Lessons: []string{"Lesson"}},
+			IdempotencyKey: "create-" + id, RequestHash: strings.Repeat(string(rune('a'+index)), 64), Actor: lead,
+			OccurredAt: base.Add(time.Duration(min(index, 1)) * time.Minute),
+		})
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+		if id == "retro-c" {
+			if _, err = repository.MutateProjectRetrospective(context.Background(), application.MutateProjectRetrospectiveCommand{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: created.ID,
+				ExpectedRevision: 1, Action: retrospectiveDomain.ActionArchive, RequestID: "archive-c", Actor: lead, OccurredAt: base.Add(2 * time.Minute),
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	first, err := repository.ListProjectRetrospectives(context.Background(), application.ProjectRetrospectiveListQuery{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", Limit: 1, Actor: lead,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Retrospectives) != 1 || first.Retrospectives[0].ID != "retro-b" || !first.HasMore {
+		t.Fatalf("first page = %#v", first)
+	}
+	second, err := repository.ListProjectRetrospectives(context.Background(), application.ProjectRetrospectiveListQuery{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", Limit: 1, Actor: lead,
+		Cursor: &application.ProjectRetrospectiveListCursor{UpdatedAt: first.Retrospectives[0].UpdatedAt, ID: first.Retrospectives[0].ID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Retrospectives) != 1 || second.Retrospectives[0].ID != "retro-a" || second.HasMore {
+		t.Fatalf("second page = %#v", second)
+	}
+	withArchived, err := repository.ListProjectRetrospectives(context.Background(), application.ProjectRetrospectiveListQuery{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", Limit: 3, IncludeArchived: true, Actor: lead,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(withArchived.Retrospectives) != 3 || withArchived.Retrospectives[0].ID != "retro-c" || withArchived.Retrospectives[0].Status != retrospectiveDomain.StatusArchived {
+		t.Fatalf("archived page = %#v", withArchived)
+	}
+	for _, value := range withArchived.Retrospectives {
+		if value.Current == nil || len(value.History) == 0 || value.ActionLinks == nil {
+			t.Fatalf("incomplete list projection = %#v", value)
+		}
+	}
+}
+
+func TestProjectRetrospectiveRepositoryListHasConstantQueryBound(t *testing.T) {
+	databasePath := filepath.Join(t.TempDir(), "project-retrospective-query-bound.db")
+	seedDB := openProjectRequirementDBAtPath(t, "sqlite", databasePath)
+	if err := seedDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+	counter := &projectRequirementSQLQueryCounter{}
+	driverName := fmt.Sprintf("project-retrospective-counting-sqlite-%d", projectRequirementCountingDriverSequence.Add(1))
+	sql.Register(driverName, &projectRequirementCountingDriver{delegate: &moderncSQLite.Driver{}, counter: counter})
+	db, err := sql.Open(driverName, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := persistence.NewProjectRetrospectiveRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+	create := func(index int) {
+		t.Helper()
+		id := fmt.Sprintf("retro-bound-%02d", index)
+		_, createErr := repository.CreateProjectRetrospective(context.Background(), application.CreateProjectRetrospectiveCommand{
+			WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: id,
+			Content:        retrospectiveDomain.Content{Summary: id, Lessons: []string{"Lesson"}},
+			IdempotencyKey: "create-" + id, RequestHash: fmt.Sprintf("%064x", index+1), Actor: lead,
+			OccurredAt: time.Date(2026, 8, 19, 21, index, 0, 0, time.UTC),
+		})
+		if createErr != nil {
+			t.Fatal(createErr)
+		}
+	}
+	create(0)
+	list := func() int64 {
+		t.Helper()
+		counter.Reset()
+		page, listErr := repository.ListProjectRetrospectives(context.Background(), application.ProjectRetrospectiveListQuery{
+			WorkspaceID: "workspace-1", ProjectID: "project-1", Limit: 100, Actor: lead,
+		})
+		if listErr != nil || len(page.Retrospectives) == 0 {
+			t.Fatalf("list = %#v, error %v", page, listErr)
+		}
+		return counter.Load()
+	}
+	oneItemQueries := list()
+	for index := 1; index < 20; index++ {
+		create(index)
+	}
+	twentyItemQueries := list()
+	if oneItemQueries != twentyItemQueries || twentyItemQueries > 7 {
+		t.Fatalf("list query count = one item %d, twenty items %d, want same bound <= 7", oneItemQueries, twentyItemQueries)
+	}
+}
+
+func TestProjectRetrospectiveRepositoryClaimsCompletesReplaysAndReauthorizesTarget(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	repository, err := persistence.NewProjectRetrospectiveRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+	now := time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)
+	published := createPublishedProjectRetrospectiveForTarget(t, repository, "retro-target", lead, now)
+	hash := strings.Repeat("a", 64)
+	prepare := application.PrepareProjectRetrospectiveTargetCommand{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: published.ID, ActionItemID: "action-target",
+		TargetKind: "task", IdempotencyKey: "target-key-1", RequestHash: hash, Actor: lead, OccurredAt: now.Add(2 * time.Minute),
+	}
+	claim, err := repository.PrepareProjectRetrospectiveTarget(context.Background(), prepare)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claim.ActionItem.ID != "action-target" || claim.SourceRevision != 2 || claim.TargetKind != "task" || claim.TargetID != "" || claim.ChildIdempotencyKey == "" || len(claim.ChildIdempotencyKey) > 200 {
+		t.Fatalf("claim = %#v", claim)
+	}
+	replayedClaim, err := repository.PrepareProjectRetrospectiveTarget(context.Background(), prepare)
+	if err != nil || replayedClaim != claim {
+		t.Fatalf("replayed claim = %#v, error %v", replayedClaim, err)
+	}
+	conflictingPrepare := prepare
+	conflictingPrepare.RequestHash = strings.Repeat("b", 64)
+	if _, err = repository.PrepareProjectRetrospectiveTarget(context.Background(), conflictingPrepare); !errors.Is(err, contract.ErrProjectRetrospectiveTargetConflict) {
+		t.Fatalf("pending hash conflict = %v", err)
+	}
+	conflictingPrepare = prepare
+	conflictingPrepare.TargetKind = "issue"
+	if _, err = repository.PrepareProjectRetrospectiveTarget(context.Background(), conflictingPrepare); !errors.Is(err, contract.ErrProjectRetrospectiveTargetConflict) {
+		t.Fatalf("pending kind conflict = %v", err)
+	}
+	if _, err = db.Exec(`UPDATE workspace_projects SET lead_id='owner-member' WHERE workspace_id='workspace-1' AND id='project-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repository.PrepareProjectRetrospectiveTarget(context.Background(), prepare); !errors.Is(err, contract.ErrWorkspacePermissionDenied) {
+		t.Fatalf("removed lead prepare retry = %v", err)
+	}
+	complete := application.CompleteProjectRetrospectiveTargetCommand{
+		WorkspaceID: prepare.WorkspaceID, ProjectID: prepare.ProjectID, RetrospectiveID: prepare.RetrospectiveID, ActionItemID: prepare.ActionItemID,
+		SourceRevision: claim.SourceRevision, TargetKind: claim.TargetKind, TargetID: "task-1",
+		IdempotencyKey: prepare.IdempotencyKey, RequestHash: prepare.RequestHash, Actor: lead, OccurredAt: now.Add(3 * time.Minute),
+	}
+	if _, err = repository.CompleteProjectRetrospectiveTarget(context.Background(), complete); !errors.Is(err, contract.ErrWorkspacePermissionDenied) {
+		t.Fatalf("removed lead complete = %v", err)
+	}
+	var pendingState string
+	if err = db.QueryRow(`SELECT state FROM workspace_project_retrospective_action_links WHERE workspace_id='workspace-1' AND project_id='project-1' AND retrospective_id='retro-target' AND action_item_id='action-target'`).Scan(&pendingState); err != nil || pendingState != "pending" {
+		t.Fatalf("pending state = %q, error %v", pendingState, err)
+	}
+	if _, err = db.Exec(`UPDATE workspace_projects SET lead_id='lead-member' WHERE workspace_id='workspace-1' AND id='project-1'`); err != nil {
+		t.Fatal(err)
+	}
+	linked, err := repository.CompleteProjectRetrospectiveTarget(context.Background(), complete)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if linked.ActionItemID != "action-target" || linked.SourceRevision != 2 || linked.State != "linked" || linked.TargetKind != "task" || linked.TargetID != "task-1" || linked.CreatedBy != "lead-1" {
+		t.Fatalf("linked = %#v", linked)
+	}
+	replay, err := repository.CompleteProjectRetrospectiveTarget(context.Background(), complete)
+	if err != nil || replay != linked {
+		t.Fatalf("complete replay = %#v, error %v", replay, err)
+	}
+	conflictingComplete := complete
+	conflictingComplete.RequestHash = strings.Repeat("c", 64)
+	if _, err = repository.CompleteProjectRetrospectiveTarget(context.Background(), conflictingComplete); !errors.Is(err, contract.ErrIdempotencyConflict) {
+		t.Fatalf("complete replay conflict = %v", err)
+	}
+	secondKeyPrepare := prepare
+	secondKeyPrepare.IdempotencyKey = "target-key-2"
+	secondClaim, err := repository.PrepareProjectRetrospectiveTarget(context.Background(), secondKeyPrepare)
+	if err != nil || secondClaim.TargetID != "task-1" || secondClaim.ChildIdempotencyKey != claim.ChildIdempotencyKey {
+		t.Fatalf("second key claim = %#v, error %v", secondClaim, err)
+	}
+	secondComplete := complete
+	secondComplete.IdempotencyKey = secondKeyPrepare.IdempotencyKey
+	secondReplay, err := repository.CompleteProjectRetrospectiveTarget(context.Background(), secondComplete)
+	if err != nil || secondReplay != linked {
+		t.Fatalf("second key complete = %#v, error %v", secondReplay, err)
+	}
+	var targetIdempotency, targetAudit, targetOutbox int
+	if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_mutation_idempotency WHERE workspace_id='workspace-1' AND action='workspace.project.retrospective.action_item.target'`).Scan(&targetIdempotency); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_audit_entries WHERE workspace_id='workspace-1' AND action='workspace.project.retrospective.action_item_linked'`).Scan(&targetAudit); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_outbox_events WHERE workspace_id='workspace-1' AND event_type='retrospective:action_item_linked'`).Scan(&targetOutbox); err != nil {
+		t.Fatal(err)
+	}
+	if targetIdempotency != 2 || targetAudit != 1 || targetOutbox != 1 {
+		t.Fatalf("target effects = idempotency %d audit %d outbox %d", targetIdempotency, targetAudit, targetOutbox)
+	}
+}
+
+func TestProjectRetrospectiveRepositoryTargetDoesNotOwnTaskOrIssuePersistence(t *testing.T) {
+	source, err := os.ReadFile("project_retrospective_repository.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"workspace_todos", "workspace_issues"} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("Project Retrospective repository directly references %s", forbidden)
+		}
+	}
+}
+
+func TestProjectRetrospectiveRepositoryConcurrentTargetCallersConvergeOnOneLink(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	repository, err := persistence.NewProjectRetrospectiveRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lead := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+	now := time.Date(2026, 8, 20, 9, 30, 0, 0, time.UTC)
+	createPublishedProjectRetrospectiveForTarget(t, repository, "retro-concurrent-target", lead, now)
+	hash := strings.Repeat("7", 64)
+	errorsByCaller := make([]error, 2)
+	links := make([]contract.ProjectRetrospectiveActionLink, 2)
+	start := make(chan struct{})
+	var wait sync.WaitGroup
+	for index := range errorsByCaller {
+		wait.Add(1)
+		go func(index int) {
+			defer wait.Done()
+			<-start
+			key := fmt.Sprintf("concurrent-target-%d", index)
+			claim, claimErr := repository.PrepareProjectRetrospectiveTarget(context.Background(), application.PrepareProjectRetrospectiveTargetCommand{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: "retro-concurrent-target", ActionItemID: "action-target",
+				TargetKind: "task", IdempotencyKey: key, RequestHash: hash, Actor: lead, OccurredAt: now.Add(2 * time.Minute),
+			})
+			if claimErr != nil {
+				errorsByCaller[index] = claimErr
+				return
+			}
+			links[index], errorsByCaller[index] = repository.CompleteProjectRetrospectiveTarget(context.Background(), application.CompleteProjectRetrospectiveTargetCommand{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: "retro-concurrent-target", ActionItemID: "action-target",
+				SourceRevision: claim.SourceRevision, TargetKind: claim.TargetKind, TargetID: "task-shared",
+				IdempotencyKey: key, RequestHash: hash, Actor: lead, OccurredAt: now.Add(3 * time.Minute),
+			})
+		}(index)
+	}
+	close(start)
+	wait.Wait()
+	for index, callErr := range errorsByCaller {
+		if callErr != nil || links[index].TargetID != "task-shared" {
+			t.Fatalf("caller %d link = %#v, error %v", index, links[index], callErr)
+		}
+	}
+	var linksCount, targetIdempotency, targetAudit, targetOutbox int
+	for query, target := range map[string]*int{
+		`SELECT COUNT(*) FROM workspace_project_retrospective_action_links WHERE retrospective_id='retro-concurrent-target' AND state='linked'`:                           &linksCount,
+		`SELECT COUNT(*) FROM workspace_mutation_idempotency WHERE action='workspace.project.retrospective.action_item.target' AND resource_id='retro-concurrent-target'`: &targetIdempotency,
+		`SELECT COUNT(*) FROM workspace_audit_entries WHERE action='workspace.project.retrospective.action_item_linked' AND resource_id='retro-concurrent-target'`:        &targetAudit,
+		`SELECT COUNT(*) FROM workspace_outbox_events WHERE event_type='retrospective:action_item_linked' AND aggregate_id='retro-concurrent-target'`:                     &targetOutbox,
+	} {
+		if err = db.QueryRow(query).Scan(target); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if linksCount != 1 || targetIdempotency != 2 || targetAudit != 1 || targetOutbox != 1 {
+		t.Fatalf("concurrent effects = links %d idempotency %d audit %d outbox %d", linksCount, targetIdempotency, targetAudit, targetOutbox)
+	}
+}
+
+func TestIssueRepositoryCreatesPrivateIdempotentTargetExactlyOnce(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	base, err := persistence.NewIssueRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository, ok := base.(application.IdempotentIssueRepository)
+	if !ok {
+		t.Fatal("installed Issue repository does not implement private idempotent creation")
+	}
+	now := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
+	newIssue := func(id string) issueDomain.Issue {
+		t.Helper()
+		value, newErr := issueDomain.New(id, "workspace-1", "Follow up", nil, "todo", "none", nil, nil, nil, nil, "member", "lead-1", 0, nil, nil, nil, nil, now)
+		if newErr != nil {
+			t.Fatal(newErr)
+		}
+		return value
+	}
+	hash := strings.Repeat("e", 64)
+	created, replayed, err := repository.CreateIdempotently(context.Background(), application.IdempotentIssueCreateCommand{
+		Value: newIssue("issue-target-1"), IdempotencyKey: "issue-target-key", RequestHash: hash,
+	})
+	if err != nil || replayed || created.ID != "issue-target-1" || created.Identifier != "ONE-1" {
+		t.Fatalf("created Issue = %#v, replayed %t, error %v", created, replayed, err)
+	}
+	if _, err = db.Exec(`UPDATE workspace_issues SET title='Updated after create' WHERE workspace_id='workspace-1' AND id='issue-target-1'`); err != nil {
+		t.Fatal(err)
+	}
+	replay, replayed, err := repository.CreateIdempotently(context.Background(), application.IdempotentIssueCreateCommand{
+		Value: newIssue("issue-target-2"), IdempotencyKey: "issue-target-key", RequestHash: hash,
+	})
+	if err != nil || !replayed || replay.ID != "issue-target-1" || replay.Title != "Updated after create" {
+		t.Fatalf("replayed Issue = %#v, replayed %t, error %v", replay, replayed, err)
+	}
+	if _, _, err = repository.CreateIdempotently(context.Background(), application.IdempotentIssueCreateCommand{
+		Value: newIssue("issue-target-3"), IdempotencyKey: "issue-target-key", RequestHash: strings.Repeat("f", 64),
+	}); !errors.Is(err, contract.ErrIdempotencyConflict) {
+		t.Fatalf("Issue idempotency conflict = %v", err)
+	}
+	var issues, idempotency, nextNumber int
+	if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_issues WHERE workspace_id='workspace-1'`).Scan(&issues); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_mutation_idempotency WHERE workspace_id='workspace-1' AND action='workspace.issue.create.idempotent'`).Scan(&idempotency); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT next_issue_number FROM workspaces WHERE id='workspace-1'`).Scan(&nextNumber); err != nil {
+		t.Fatal(err)
+	}
+	if issues != 1 || idempotency != 1 || nextNumber != 2 {
+		t.Fatalf("Issue effects = rows %d idempotency %d next number %d", issues, idempotency, nextNumber)
+	}
+}
+
+func createPublishedProjectRetrospectiveForTarget(t *testing.T, repository *persistence.ProjectRetrospectiveRepository, retrospectiveID string, actor contract.WorkspaceActor, now time.Time) contract.ProjectRetrospective {
+	t.Helper()
+	created, err := repository.CreateProjectRetrospective(context.Background(), application.CreateProjectRetrospectiveCommand{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: retrospectiveID,
+		Content: retrospectiveDomain.Content{
+			Summary: "Published target", Lessons: []string{"Keep source provenance"},
+			ActionItems: []retrospectiveDomain.ActionItem{{ID: "action-target", Title: "Follow up", Description: "Close the loop", AssigneeID: "ordinary-member", DueDate: "2026-08-30"}},
+		},
+		Participants:   []retrospectiveDomain.Participant{{MemberID: "lead-member", Role: retrospectiveDomain.RoleParticipant}},
+		IdempotencyKey: "create-" + retrospectiveID, RequestHash: strings.Repeat("d", 64), Actor: actor, OccurredAt: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	published, err := repository.MutateProjectRetrospective(context.Background(), application.MutateProjectRetrospectiveCommand{
+		WorkspaceID: "workspace-1", ProjectID: "project-1", RetrospectiveID: created.ID,
+		ExpectedRevision: 1, Action: retrospectiveDomain.ActionPublish, RequestID: "publish-" + retrospectiveID, Actor: actor, OccurredAt: now.Add(time.Minute),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return published
 }
