@@ -1816,3 +1816,39 @@ Known limitations, blockers, and next action
   `project_outline`, generated protobufs, original dirty paths, push, merge,
   deployment, external services, and `server/**` remain inactive or excluded.
   Activation claims no implementation or PASS.
+
+## 2026-08-19 — J069 — r036 stops at aggregate Auth deadline; v32/r037 activates
+
+- Assertion-first R36.2 installs bounded current/effective Requirement coverage
+  through commit `90acfecd`; R36.3 installs strict Core parsing, dedicated query
+  invalidation/realtime refresh, the shared server-projected view, and four
+  locales through `5d769058`. Focused suites pass, as do the complete Workspace
+  tree, Core 628/628, Views 1683/1683, locale parity, changed-file lint, and
+  Core/Views typechecks.
+- The first fresh backend `make check` remains NON-PASS after 351.9 seconds:
+  `TestLocalAuthProjectsPersistedOnboardedAtAcrossRestart` returns HTTP 500 for
+  its final new user. The exact test passes, the full Auth package passes, and
+  the exact test passes 10/10. After clearing only Go test-result cache, the
+  unchanged second complete check reproduces the identical failure after 270.9
+  seconds. Neither failure is reclassified.
+- A detached candidate-equivalent diagnostic worktree reproduces the failure
+  and safely reveals the hidden service error as `context deadline exceeded`.
+  Kratos v3 defaults `NewServer()` to a one-second per-request timeout; under
+  full package parallel load that incidental test deadline expires. F: retains
+  ample free space, no SQLite lock is reported, and no Auth production or S07C
+  behavior is implicated. The diagnostic worktree and source are removed; its
+  independent generated compile cache remains outside all repositories because
+  host policy rejects recursive deletion.
+- v31 explicitly stops if a required path is outside its list. The only repair
+  path is `backend/internal/modules/auth/local_auth_http_test.go`, so r036 cannot
+  close and immutable v31 is unchanged. The Customer's standing continuous
+  Release 3 direction activates only v32/r037 from exact base `5d769058`.
+- v32 permits a finite ten-second timeout at the two affected in-process server
+  constructor sites and retains every S07C semantic and gate. It forbids Auth
+  production changes, sleep/retry/skip, unbounded timeout, global serialization,
+  and hidden failure waiver. The policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/4c43962f9cb2fc319efa873d63c242a7234e12d557bb0b2d7f9df12fef28a823`.
+- Only r037/PCR-S07C is active. PCR-S07D, Release 3 completion, S10,
+  `project_outline`, Auth production code, generated protobufs, original dirty
+  paths, push, merge, deployment, external services, and `server/**` remain
+  inactive or excluded. Activation claims no remediation or PASS.

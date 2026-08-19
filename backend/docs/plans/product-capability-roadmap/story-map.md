@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v31`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C active under r036`
+- Plan-Version: `v32`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C aggregate-gate remediation active under r037`
 
 ## Delivery policy
 
@@ -187,6 +187,8 @@ projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v32 / r037; v31 / r036 stopped at the aggregate backend gate`
+
 As a reviewer, I can distinguish Requirements that are linked, implemented, and
 accepted rather than treating any relation as coverage.
 
@@ -198,8 +200,10 @@ v31/r036 freezes the installed coverage stages as `unlinked`, `linked`,
 current Issue satisfies the next stage; latest acceptance conclusions supersede
 older conclusions. Current/effective Requirement content and link intervals are
 revision-relative, while Issue status and latest acceptance remain current
-canonical projections. PCR-S07D stays inactive until S07C closes through its
-own deterministic, installed, scope, and fresh independent-review gates.
+canonical projections. v32/r037 changes no coverage or Auth production behavior;
+it stabilizes only one aggregate-load test server before rerunning all remaining
+gates. PCR-S07D stays inactive until S07C closes through its own deterministic,
+installed, scope, and fresh independent-review gates.
 
 ### PCR-S07D — Publish a retrospective and create action items
 

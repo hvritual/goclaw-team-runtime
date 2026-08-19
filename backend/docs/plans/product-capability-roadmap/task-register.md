@@ -2110,7 +2110,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r036`
 - Work-Item: `PCR-S07C`
 - Title: `Requirement coverage from current Issue and acceptance authority`
-- Status: `approved-active`
+- Status: `verification-blocked-successor-active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before closure`
 - Exact base: `f5695de83d55e277c8eeb9db7461b81137dc93ad`
@@ -2157,3 +2157,70 @@ S02A without changing Task product behavior or activating S02B.
 - The Customer confirmed the prerequisite minimal outline authority and
   confirmed continued execution. Immutable v31 freezes only PCR-S07C from the
   clean exact base. Activation claims no implementation or PASS.
+
+### R36.2-R36.4 implementation and aggregate stop evidence
+
+- Commit `90acfecd` installs the bounded consistent Workspace repository,
+  service, and HTTP coverage read after assertion-first RED evidence. Commit
+  `5d769058` installs the strict Core schema/query/invalidation contract and
+  shared four-locale current/effective view after frontend RED evidence.
+- Focused backend/Core/Views/realtime/locale checks, complete Workspace, Core
+  628/628, Views 1683/1683, changed-file lint, and Core/Views typechecks pass.
+- The first fresh backend `make check` is NON-PASS after 351.9 seconds on
+  `TestLocalAuthProjectsPersistedOnboardedAtAcrossRestart`; the exact test, full
+  Auth package, and exact test 10/10 pass alone. After `go clean -testcache`, an
+  unchanged fresh complete check repeats the same failure after 270.9 seconds.
+- A detached diagnostic reproduction exposes the hidden aggregate-only service
+  error as `context deadline exceeded`, caused by Kratos v3's one-second default
+  test-server timeout under full package parallel load. The diagnostic source
+  is removed and never enters the candidate. No SQLite lock, disk-full state,
+  production Auth defect, or S07C behavior is implicated.
+- The required Auth test path is outside v31. Its explicit stop condition
+  therefore blocks r036 closure and requires immutable v32/r037. Neither
+  complete check failure is renamed PASS.
+
+## PCR-001-S07C-R37
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07C-R37`
+- Task-Revision: `r037`
+- Work-Item: `PCR-S07C`
+- Title: `Stabilize aggregate Auth test and close Requirement coverage`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before closure`
+- Exact base: `5d769058d289300e6b8851a5885cca183d5f9be9`
+- Retained predecessor candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
+- Plan hash: `4c43962f9cb2fc319efa873d63c242a7234e12d557bb0b2d7f9df12fef28a823`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/4c43962f9cb2fc319efa873d63c242a7234e12d557bb0b2d7f9df12fef28a823`
+- Write boundary: exact paths in immutable `plan_v32.md`; every other Auth
+  path, migration, generated protobuf, original dirty path, legacy backend
+  write, and `server/**` path is read-only
+- Acceptance source: `plan_v32.md` R37.2-R37.4 and story-map PCR-S07C
+
+### Ordered outputs
+
+- Change only the two `kratoshttp.NewServer()` sites in the affected restart
+  test to a finite ten-second timeout; preserve every assertion and all Auth
+  production behavior without sleep, retry, skip, or global test serialization.
+- Re-run the exact/full Auth checks and a fresh complete backend `make check`
+  under normal package parallelism while retaining both prior failures as
+  NON-PASS evidence.
+- Re-run the complete frozen S07C backend/Core/Views/realtime/locale/race/root/
+  build gates and fresh real-HTTP production-Web acceptance.
+- Freeze one exact scoped candidate with continuous nine-field trailers, clean
+  isolated/original dirty/process evidence, and fresh independent `SPEC PASS`
+  plus `CODE/SECURITY/QUALITY PASS` before closing PCR-S07C.
+- Keep PCR-S07D, Release 3 completion, S10, `project_outline`, generated
+  protobufs, Auth production code, original dirty paths, push, merge,
+  deployment, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- The aggregate failure is reproduced twice in the unchanged candidate and a
+  third time with diagnostic visibility; exact/full Auth and exact 10/10 pass
+  outside full parallel load. Root cause is a test-only one-second request
+  deadline, not an inferred product defect.
+- Immutable v32 preserves the v31 product semantics and authorizes exactly one
+  additional test path. The Human Customer's confirmed continuous direction
+  provides successor authority; activation claims no remediation or PASS.

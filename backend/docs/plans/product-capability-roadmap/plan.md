@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v31.md](plan_v31.md).
+The approved execution snapshot is [plan_v32.md](plan_v32.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `31`
-- Active step: `PCR-S07C R36.1`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C active`
-- Plan base commit: `f5695de83d55e277c8eeb9db7461b81137dc93ad`
+- Approved version: `32`
+- Active step: `PCR-S07C R37.1`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C aggregate-gate remediation active`
+- Plan base commit: `5d769058d289300e6b8851a5885cca183d5f9be9`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -148,6 +148,27 @@ permission, flag, generated contract, or Issue mutation behavior.
 `project_requirements` remains true and `project_outline` remains false.
 PCR-S07D, Release 3 completion, S10, original dirty paths, push, merge,
 deployment, generated protobufs, and `server/**` remain inactive or excluded.
+
+The v31 implementation passes its focused coverage suites, complete Workspace,
+Core 628/628, Views 1683/1683, changed-file lint, locale, and Core/Views
+typechecks. Two fresh backend `make check` executions nevertheless remain
+NON-PASS on the same pre-existing Auth restart-persistence test. The exact test,
+the complete Auth package, and ten consecutive exact executions pass alone. A
+detached diagnostic reproduction exposes the aggregate-only hidden error as
+`context deadline exceeded`: Kratos v3's incidental one-second default server
+timeout expires under full package parallel load. Because the one required Auth
+test path is outside v31's frozen list, r036 stops without closure and v31 stays
+immutable.
+
+The Customer's standing continuous Release 3 authority activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v32 / r037` from exact base `5d769058`. It
+retains the entire S07C product contract and adds only a finite ten-second
+timeout to the two in-process test-server constructor sites in the one affected
+Auth test. Auth production code and behavior remain unchanged. r037 must rerun
+the full backend/race/frontend/build/installed gates and obtain fresh
+independent dual PASS before S07C closes. PCR-S07D, Release 3 completion, push,
+merge, deployment, generated protobufs, original dirty paths, and `server/**`
+remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
