@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v38`
-- Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active`
+- Registry status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
 - Registry revision: `r043`
 - Updated: `2026-08-20`
 
@@ -2597,14 +2597,18 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r043`
 - Work-Item: `PCR-S07D`
 - Title: `Complete governed Retrospectives with exact Core test-path authority`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `fresh dual decision required before closure`
+- Independent reviewer: `fresh SPEC PASS and CODE/SECURITY/QUALITY PASS on exact candidate`
 - Exact base: `28e7a56c99855d21ed39494d2726318be5d64cd0`
 - Predecessor task: `PCR-001-S07D-R42` (`scope-blocked-before-independent-review`)
 - Scope-blocked predecessor candidate: `f3a77a6c418332e1f0ea2c65073c4be87c41140d`
 - Scope-blocked predecessor tree: `92d136706f61e4404012ae28aa4d0928c57a1bda`
 - Plan hash: `3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`
+- Exact candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
+- Candidate tree: `e696d67ad72aad52bc53e4a6bfe3211aac2f89d7`
+- Complete binary patch hash: `b0ac56383905ace9581f5c575e2e7321116253cc42b03a18dcc1661d1add53fe`
+- Product binary patch hash: `a6ebeda199614944fb254d8a5c184cb2d34dc7790c511bae6cd657f6772bcfef`
 - Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`
 - Write boundary: every exact v37 path with the nonexistent
   `packages/core/implementation-knowledge/mutations.test.ts` replaced
@@ -2644,3 +2648,49 @@ S02A without changing Task product behavior or activating S02B.
 - v38 changes no product contract or behavior and authorizes only the exact
   existing `.tsx` path. Activation claims no implementation, verification, or
   independent-review PASS.
+
+### R43.6 closure evidence
+
+- Exact candidate `64091302b703a4590bdbe88d154f65fec9d6b37c` has tree
+  `e696d67ad72aad52bc53e4a6bfe3211aac2f89d7`. Its 45-path product patch is
+  byte-identical to preserved blocked r042 at SHA-256
+  `a6ebeda199614944fb254d8a5c184cb2d34dc7790c511bae6cd657f6772bcfef`.
+  The complete exact-base diff has five governance plus 45 product paths and
+  binary SHA-256
+  `b0ac56383905ace9581f5c575e2e7321116253cc42b03a18dcc1661d1add53fe`.
+- All five r043 commits contain exactly one complete, continuous, ordered
+  nine-field trailer block. v38 and both policy hashes match; `diff --check`
+  passes; candidate `server/**` and generated path counts are zero. The
+  isolated candidate is clean and overlaps none of the original worktree's 25
+  dirty entries.
+- Fresh focused Retrospective/domain/application/SQLite/HTTP/bootstrap and
+  complete Workspace checks, backend `make check`, Core 635/635, Views
+  1688/1688, Core/Views and forced-root typechecks, exact changed-file lint,
+  and the production Web build pass. The first official race run failed under
+  C-drive temporary-disk pressure; the unchanged full gate passed after
+  redirecting only Go/OS temporary caches to F. Broad Views lint retains 16
+  unrelated errors and two warnings. Forced root tests retain three aggregate
+  five-second load timeouts (1685/1688), while the exact affected files pass
+  44/44. These are retained NON-PASS evidence, not waivers.
+- Fresh production-Web two-identity installed acceptance created Project
+  `e4c67e8b-90dc-42f9-bdc0-d8b35e2b879c`, denied unauthorized facilitator
+  creation, published/superseded complete Retrospective revisions, created
+  default Task `b65287bf-51ee-443f-a45f-110238715b81` and explicit Issue
+  `5343f691-a13d-451a-8d9e-e20140002d5f` from immutable source revision 3,
+  proved byte-identical same-key replay, restarted the real backend, and
+  archived Retrospective `8e193f3b-8c1c-4a6c-9413-18ded0f4e5a5` at revision
+  5 without losing either target or link. The loaded page had one main, no
+  Next overlay, and zero console errors; expected WebSocket reconnect and
+  uninstalled-invitations warnings remain disclosed.
+- Browser tab, binaries, database, logs, temporary caches, and the external
+  acceptance directory are removed; owned processes are stopped and ports
+  3019/3020/38140/38141/39140/39141 have no listener.
+- Fresh independent read-only review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`. It independently verifies the exact candidate,
+  immutable revision/authorization/cleanup contract, resumable Task/Issue
+  target claims, strict Core/Views/runtime projection, installed evidence,
+  scope, policy hashes, trailers, and honest NON-PASS disclosures.
+- r043 and PCR-S07D are `complete-independent-reviewed`. PCR-S07A-D are all
+  closed; Release 3 completion remains pending a separately frozen aggregate
+  DoneGate. S08+, S10, generated protobufs, push, merge, deployment, original
+  dirty paths, and `server/**` remain inactive or excluded.

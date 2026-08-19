@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v38`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r043`
+- Status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
 
 ## Delivery policy
 
@@ -217,7 +217,7 @@ own immutable successor plan is activated.
 
 ### PCR-S07D — Publish a retrospective and create action items
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v38 / r043`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v38 / r043`
 
 As a project team, we can draft and publish a retrospective, preserve revisions,
 and turn an action item into a task or Issue.
@@ -248,6 +248,14 @@ path spelling before replaying the candidate: the real Core mutation test is
 candidate remains scope-blocked provenance; r043 must replay the same 45 product
 paths after authorization and pass fresh candidate, installed, and independent
 review gates.
+
+Exact r043 product bytes match blocked r042 after the corrected authority.
+Fresh complete backend/race/frontend/build and two-identity installed
+lifecycle/restart/archive evidence passes with retained broad NON-PASS
+disclosures. Exact scope, trailer, dirty-tree, and process audits pass, and
+fresh independent `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS` close S07D.
+All Release 3 stories are closed; Release 3 completion remains pending the
+separately frozen aggregate DoneGate.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 

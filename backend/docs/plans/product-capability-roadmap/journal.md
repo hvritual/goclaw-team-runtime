@@ -2196,3 +2196,45 @@ Known limitations, blockers, and next action
   dirty paths, push, merge, deployment, generated protobufs, external services,
   legacy backend writes, and `server/**` remain inactive or excluded. This
   successor activation claims no product or review PASS.
+
+## 2026-08-20 — J079 — r043 independent dual PASS closes PCR-S07D
+
+- Exact r043 candidate `64091302b703a4590bdbe88d154f65fec9d6b37c`
+  has tree `e696d67ad72aad52bc53e4a6bfe3211aac2f89d7`. Its 45-path product
+  patch is byte-identical to blocked r042 at SHA-256
+  `a6ebeda199614944fb254d8a5c184cb2d34dc7790c511bae6cd657f6772bcfef`;
+  the complete exact-base diff has five governance plus 45 product paths and
+  binary SHA-256
+  `b0ac56383905ace9581f5c575e2e7321116253cc42b03a18dcc1661d1add53fe`.
+  Candidate `server/**` and generated path counts are zero.
+- `68973108`, `ede7653c`, `7a1deee1`, `f7691c0e`, and `64091302` each contain
+  exactly one complete, continuous, ordered nine-field trailer block. v38 and
+  both policy hashes match, `diff --check` passes, the isolated candidate is
+  clean, and it overlaps none of the original worktree's 25 dirty entries.
+- Fresh focused and complete Workspace checks, backend `make check`, the full
+  official race rerun with redirected F-drive temporary caches, Core 635/635,
+  Views 1688/1688, Core/Views and forced-root typechecks, exact changed-file
+  lint, and production Web build pass. Retained NON-PASS evidence includes the
+  first C-drive-pressure race failure, broad Views lint's 16 unrelated errors
+  and two warnings, and three forced-root five-second load timeouts; the exact
+  affected frontend files pass 44/44.
+- Fresh production-Web two-identity installed acceptance denies unauthorized
+  facilitator creation; publishes and supersedes complete revisions; creates
+  default Task `b65287bf-51ee-443f-a45f-110238715b81` and explicit Issue
+  `5343f691-a13d-451a-8d9e-e20140002d5f` from immutable source revision 3;
+  proves byte-identical same-key replay; survives a real backend restart; and
+  archives Retrospective `8e193f3b-8c1c-4a6c-9413-18ded0f4e5a5` at revision
+  5 with both links intact. Browser structure is valid, no Next overlay or
+  console error appears, and expected reconnect/invitations warnings remain
+  disclosed.
+- All acceptance artifacts and temporary caches are removed, every owned
+  process is stopped, and ports 3019/3020/38140/38141/39140/39141 are closed.
+- Fresh independent read-only review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`, independently confirming the exact candidate,
+  complete transaction/current-authority and Project-cleanup boundaries,
+  migration guards, resumable Task/Issue targets, strict HTTP/Core/Views
+  projection, installed evidence, scope, trailers, and honest diagnostics.
+- r043 and PCR-S07D are `complete-independent-reviewed`. PCR-S07A-D are all
+  closed, but Release 3 remains active until its separately frozen aggregate
+  DoneGate passes. Push, merge, deployment, generated protobufs, original dirty
+  paths, external services, and `server/**` remain excluded.

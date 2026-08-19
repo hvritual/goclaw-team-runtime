@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v38.md](plan_v38.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `38`
-- Active step: `PCR-S07D R43.2`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r043`
+- Active step: `none`
+- Status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
 - Plan base commit: `28e7a56c99855d21ed39494d2726318be5d64cd0`
-- Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
+- Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -348,6 +348,33 @@ only as provenance. The same confirmed authority activates
 activation `28e7a56c`; v38 makes only that one-for-one path correction and
 requires the byte-identical product patch, fresh gates, and fresh independent
 dual review after authorization.
+
+Exact r043 candidate `64091302b703a4590bdbe88d154f65fec9d6b37c`
+has tree `e696d67ad72aad52bc53e4a6bfe3211aac2f89d7`. Its 45-path
+product patch is byte-identical to blocked r042 at SHA-256
+`a6ebeda199614944fb254d8a5c184cb2d34dc7790c511bae6cd657f6772bcfef`;
+the complete diff from exact base `28e7a56c` contains five governance plus 45
+product paths and hashes to
+`b0ac56383905ace9581f5c575e2e7321116253cc42b03a18dcc1661d1add53fe`.
+It contains zero `server/**` and generated paths, all five r043 commits carry
+one continuous ordered nine-field trailer block, the isolated candidate is
+clean, and it overlaps none of the original worktree's 25 dirty entries.
+
+Fresh r043 focused and complete Workspace checks, backend `make check`, the
+full redirected official race rerun, Core 635/635, Views 1688/1688,
+Core/Views and forced-root typechecks, exact changed-file lint, production Web
+build, and production-Web two-identity installed lifecycle/restart/archive
+acceptance pass. The first race run failed for disclosed C-drive temporary-disk
+pressure; broad Views lint retains 16 unrelated errors and two warnings, and
+forced root tests retain three aggregate five-second load timeouts while the
+two exact files pass 44/44. None is converted to PASS or waived.
+
+Fresh independent read-only review of the exact candidate returns `SPEC PASS`
+and `CODE/SECURITY/QUALITY PASS`. PCR-S07D is
+`complete-independent-reviewed`; all four Release 3 stories are now closed,
+but Release 3 itself remains active until a separately frozen aggregate
+DoneGate passes. Push, merge, deployment, generated protobufs, original dirty
+paths, and `server/**` remain excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
