@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v30`
-- Registry status: `Release 3 active; PCR-S07B remediation candidate ready; independent review pending`
+- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; no active task`
 - Registry revision: `r035`
 - Updated: `2026-08-19`
 
@@ -2020,9 +2020,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07B-R35`
 - Task-Revision: `r035`
 - Work-Item: `PCR-S07B`
-- Status: `remediation-candidate-ready-awaiting-independent-review`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Base commit: `fa1153164882adb4880d57f7349597900196402f`
 - Blocked input tree: `70de766121f06487eeb7c259906b1bbd0118594f`
 - Blocked input patch hash: `e975739c2daf10088af9b24ae7cf034fd3aa8994`
@@ -2083,3 +2083,22 @@ S02A without changing Task product behavior or activating S02B.
   two-identity acceptance remain applicable without reclassification. Exact
   candidate/scope/trailer/dirty-tree audit and fresh independent dual PASS are
   still required.
+
+### R35.5 independent closure
+
+- Exact candidate `cd94396093ea73f3f9434fed7410036ae61170ab` has tree
+  `7e6f045ec5a48c4465e7f2fd5261e0d2a3b4b42d`, binary patch hash
+  `0a9f24812076a842bff24a68c27edb3709974193`, eight authorized paths,
+  zero `server/**` or generated paths, three r035 commits with complete ordered
+  nine-field trailer blocks, and a clean isolated worktree.
+- The original worktree currently has 25 dirty entries and exact candidate
+  overlap is zero. Policy and immutable v30 hashes remain exact; `git diff
+  --check` passes.
+- Fresh independent review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`. It independently confirms both r034 blockers are
+  closed, current authorization remains same-connection after `BEGIN
+  IMMEDIATE`, no public/runtime/frontend behavior expanded, and all retained
+  NON-PASS/fixture limitations remain honestly disclosed.
+- PCR-S07B is `complete-independent-reviewed`. PCR-S07C-D and Release 3
+  completion remain inactive pending their own governed plans and DoneGates;
+  push, merge, deployment, generated protobufs, and `server/**` remain excluded.

@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v30.md](plan_v30.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `30`
-- Active step: `PCR-S07B R35.5`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B remediation-candidate-ready-awaiting-independent-review`
+- Active step: `none`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; no active task`
 - Plan base commit: `fa1153164882adb4880d57f7349597900196402f`
-- Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
+- Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -118,8 +118,18 @@ Backend `make check` passes in 349.6 seconds; the official seven-package race
 passes in 409.4 seconds with repository-selected MinGW GCC 15.2.0. No frontend,
 HTTP/Core, runtime composition, flag, or installed behavior changed, so the
 r034 production-build and two-identity installed acceptance evidence remains
-applicable. Exact r035 candidate audit and fresh independent review remain
-pending; no S07B or Release 3 completion is claimed.
+applicable.
+
+Exact r035 candidate `cd94396093ea73f3f9434fed7410036ae61170ab`
+has tree `7e6f045ec5a48c4465e7f2fd5261e0d2a3b4b42d`, binary patch hash
+`0a9f24812076a842bff24a68c27edb3709974193`, eight authorized paths,
+zero `server/**` or generated paths, three complete continuous trailer blocks,
+a clean isolated worktree, and zero overlap with the original 25 dirty entries.
+Fresh independent review returns `SPEC PASS` and
+`CODE/SECURITY/QUALITY PASS` with no blocking finding. PCR-S07B is
+`complete-independent-reviewed`; PCR-S07C remains inactive until its own
+successor plan is frozen. No push, merge, deployment, or Release 3 completion
+is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

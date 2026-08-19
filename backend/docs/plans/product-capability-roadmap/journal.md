@@ -1766,3 +1766,27 @@ Known limitations, blockers, and next action
   candidate hash, path/trailer/server/generated/dirty-tree audit and fresh
   independent dual PASS remain required. S07C-D, Release 3 completion, push,
   merge, deployment, and `server/**` remain inactive or excluded.
+
+## 2026-08-19 — J067 — PCR-S07B closes after v30 independent review
+
+- Exact candidate `cd94396093ea73f3f9434fed7410036ae61170ab` has tree
+  `7e6f045ec5a48c4465e7f2fd5261e0d2a3b4b42d`, binary patch hash
+  `0a9f24812076a842bff24a68c27edb3709974193`, eight v30-authorized paths,
+  zero `server/**` or generated paths, a clean isolated worktree, and zero
+  overlap with the original 25 dirty entries.
+- All three r035 commits expose exactly nine continuous ordered trailers with
+  the immutable v30 policy bundle. Plan and policy hashes remain exact and
+  `git diff --check` passes.
+- Fresh independent review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`. It confirms the imported Issue-link ownership
+  guard and exact preservation tests close the rollback blocker; the five
+  live-authority cases, effect snapshots, `BEGIN IMMEDIATE`, and same-connection
+  rereads close the authorization-proof blocker without production behavior
+  expansion.
+- The reviewer independently confirms unchanged r034 frontend/build/installed
+  evidence remains applicable and all old-GCC, root aggregate, broad lint, and
+  membership-fixture limitations remain disclosed rather than renamed PASS.
+- PCR-S07B is `complete-independent-reviewed`. Release 3 remains active with no
+  active task; PCR-S07C requires its own immutable successor plan. PCR-S07D,
+  Release 3 completion, push, merge, deployment, generated protobufs, and
+  `server/**` remain inactive or excluded.
