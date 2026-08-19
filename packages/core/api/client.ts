@@ -101,7 +101,11 @@ import type {
   ProjectRequirementTransitionRequest,
   ProjectRequirementCoverage,
   ProjectRequirementLinkRequest,
-  ProjectRequirementCreateIssueRequest,
+  ProjectRequirementOutlineLinkRequest,
+  ProjectRequirementAccessSet,
+  ReplaceProjectRequirementAccessRequest,
+  ProjectOutline,
+  CreateProjectOutlineNodeRequest,
   PromoteTaskRequest,
   PromoteTaskResponse,
 } from "../types";
@@ -118,7 +122,7 @@ import type { CreateFeedbackResponse, FeedbackKind } from "../feedback/types";
 import { type Logger, noopLogger } from "../logger";
 import { createRequestId, createSafeId } from "../utils";
 import { getCurrentSlug, getCurrentWsId } from "../platform/workspace-storage";
-import { parseWithFallback } from "./schema";
+import { parseOrThrow, parseWithFallback } from "./schema";
 import {
   knowledgeCandidateListSchema,
   knowledgeCandidateSchema,
@@ -135,8 +139,9 @@ import {
   projectRetrospectiveSchema,
 } from "../implementation-knowledge/schema";
 import {
-  EMPTY_PROJECT_REQUIREMENT_BASELINE,
   EMPTY_PROJECT_REQUIREMENT_COVERAGE,
+  projectOutlineSchema,
+  projectRequirementAccessSetSchema,
   projectRequirementBaselineResponseSchema,
   projectRequirementCoverageSchema,
 } from "../project-requirements/schema";
@@ -2033,13 +2038,13 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(
       `/api/projects/${id}/requirement-baseline`
     );
-    return parseWithFallback(
+    return parseOrThrow(
       raw,
       projectRequirementBaselineResponseSchema,
-      EMPTY_PROJECT_REQUIREMENT_BASELINE,
       {
         endpoint: "GET /api/projects/:id/requirement-baseline",
-      }
+      },
+      "Invalid project requirement baseline response"
     );
   }
 
@@ -2060,15 +2065,24 @@ export class ApiClient {
   async linkProjectRequirementIssue(
     id: string,
     input: ProjectRequirementLinkRequest
-  ): Promise<void> {
-    await this.fetch(`/api/projects/${id}/requirement-baseline/links`, {
-      method: "POST",
-      body: JSON.stringify({
-        requirement_key: input.requirementKey,
-        issue_id: input.issueId,
-        revision: input.revision,
-      }),
-    });
+  ): Promise<ProjectRequirementBaselineResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/links`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          expected_revision: input.expectedRevision,
+          requirement_key: input.requirementKey,
+          issue_id: input.issueId,
+        }),
+      }
+    );
+    return parseOrThrow(
+      raw,
+      projectRequirementBaselineResponseSchema,
+      { endpoint: "POST /api/projects/:id/requirement-baseline/links" },
+      "Invalid project requirement link response"
+    );
   }
 
   async unlinkProjectRequirementIssue(
@@ -2078,33 +2092,44 @@ export class ApiClient {
     await this.fetch(
       `/api/projects/${id}/requirement-baseline/links/${encodeURIComponent(
         input.requirementKey
-      )}/${encodeURIComponent(input.issueId)}?revision=${input.revision}`,
+      )}/${encodeURIComponent(input.issueId)}?expected_revision=${input.expectedRevision}`,
       { method: "DELETE" }
     );
   }
 
-  async createIssueForProjectRequirement(
+  async linkProjectRequirementOutline(
     id: string,
-    requirementKey: string,
-    input: ProjectRequirementCreateIssueRequest
-  ): Promise<Issue> {
+    input: ProjectRequirementOutlineLinkRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
     const raw = await this.fetch<unknown>(
-      `/api/projects/${id}/requirement-baseline/items/${encodeURIComponent(
-        requirementKey
-      )}/issues`,
-      { method: "POST", body: JSON.stringify({ revision: input.revision }) }
-    );
-    const issue = parseWithFallback<Issue | null>(
-      raw,
-      CreateIssueResponseSchema,
-      null,
+      `/api/projects/${id}/requirement-baseline/outline-links`,
       {
-        endpoint:
-          "POST /api/projects/:id/requirement-baseline/items/:key/issues",
+        method: "POST",
+        body: JSON.stringify({
+          expected_revision: input.expectedRevision,
+          requirement_key: input.requirementKey,
+          node_id: input.nodeId,
+        }),
       }
     );
-    if (!issue) throw new Error("Invalid project requirement issue response");
-    return issue;
+    return parseOrThrow(
+      raw,
+      projectRequirementBaselineResponseSchema,
+      { endpoint: "POST /api/projects/:id/requirement-baseline/outline-links" },
+      "Invalid project requirement outline link response"
+    );
+  }
+
+  async unlinkProjectRequirementOutline(
+    id: string,
+    input: ProjectRequirementOutlineLinkRequest
+  ): Promise<void> {
+    await this.fetch(
+      `/api/projects/${id}/requirement-baseline/outline-links/${encodeURIComponent(
+        input.requirementKey
+      )}/${encodeURIComponent(input.nodeId)}?expected_revision=${input.expectedRevision}`,
+      { method: "DELETE" }
+    );
   }
 
   async saveProjectRequirementDraft(
@@ -2127,20 +2152,21 @@ export class ApiClient {
             dependencies: input.content.dependencies,
           },
           change_summary: input.changeSummary,
+          material_change: input.materialChange,
         }),
+        headers: input.idempotencyKey?.trim()
+          ? { "Idempotency-Key": input.idempotencyKey.trim() }
+          : undefined,
       }
     );
-    const response = parseWithFallback(
+    return parseOrThrow(
       raw,
       projectRequirementBaselineResponseSchema,
-      EMPTY_PROJECT_REQUIREMENT_BASELINE,
       {
         endpoint: "PUT /api/projects/:id/requirement-baseline",
-      }
+      },
+      "Invalid project requirement draft response"
     );
-    if (!response.baseline)
-      throw new Error("Invalid project requirement draft response");
-    return response;
   }
 
   async submitProjectRequirementReview(
@@ -2179,6 +2205,30 @@ export class ApiClient {
     );
   }
 
+  async freezeProjectRequirement(
+    id: string,
+    input: ProjectRequirementTransitionRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(
+      id,
+      "freeze",
+      input,
+      "POST /api/projects/:id/requirement-baseline/freeze"
+    );
+  }
+
+  async retireProjectRequirement(
+    id: string,
+    input: ProjectRequirementTransitionRequest
+  ): Promise<ProjectRequirementBaselineResponse> {
+    return this.transitionProjectRequirement(
+      id,
+      "retire",
+      input,
+      "POST /api/projects/:id/requirement-baseline/retire"
+    );
+  }
+
   private async transitionProjectRequirement(
     id: string,
     action: string,
@@ -2192,15 +2242,83 @@ export class ApiClient {
         body: JSON.stringify({ expected_revision: input.expectedRevision }),
       }
     );
-    const response = parseWithFallback(
+    return parseOrThrow(
       raw,
       projectRequirementBaselineResponseSchema,
-      EMPTY_PROJECT_REQUIREMENT_BASELINE,
-      { endpoint }
+      { endpoint },
+      "Invalid project requirement transition response"
     );
-    if (!response.baseline)
-      throw new Error("Invalid project requirement transition response");
-    return response;
+  }
+
+  async getProjectRequirementAccess(
+    id: string
+  ): Promise<ProjectRequirementAccessSet> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/access`
+    );
+    return parseOrThrow(
+      raw,
+      projectRequirementAccessSetSchema,
+      { endpoint: "GET /api/projects/:id/requirement-baseline/access" },
+      "Invalid project requirement access response"
+    );
+  }
+
+  async replaceProjectRequirementAccess(
+    id: string,
+    input: ReplaceProjectRequirementAccessRequest
+  ): Promise<ProjectRequirementAccessSet> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${id}/requirement-baseline/access`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          expected_revision: input.expectedRevision,
+          grants: input.grants.map((grant) => ({
+            member_id: grant.memberId,
+            grant_kind: grant.grantKind,
+          })),
+        }),
+      }
+    );
+    return parseOrThrow(
+      raw,
+      projectRequirementAccessSetSchema,
+      { endpoint: "PUT /api/projects/:id/requirement-baseline/access" },
+      "Invalid project requirement access response"
+    );
+  }
+
+  async getProjectOutline(id: string): Promise<ProjectOutline> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/outline`);
+    return parseOrThrow(
+      raw,
+      projectOutlineSchema,
+      { endpoint: "GET /api/projects/:id/outline" },
+      "Invalid project outline response"
+    );
+  }
+
+  async createProjectOutlineNode(
+    id: string,
+    input: CreateProjectOutlineNodeRequest
+  ): Promise<ProjectOutline> {
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/outline`, {
+      method: "POST",
+      headers: input.idempotencyKey?.trim()
+        ? { "Idempotency-Key": input.idempotencyKey.trim() }
+        : undefined,
+      body: JSON.stringify({
+        expected_revision: input.expectedRevision,
+        title: input.title,
+      }),
+    });
+    return parseOrThrow(
+      raw,
+      projectOutlineSchema,
+      { endpoint: "POST /api/projects/:id/outline" },
+      "Invalid project outline response"
+    );
   }
 
   async listTasks(params?: {

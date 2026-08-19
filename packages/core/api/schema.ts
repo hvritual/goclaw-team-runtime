@@ -16,6 +16,21 @@ export interface ParseOptions {
   endpoint: string;
 }
 
+function logSchemaFailure(
+  data: unknown,
+  issues: ReadonlyArray<{ code: string; path: PropertyKey[] }>,
+  opts: ParseOptions
+): void {
+  schemaLogger.warn(`API response failed schema validation: ${opts.endpoint}`, {
+    endpoint: opts.endpoint,
+    issues: issues.map((issue) => ({
+      code: issue.code,
+      pathDepth: issue.path.length,
+    })),
+    receivedShape: describeReceivedShape(data),
+  });
+}
+
 function describeReceivedShape(
   value: unknown
 ): Record<string, number | string> {
@@ -64,13 +79,23 @@ export function parseWithFallback<T>(
 ): T {
   const result = schema.safeParse(data);
   if (result.success) return result.data as T;
-  schemaLogger.warn(`API response failed schema validation: ${opts.endpoint}`, {
-    endpoint: opts.endpoint,
-    issues: result.error.issues.map((issue) => ({
-      code: issue.code,
-      pathDepth: issue.path.length,
-    })),
-    receivedShape: describeReceivedShape(data),
-  });
+  logSchemaFailure(data, result.error.issues, opts);
   return fallback;
+}
+
+/**
+ * Validate a security- or governance-sensitive response without converting
+ * contract drift into a successful empty state. Diagnostics deliberately keep
+ * only the endpoint, issue code/path depth, and top-level shape.
+ */
+export function parseOrThrow<T>(
+  data: unknown,
+  schema: ZodType<T>,
+  opts: ParseOptions,
+  message: string
+): T {
+  const result = schema.safeParse(data);
+  if (result.success) return result.data;
+  logSchemaFailure(data, result.error.issues, opts);
+  throw new Error(message);
 }

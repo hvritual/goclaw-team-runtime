@@ -550,7 +550,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           {detailView === "work_items" || !projectRequirementsEnabled ? (
             <IssueSurface scope={issueScope} modes={["board", "list", "table", "swimlane", "gantt"]} />
           ) : (
-            <ProjectRequirementBaseline projectId={projectId} canApprove={isWorkspaceAdmin || isProjectLead} />
+            <ProjectRequirementBaseline projectId={projectId} />
           )}
           </div>
         </ResizablePanel>
