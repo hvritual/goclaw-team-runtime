@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v33.md](plan_v33.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `33`
-- Active step: `PCR-S07C R38.1`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C race-gate remediation active`
+- Active step: `PCR-S07C R38.4`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review`
 - Plan base commit: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -189,6 +189,35 @@ concurrency. r038 must pass repeated focused and official race gates plus every
 remaining S07C deterministic, installed, scope, and independent-review gate.
 PCR-S07D, Release 3 completion, push, merge, deployment, generated protobufs,
 original dirty paths, and `server/**` remain inactive or excluded.
+
+Commit `48c95172` applies only the v33 test-local clock synchronization. The
+focused Bootstrap race passes ten consecutive executions, and the unchanged
+official seven-package race passes all seven packages in 299.5 seconds with
+repository-selected Scoop GCC 15.2.0. A preceding official invocation remains
+NON-PASS because the Windows wrapper received a transient null
+`gcc -dumpfullversion` result before any test; it is not hidden or renamed.
+
+Fresh focused S07C suites, the complete Workspace tree, backend `make check`,
+Core 628/628, Views 1683/1683, Core/Views typecheck, exact changed-file lint,
+root forced typecheck, and the production Web build pass. Root forced tests
+remain NON-PASS only on two pre-existing Team Control five-second load
+timeouts; that exact file passes 10/10 immediately in isolation. Broad Views
+lint remains NON-PASS on the recorded unrelated Knowledge/Skills paths.
+
+Fresh SQLite installed acceptance through real Canonical HTTP and production
+Web proves `unlinked -> linked -> implemented -> accepted`, mixed-Issue
+fail-closed aggregation, later conditional revocation, independent approval,
+current/effective divergence, revision-relative unlink, deleted-Issue
+exclusion, restart persistence, retirement, and reload visibility. A direct
+fresh-database membership fixture was required because the Canonical
+invitation route is uninstalled; it is disclosed and not counted as product
+behavior. The browser recorded no framework overlay. Production `next start`
+could not proxy the WebSocket upgrade and logged 403 reconnect diagnostics, so
+the plan-authorized reload path supplied refresh proof; the uninstalled
+invitation route also logged 404. All task-owned processes and runtime files
+were removed and the three dedicated ports are closed. r038 is now a scoped
+candidate awaiting fresh independent `SPEC PASS` and
+`CODE/SECURITY/QUALITY PASS`; PCR-S07C is not yet closed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

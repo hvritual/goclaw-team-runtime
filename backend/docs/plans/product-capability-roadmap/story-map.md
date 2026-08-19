@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v33`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C race-gate remediation active under r038`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review under r038`
 
 ## Delivery policy
 
@@ -187,7 +187,7 @@ projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v33 / r038; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
+Status: `candidate ready awaiting independent review under PRODUCT-CAPABILITY-ROADMAP-001 v33 / r038; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
 
 As a reviewer, I can distinguish Requirements that are linked, implemented, and
 accepted rather than treating any relation as coverage.

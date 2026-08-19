@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v31`
-- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C active`
-- Registry revision: `r036`
+- Plan-Version: `v33`
+- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review`
+- Registry revision: `r038`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2251,7 +2251,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r038`
 - Work-Item: `PCR-S07C`
 - Title: `Remove onboarding test-clock race and close Requirement coverage`
-- Status: `approved-active`
+- Status: `candidate-ready-awaiting-independent-review`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before closure`
 - Exact base: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
@@ -2287,3 +2287,29 @@ S02A without changing Task product behavior or activating S02B.
 - Immutable v33 preserves v31/v32 behavior and adds exactly one Bootstrap test
   path. The Human Customer's confirmed continuous direction provides successor
   authority; activation claims no remediation or PASS.
+
+### Current evidence
+
+- Commit `48c95172` protects both injected clock reads and the single advance
+  with one test-local `RWMutex`; production concurrency and the outbox remain
+  unchanged. Focused Bootstrap race x10 passes. After one retained transient
+  wrapper-only NON-PASS, the unchanged official seven-package race passes all
+  packages in 299.5 seconds with Scoop GCC 15.2.0.
+- Focused S07C, complete Workspace, backend `make check`, full Core 628/628,
+  full Views 1683/1683, strict type/lint, root forced typecheck, and production
+  Web build pass. Root forced tests retain two pre-existing Team Control
+  aggregate-load timeouts while the exact file passes 10/10; broad Views lint
+  retains only the recorded unrelated Knowledge/Skills findings.
+- Fresh SQLite, real Canonical HTTP, production Web, authenticated owner, and
+  distinct reviewer prove every installed v33 scenario through retired v11:
+  all four stages, multi-Issue fail-closed behavior, latest-conditional
+  revocation, current/effective v10/v7 divergence, unlink, deleted-Issue
+  exclusion, restart, reload, and retained effective visibility.
+- Membership setup used a disclosed direct fresh-database fixture because the
+  Canonical invitation endpoint is uninstalled. The in-app browser could not
+  reach the host loopback, so the repository Playwright fallback used installed
+  Chrome. Production `next start` logged WebSocket-upgrade 403 and invitation
+  404 diagnostics; reload supplied the plan-authorized refresh proof. No Next
+  overlay appeared. Dedicated ports and runtime artifacts are removed.
+- Exact candidate, hashes, trailers, clean/dirty isolation, and fresh
+  independent dual review remain R38.4 requirements. PCR-S07C is not closed.

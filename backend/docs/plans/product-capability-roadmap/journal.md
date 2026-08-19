@@ -1883,3 +1883,65 @@ Known limitations, blockers, and next action
   original dirty paths, push, merge, deployment, external services, and
   `server/**` remain inactive or excluded. Activation claims no remediation or
   PASS.
+
+## 2026-08-19 — J071 — R38.2-R38.3 race, aggregate, and installed evidence
+
+- Commit `48c95172` adds one test-local `sync.RWMutex` around both injected
+  onboarding clock reads and the sole test-time advance. The exact Bootstrap
+  race passes ten consecutive executions in 204.7 seconds with the official
+  wrapper. The first official full-race invocation exits NON-PASS in 2.3
+  seconds because the Windows wrapper receives a transient null result from a
+  PATH `gcc -dumpfullversion` probe before testing. Read-only enumeration then
+  shows both GCC installations healthy and `-ResolveOnly` selects Scoop GCC
+  15.2.0; the unchanged official rerun passes all seven packages in 299.5
+  seconds. The transient invocation remains NON-PASS evidence.
+- Fresh S07C focused backend checks and the complete Workspace tree pass. A
+  final backend `make check` passes in 370.5 seconds. Core passes 102 files and
+  628/628 assertions; Views passes 168 files and 1683/1683 assertions. Core and
+  Views typechecks pass, as do exact per-package lint checks for every changed
+  S07C frontend path. Root forced typecheck passes 6/6 uncached tasks. The
+  production Web build passes in 73.3 seconds with 17/17 static pages and only
+  two existing CSS `::highlight` optimizer warnings.
+- Broad Views lint remains NON-PASS on 16 existing errors plus two warnings in
+  unrelated Knowledge/Skills/editor/search paths. Root forced tests remain
+  NON-PASS on two existing five-second timeouts in
+  `team-control-page.test.tsx`; the exact file passes 10/10 immediately in
+  isolation. Neither broad result is renamed PASS.
+- Fresh SQLite installed acceptance starts one real Canonical HTTP backend and
+  the production Web build. The bundled in-app browser is invoked first but
+  cannot reach the host loopback even while host HTTP returns 200; the allowed
+  repository Playwright fallback therefore launches installed Chrome. Owner
+  and reviewer both authenticate through the visible local-code UI. Because
+  Canonical invitations are uninstalled, only reviewer membership/role setup
+  uses a direct fresh-database fixture. An initial attempt to add a second
+  membership-root row fails its unique constraint and rolls back completely;
+  the corrected fixture inserts only the member. `admin` correctly lacks the
+  approve control, so the fixture is minimally promoted to `owner`. These
+  fixture steps are disclosed and not counted as product behavior.
+- The owner creates one project, two Issues, one minimal root outline, and a
+  four-item Requirement. v1 displays four `unlinked` items; outline and two
+  Issue links advance through v4 and display the goal as `linked`. Issue A can
+  be done/accepted while open Issue B keeps the goal `linked`, proving
+  multi-Issue fail closed. Completing B without a conclusion displays
+  `implemented`; B's accepted conclusion displays `accepted`.
+- The owner submits v5; the distinct reviewer approves v6 and freezes v7.
+  Current and effective v7 cards both show accepted coverage. Owner material
+  change v8 preserves effective v7. A later conditional conclusion on Issue A
+  immediately revokes accepted to implemented in both cards. Unlinking Issue B
+  creates v9 with one current link while effective v7 retains two. Deleting
+  Issue A creates v10: current becomes fully unlinked, while effective v7
+  excludes the deleted Issue and remains accepted through Issue B.
+- The backend is stopped and restarted against the same database. The same
+  authenticated browser reload retains current v10, effective v7, exact Issue
+  projection, history, and outline revision. Owner retirement creates v11; a
+  further reload shows read-only retired history plus retained effective v7.
+  Page title and meaningful DOM are present and no Next framework overlay is
+  rendered. Screenshots record the v10/v7 divergence and retired v11 view.
+- Browser diagnostics disclose production `next start` WebSocket upgrade 403
+  reconnects and the uninstalled `/api/invitations` 404. v33 explicitly allows
+  realtime or reload refresh, so the fresh reload/restart proof satisfies the
+  installed gate without calling the console silent. All owned browser,
+  backend, and Web processes are closed; ports 3017/38138/39138 are free; the
+  dedicated database, binary, and fixture source are removed. R38.4 exact
+  candidate/scope/trailer/dirty-tree audit and fresh independent dual review
+  remain pending. PCR-S07C, PCR-S07D, and Release 3 are not closed.
