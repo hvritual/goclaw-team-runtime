@@ -2251,9 +2251,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r038`
 - Work-Item: `PCR-S07C`
 - Title: `Remove onboarding test-clock race and close Requirement coverage`
-- Status: `candidate-ready-awaiting-independent-review`
+- Status: `review-blocked-successor-active`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required before closure`
+- Independent reviewer: `Galileo — SPEC BLOCK and CODE/SECURITY/QUALITY BLOCK`
 - Exact base: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
 - Retained predecessor candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Plan hash: `5f596081b0aa97ffdfc4aad7aaebce997681406d474d8bcbfa1efcd2019cb8ca`
@@ -2312,4 +2312,58 @@ S02A without changing Task product behavior or activating S02B.
   404 diagnostics; reload supplied the plan-authorized refresh proof. No Next
   overlay appeared. Dedicated ports and runtime artifacts are removed.
 - Exact candidate, hashes, trailers, clean/dirty isolation, and fresh
-  independent dual review remain R38.4 requirements. PCR-S07C is not closed.
+  independent dual review complete R38.4 with both decisions BLOCK. The exact
+  findings are persisted-content validation, active-link baseline ownership,
+  shared-view query-error projection, and missing executable query-count-bound
+  evidence. r038 is review-blocked; PCR-S07C is not closed.
+
+## PCR-001-S07C-R39
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07C-R39`
+- Task-Revision: `r039`
+- Work-Item: `PCR-S07C`
+- Title: `Close Requirement coverage independent-review findings`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before closure`
+- Exact base: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
+- Blocked input tree: `d328692cc8a2724d2524c279c190d55c01286524`
+- Blocked input binary patch hash: `943514fc385a78df5e987145b3340d897ff71a6f`
+- Plan hash: `81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`
+- Write boundary: exact paths in immutable `plan_v34.md`; every migration,
+  HTTP production handler, Core contract, Bootstrap/Auth path, generated
+  protobuf, original dirty path, legacy backend write, and `server/**` path is
+  read-only
+- Acceptance source: `plan_v34.md` R39.2-R39.5 and story-map PCR-S07C
+
+### Ordered outputs
+
+- RED current/effective valid-JSON invalid domain content and foreign
+  Workspace/Project active-link ownership drift against exact r038.
+- GREEN only domain-owned persisted-content validation and ownership checking
+  inside the existing single per-snapshot Issue-projection query, retaining
+  deleted-Issue exclusion and all four frozen stages.
+- Prove the real SQLite repository query count is constant for one versus one
+  hundred traceable items and within the frozen current-plus-effective bound.
+- RED then GREEN the shared-view coverage query error so it renders only a safe
+  localized error state, never the successful no-baseline empty state.
+- Run focused, complete backend, official race, strict frontend, root,
+  production-build, targeted installed, exact scope/trailer/dirty/process, and
+  fresh independent dual-review gates before closing PCR-S07C.
+- Keep PCR-S07D, Release 3 completion, S10, migrations, Core/public schema,
+  generated protobufs, original dirty paths, push, merge, deployment, and
+  `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Exact r038 base, tree, binary patch hash, 32-path boundary, plan/policy
+  hashes, eight continuous trailer blocks, clean candidate, zero `server/**`,
+  zero generated paths, and original dirty-tree preservation are retained.
+- Fresh independent review returns both required BLOCK decisions with the four
+  concrete findings frozen by v34. The earlier deterministic and installed
+  results remain recorded without being reclassified as closure evidence.
+- The Human Customer's confirmed continuous Release 3 direction, confirmed
+  prerequisite outline authority, and confirmed execution authorize this
+  minimal successor. Activation claims no remediation or PASS.

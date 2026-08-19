@@ -1945,3 +1945,34 @@ Known limitations, blockers, and next action
   dedicated database, binary, and fixture source are removed. R38.4 exact
   candidate/scope/trailer/dirty-tree audit and fresh independent dual review
   remain pending. PCR-S07C, PCR-S07D, and Release 3 are not closed.
+
+## 2026-08-19 — J072 — r038 independent review blocks; v34/r039 activates
+
+- Exact r038 candidate `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
+  has tree `d328692cc8a2724d2524c279c190d55c01286524`, binary patch hash
+  `943514fc385a78df5e987145b3340d897ff71a6f`, 32 authorized paths,
+  zero `server/**` or generated paths, eight complete continuous nine-trailer
+  commits, a clean isolated worktree, and zero overlap with the original 25
+  dirty entries. v31-v33 and policy hashes match.
+- Fresh independent read-only review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK`. It reproduces a valid-JSON invalid-domain
+  `content_json` returning HTTP 200 with zero coverage, identifies active link
+  ownership drift that can disclose a foreign Project Issue, confirms the
+  shared UI maps coverage query failure to the successful empty state, and
+  finds no executable query-count-bound assertion. Earlier aggregate, race,
+  lint, root-test, fixture, WebSocket, and invitation diagnostics remain
+  non-blocking disclosed evidence.
+- r038 is review-blocked and immutable v33 remains unchanged. The Customer's
+  confirmed continuous Release 3 direction activates only v34/r039 from exact
+  base `8116b79f` for assertion-first persisted-content validation, same-query
+  active-link ownership checking, real-driver constant-query evidence, and a
+  localized shared-view query-error state.
+- v34's exact hash is
+  `81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`.
+- Coverage stages, public schema, persistence schema, permissions, flags, and
+  every unrelated behavior remain frozen. PCR-S07D, Release 3 completion,
+  migrations, Core changes, generated protobufs, original dirty paths, push,
+  merge, deployment, external services, and `server/**` remain inactive or
+  excluded. Activation claims no remediation or PASS.

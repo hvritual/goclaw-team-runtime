@@ -187,7 +187,7 @@ projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 
-Status: `candidate ready awaiting independent review under PRODUCT-CAPABILITY-ROADMAP-001 v33 / r038; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
+Status: `independent-review remediation active under PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039; v33 / r038 is review-blocked; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
 
 As a reviewer, I can distinguish Requirements that are linked, implemented, and
 accepted rather than treating any relation as coverage.
@@ -203,8 +203,12 @@ revision-relative, while Issue status and latest acceptance remain current
 canonical projections. v32/r037 changes no coverage or Auth production behavior
 and stabilizes one aggregate-load test server. v33/r038 changes no production
 behavior and protects only a test-local injected clock from its real outbox
-reader. PCR-S07D stays inactive until S07C closes through its own deterministic,
-installed, scope, and fresh independent-review gates.
+reader. Independent review of exact r038 blocks on persisted-content
+revalidation, active-link baseline ownership, UI query-error projection, and
+executable query-count evidence. v34/r039 changes only those boundaries while
+preserving every coverage stage and public contract. PCR-S07D stays inactive
+until S07C closes through its own deterministic, installed, scope, and fresh
+independent-review gates.
 
 ### PCR-S07D — Publish a retrospective and create action items
 

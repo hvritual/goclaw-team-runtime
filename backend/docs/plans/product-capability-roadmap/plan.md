@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v33.md](plan_v33.md).
+The approved execution snapshot is [plan_v34.md](plan_v34.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `33`
-- Active step: `PCR-S07C R38.4`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review`
-- Plan base commit: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
+- Approved version: `34`
+- Active step: `PCR-S07C R39.1`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C independent-review remediation active`
+- Plan base commit: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -215,9 +215,28 @@ behavior. The browser recorded no framework overlay. Production `next start`
 could not proxy the WebSocket upgrade and logged 403 reconnect diagnostics, so
 the plan-authorized reload path supplied refresh proof; the uninstalled
 invitation route also logged 404. All task-owned processes and runtime files
-were removed and the three dedicated ports are closed. r038 is now a scoped
-candidate awaiting fresh independent `SPEC PASS` and
-`CODE/SECURITY/QUALITY PASS`; PCR-S07C is not yet closed.
+were removed and the three dedicated ports are closed. Exact r038 candidate
+`8116b79f` has tree `d328692c`, binary patch hash `943514fc`, 32 authorized
+paths, zero `server/**` or generated paths, eight continuous nine-trailer
+commits, a clean isolated worktree, and zero overlap with the original 25 dirty
+entries.
+
+Fresh independent review of that exact candidate returns `SPEC BLOCK` and
+`CODE/SECURITY/QUALITY BLOCK`. Persisted valid-JSON Requirement content is not
+fully domain-validated on read; an active Issue link whose persisted ownership
+drifts from the authorized baseline can project a foreign Issue; the shared UI
+turns coverage query failure into the empty state; and the frozen constant
+query graph lacks an executable query-count assertion. r038 is review-blocked
+and immutable v33 remains unchanged.
+
+The Customer's confirmed continuous Release 3 direction activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039` from exact base `8116b79f` to close
+those four findings with assertion-first failure-closed validation, same-query
+link-ownership checking, a localized UI error state, and a real-driver bounded
+query proof. Coverage stages, public schema, storage, permissions, flags, and
+every unrelated behavior stay frozen. PCR-S07D, Release 3 completion, push,
+merge, deployment, generated protobufs, original dirty paths, and `server/**`
+remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
