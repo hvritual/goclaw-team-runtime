@@ -2057,3 +2057,33 @@ Known limitations, blockers, and next action
   inactive until an immutable successor plan is activated. Release 3 is not
   complete; push, merge, deployment, generated protobufs, original dirty paths,
   and `server/**` remain excluded.
+
+## 2026-08-19 — J075 — v35/r040 activates only PCR-S07D
+
+- Exact S07C governance closure `1d515efcca0919eed1e8a811c53d015efa89dfa3`
+  follows fresh `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` on candidate
+  `47ee4189cb5571ec38ae39480c758d4decad22bd`. No S07D product path was changed
+  before this successor freeze.
+- Read-only two-round context discovery reaches a fixed point over story-map,
+  frozen contract, current Core/Views surface, Canonical composition, migration,
+  Task/Issue creation, permission, and feature-flag evidence. Canonical
+  Retrospective persistence/HTTP is missing; Task create is already idempotent,
+  while ordinary Issue create cannot satisfy an action-item retry by itself.
+- v35 freezes Workspace-owned complete immutable snapshots, revisioned
+  participant/facilitator roles, current membership/Project authorization,
+  draft/publication/supersede/archive, structured action items, default Task and
+  explicit Issue targets, resumable at-most-one target claims, immutable source
+  links, strict HTTP/Core/Views, and fresh installed acceptance.
+- Retrospective target creation may use only injected public Task/Issue creation
+  contracts. Direct Task/Issue table mutation, automatic Knowledge proposal,
+  public Issue HTTP/proto expansion, generated protobufs, and published-snapshot
+  mutation are forbidden. Release 3 completion still requires S07D closure and
+  a later aggregate DoneGate.
+- v35 hash is
+  `c2c112bb1b903caad6f87e1de14c8ebdb4d5f4ff89665b47bbc734a79c10237a`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/c2c112bb1b903caad6f87e1de14c8ebdb4d5f4ff89665b47bbc734a79c10237a`.
+- Only PCR-S07D is active. Release 3 completion, S08+, S10, original dirty
+  paths, push, merge, deployment, external services, legacy backend writes,
+  and `server/**` remain inactive or excluded. Activation claims no
+  implementation or PASS.

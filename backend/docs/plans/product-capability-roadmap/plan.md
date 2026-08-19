@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v34.md](plan_v34.md).
+The approved execution snapshot is [plan_v35.md](plan_v35.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `34`
-- Active step: `none`
-- Status: `Release 3 active; PCR-S07A, PCR-S07B, and PCR-S07C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
-- Plan base commit: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
+- Approved version: `35`
+- Active step: `PCR-S07D R40.2`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r040`
+- Plan base commit: `1d515efcca0919eed1e8a811c53d015efa89dfa3`
 - Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -286,6 +286,27 @@ review returns `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` with no blocking
 finding. PCR-S07C is `complete-independent-reviewed`; PCR-S07D remains inactive
 until its own immutable successor plan is activated. No push, merge,
 deployment, generated-protobuf change, or Release 3 completion is claimed.
+
+The Customer's confirmed continuous Release 3 direction and confirmed
+execution activate only `PRODUCT-CAPABILITY-ROADMAP-001 v35 / r040` from exact
+S07C closure `1d515efc` for PCR-S07D. The frozen Retrospective authority is
+Workspace-owned, versioned draft/publication/supersede/archive content with
+revisioned participant roles, current facilitator/Project-lead authorization,
+structured action items, default Task and explicit Issue targets, resumable
+idempotent cross-contract creation, and immutable provenance links. The
+Retrospective repository never writes Task or Issue tables; published snapshots
+are immutable and every mutation revalidates current membership/Project
+authority after `BEGIN IMMEDIATE`.
+
+v35 completes the strict HTTP/Core/shared-Views surface, four locales, the
+`project_retrospectives` installed flag, deterministic migration/governance/
+interruption/concurrency evidence, production Web build, and fresh
+two-identity installed acceptance. It adds no automatic Knowledge proposal,
+public Issue/proto change, generated code, realtime Retrospective projection,
+target unlink/re-target, or permanent delete. Release 3 completion remains
+inactive until S07D passes its own exact candidate and fresh independent dual
+review, followed by a separate aggregate DoneGate. Activation claims no
+implementation or PASS.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

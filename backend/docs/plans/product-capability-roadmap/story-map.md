@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v34`
-- Status: `Release 3 active; PCR-S07A, PCR-S07B, and PCR-S07C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
+- Plan-Version: `v35`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r040`
 
 ## Delivery policy
 
@@ -217,7 +217,7 @@ own immutable successor plan is activated.
 
 ### PCR-S07D — Publish a retrospective and create action items
 
-Status: `inactive pending an immutable successor plan`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v35 / r040`
 
 As a project team, we can draft and publish a retrospective, preserve revisions,
 and turn an action item into a task or Issue.
@@ -225,6 +225,12 @@ and turn an action item into a task or Issue.
 Acceptance scenarios include participant roles, task default, explicit Issue
 choice, idempotent retry, source link, published-revision immutability, and
 archive.
+
+v35 freezes active-member participant/facilitator authority, immutable complete
+snapshots, an opaque-cursor HTTP/Core boundary, resumable at-most-one target
+claims through injected Task/Issue creation contracts, safe server access
+projection, and a loaded four-locale shared UI. Release 3 completion stays
+inactive until S07D independently closes and a later aggregate DoneGate passes.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 

@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v34`
-- Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
-- Registry revision: `r039`
+- Plan-Version: `v35`
+- Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active`
+- Registry revision: `r040`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2432,3 +2432,62 @@ S02A without changing Task product behavior or activating S02B.
   completion remain inactive pending their own governed plan and DoneGates;
   push, merge, deployment, generated protobufs, and `server/**` remain
   excluded.
+
+## PCR-001-S07D-R40
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07D-R40`
+- Task-Revision: `r040`
+- Work-Item: `PCR-S07D`
+- Title: `Publish governed Retrospectives and materialize action items`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh dual decision required before closure`
+- Exact base: `1d515efcca0919eed1e8a811c53d015efa89dfa3`
+- Predecessor reviewed candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
+- Predecessor reviewed tree: `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca`
+- Plan hash: `c2c112bb1b903caad6f87e1de14c8ebdb4d5f4ff89665b47bbc734a79c10237a`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/c2c112bb1b903caad6f87e1de14c8ebdb4d5f4ff89665b47bbc734a79c10237a`
+- Write boundary: exact paths in immutable `plan_v35.md`; every generated
+  protobuf, public Issue HTTP/proto, unrelated Task/Issue/Knowledge behavior,
+  original dirty path, legacy backend write, and `server/**` path is read-only
+- Acceptance source: `plan_v35.md` R40.2-R40.6 and story-map PCR-S07D
+
+### Ordered outputs
+
+- Assertion-first Retrospective content/participant domain, additive migration,
+  immutable revision/history, draft/publication/supersede/archive lifecycle,
+  current transaction-owned authorization, governance/audit/outbox, persisted
+  failure closure, project cleanup, and safe down guards.
+- Assertion-first content-free action target claims, omitted-kind Task default,
+  explicit Issue, stable idempotent replay/conflict, interrupted/concurrent
+  recovery, and immutable source links only through injected Task/Issue creation
+  contracts.
+- Strict authenticated HTTP and Core contracts with opaque cursors, typed
+  problems, server access projection, Workspace-scoped queries, stable retry
+  keys, and malformed-response denial.
+- Loaded four-locale shared Project UI for drafts, participants/facilitators,
+  publication/revision history, action targets/links, errors, and archive;
+  remove the unsupported automatic-Knowledge-review claim.
+- Complete backend/race/frontend/root/build gates, fresh real-HTTP production-Web
+  two-identity installed acceptance, exact scope/trailer/dirty/process audit,
+  and fresh independent dual PASS before closing PCR-S07D.
+- Keep Release 3 completion, S08+, S10, generated protobufs, automatic Knowledge
+  integration, realtime Retrospectives, permanent delete, re-target/unlink,
+  original dirty paths, push, merge, deployment, and `server/**` inactive or
+  excluded.
+
+### Activation evidence
+
+- Exact r039 candidate/tree/binary hash, 15-path scope, four continuous
+  nine-trailer commits, clean candidate, original dirty-tree isolation, closed
+  ports, and fresh independent `SPEC PASS` plus
+  `CODE/SECURITY/QUALITY PASS` close PCR-S07C at governance commit `1d515efc`.
+- Read-only fixed-point discovery verifies the frozen S07D story/contract,
+  partial legacy Core/Views surface, missing Canonical backend, existing Task
+  idempotency, and the explicit Issue-idempotency gap. It identifies no
+  remaining human-owned scope decision; v35 resolves the facilitator and
+  cross-contract recovery rules conservatively.
+- The Human Customer's confirmed continuous Release 3 direction, confirmed
+  prerequisite outline authority, and repeated confirmed execution authorize
+  this exact successor. Activation claims no product implementation or PASS.
