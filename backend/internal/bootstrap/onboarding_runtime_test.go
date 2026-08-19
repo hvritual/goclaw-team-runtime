@@ -15,9 +15,15 @@ import (
 
 func TestSQLiteRuntimeCompletesNewUserOnboarding(t *testing.T) {
 	now := time.Date(2026, 8, 14, 2, 3, 4, 0, time.UTC)
+	var nowMu sync.RWMutex
+	currentTime := func() time.Time {
+		nowMu.RLock()
+		defer nowMu.RUnlock()
+		return now
+	}
 	databasePath := filepath.Join(t.TempDir(), "onboarding.db")
 	dependencies := FailClosedWorkspaceDependencies()
-	dependencies.Now = func() time.Time { return now }
+	dependencies.Now = currentTime
 	config := Config{
 		Name: "backend-test", Version: "test",
 		HTTPAddress: "127.0.0.1:0", GRPCAddress: "127.0.0.1:0",
@@ -25,7 +31,7 @@ func TestSQLiteRuntimeCompletesNewUserOnboarding(t *testing.T) {
 		WorkspaceDependencies: dependencies,
 		LocalAuth: auth.LocalAuthConfig{
 			VerificationCode: "888888", SessionTTL: 24 * time.Hour,
-			Now: func() time.Time { return now },
+			Now: currentTime,
 		},
 	}
 	runtime := newRuntimeForConfig(t, config)
@@ -152,7 +158,9 @@ func TestSQLiteRuntimeCompletesNewUserOnboarding(t *testing.T) {
 	trailingCompletion := runtimeRequest(runtime, http.MethodPost, "/api/me/onboarding/complete", `{"workspace_id":"`+workspace.ID+`"}{}`, headers)
 	assertRuntimeResponse(t, trailingCompletion.Code, trailingCompletion.Body.String(), http.StatusBadRequest, `{"error":"invalid request body"}`)
 
+	nowMu.Lock()
 	now = now.Add(time.Hour)
+	nowMu.Unlock()
 	retried := runtimeRequest(runtime, http.MethodPost, "/api/me/onboarding/complete", `{"completion_path":"full","workspace_id":"`+workspace.ID+`"}`, headers)
 	if retried.Code != http.StatusOK || !strings.Contains(retried.Body.String(), `"onboarded_at":"`+firstOnboardedAt+`"`) {
 		t.Fatalf("retry = %d %s", retried.Code, retried.Body.String())
