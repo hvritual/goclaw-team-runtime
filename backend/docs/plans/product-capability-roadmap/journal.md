@@ -2087,3 +2087,36 @@ Known limitations, blockers, and next action
   paths, push, merge, deployment, external services, legacy backend writes,
   and `server/**` remain inactive or excluded. Activation claims no
   implementation or PASS.
+
+## 2026-08-19 — J076 — v36/r041 corrects the complete Project-deletion boundary
+
+- Assertion-first R40.2 work produced focused GREEN domain, additive migration,
+  draft-create replay, publication/supersede/archive, current authorization,
+  stale-revision, restart, corruption, and retained-down-guard evidence. These
+  product changes remain uncommitted while the write-boundary dependency is
+  corrected; no implementation PASS or story closure is claimed.
+- Read-only dependency tracing found exactly two installed deletion entries for
+  the same canonical `workspace_projects` identity:
+  `ProjectSurfaceRepository.DeleteProject` and
+  `projectRepository.DeleteWithDependents`. v35 listed the former repository
+  file but omitted the latter, so implementing the frozen Project cleanup in
+  only its v35 boundary would leave Retrospective authority through the other
+  installed entry.
+- Immutable v35 is not amended. r040 is
+  `superseded-before-product-commit`; its sole commit is governance activation
+  `fbfc1c05b622e08540564b235661b53cc2894aad`. v36/r041 inherits the complete
+  v35 contract and adds only
+  `backend/internal/modules/workspace/internal/infrastructure/sqlite/project_repository.go`.
+- The shared cleanup remains transaction-scoped and ownership-scoped. It
+  removes Project-owned Retrospective heads/revisions/participants/action links
+  and resource revisions from both entries, while preserving target Tasks or
+  Issues plus immutable Retrospective audit/outbox evidence. Forced later
+  failures must roll every cleanup effect back.
+- v36 hash is
+  `e652d38ebbc1d697d822554fe689aa842183ff6721f6e0e5335c50d05abb3c5d`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/e652d38ebbc1d697d822554fe689aa842183ff6721f6e0e5335c50d05abb3c5d`.
+- Only PCR-S07D remains active. Release 3 completion, S08+, S10, original
+  dirty paths, push, merge, deployment, generated protobufs, external services,
+  legacy backend writes, and `server/**` remain inactive or excluded. This
+  successor activation claims no product PASS.

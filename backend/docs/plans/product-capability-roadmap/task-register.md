@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v35`
+- Plan-Version: `v36`
 - Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active`
-- Registry revision: `r040`
+- Registry revision: `r041`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2440,7 +2440,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r040`
 - Work-Item: `PCR-S07D`
 - Title: `Publish governed Retrospectives and materialize action items`
-- Status: `active`
+- Status: `superseded-before-product-commit`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `fresh dual decision required before closure`
 - Exact base: `1d515efcca0919eed1e8a811c53d015efa89dfa3`
@@ -2491,3 +2491,48 @@ S02A without changing Task product behavior or activating S02B.
 - The Human Customer's confirmed continuous Release 3 direction, confirmed
   prerequisite outline authority, and repeated confirmed execution authorize
   this exact successor. Activation claims no product implementation or PASS.
+
+## PCR-001-S07D-R41
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07D-R41`
+- Task-Revision: `r041`
+- Work-Item: `PCR-S07D`
+- Title: `Complete governed Retrospectives across both Project deletion entries`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh dual decision required before closure`
+- Exact base: `fbfc1c05b622e08540564b235661b53cc2894aad`
+- Predecessor task: `PCR-001-S07D-R40` (`superseded-before-product-commit`)
+- Plan hash: `e652d38ebbc1d697d822554fe689aa842183ff6721f6e0e5335c50d05abb3c5d`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/e652d38ebbc1d697d822554fe689aa842183ff6721f6e0e5335c50d05abb3c5d`
+- Write boundary: every exact v35 path plus only
+  `backend/internal/modules/workspace/internal/infrastructure/sqlite/project_repository.go`;
+  generated paths, original dirty paths, legacy backend writes, and every
+  `server/**` path remain read-only
+- Acceptance source: `plan_v36.md` R41.2-R41.6, inherited complete v35
+  acceptance, and story-map PCR-S07D
+
+### Ordered outputs
+
+- Complete v35 R40.2-R40.6 unchanged as v36 R41.2-R41.6.
+- Add one assertion-first shared Retrospective Project-deletion cleanup used
+  inside both installed Project deletion transactions, with target/evidence
+  retention, ownership isolation, and rollback preservation.
+- Freeze one exact candidate and require every inherited deterministic,
+  installed, scope, process, trailer, and fresh independent dual-review gate.
+- Keep Release 3 completion, S08+, S10, generated protobufs, automatic
+  Knowledge integration, realtime Retrospectives, permanent delete,
+  re-target/unlink, original dirty paths, push, merge, deployment, and
+  `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Read-only dependency tracing found exactly two installed Project deletion
+  repositories and no third canonical deletion entry. Both own the same
+  `workspace_projects` identity; v35 authorized only one repository file.
+- r040 committed only governance activation `fbfc1c05`; all assertion-first
+  S07D product work remains uncommitted while v36 corrects the boundary.
+- The Human Customer's confirmed continuous Release 3 authority permits this
+  minimal successor without broadening the frozen product goal. Activation
+  claims no implementation or PASS.

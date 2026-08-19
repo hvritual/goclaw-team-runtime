@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v35.md](plan_v35.md).
+The approved execution snapshot is [plan_v36.md](plan_v36.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `35`
-- Active step: `PCR-S07D R40.2`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r040`
-- Plan base commit: `1d515efcca0919eed1e8a811c53d015efa89dfa3`
+- Approved version: `36`
+- Active step: `PCR-S07D R41.2`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r041`
+- Plan base commit: `fbfc1c05b622e08540564b235661b53cc2894aad`
 - Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -307,6 +307,23 @@ target unlink/re-target, or permanent delete. Release 3 completion remains
 inactive until S07D passes its own exact candidate and fresh independent dual
 review, followed by a separate aggregate DoneGate. Activation claims no
 implementation or PASS.
+
+Assertion-first R40.2 dependency inspection then proved that the installed
+Canonical Workspace has two Project deletion repositories but v35 authorized
+only the HTTP-surface repository path. Cleaning Retrospective authority from
+one deletion entry while leaving it behind through the installed local/proto
+entry would violate the frozen Project-deletion contract. No S07D product
+candidate was committed under r040.
+
+The same confirmed continuous authority activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v36 / r041` from exact governance activation
+`fbfc1c05`. v36 incorporates every v35 contract, gate, exclusion, and stop
+condition unchanged and adds exactly
+`backend/internal/modules/workspace/internal/infrastructure/sqlite/project_repository.go`
+to the writable boundary so both installed Project-deletion transactions can
+reuse one scoped Retrospective cleanup. Target Tasks/Issues and immutable
+Retrospective audit/outbox evidence remain retained. Release 3 completion,
+push, merge, deployment, generated code, and `server/**` remain excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

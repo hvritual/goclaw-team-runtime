@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v35`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r040`
+- Plan-Version: `v36`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r041`
 
 ## Delivery policy
 
@@ -217,7 +217,7 @@ own immutable successor plan is activated.
 
 ### PCR-S07D — Publish a retrospective and create action items
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v35 / r040`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v36 / r041`
 
 As a project team, we can draft and publish a retrospective, preserve revisions,
 and turn an action item into a task or Issue.
@@ -231,6 +231,12 @@ snapshots, an opaque-cursor HTTP/Core boundary, resumable at-most-one target
 claims through injected Task/Issue creation contracts, safe server access
 projection, and a loaded four-locale shared UI. Release 3 completion stays
 inactive until S07D independently closes and a later aggregate DoneGate passes.
+
+v36 preserves that complete contract and corrects one discovered write-boundary
+omission: both already-installed Project deletion repositories must invoke the
+same scoped Retrospective cleanup transaction. Target Tasks/Issues and immutable
+audit/outbox evidence survive Project deletion. No other behavior or path scope
+changes.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 
