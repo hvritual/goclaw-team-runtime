@@ -257,6 +257,19 @@ func TestProjectRequirementRepositoryRejectsActiveIssueLinkOwnershipDrift(t *tes
 	if coverage.BaselineStatus != nil || coverage.Current != nil || coverage.Effective != nil {
 		t.Fatalf("failed coverage returned partial projection = %#v", coverage)
 	}
+	baseline, err := repository.ReadProjectRequirement(
+		context.Background(), "workspace-1", "project-1",
+		contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+	)
+	if err == nil {
+		t.Fatalf("ReadProjectRequirement() error = nil, leaked baseline = %#v", baseline)
+	}
+	if strings.Contains(err.Error(), "TWO-1") || strings.Contains(err.Error(), "Foreign secret title") {
+		t.Fatalf("ownership error leaked foreign Issue detail: %v", err)
+	}
+	if baseline.Baseline != nil || baseline.CurrentContent != nil || baseline.EffectiveContent != nil || len(baseline.History) != 0 || len(baseline.IssueLinks) != 0 {
+		t.Fatalf("failed baseline read returned partial projection = %#v", baseline)
+	}
 }
 
 func TestProjectRequirementCoverageQueryCountIsBoundedBySnapshotCount(t *testing.T) {

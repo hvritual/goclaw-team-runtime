@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v33`
-- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review`
-- Registry revision: `r038`
+- Plan-Version: `v34`
+- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review`
+- Registry revision: `r039`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2324,9 +2324,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r039`
 - Work-Item: `PCR-S07C`
 - Title: `Close Requirement coverage independent-review findings`
-- Status: `approved-active`
+- Status: `verification-complete-awaiting-independent-review`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `required before closure`
+- Independent reviewer: `fresh dual decision pending before closure`
 - Exact base: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
 - Blocked input tree: `d328692cc8a2724d2524c279c190d55c01286524`
 - Blocked input binary patch hash: `943514fc385a78df5e987145b3340d897ff71a6f`
@@ -2367,3 +2367,40 @@ S02A without changing Task product behavior or activating S02B.
 - The Human Customer's confirmed continuous Release 3 direction, confirmed
   prerequisite outline authority, and confirmed execution authorize this
   minimal successor. Activation claims no remediation or PASS.
+
+### R39.2-R39.4 current evidence
+
+- Assertion-first persisted-read cases cover current/effective `{}`, invalid
+  and duplicate keys, oversized content, and real Canonical HTTP typed failure.
+  One domain normalization/validation function now owns every persisted
+  Requirement content read; no partial coverage response is returned.
+- A real foreign Workspace/Project/Issue proves the coverage snapshot query
+  rejects link ownership drift before Issue projection. The real modernc SQLite
+  driver counter observes exactly eight repository queries for both one and one
+  hundred current-plus-effective items.
+- The shared view's query-error RED rendered the successful empty state. It now
+  renders only the safe localized alert in en/ja/ko/zh-Hans; true no-baseline
+  and valid coverage behavior remain unchanged.
+- Visual inspection of the first installed candidate caught a second projection
+  of the same ownership drift through baseline Issue links. Repository RED
+  reproduced the full foreign identifier/title. The existing baseline-link
+  query now validates stored Workspace/Project ownership before returning any
+  link; real baseline and coverage HTTP reads both return typed 500 without
+  partial or foreign detail.
+- Final complete Workspace passes in 15.2 seconds; backend `make check` passes
+  in 31.3 seconds; official `make test-race` passes all packages in 108.5
+  seconds with Scoop GCC 15.2.0. Earlier focused, complete Core 628/628, complete
+  Views 1684/1684, strict type/changed-file lint, root forced typecheck 6/6, and
+  production Web 17-page build results remain exact for the unchanged frontend
+  tree.
+- Broad Views lint remains NON-PASS on 16 errors and two warnings in unrelated
+  Knowledge/Skills/editor/search files. Root forced tests remain NON-PASS on
+  one pre-existing Team Control five-second aggregate timeout; its exact file
+  passes 10/10. Neither result is renamed PASS.
+- Final fresh-database installed acceptance passes 38 checks using real
+  Canonical HTTP and production Web: valid linked rendering, corrupt-content
+  typed failure and safe alert, foreign baseline/coverage typed failure without
+  foreign detail, and restored valid rendering. In-app Browser host-loopback
+  isolation, production WebSocket 403 reconnects, and uninstalled invitations
+  404 remain disclosed. Ports 3018/38139/39139 are closed. Exact candidate
+  freeze/audit and fresh independent dual review remain pending.

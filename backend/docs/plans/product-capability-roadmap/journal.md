@@ -1976,3 +1976,57 @@ Known limitations, blockers, and next action
   migrations, Core changes, generated protobufs, original dirty paths, push,
   merge, deployment, external services, and `server/**` remain inactive or
   excluded. Activation claims no remediation or PASS.
+
+## 2026-08-19 — J073 — R39.2-R39.4 remediation and final verification
+
+- Commit `63e666df` adds assertion-first complete persisted-content validation,
+  active coverage-link ownership checking, and the real-driver query counter.
+  The invalid-content table covers current/effective `{}`, invalid and duplicate
+  keys, and an oversized item. Four cases were real RED; duplicate-key handling
+  was already fail closed. A real foreign Workspace/Project/Issue was RED and
+  leaked coverage before the guard. One versus one hundred traceable items both
+  use exactly eight current-plus-effective repository queries.
+- Commit `eef133c2` captures the shared-view error RED, then renders only a safe
+  localized `role=alert` in en/ja/ko/zh-Hans. The component suite passes 10/10;
+  true no-baseline and valid data paths remain unchanged. No new React state or
+  effect, Core/public contract, route, migration, permission, or flag is added.
+- The first targeted installed candidate passed 33 scripted assertions, but
+  visual inspection of screenshot
+  `A5A4C35CF89E185ED3A940678C2B249B25A5D79B82FE50F3361431FA3EF075D0`
+  exposed `RFO-1 / R39 foreign secret title` through the sibling baseline link
+  projection while coverage itself showed the safe alert. That run is RED, not
+  PASS. A new repository test reproduced a successful baseline response with
+  the full foreign identifier/title against the pre-repair code.
+- The same v34 ownership finding and exact repository/test/composition boundary
+  authorizes the narrow repair: the existing baseline-link query selects its
+  stored Workspace/Project IDs and compares both to the authorized baseline
+  before returning a link. Query count, schema, route, and valid behavior are
+  unchanged. Focused repository and real HTTP composition tests turn GREEN;
+  both baseline and coverage now return typed 500 without partial or foreign
+  detail.
+- On the repaired tree, complete Workspace passes in 15.2 seconds. Backend
+  `make check` passes in 31.3 seconds including fmt, policy/`server/**`,
+  generated, vet, and all Go tests. Official `make test-race` passes every
+  package in 108.5 seconds with repository-selected Scoop GCC 15.2.0.
+- The exact unchanged frontend tree had already passed Core 102 files/628 tests,
+  Views 168 files/1684 tests, Core/Views typecheck, complete Core lint, exact
+  changed-file Views lint, root forced typecheck 6/6, and production Web build
+  with 17 static pages. Broad Views lint remains NON-PASS on 16 errors and two
+  warnings in unrelated Knowledge/Skills/editor/search paths. Root forced tests
+  remain NON-PASS on one existing Team Control aggregate-load timeout while the
+  exact file passes 10/10. Existing CSS optimizer warnings are retained.
+- A second fresh SQLite database, final candidate backend, real Canonical HTTP,
+  and production Web pass 38 installed checks. Valid coverage renders linked;
+  corrupt `{}` makes typed failure and only the localized safe alert; a real
+  foreign Workspace/Project/Issue makes baseline and coverage both typed 500
+  with no foreign or partial fields and no foreign UI text; restoring content
+  or the link returns valid linked coverage. Green screenshot hashes are
+  `0970AC54B10190E63FC296698F5D08AE9E805E13D4954968428494B2DFCA6275`
+  and `E3D25149EE14794596F63A8A7D7102A08C56B784C977D19C3531F747B750283B`.
+- The in-app Browser is invoked first but cannot reach host loopback; the
+  approved installed-Chrome fallback uses 1440x1000, finds a non-empty title and
+  meaningful DOM, and finds no Next overlay. Expected diagnostics are WebSocket
+  upgrade 403, uninstalled invitations 404, and the deliberately induced 500s.
+  All owned processes are stopped and ports 3018/38139/39139 are closed. Exact
+  candidate/scope/trailer/dirty audit and fresh independent dual review remain;
+  PCR-S07C, PCR-S07D, and Release 3 are not closed.

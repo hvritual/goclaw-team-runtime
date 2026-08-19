@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v33`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C candidate ready awaiting independent review under r038`
+- Plan-Version: `v34`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review under r039`
 
 ## Delivery policy
 
@@ -187,7 +187,7 @@ projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 
-Status: `independent-review remediation active under PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039; v33 / r038 is review-blocked; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
+Status: `verification complete awaiting exact freeze and independent review under PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039; v33 / r038 is review-blocked; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
 
 As a reviewer, I can distinguish Requirements that are linked, implemented, and
 accepted rather than treating any relation as coverage.
@@ -206,9 +206,13 @@ behavior and protects only a test-local injected clock from its real outbox
 reader. Independent review of exact r038 blocks on persisted-content
 revalidation, active-link baseline ownership, UI query-error projection, and
 executable query-count evidence. v34/r039 changes only those boundaries while
-preserving every coverage stage and public contract. PCR-S07D stays inactive
-until S07C closes through its own deterministic, installed, scope, and fresh
-independent-review gates.
+preserving every coverage stage and public contract. The first targeted
+installed run additionally exposed the same stored ownership drift through the
+sibling baseline link projection; the v34-authorized repository boundary now
+rejects both baseline and coverage projections before returning foreign Issue
+detail. Repaired full backend/race and fresh 38-check installed gates pass.
+PCR-S07D stays inactive until exact scope/trailer/dirty audit and fresh
+independent dual review close S07C.
 
 ### PCR-S07D — Publish a retrospective and create action items
 

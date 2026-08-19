@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v34.md](plan_v34.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `34`
-- Active step: `PCR-S07C R39.1`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C independent-review remediation active`
+- Active step: `PCR-S07C R39.5`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review`
 - Plan base commit: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -237,6 +237,44 @@ query proof. Coverage stages, public schema, storage, permissions, flags, and
 every unrelated behavior stay frozen. PCR-S07D, Release 3 completion, push,
 merge, deployment, generated protobufs, original dirty paths, and `server/**`
 remain inactive or excluded.
+
+R39.2-R39.3 make the complete domain invariant authoritative on every persisted
+Requirement read, reject per-snapshot active-link ownership drift, prove the
+current-plus-effective repository graph remains exactly eight queries for one
+and one hundred items, and render a localized safe coverage error instead of
+the successful empty state. Assertion-first cases cover `{}`, invalid and
+duplicate keys, oversized content, a real foreign Workspace/Project/Issue, and
+real Canonical HTTP composition.
+
+The first targeted installed run proved the coverage endpoint failed closed but
+visual inspection exposed the same foreign Issue through the sibling baseline
+link projection. That observable RED stayed inside v34's frozen ownership
+finding and exact repository/test/composition paths. The existing single
+baseline-link query now returns its stored Workspace/Project identity and
+compares both with the authorized baseline before returning any link. A new
+repository assertion reproduced the exact leaked identifier/title before the
+repair; the repository and real HTTP composition are GREEN afterward without a
+route, schema, migration, permission, flag, or query-count change.
+
+On the repaired tree, complete Workspace and backend `make check` pass; the
+official Windows race passes all packages with Scoop GCC 15.2.0. The unchanged
+frontend tree retains full Core 628/628 and Views 1684/1684 PASS, Core/Views
+typecheck and changed-file lint PASS, root forced typecheck 6/6 PASS, and a
+17-page production Web build PASS. Broad Views lint remains NON-PASS only on
+the recorded 16 errors and two warnings in unrelated Knowledge/Skills/editor/
+search paths. Root forced tests remain NON-PASS on one pre-existing Team
+Control aggregate-load timeout while that exact file passes 10/10.
+
+A second fresh SQLite runtime then passes 38 targeted installed checks through
+real Canonical HTTP and the production Web build: valid linked coverage renders;
+corrupt content makes both raw typed failure and the safe localized UI state;
+a real foreign Workspace/Project/Issue makes both baseline and coverage reads
+return typed 500 with no partial or foreign detail; restoring either fixture
+returns the page to valid linked coverage. The in-app browser again cannot
+reach host loopback, so installed Chrome supplies the allowed fallback. The
+known WebSocket-upgrade 403 and uninstalled-invitations 404 remain disclosed,
+and the three dedicated ports are closed. Exact candidate/scope/trailer/dirty
+audit and fresh independent dual review remain before PCR-S07C closure.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

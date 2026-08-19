@@ -110,6 +110,48 @@ func TestSqliteWorkspaceChainComposesCanonicalProjectRequirementHTTP(t *testing.
 			t.Fatalf("corrupt persisted coverage leaked fallback fragment %q: %s", forbidden, corruptResponse.Body.String())
 		}
 	}
+
+	if _, err = db.Exec(`UPDATE workspace_requirement_revisions SET content_json='{"problem_statement":"Govern delivery","goals":[{"key":"goal-1","text":"Ship"}],"in_scope":[],"out_of_scope":[],"constraints":[],"acceptance_criteria":[],"dependencies":[]}' WHERE baseline_id='baseline-1' AND revision=1`); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{
+		`INSERT INTO workspaces(id,name,slug,issue_prefix,created_at,updated_at) VALUES
+			('workspace-2','Workspace Two','workspace-two','TWO','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_projects(id,workspace_id,name,status,priority,asset_ids,created_at,updated_at) VALUES
+			('project-2','workspace-2','Foreign Project','in_progress','none','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_issues(
+			id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,project_id,created_at,updated_at
+		) VALUES('foreign-issue','workspace-2',1,'TWO-1','Foreign secret title','done','none','member','foreign-owner','project-2','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_requirement_issue_links(
+			workspace_id,project_id,baseline_id,requirement_key,issue_id,linked_revision,
+			unlinked_revision,linked_by,linked_at,unlinked_by,unlinked_at
+		) VALUES('workspace-2','project-2','baseline-1','goal-1','foreign-issue',1,NULL,'owner-member','2026-08-19T00:00:00Z',NULL,NULL)`,
+	} {
+		if _, err = db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	driftReadResponse := httptest.NewRecorder()
+	server.ServeHTTP(driftReadResponse, read)
+	if driftReadResponse.Code != http.StatusInternalServerError ||
+		!strings.Contains(driftReadResponse.Body.String(), `"code":"internal_error"`) ||
+		!strings.Contains(driftReadResponse.Body.String(), `"error":"failed to read Project Requirement"`) {
+		t.Fatalf("ownership-drift baseline = %d %s", driftReadResponse.Code, driftReadResponse.Body.String())
+	}
+	driftCoverageResponse := httptest.NewRecorder()
+	server.ServeHTTP(driftCoverageResponse, coverage)
+	if driftCoverageResponse.Code != http.StatusInternalServerError ||
+		!strings.Contains(driftCoverageResponse.Body.String(), `"code":"internal_error"`) ||
+		!strings.Contains(driftCoverageResponse.Body.String(), `"error":"failed to read Project Requirement coverage"`) {
+		t.Fatalf("ownership-drift coverage = %d %s", driftCoverageResponse.Code, driftCoverageResponse.Body.String())
+	}
+	for _, response := range []*httptest.ResponseRecorder{driftReadResponse, driftCoverageResponse} {
+		for _, forbidden := range []string{`"issue_links"`, `"total"`, `"items"`, "TWO-1", "Foreign secret title", "Foreign Project"} {
+			if strings.Contains(response.Body.String(), forbidden) {
+				t.Fatalf("ownership drift leaked fragment %q: %s", forbidden, response.Body.String())
+			}
+		}
+	}
 }
 
 func projectRequirementCompositionRequest(method, path, body string) *http.Request {

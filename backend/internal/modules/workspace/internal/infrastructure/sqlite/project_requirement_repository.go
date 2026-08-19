@@ -1332,7 +1332,7 @@ func decodeProjectRequirementContent(contentJSON string) (requirementDomain.Cont
 }
 
 func readProjectRequirementIssueLinksOnConnection(ctx context.Context, connection *sql.Conn, baseline requirementDomain.Baseline) ([]contract.ProjectRequirementIssueLink, error) {
-	rows, err := connection.QueryContext(ctx, `SELECT l.requirement_key,l.issue_id,i.identifier,i.title,i.status,
+	rows, err := connection.QueryContext(ctx, `SELECT l.workspace_id,l.project_id,l.requirement_key,l.issue_id,i.identifier,i.title,i.status,
 		l.linked_revision,CASE WHEN EXISTS(
 			SELECT 1 FROM workspace_requirement_review_projections p
 			WHERE p.baseline_id=l.baseline_id AND p.requirement_key=l.requirement_key
@@ -1348,11 +1348,16 @@ func readProjectRequirementIssueLinksOnConnection(ctx context.Context, connectio
 	defer rows.Close()
 	links := make([]contract.ProjectRequirementIssueLink, 0)
 	for rows.Next() {
+		var linkWorkspaceID, linkProjectID string
 		var link contract.ProjectRequirementIssueLink
 		var reviewRequired int
-		if err = rows.Scan(&link.RequirementKey, &link.IssueID, &link.Identifier, &link.Title, &link.Status,
+		if err = rows.Scan(&linkWorkspaceID, &linkProjectID, &link.RequirementKey, &link.IssueID, &link.Identifier, &link.Title, &link.Status,
 			&link.LinkedRevision, &reviewRequired, &link.LinkedBy, &link.LinkedAt); err != nil {
 			return nil, fmt.Errorf("scan Project Requirement Issue link: %w", err)
+		}
+		if strings.TrimSpace(linkWorkspaceID) != strings.TrimSpace(baseline.WorkspaceID) ||
+			strings.TrimSpace(linkProjectID) != strings.TrimSpace(baseline.ProjectID) {
+			return nil, errors.New("Project Requirement Issue link ownership mismatch")
 		}
 		if _, err = time.Parse(time.RFC3339Nano, link.LinkedAt); err != nil {
 			return nil, fmt.Errorf("decode Project Requirement Issue link time: %w", err)
