@@ -64,8 +64,8 @@ func TestProjectRequirementRepositoryCreatesAndReplaysOneAuthorizedBaseline(t *t
 
 	conflictCommand := command
 	conflictCommand.RequestHash = strings.Repeat("b", 64)
-	if _, err := repository.SaveProjectRequirement(context.Background(), conflictCommand); !errors.Is(err, application.ErrProjectRequirementConflict) {
-		t.Fatalf("SaveProjectRequirement(conflict) error = %v, want ErrProjectRequirementConflict", err)
+	if _, err := repository.SaveProjectRequirement(context.Background(), conflictCommand); !errors.Is(err, contract.ErrIdempotencyConflict) {
+		t.Fatalf("SaveProjectRequirement(conflict) error = %v, want ErrIdempotencyConflict", err)
 	}
 }
 

@@ -292,8 +292,10 @@ func (h *ProjectRequirementHandler) writeFailure(ctx kratoshttp.Context, err err
 		return writeProjectRequirementProblem(ctx, http.StatusConflict, "invalid_transition", application.ErrProjectRequirementTransition.Error())
 	case errors.Is(err, application.ErrProjectRequirementSelfApproval):
 		return writeProjectRequirementProblem(ctx, http.StatusConflict, "independent_approval_required", application.ErrProjectRequirementSelfApproval.Error())
-	case errors.Is(err, application.ErrProjectRequirementConflict), errors.Is(err, contract.ErrIdempotencyConflict):
-		return writeProjectRequirementProblem(ctx, http.StatusConflict, "idempotency_conflict", application.ErrProjectRequirementConflict.Error())
+	case errors.Is(err, contract.ErrIdempotencyConflict):
+		return writeProjectRequirementProblem(ctx, http.StatusConflict, "idempotency_conflict", contract.ErrIdempotencyConflict.Error())
+	case errors.Is(err, application.ErrProjectRequirementConflict):
+		return writeProjectRequirementProblem(ctx, http.StatusConflict, "conflict", application.ErrProjectRequirementConflict.Error())
 	default:
 		return writeProjectRequirementProblem(ctx, http.StatusInternalServerError, "internal_error", internalMessage)
 	}

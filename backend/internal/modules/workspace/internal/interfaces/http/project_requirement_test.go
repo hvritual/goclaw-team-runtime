@@ -200,7 +200,8 @@ func TestProjectRequirementHTTPMapsTypedFailuresWithoutPayloadEcho(t *testing.T)
 		{name: "missing", err: application.ErrProjectRequirementNotFound, wantStatus: http.StatusNotFound, wantBody: `{"code":"not_found","error":"Project Requirement not found"}`},
 		{name: "transition", err: application.ErrProjectRequirementTransition, wantStatus: http.StatusConflict, wantBody: `{"code":"invalid_transition","error":"invalid Project Requirement transition"}`},
 		{name: "self approval", err: application.ErrProjectRequirementSelfApproval, wantStatus: http.StatusConflict, wantBody: `{"code":"independent_approval_required","error":"independent Project Requirement approval required"}`},
-		{name: "idempotency", err: application.ErrProjectRequirementConflict, wantStatus: http.StatusConflict, wantBody: `{"code":"idempotency_conflict","error":"Project Requirement conflict"}`},
+		{name: "idempotency", err: contract.ErrIdempotencyConflict, wantStatus: http.StatusConflict, wantBody: `{"code":"idempotency_conflict","error":"idempotency conflict"}`},
+		{name: "resource conflict", err: application.ErrProjectRequirementConflict, wantStatus: http.StatusConflict, wantBody: `{"code":"conflict","error":"Project Requirement conflict"}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

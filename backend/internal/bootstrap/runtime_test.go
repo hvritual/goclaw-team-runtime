@@ -150,8 +150,10 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	if !body.FeatureFlags["project_resources"] {
 		t.Error("project_resources flag = false after the installed S07A runtime")
 	}
+	if !body.FeatureFlags["project_requirements"] {
+		t.Error("project_requirements flag = false after the installed S07B runtime")
+	}
 	for _, capability := range []string{
-		"project_requirements",
 		"project_retrospectives",
 		"issue_similarity",
 		"notifications",

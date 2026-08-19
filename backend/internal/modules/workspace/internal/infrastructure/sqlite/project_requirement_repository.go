@@ -54,7 +54,7 @@ func (r *ProjectRequirementRepository) SaveProjectRequirement(ctx context.Contex
 			command.WorkspaceID, command.IdempotencyKey).Scan(&storedHash, &responseBody)
 		if replayErr == nil {
 			if storedHash != command.RequestHash {
-				return contract.ProjectRequirementBaselineResponse{}, application.ErrProjectRequirementConflict
+				return contract.ProjectRequirementBaselineResponse{}, contract.ErrIdempotencyConflict
 			}
 			if err = json.Unmarshal([]byte(responseBody), &result); err != nil {
 				return contract.ProjectRequirementBaselineResponse{}, fmt.Errorf("decode Project Requirement replay: %w", err)
@@ -413,7 +413,7 @@ func (r *ProjectRequirementRepository) CreateProjectOutlineNode(ctx context.Cont
 		WHERE workspace_id=? AND action='workspace.project.outline.create' AND idempotency_key=?`, command.WorkspaceID, command.IdempotencyKey).Scan(&storedHash, &responseBody)
 	if replayErr == nil {
 		if storedHash != command.RequestHash {
-			return contract.ProjectOutline{}, application.ErrProjectRequirementConflict
+			return contract.ProjectOutline{}, contract.ErrIdempotencyConflict
 		}
 		if err = json.Unmarshal([]byte(responseBody), &result); err != nil {
 			return contract.ProjectOutline{}, fmt.Errorf("decode Project outline replay: %w", err)
