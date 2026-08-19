@@ -135,33 +135,43 @@ func TestKnowledgeReviewDownMigrationRejectsEveryRetainedDependency(t *testing.T
 }
 
 func TestProjectResourceDownMigrationRejectsEveryRetainedDependency(t *testing.T) {
-	for _, test := range []struct{ name, statement string }{
+	for _, test := range []struct {
+		name          string
+		statement     string
+		snapshotQuery string
+	}{
 		{
 			"resource",
 			`INSERT INTO workspace_project_resources(
 				id,workspace_id,project_id,resource_type,canonical_url,resource_ref,fingerprint,label,position,status,revision,
 				connection_state,connection_diagnostic_code,created_at,created_by,updated_at,updated_by
 			) VALUES('resource-1','workspace-1','project-1','url','https://example.com/docs','','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','Docs',0,'active',1,'unchecked','','2026-08-19T00:00:00Z','user-1','2026-08-19T00:00:00Z','user-1')`,
+			`SELECT json_array(id,workspace_id,project_id,resource_type,canonical_url,resource_ref,fingerprint,label,position,status,revision,connection_state,connection_diagnostic_code,connection_checked_at,created_at,created_by,updated_at,updated_by,archived_at,archived_by) FROM workspace_project_resources WHERE id='resource-1'`,
 		},
 		{
 			"revision zero",
 			`INSERT INTO workspace_project_resource_sets(workspace_id,project_id,revision,updated_at) VALUES('workspace-1','project-1',0,'2026-08-19T00:00:00Z')`,
+			`SELECT json_array(workspace_id,project_id,revision,updated_at) FROM workspace_project_resource_sets WHERE workspace_id='workspace-1' AND project_id='project-1'`,
 		},
 		{
 			"audit resource kind",
 			`INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-19T00:00:00Z','audit-1','member','user-1','workspace.unrelated.action','project_resource','resource-1',1,'request-1','{}')`,
+			`SELECT json_array(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) FROM workspace_audit_entries WHERE workspace_id='workspace-1' AND occurred_at='2026-08-19T00:00:00Z' AND id='audit-1'`,
 		},
 		{
 			"audit action namespace",
 			`INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-19T00:00:00Z','audit-1','member','user-1','workspace.project.resource.restore','unrelated','resource-1',1,'request-1','{}')`,
+			`SELECT json_array(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) FROM workspace_audit_entries WHERE workspace_id='workspace-1' AND occurred_at='2026-08-19T00:00:00Z' AND id='audit-1'`,
 		},
 		{
 			"idempotency resource kind",
 			`INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.unrelated.action','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','project_resource','resource-1',1,201,'{}','2026-08-19T00:00:00Z')`,
+			`SELECT json_array(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at,expires_at) FROM workspace_mutation_idempotency WHERE workspace_id='workspace-1' AND action='workspace.unrelated.action' AND idempotency_key='key-1'`,
 		},
 		{
 			"idempotency action namespace",
 			`INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.project.resource.restore','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','unrelated','resource-1',1,200,'{}','2026-08-19T00:00:00Z')`,
+			`SELECT json_array(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at,expires_at) FROM workspace_mutation_idempotency WHERE workspace_id='workspace-1' AND action='workspace.project.resource.restore' AND idempotency_key='key-1'`,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -172,8 +182,19 @@ func TestProjectResourceDownMigrationRejectsEveryRetainedDependency(t *testing.T
 			if _, err := db.Exec(test.statement); err != nil {
 				t.Fatal(err)
 			}
+			var before string
+			if err := db.QueryRow(test.snapshotQuery).Scan(&before); err != nil {
+				t.Fatalf("snapshot retained dependency before blocked down migration: %v", err)
+			}
 			if err := executeProjectResourceDownForTest(context.Background(), db); err == nil {
 				t.Fatal("Project Resource down succeeded with retained dependency")
+			}
+			var after string
+			if err := db.QueryRow(test.snapshotQuery).Scan(&after); err != nil {
+				t.Fatalf("snapshot retained dependency after blocked down migration: %v", err)
+			}
+			if after != before {
+				t.Fatalf("blocked Project Resource down changed retained data\nbefore: %s\n after: %s", before, after)
 			}
 			var tables, catalog int
 			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('workspace_project_resources','workspace_project_resource_sets')`).Scan(&tables); err != nil || tables != 2 {

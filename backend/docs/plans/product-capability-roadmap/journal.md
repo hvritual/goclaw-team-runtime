@@ -1561,3 +1561,27 @@ Known limitations, blockers, and next action
   Work remains isolated; original dirty paths, generated protobufs, S07B-D,
   Release 3 completion, push, merge, deployment, and `server/**` remain
   inactive or excluded. Activation claims no remediation PASS.
+
+## 2026-08-19 — J060 — r033 data-preservation and deterministic evidence
+
+- The assertion-first extension to
+  `TestProjectResourceDownMigrationRejectsEveryRetainedDependency` captures all
+  fields of each retained Resource, revision-zero Resource set, audit row, and
+  idempotency row before the expected `000018` down-migration failure and
+  requires the exact JSON row snapshot afterward. All six independent guard
+  cases pass on the first execution. This proves the blocker was missing test
+  evidence; no migration or product implementation changed.
+- The focused assertion passes, and the complete Workspace package passes with
+  `go test ./internal/modules/workspace -count=1`.
+- The first backend `make check` reaches the full test graph but is retained as
+  NON-PASS because Go exhausts the C-drive temporary directory while linking
+  unrelated Space/contract tests. No C-drive cleanup is performed. With
+  task-specific `GOTMPDIR` and `GOCACHE` under
+  `F:\codex-tmp\pcr-s07a-r033`, the complete backend `make check` passes.
+- Official Windows changed-package race execution passes through
+  `make test-race RACE_PACKAGES=./internal/modules/workspace` using MinGW GCC
+  15.2.0. Product behavior remains byte-for-byte the v27 candidate; only the
+  frozen test and governance evidence change.
+- Exact candidate hash, parsed nine-trailer proof, path/server scope, clean
+  worktree, and fresh independent review remain pending. No closure, S07B
+  activation, push, merge, or deployment is claimed.
