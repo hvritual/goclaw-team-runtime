@@ -1770,7 +1770,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07A-R32`
 - Task-Revision: `r032`
 - Work-Item: `PCR-S07A`
-- Status: `active`
+- Status: `review-blocked`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Base commit: `71afb3c33a4d82431a8016cb195a97e5a36d8646`
@@ -1802,3 +1802,61 @@ S02A without changing Task product behavior or activating S02B.
   duplicate checks plus one write-transaction authority/revision/refresh
   boundary. No product repair, verification PASS, closure, push, merge, or
   deployment is claimed by activation.
+
+### Candidate and independent-review outcome
+
+- Exact candidate `9fb86ea056d253c82ea61b13031550db82eeb526`
+  (tree `c6a2f08f41ae2424807b39fd9b5cef5990324f84`) contains 46 paths,
+  zero unstaged paths, and zero `server/**` paths. Its exact binary patch hash
+  from the v27 activation commit is
+  `9b03028ec2218ea75948cd47179984d056221408`.
+- Focused backend/Core/Views checks, backend `make check`, exact changed-package
+  race checks, root typecheck, production Web build, and the fresh
+  retries-disabled installed-Chrome journey pass. The root test and broad
+  Windows race aggregates retain their documented unrelated failures and are
+  not represented as PASS.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK`: blank lines separate the required commit
+  fields so Git recognizes only `Policy-Bundle` as a trailer, and the blocked
+  down-migration test proves schema/catalog survival without comparing each
+  retained row value before and after failure. The reviewer found no additional
+  product, security, or quality blocker. r032 is review-blocked and immutable
+  v27 remains unchanged.
+
+## PCR-001-S07A-R33
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07A-R33`
+- Task-Revision: `r033`
+- Work-Item: `PCR-S07A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
+- Base commit: `9fb86ea056d253c82ea61b13031550db82eeb526`
+- Blocked input tree: `c6a2f08f41ae2424807b39fd9b5cef5990324f84`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v28`
+- Plan hash: `fc285bd972f09073d01f5a931b9ea4a57949af428349d68d806d03877d23b90b`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/fc285bd972f09073d01f5a931b9ea4a57949af428349d68d806d03877d23b90b`
+
+### Objective and acceptance
+
+- Preserve the complete v27 S07A product tree while repairing only the two
+  independent-review evidence/traceability blockers frozen by v28.
+- Prove byte-for-byte retained Resource, Resource-set, audit, and idempotency
+  row values after every independently blocked down-migration case.
+- Freeze a new exact candidate whose final commit exposes one continuous,
+  parseable nine-field trailer block. Re-enter focused/backend/race, scope,
+  traceability, and fresh independent-review gates.
+- Keep S07B-D, Release 3 completion, push, merge, deployment, generated
+  protobufs, original dirty files, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Exact base `9fb86ea056d253c82ea61b13031550db82eeb526` is the immutable
+  r032 review-blocked candidate. Its product/security review found no blocker
+  beyond the two proof defects named above.
+- Immutable v28 authorizes one assertion-first migration test and only a
+  captured-RED minimum atomicity correction if the existing behavior actually
+  mutates retained data. Otherwise product code remains unchanged.
+- The v28 policy bundle is frozen. No evidence repair, PASS, closure, push,
+  merge, or deployment is claimed by activation.

@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v27.md](plan_v27.md).
+The approved execution snapshot is [plan_v28.md](plan_v28.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `27`
-- Active step: `PCR-S07A R32.1`
-- Status: `Release 3 active; PCR-S07A independent-review remediation active`
-- Plan base commit: `71afb3c33a4d82431a8016cb195a97e5a36d8646`
+- Approved version: `28`
+- Active step: `PCR-S07A R33.1`
+- Status: `Release 3 active; PCR-S07A review-evidence remediation active`
+- Plan base commit: `9fb86ea056d253c82ea61b13031550db82eeb526`
 - Last closed task candidate: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -32,6 +32,18 @@ still saves locally valid, credential-free Resources independently of external
 reachability; typed adapter failure projects a safe degraded/unavailable state
 and never deletes an external target. S07B, S07C, S07D, Release 3 completion,
 push, merge, and deployment remain inactive.
+
+The v27/r032 exact candidate `9fb86ea` (tree `c6a2f08f`) passes its focused,
+backend check, exact race, typecheck, production-build, and retries-disabled
+installed-Chrome gates, but fresh independent review returns `SPEC BLOCK` and
+`CODE/SECURITY/QUALITY BLOCK`. Blank lines make eight required commit fields
+unparseable as Git trailers, and the blocked down-migration test does not
+compare retained row values before and after failure. No further product or
+security blocker was found. r032 is review-blocked and immutable v27 remains
+unchanged. The standing completion direction activates v28/r033 from exact
+base `9fb86ea` only for continuous trailer proof and exact down-migration data
+preservation assertions. S07B-D, Release 3 completion, push, merge, and
+deployment remain inactive.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

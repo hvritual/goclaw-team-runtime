@@ -158,7 +158,7 @@ source evidence, admin emergency reason, immutable audit, and realtime update.
 
 ### PCR-S07A — Manage project Resources
 
-Status: `independent-review remediation active under PRODUCT-CAPABILITY-ROADMAP-001 v27 / r032; v26 / r031 is review-blocked history`
+Status: `review-evidence remediation active under PRODUCT-CAPABILITY-ROADMAP-001 v28 / r033; v27 / r032 and v26 / r031 are review-blocked history`
 
 As a project member, I can add, validate, reorder, archive, and restore GitHub
 repository and generic URL resources without storing external credentials in

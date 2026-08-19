@@ -1534,3 +1534,30 @@ Known limitations, blockers, and next action
   worktree. S07B-D, Release 3 completion, original dirty paths, generated
   protobufs, push, merge, deployment, and `server/**` remain inactive or
   excluded. Activation claims no product repair or PASS.
+
+## 2026-08-19 — J059 — v28/r033 activates S07A review-evidence remediation
+
+- Exact v27 candidate `9fb86ea056d253c82ea61b13031550db82eeb526`
+  has tree `c6a2f08f41ae2424807b39fd9b5cef5990324f84`, 46 paths, zero
+  unstaged paths, zero `server/**` paths, and binary patch hash
+  `9b03028ec2218ea75948cd47179984d056221408` from the v27 activation
+  commit.
+- Focused backend/Core/Views checks, backend `make check`, exact changed-package
+  race checks, root typecheck, production Web build, and the fresh
+  retries-disabled installed-Chrome journey pass. The unchanged root test and
+  broad Windows race failures remain honest non-PASS aggregate evidence.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK` for two proof defects: blank-separated commit
+  fields are not parsed as required Git trailers, and the guarded down-migration
+  test checks schema/catalog survival without comparing retained row values.
+  No additional product, security, or quality blocker was found.
+- r032 is review-blocked; v27 and candidate `9fb86ea` remain immutable.
+  Continued Customer authority activates only v28/r033 from exact base
+  `9fb86ea` for a continuous nine-field trailer block and exact before/after
+  data-preservation assertions. Product code may change only if the new test
+  first captures actual retained-data drift.
+- The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/fc285bd972f09073d01f5a931b9ea4a57949af428349d68d806d03877d23b90b`.
+  Work remains isolated; original dirty paths, generated protobufs, S07B-D,
+  Release 3 completion, push, merge, deployment, and `server/**` remain
+  inactive or excluded. Activation claims no remediation PASS.
