@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v26.md](plan_v26.md).
+The approved execution snapshot is [plan_v27.md](plan_v27.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `26`
-- Active step: `PCR-S07A R31.1`
-- Status: `Release 3 active; PCR-S07A active`
-- Plan base commit: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Approved version: `27`
+- Active step: `PCR-S07A R32.1`
+- Status: `Release 3 active; PCR-S07A independent-review remediation active`
+- Plan base commit: `71afb3c33a4d82431a8016cb195a97e5a36d8646`
 - Last closed task candidate: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -16,13 +16,22 @@ The approved execution snapshot is [plan_v26.md](plan_v26.md).
 - S01B foundation design: [s01b-foundation-design.md](s01b-foundation-design.md)
 
 The Human Customer confirmed execution of the reviewed Release 3 plan on
-2026-08-19. `PRODUCT-CAPABILITY-ROADMAP-001 v26 / r031` starts from exact
-Release 2 closure `80d92b14` and activates only PCR-S07A governed Project
-Resources. S07B, S07C, S07D, Release 3 completion, push, merge, and deployment
-remain inactive. The approved connection policy saves locally valid,
-credential-free Resources independently of external reachability; typed adapter
-failure projects a safe degraded/unavailable state and never deletes an
-external target.
+2026-08-19. `PRODUCT-CAPABILITY-ROADMAP-001 v26 / r031` started from exact
+Release 2 closure `80d92b14` and activated only PCR-S07A governed Project
+Resources. Its exact 42-path candidate tree `65591332` passed focused and
+installed checks, but fresh independent review returned both `SPEC BLOCK` and
+`CODE/SECURITY/QUALITY BLOCK` for rollback authority guards, transactional
+authorization/revision/refresh boundaries, one HTTP permission mapping, secret
+logging, and explicit SQLite indexes. r031 is review-blocked and v26 remains
+immutable.
+
+The Customer's confirmed continuous Release 3 direction activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v27 / r032` from exact governance base
+`71afb3c3` only to remediate those S07A findings. The approved connection policy
+still saves locally valid, credential-free Resources independently of external
+reachability; typed adapter failure projects a safe degraded/unavailable state
+and never deletes an external target. S07B, S07C, S07D, Release 3 completion,
+push, merge, and deployment remain inactive.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

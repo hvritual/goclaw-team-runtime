@@ -1502,3 +1502,35 @@ Known limitations, blockers, and next action
   files, generated protobufs, unrelated Input/Issue UI, and `server/**` remain
   excluded. Only r031 is active; no product change or verification PASS is
   claimed.
+
+## 2026-08-19 — J058 — v27/r032 activates S07A review remediation
+
+- The v26/r031 exact staged candidate contained 42 product paths, zero
+  unstaged paths, and zero `server/**` paths at tree
+  `6559133236c2c6d02b8453ea72ad52c054a6b10c`; exact binary patch hash was
+  `575e289823966eb246351e9ae2db7b71bcbd0f54`.
+- Focused S07A checks, exact-package race checks, production Web build, and a
+  fresh installed-Chrome journey passed. Root test retained one unchanged
+  analytics timeout and the full Windows race aggregate retained existing
+  onboarding/outbox failures, so neither broad aggregate is represented as
+  PASS.
+- Fresh independent review returned `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK`: down-migration reference guards were
+  incomplete; authorization, revision precedence, and refresh adapter work were
+  not owned by one write transaction; Project-create Resource permission could
+  map to 500; Core could log a raw malformed payload; and the SQLite migration
+  added explicit indexes forbidden by repository policy.
+- r031 is review-blocked and immutable v26 is unchanged. Its product candidate
+  was unstaged intact. Continued Customer authority activates only v27/r032
+  from exact base `71afb3c33a4d82431a8016cb195a97e5a36d8646` for those repairs.
+- v27 explicitly declines an SQLite migration exception. It freezes
+  transaction-local duplicate checks, complete rollback guards, current
+  transaction-owned authorization/revision/state checks, refresh resolver
+  suppression, Project-create permission rollback, and secret-free schema
+  diagnostics.
+- The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ab4ebd052e93b8c601442fba499e950047bdf01e02cb21da04ce2103e14b8f54`.
+- Work continues on branch `codex/release3-s07a-r032` in the isolated Release 3
+  worktree. S07B-D, Release 3 completion, original dirty paths, generated
+  protobufs, push, merge, deployment, and `server/**` remain inactive or
+  excluded. Activation claims no product repair or PASS.

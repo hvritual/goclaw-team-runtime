@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v26`
+- Plan-Version: `v27`
 - Registry status: `Release 3 active; PCR-S07A is the sole active task`
-- Registry revision: `r031`
+- Registry revision: `r032`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -1716,9 +1716,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07A-R31`
 - Task-Revision: `r031`
 - Work-Item: `PCR-S07A`
-- Status: `active`
+- Status: `review-blocked`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `not yet assigned`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Base commit: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v26`
 - Plan hash: `9666afbc4408eacd684d799d17acc7e3dfb39ff3fd8448a4f010ed526644d3e2`
@@ -1745,3 +1745,60 @@ S02A without changing Task product behavior or activating S02B.
 - Human Customer confirmed the reviewed execution plan and connection-state
   default on 2026-08-19. Immutable v26 freezes r031 only. No implementation,
   verification PASS, closure, push, merge, or deployment is claimed here.
+
+### Candidate and independent-review outcome
+
+- The exact staged candidate contained 42 implementation paths, zero unstaged
+  paths, and zero `server/**` paths at tree
+  `6559133236c2c6d02b8453ea72ad52c054a6b10c`; its exact binary patch hash was
+  `575e289823966eb246351e9ae2db7b71bcbd0f54`.
+- Focused backend/Core/Views checks, production Web build, official race checks
+  for exact S07A packages, and the fresh installed-Chrome journey passed. The
+  root test aggregate retained one unchanged analytics timeout and the full
+  Windows race aggregate retained existing onboarding/outbox failures; neither
+  aggregate is represented as PASS.
+- Fresh review returned `SPEC BLOCK` and `CODE/SECURITY/QUALITY BLOCK` for
+  incomplete down-migration authority guards, revision/state ordering and
+  refresh TOCTOU, authorization outside mutation transactions, missing initial
+  Resource permission mapping, raw schema diagnostic values, and explicit
+  SQLite indexes. r031 is review-blocked; product changes were unstaged and v26
+  remains immutable.
+
+## PCR-001-S07A-R32
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07A-R32`
+- Task-Revision: `r032`
+- Work-Item: `PCR-S07A`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
+- Base commit: `71afb3c33a4d82431a8016cb195a97e5a36d8646`
+- Blocked input tree: `6559133236c2c6d02b8453ea72ad52c054a6b10c`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v27`
+- Plan hash: `ab4ebd052e93b8c601442fba499e950047bdf01e02cb21da04ce2103e14b8f54`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ab4ebd052e93b8c601442fba499e950047bdf01e02cb21da04ce2103e14b8f54`
+
+### Objective and acceptance
+
+- Preserve the complete v26 S07A product contract while repairing only the
+  seven independent-review blocker classes frozen by v27.
+- Prove rollback guards for every authority reference, transaction-local
+  duplicate detection without explicit SQLite indexes, transaction-owned
+  current authorization and revision precedence, resolver suppression for
+  failed refreshes, Project-create 403 rollback, and secret-free Core schema
+  diagnostics.
+- Re-enter every focused, broad, installed, scope, traceability, and fresh
+  independent-review gate. Keep S07B-D, Release 3 completion, push, merge,
+  deployment, generated protobufs, original dirty files, and `server/**`
+  inactive or excluded.
+
+### Activation evidence
+
+- Exact governance base `71afb3c33a4d82431a8016cb195a97e5a36d8646`
+  activates from immutable v26/r031 history after the blocked product candidate
+  was unstaged without changing its working-tree content.
+- Immutable v27 rejects an SQLite index exception and freezes transaction-local
+  duplicate checks plus one write-transaction authority/revision/refresh
+  boundary. No product repair, verification PASS, closure, push, merge, or
+  deployment is claimed by activation.
