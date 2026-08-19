@@ -543,7 +543,7 @@ func (r *ProjectRequirementRepository) ReadProjectRequirementCoverage(ctx contex
 	}
 	status := string(baseline.Status)
 	result.BaselineStatus = &status
-	current, err := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline.ID, currentRevision)
+	current, err := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline, currentRevision)
 	if err != nil {
 		return contract.ProjectRequirementCoverage{}, err
 	}
@@ -559,7 +559,7 @@ func (r *ProjectRequirementRepository) ReadProjectRequirementCoverage(ctx contex
 				return contract.ProjectRequirementCoverage{}, err
 			}
 		}
-		effective, snapshotErr := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline.ID, effectiveRevision)
+		effective, snapshotErr := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline, effectiveRevision)
 		if snapshotErr != nil {
 			return contract.ProjectRequirementCoverage{}, snapshotErr
 		}
@@ -1002,8 +1002,9 @@ func readProjectRequirementBaselineOnConnection(ctx context.Context, connection 
 	if err != nil {
 		return requirementDomain.Baseline{}, requirementDomain.Revision{}, err
 	}
-	if err = json.Unmarshal([]byte(contentJSON), &revision.Content); err != nil {
-		return requirementDomain.Baseline{}, requirementDomain.Revision{}, fmt.Errorf("decode Project Requirement content: %w", err)
+	revision.Content, err = decodeProjectRequirementContent(contentJSON)
+	if err != nil {
+		return requirementDomain.Baseline{}, requirementDomain.Revision{}, err
 	}
 	revision.Status, revision.Action = requirementDomain.Status(revisionStatus), requirementDomain.Action(action)
 	revision.SubmittedBy, revision.ApprovedBy, revision.FrozenBy = nullableStringPointer(revisionSubmittedBy), nullableStringPointer(revisionApprovedBy), nullableStringPointer(revisionFrozenBy)
@@ -1089,11 +1090,11 @@ func readProjectRequirementRevisionOnConnection(ctx context.Context, connection 
 	return scanProjectRequirementRevision(row)
 }
 
-func readProjectRequirementCoverageSnapshotOnConnection(ctx context.Context, connection *sql.Conn, baselineID string, revision requirementDomain.Revision) (contract.ProjectRequirementCoverageSnapshot, error) {
+func readProjectRequirementCoverageSnapshotOnConnection(ctx context.Context, connection *sql.Conn, baseline requirementDomain.Baseline, revision requirementDomain.Revision) (contract.ProjectRequirementCoverageSnapshot, error) {
 	if revision.Revision < 1 || !validProjectRequirementCoverageState(string(revision.Status)) {
 		return contract.ProjectRequirementCoverageSnapshot{}, errors.New("invalid Project Requirement coverage revision")
 	}
-	issuesByKey, err := readProjectRequirementCoverageIssuesOnConnection(ctx, connection, baselineID, revision.Revision)
+	issuesByKey, err := readProjectRequirementCoverageIssuesOnConnection(ctx, connection, baseline.ID, baseline.WorkspaceID, baseline.ProjectID, revision.Revision)
 	if err != nil {
 		return contract.ProjectRequirementCoverageSnapshot{}, err
 	}
@@ -1159,7 +1160,7 @@ func readProjectRequirementCoverageSnapshotOnConnection(ctx context.Context, con
 	return snapshot, nil
 }
 
-func readProjectRequirementCoverageIssuesOnConnection(ctx context.Context, connection *sql.Conn, baselineID string, revision int64) (map[string][]contract.ProjectRequirementCoverageIssue, error) {
+func readProjectRequirementCoverageIssuesOnConnection(ctx context.Context, connection *sql.Conn, baselineID, workspaceID, projectID string, revision int64) (map[string][]contract.ProjectRequirementCoverageIssue, error) {
 	rows, err := connection.QueryContext(ctx, `WITH active_links AS (
 		SELECT workspace_id,project_id,requirement_key,issue_id,linked_revision
 		FROM workspace_requirement_issue_links
@@ -1172,9 +1173,9 @@ func readProjectRequirementCoverageIssuesOnConnection(ctx context.Context, conne
 		JOIN (SELECT DISTINCT workspace_id,issue_id FROM active_links) l
 		  ON l.workspace_id=c.workspace_id AND l.issue_id=c.issue_id
 	)
-		SELECT l.requirement_key,i.id,i.identifier,i.title,i.status,a.result
+		SELECT l.workspace_id,l.project_id,l.requirement_key,i.id,i.identifier,i.title,i.status,a.result
 		FROM active_links l
-		JOIN workspace_issues i
+		LEFT JOIN workspace_issues i
 		  ON i.workspace_id=l.workspace_id AND i.project_id=l.project_id AND i.id=l.issue_id
 		LEFT JOIN latest_acceptance a
 		  ON a.workspace_id=l.workspace_id AND a.issue_id=i.id AND a.rank=1
@@ -1186,12 +1187,27 @@ func readProjectRequirementCoverageIssuesOnConnection(ctx context.Context, conne
 	result := make(map[string][]contract.ProjectRequirementCoverageIssue)
 	seen := make(map[string]struct{})
 	for rows.Next() {
-		var key string
+		var linkWorkspaceID, linkProjectID, key string
+		var issueID, identifier, title, status sql.NullString
 		var issue contract.ProjectRequirementCoverageIssue
 		var acceptance sql.NullString
-		if err = rows.Scan(&key, &issue.ID, &issue.Identifier, &issue.Title, &issue.Status, &acceptance); err != nil {
+		if err = rows.Scan(&linkWorkspaceID, &linkProjectID, &key, &issueID, &identifier, &title, &status, &acceptance); err != nil {
 			return nil, fmt.Errorf("scan Project Requirement coverage Issue: %w", err)
 		}
+		linkWorkspaceID, linkProjectID = strings.TrimSpace(linkWorkspaceID), strings.TrimSpace(linkProjectID)
+		if linkWorkspaceID != strings.TrimSpace(workspaceID) || linkProjectID != strings.TrimSpace(projectID) {
+			return nil, errors.New("Project Requirement coverage Issue link ownership mismatch")
+		}
+		if !issueID.Valid {
+			if identifier.Valid || title.Valid || status.Valid || acceptance.Valid {
+				return nil, errors.New("invalid deleted Project Requirement coverage Issue projection")
+			}
+			continue
+		}
+		if !identifier.Valid || !title.Valid || !status.Valid {
+			return nil, errors.New("invalid Project Requirement coverage Issue projection")
+		}
+		issue.ID, issue.Identifier, issue.Title, issue.Status = issueID.String, identifier.String, title.String, status.String
 		key = strings.TrimSpace(key)
 		issue.ID, issue.Identifier, issue.Title, issue.Status = strings.TrimSpace(issue.ID), strings.TrimSpace(issue.Identifier), strings.TrimSpace(issue.Title), strings.TrimSpace(issue.Status)
 		if key == "" || issue.ID == "" || issue.Identifier == "" || issue.Title == "" || issue.Status == "" {
@@ -1284,9 +1300,11 @@ func scanProjectRequirementRevision(scanner projectRequirementRevisionScanner) (
 	); err != nil {
 		return requirementDomain.Revision{}, fmt.Errorf("scan Project Requirement history: %w", err)
 	}
-	if err := json.Unmarshal([]byte(contentJSON), &revision.Content); err != nil {
-		return requirementDomain.Revision{}, fmt.Errorf("decode Project Requirement history content: %w", err)
+	content, err := decodeProjectRequirementContent(contentJSON)
+	if err != nil {
+		return requirementDomain.Revision{}, err
 	}
+	revision.Content = content
 	revision.Status, revision.Action = requirementDomain.Status(status), requirementDomain.Action(action)
 	revision.SubmittedBy, revision.ApprovedBy, revision.FrozenBy = nullableStringPointer(submittedBy), nullableStringPointer(approvedBy), nullableStringPointer(frozenBy)
 	times, err := parseProjectRequirementOptionalTimes(submittedAt, approvedAt, frozenAt)
@@ -1299,6 +1317,18 @@ func scanProjectRequirementRevision(scanner projectRequirementRevisionScanner) (
 		return requirementDomain.Revision{}, fmt.Errorf("decode Project Requirement history creation time: %w", err)
 	}
 	return revision, nil
+}
+
+func decodeProjectRequirementContent(contentJSON string) (requirementDomain.Content, error) {
+	var content requirementDomain.Content
+	if err := json.Unmarshal([]byte(contentJSON), &content); err != nil {
+		return requirementDomain.Content{}, fmt.Errorf("decode Project Requirement content: %w", err)
+	}
+	normalized, err := requirementDomain.NormalizeContent(content)
+	if err != nil {
+		return requirementDomain.Content{}, fmt.Errorf("validate Project Requirement content: %w", err)
+	}
+	return normalized, nil
 }
 
 func readProjectRequirementIssueLinksOnConnection(ctx context.Context, connection *sql.Conn, baseline requirementDomain.Baseline) ([]contract.ProjectRequirementIssueLink, error) {

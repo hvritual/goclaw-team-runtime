@@ -3,10 +3,14 @@ package sqlite_test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +19,7 @@ import (
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 	requirementDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/requirement"
 	persistence "github.com/hvritual/workspace/internal/modules/workspace/internal/infrastructure/sqlite"
-	_ "modernc.org/sqlite"
+	moderncSQLite "modernc.org/sqlite"
 )
 
 func TestProjectRequirementRepositoryDerivesCurrentAndEffectiveCoverageFailClosed(t *testing.T) {
@@ -137,6 +141,196 @@ func TestProjectRequirementRepositoryReturnsExplicitEmptyCoverageWithoutBaseline
 	}
 	if coverage.BaselineStatus != nil || coverage.Current != nil || coverage.Effective != nil {
 		t.Fatalf("empty coverage = %#v", coverage)
+	}
+}
+
+func TestProjectRequirementRepositoryRejectsPersistedContentOutsideDomainInvariant(t *testing.T) {
+	validContent := marshalProjectRequirementTestContent(t, projectRequirementTestContent("Valid content"))
+	oversizedContent := marshalProjectRequirementTestContent(t, requirementDomain.Content{
+		ProblemStatement: "Oversized",
+		Goals:            []requirementDomain.Item{{Key: "goal-1", Text: strings.Repeat("x", 2001)}},
+	})
+	tests := []struct {
+		name             string
+		currentContent   string
+		effectiveContent string
+	}{
+		{name: "empty current content", currentContent: `{}`, effectiveContent: validContent},
+		{name: "empty effective content", currentContent: validContent, effectiveContent: `{}`},
+		{name: "invalid traceability key", currentContent: `{"problem_statement":"Invalid key","goals":[{"key":"bad key","text":"Goal"}]}`, effectiveContent: validContent},
+		{name: "duplicate traceability key", currentContent: `{"problem_statement":"Duplicate","goals":[{"key":"same","text":"Goal"}],"in_scope":[{"key":"same","text":"Scope"}]}`, effectiveContent: validContent},
+		{name: "oversized item", currentContent: oversizedContent, effectiveContent: validContent},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db := openProjectRequirementDB(t)
+			if _, err := db.Exec(`INSERT INTO workspace_requirement_baselines(
+				id,workspace_id,project_id,status,current_revision,approved_revision,effective_revision,
+				review_origin,latest_content_author,submitted_by,submitted_at,approved_by,approved_at,
+				frozen_by,frozen_at,retired_by,retired_at,created_at,updated_at
+			) VALUES('baseline-invalid-content','workspace-1','project-1','changed',2,1,1,'changed','lead-1',
+				NULL,NULL,'owner-1','2026-08-19T00:01:00Z','owner-1','2026-08-19T00:01:00Z',
+				NULL,NULL,'2026-08-19T00:00:00Z','2026-08-19T00:02:00Z')`); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`INSERT INTO workspace_requirement_revisions(
+				baseline_id,revision,content_json,status,action,change_summary,actor_id,
+				submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at
+			) VALUES
+				('baseline-invalid-content',1,?,'frozen','freeze','Frozen','owner-1',NULL,NULL,'owner-1','2026-08-19T00:01:00Z','owner-1','2026-08-19T00:01:00Z','2026-08-19T00:01:00Z'),
+				('baseline-invalid-content',2,?,'changed','material_change','Changed','lead-1',NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-19T00:02:00Z')`,
+				test.effectiveContent, test.currentContent); err != nil {
+				t.Fatal(err)
+			}
+
+			repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+			if err != nil {
+				t.Fatal(err)
+			}
+			coverage, err := repository.ReadProjectRequirementCoverage(
+				context.Background(), "workspace-1", "project-1",
+				contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+			)
+			if err == nil {
+				t.Fatalf("ReadProjectRequirementCoverage() error = nil, coverage = %#v", coverage)
+			}
+			if coverage.BaselineStatus != nil || coverage.Current != nil || coverage.Effective != nil {
+				t.Fatalf("failed coverage returned partial projection = %#v", coverage)
+			}
+		})
+	}
+}
+
+func TestProjectRequirementRepositoryRejectsActiveIssueLinkOwnershipDrift(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	content := marshalProjectRequirementTestContent(t, requirementDomain.Content{
+		ProblemStatement: "Keep ownership local",
+		Goals:            []requirementDomain.Item{{Key: "goal-1", Text: "Local goal"}},
+	})
+	for _, statement := range []string{
+		`INSERT INTO workspaces(id,name,slug,issue_prefix,created_at,updated_at) VALUES
+			('workspace-2','Workspace Two','workspace-two','TWO','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_projects(id,workspace_id,name,status,priority,asset_ids,created_at,updated_at) VALUES
+			('project-2','workspace-2','Foreign Project','in_progress','none','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_issues(
+			id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,project_id,created_at,updated_at
+		) VALUES('foreign-issue','workspace-2',1,'TWO-1','Foreign secret title','done','none','member','foreign-owner','project-2','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_requirement_baselines(
+			id,workspace_id,project_id,status,current_revision,approved_revision,effective_revision,
+			review_origin,latest_content_author,submitted_by,submitted_at,approved_by,approved_at,
+			frozen_by,frozen_at,retired_by,retired_at,created_at,updated_at
+		) VALUES('baseline-link-drift','workspace-1','project-1','draft',1,NULL,NULL,NULL,'lead-1',
+			NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_requirement_revisions(
+		baseline_id,revision,content_json,status,action,change_summary,actor_id,
+		submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at
+	) VALUES('baseline-link-drift',1,?,'draft','create','Create','lead-1',NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-19T00:00:00Z')`, content); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO workspace_requirement_issue_links(
+		workspace_id,project_id,baseline_id,requirement_key,issue_id,linked_revision,
+		unlinked_revision,linked_by,linked_at,unlinked_by,unlinked_at
+	) VALUES('workspace-2','project-2','baseline-link-drift','goal-1','foreign-issue',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL)`); err != nil {
+		t.Fatal(err)
+	}
+
+	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := repository.ReadProjectRequirementCoverage(
+		context.Background(), "workspace-1", "project-1",
+		contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+	)
+	if err == nil {
+		t.Fatalf("ReadProjectRequirementCoverage() error = nil, leaked coverage = %#v", coverage)
+	}
+	if strings.Contains(err.Error(), "TWO-1") || strings.Contains(err.Error(), "Foreign secret title") {
+		t.Fatalf("ownership error leaked foreign Issue detail: %v", err)
+	}
+	if coverage.BaselineStatus != nil || coverage.Current != nil || coverage.Effective != nil {
+		t.Fatalf("failed coverage returned partial projection = %#v", coverage)
+	}
+}
+
+func TestProjectRequirementCoverageQueryCountIsBoundedBySnapshotCount(t *testing.T) {
+	oneItem := requirementDomain.Content{
+		ProblemStatement: "One item",
+		Goals:            []requirementDomain.Item{{Key: "goal-001", Text: "Goal 1"}},
+	}
+	oneHundredItems := requirementDomain.Content{ProblemStatement: "One hundred items"}
+	for index := 1; index <= 100; index++ {
+		oneHundredItems.Goals = append(oneHundredItems.Goals, requirementDomain.Item{
+			Key: fmt.Sprintf("goal-%03d", index), Text: fmt.Sprintf("Goal %d", index),
+		})
+	}
+	oneItemJSON := marshalProjectRequirementTestContent(t, oneItem)
+	oneHundredItemsJSON := marshalProjectRequirementTestContent(t, oneHundredItems)
+	databasePath := filepath.Join(t.TempDir(), "project-requirements-counted.db")
+	seedDB := openProjectRequirementDBAtPath(t, "sqlite", databasePath)
+	if _, err := seedDB.Exec(`INSERT INTO workspace_requirement_baselines(
+		id,workspace_id,project_id,status,current_revision,approved_revision,effective_revision,
+		review_origin,latest_content_author,submitted_by,submitted_at,approved_by,approved_at,
+		frozen_by,frozen_at,retired_by,retired_at,created_at,updated_at
+	) VALUES('baseline-query-bound','workspace-1','project-1','changed',2,1,1,'changed','lead-1',
+		NULL,NULL,'owner-1','2026-08-19T00:01:00Z','owner-1','2026-08-19T00:01:00Z',
+		NULL,NULL,'2026-08-19T00:00:00Z','2026-08-19T00:02:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := seedDB.Exec(`INSERT INTO workspace_requirement_revisions(
+		baseline_id,revision,content_json,status,action,change_summary,actor_id,
+		submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at
+	) VALUES
+		('baseline-query-bound',1,?,'frozen','freeze','Frozen','owner-1',NULL,NULL,'owner-1','2026-08-19T00:01:00Z','owner-1','2026-08-19T00:01:00Z','2026-08-19T00:01:00Z'),
+		('baseline-query-bound',2,?,'changed','material_change','Changed','lead-1',NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-19T00:02:00Z')`,
+		oneItemJSON, oneItemJSON); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedDB.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	counter := &projectRequirementSQLQueryCounter{}
+	driverName := fmt.Sprintf("project-requirement-counting-sqlite-%d", projectRequirementCountingDriverSequence.Add(1))
+	sql.Register(driverName, &projectRequirementCountingDriver{delegate: &moderncSQLite.Driver{}, counter: counter})
+	db, err := sql.Open(driverName, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() int64 {
+		t.Helper()
+		counter.Reset()
+		coverage, readErr := repository.ReadProjectRequirementCoverage(
+			context.Background(), "workspace-1", "project-1",
+			contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+		)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if coverage.Current == nil || coverage.Effective == nil {
+			t.Fatalf("coverage snapshots = %#v", coverage)
+		}
+		return counter.Load()
+	}
+
+	oneItemQueries := read()
+	if _, err = db.Exec(`UPDATE workspace_requirement_revisions SET content_json=? WHERE baseline_id='baseline-query-bound'`, oneHundredItemsJSON); err != nil {
+		t.Fatal(err)
+	}
+	oneHundredItemQueries := read()
+	if oneItemQueries != 8 || oneHundredItemQueries != 8 {
+		t.Fatalf("coverage query count = one item %d, one hundred items %d, want constant bound 8", oneItemQueries, oneHundredItemQueries)
 	}
 }
 
@@ -931,8 +1125,16 @@ func projectRequirementMutationEffectSnapshot(t *testing.T, db *sql.DB) string {
 }
 
 func openProjectRequirementDB(t *testing.T) *sql.DB {
+	return openProjectRequirementDBWithDriver(t, "sqlite")
+}
+
+func openProjectRequirementDBWithDriver(t *testing.T, driverName string) *sql.DB {
+	return openProjectRequirementDBAtPath(t, driverName, filepath.Join(t.TempDir(), "project-requirements.db"))
+}
+
+func openProjectRequirementDBAtPath(t *testing.T, driverName, databasePath string) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "project-requirements.db"))
+	db, err := sql.Open(driverName, databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -965,6 +1167,59 @@ func openProjectRequirementDB(t *testing.T) *sql.DB {
 		}
 	}
 	return db
+}
+
+func marshalProjectRequirementTestContent(t *testing.T, content requirementDomain.Content) string {
+	t.Helper()
+	encoded, err := json.Marshal(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
+}
+
+var projectRequirementCountingDriverSequence atomic.Uint64
+
+type projectRequirementSQLQueryCounter struct {
+	value atomic.Int64
+}
+
+func (c *projectRequirementSQLQueryCounter) Reset()      { c.value.Store(0) }
+func (c *projectRequirementSQLQueryCounter) Load() int64 { return c.value.Load() }
+
+type projectRequirementCountingDriver struct {
+	delegate driver.Driver
+	counter  *projectRequirementSQLQueryCounter
+}
+
+func (d *projectRequirementCountingDriver) Open(name string) (driver.Conn, error) {
+	connection, err := d.delegate.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return &projectRequirementCountingConnection{Conn: connection, counter: d.counter}, nil
+}
+
+type projectRequirementCountingConnection struct {
+	driver.Conn
+	counter *projectRequirementSQLQueryCounter
+}
+
+func (c *projectRequirementCountingConnection) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	queryer, ok := c.Conn.(driver.QueryerContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	c.counter.value.Add(1)
+	return queryer.QueryContext(ctx, query, args)
+}
+
+func (c *projectRequirementCountingConnection) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	execer, ok := c.Conn.(driver.ExecerContext)
+	if !ok {
+		return nil, driver.ErrSkip
+	}
+	return execer.ExecContext(ctx, query, args)
 }
 
 func assertProjectRequirementRowCount(t *testing.T, db *sql.DB, table string, want int) {

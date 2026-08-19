@@ -94,6 +94,22 @@ func TestSqliteWorkspaceChainComposesCanonicalProjectRequirementHTTP(t *testing.
 			t.Fatalf("coverage = %d %s, missing %s", coverageResponse.Code, coverageResponse.Body.String(), fragment)
 		}
 	}
+
+	if _, err = db.Exec(`UPDATE workspace_requirement_revisions SET content_json='{}' WHERE baseline_id='baseline-1' AND revision=1`); err != nil {
+		t.Fatal(err)
+	}
+	corruptResponse := httptest.NewRecorder()
+	server.ServeHTTP(corruptResponse, coverage)
+	if corruptResponse.Code != http.StatusInternalServerError ||
+		!strings.Contains(corruptResponse.Body.String(), `"code":"internal_error"`) ||
+		!strings.Contains(corruptResponse.Body.String(), `"error":"failed to read Project Requirement coverage"`) {
+		t.Fatalf("corrupt persisted coverage = %d %s", corruptResponse.Code, corruptResponse.Body.String())
+	}
+	for _, forbidden := range []string{`"total"`, `"items"`, `"problem_statement"`, "Govern delivery"} {
+		if strings.Contains(corruptResponse.Body.String(), forbidden) {
+			t.Fatalf("corrupt persisted coverage leaked fallback fragment %q: %s", forbidden, corruptResponse.Body.String())
+		}
+	}
 }
 
 func projectRequirementCompositionRequest(method, path, body string) *http.Request {

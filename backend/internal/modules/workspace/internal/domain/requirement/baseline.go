@@ -123,7 +123,7 @@ func NewBaseline(id, workspaceID, projectID string, content Content, changeSumma
 	if id == "" || workspaceID == "" || projectID == "" || actorID == "" || !validChangeSummary(changeSummary) {
 		return Baseline{}, Revision{}, ErrInvalidBaseline
 	}
-	normalized, err := normalizeContent(content)
+	normalized, err := NormalizeContent(content)
 	if err != nil {
 		return Baseline{}, Revision{}, err
 	}
@@ -151,7 +151,7 @@ func (b Baseline) SaveDraft(expectedRevision int64, content Content, changeSumma
 	if actorID == "" || !validChangeSummary(changeSummary) {
 		return Baseline{}, Revision{}, ErrInvalidBaseline
 	}
-	normalized, err := normalizeContent(content)
+	normalized, err := NormalizeContent(content)
 	if err != nil {
 		return Baseline{}, Revision{}, err
 	}
@@ -312,7 +312,9 @@ func (b Baseline) checkExpected(expected int64) error {
 	return nil
 }
 
-func normalizeContent(content Content) (Content, error) {
+// NormalizeContent applies the complete Requirement content invariant to data
+// entering or returning from persistence.
+func NormalizeContent(content Content) (Content, error) {
 	content.ProblemStatement = strings.TrimSpace(content.ProblemStatement)
 	if len(content.ProblemStatement) > 8000 {
 		return Content{}, ErrInvalidBaseline
