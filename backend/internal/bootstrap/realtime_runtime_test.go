@@ -239,16 +239,21 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 	if err := runtime.Database().QueryRow(`SELECT issue_id FROM workspace_todos WHERE id='todo-success'`).Scan(&todoIssue); err != nil || todoIssue != nil {
 		t.Fatalf("todo reference after delete=%v err=%v", todoIssue, err)
 	}
-	if err := runtime.Database().QueryRow(`SELECT issue_ids FROM workspace_requirements WHERE id='requirement-success'`).Scan(&requirementIssueIDs); err != nil || requirementIssueIDs == nil || *requirementIssueIDs != `["retained-issue"]` {
+	wantRequirementIssueIDs := `["` + created.Issue.Id + `","ONE-1","retained-issue"]`
+	if err := runtime.Database().QueryRow(`SELECT issue_ids FROM workspace_requirements WHERE id='requirement-success'`).Scan(&requirementIssueIDs); err != nil || requirementIssueIDs == nil || *requirementIssueIDs != wantRequirementIssueIDs {
 		t.Fatalf("requirement references after delete=%v err=%v", requirementIssueIDs, err)
 	}
 	var coverage, updatedAt, currentContent string
 	var currentVersion int
-	if err := runtime.Database().QueryRow(`SELECT current_version,coverage_status,updated_at FROM workspace_requirements WHERE id='requirement-last-link'`).Scan(&currentVersion, &coverage, &updatedAt); err != nil || currentVersion != 2 || coverage != "uncovered" || updatedAt == "2026-08-13T00:00:00Z" {
+	if err := runtime.Database().QueryRow(`SELECT current_version,coverage_status,updated_at FROM workspace_requirements WHERE id='requirement-last-link'`).Scan(&currentVersion, &coverage, &updatedAt); err != nil || currentVersion != 1 || coverage != "covered" || updatedAt != "2026-08-13T00:00:00Z" {
 		t.Fatalf("last-link lifecycle version=%d coverage=%q updated=%q err=%v", currentVersion, coverage, updatedAt, err)
 	}
-	if err := runtime.Database().QueryRow(`SELECT content FROM workspace_requirement_versions WHERE requirement_id='requirement-last-link' AND version=2`).Scan(&currentContent); err != nil || currentContent != "last-link content" {
+	if err := runtime.Database().QueryRow(`SELECT content FROM workspace_requirement_versions WHERE requirement_id='requirement-last-link' AND version=1`).Scan(&currentContent); err != nil || currentContent != "last-link content" {
 		t.Fatalf("last-link audit content=%q err=%v", currentContent, err)
+	}
+	var requirementVersionCount int
+	if err := runtime.Database().QueryRow(`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id IN ('requirement-success','requirement-last-link')`).Scan(&requirementVersionCount); err != nil || requirementVersionCount != 2 {
+		t.Fatalf("legacy requirement version count=%d err=%v", requirementVersionCount, err)
 	}
 	var foreignTodoIssueID, foreignRequirementIssueIDs string
 	if err := runtime.Database().QueryRow(`SELECT issue_id FROM workspace_todos WHERE id='todo-foreign'`).Scan(&foreignTodoIssueID); err != nil || foreignTodoIssueID != created.Issue.Id {
@@ -297,12 +302,16 @@ func TestSQLiteRuntimePublishesAuthorizedCommittedIssueEvents(t *testing.T) {
 	assertRealtimeEvent(t, ownerSocket, "issue:deleted", `"issue_id":"`+concurrentIssue.Issue.Id+`"`)
 	assertNoRealtimeEvent(t, ownerSocket)
 	var concurrentVersion int
-	if err := runtime.Database().QueryRow(`SELECT current_version FROM workspace_requirements WHERE id='requirement-concurrent'`).Scan(&concurrentVersion); err != nil || concurrentVersion != 2 {
+	if err := runtime.Database().QueryRow(`SELECT current_version FROM workspace_requirements WHERE id='requirement-concurrent'`).Scan(&concurrentVersion); err != nil || concurrentVersion != 1 {
 		t.Fatalf("concurrent requirement version=%d err=%v", concurrentVersion, err)
 	}
 	var concurrentVersionRows int
-	if err := runtime.Database().QueryRow(`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id='requirement-concurrent'`).Scan(&concurrentVersionRows); err != nil || concurrentVersionRows != 2 {
+	if err := runtime.Database().QueryRow(`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id='requirement-concurrent'`).Scan(&concurrentVersionRows); err != nil || concurrentVersionRows != 1 {
 		t.Fatalf("concurrent requirement audit rows=%d err=%v", concurrentVersionRows, err)
+	}
+	var concurrentIssueIDs string
+	if err := runtime.Database().QueryRow(`SELECT issue_ids FROM workspace_requirements WHERE id='requirement-concurrent'`).Scan(&concurrentIssueIDs); err != nil || concurrentIssueIDs != `["`+concurrentIssue.Issue.Id+`"]` {
+		t.Fatalf("concurrent legacy requirement references=%q err=%v", concurrentIssueIDs, err)
 	}
 	config := runtimeRequest(runtime, http.MethodGet, "/api/config", "", nil)
 	if config.Code != http.StatusOK || !strings.Contains(config.Body.String(), `"issue_realtime":true`) {

@@ -501,28 +501,22 @@ func assertBatchDeleteFixture(t *testing.T, runtime *Runtime, deleteOne, deleteT
 	}
 	retainedRequirement := readRequirement("batch-requirement-retained")
 	emptyRequirement := readRequirement("batch-requirement-empty")
+	wantRetainedIssueIDs := fmt.Sprintf(`[%q,%q,%q]`, deleteOne.Identifier, deleteTwo.ID, retainedID)
+	wantEmptyIssueIDs := fmt.Sprintf(`[%q,%q]`, deleteOne.ID, deleteTwo.Identifier)
+	if retainedRequirement.version != 1 || retainedRequirement.versions != 1 || retainedRequirement.coverage != "covered" || retainedRequirement.issueIDs != wantRetainedIssueIDs {
+		t.Fatalf("legacy retained requirement changed: got=%+v want_issue_ids=%s", retainedRequirement, wantRetainedIssueIDs)
+	}
+	if emptyRequirement.version != 1 || emptyRequirement.versions != 1 || emptyRequirement.coverage != "covered" || emptyRequirement.issueIDs != wantEmptyIssueIDs {
+		t.Fatalf("legacy empty requirement changed: got=%+v want_issue_ids=%s", emptyRequirement, wantEmptyIssueIDs)
+	}
 	if rolledBack {
-		if issueCount != 2 || pinCount != 1 || childParent == nil || *childParent != deleteOne.ID || todoIssue == nil || *todoIssue != deleteOne.Identifier || retainedRequirement.version != 1 || retainedRequirement.versions != 1 || emptyRequirement.version != 1 || emptyRequirement.versions != 1 {
+		if issueCount != 2 || pinCount != 1 || childParent == nil || *childParent != deleteOne.ID || todoIssue == nil || *todoIssue != deleteOne.Identifier {
 			t.Fatalf("batch delete rollback lost data: issues=%d pins=%d parent=%v todo=%v retained=%+v empty=%+v", issueCount, pinCount, childParent, todoIssue, retainedRequirement, emptyRequirement)
 		}
 		return
 	}
 	if issueCount != 0 || pinCount != 0 || childParent != nil || todoIssue != nil {
 		t.Fatalf("batch delete cleanup: issues=%d pins=%d parent=%v todo=%v", issueCount, pinCount, childParent, todoIssue)
-	}
-	var retainedIDs []string
-	if err := json.Unmarshal([]byte(retainedRequirement.issueIDs), &retainedIDs); err != nil {
-		t.Fatal(err)
-	}
-	var emptyIDs []string
-	if err := json.Unmarshal([]byte(emptyRequirement.issueIDs), &emptyIDs); err != nil {
-		t.Fatal(err)
-	}
-	if retainedRequirement.version != 2 || retainedRequirement.versions != 2 || retainedRequirement.coverage != "covered" || len(retainedIDs) != 1 || retainedIDs[0] != retainedID {
-		t.Fatalf("retained requirement cleanup = %+v ids=%v", retainedRequirement, retainedIDs)
-	}
-	if emptyRequirement.version != 2 || emptyRequirement.versions != 2 || emptyRequirement.coverage != "uncovered" || len(emptyIDs) != 0 {
-		t.Fatalf("empty requirement cleanup = %+v ids=%v", emptyRequirement, emptyIDs)
 	}
 }
 
