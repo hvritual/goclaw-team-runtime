@@ -23,7 +23,7 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 19 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 20 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
