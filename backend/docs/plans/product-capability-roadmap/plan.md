@@ -4,7 +4,7 @@ The approved execution snapshot is [plan_v40.md](plan_v40.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `40`
-- Active step: `Release 3 R45.3`
+- Active step: `Release 3 R45.4`
 - Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
 - Plan base commit: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
@@ -411,6 +411,26 @@ and `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`
 under the recorded UTF-8 line-normalized method. Only the three Release 3
 capability-matrix rows are reconciled; complete deterministic and installed
 aggregate gates remain pending, so Release 3 is not yet complete.
+
+R45.3 deterministic execution passes the separate complete Workspace graph in
+123.4 seconds, backend `make check` in 557.8 seconds, and unchanged full
+repository `make test-race` in 546 seconds with GCC 15.2.0 and F-drive temporary
+caches. Core passes 103 files/635 tests; Views passes 169 files/1688 tests;
+Core/Views typechecks, Core broad lint, exact 23 Core plus 11 Views Release 3
+file lint, forced root typecheck 6/6 with zero cache, and the production Web
+build with 17/17 static pages all pass. The build's generated `next-env.d.ts`
+line is restored to its exact pre-build hash and the candidate is clean.
+
+Retained NON-PASS evidence is not relabeled: broad Views lint reports 16 errors
+and two warnings in unrelated editor/Knowledge/search/Skills paths; forced root
+tests finish 4/5 tasks and Views 1686/1688 because Login and Team Control each
+hit the five-second aggregate timeout, while those exact two files pass 44/44
+and the standalone complete Views run passes 1688/1688. Existing jsdom canvas,
+navigation, React `act`, and i18n warnings remain visible. The created
+747,659,709-byte F-drive gate cache has no process/listener but remains outside
+the repository after two host-policy deletion rejections; no alternate deletion
+mechanism is used. Aggregate installed acceptance and independent review remain
+pending, so Release 3 is not yet complete.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

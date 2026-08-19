@@ -2319,3 +2319,29 @@ Known limitations, blockers, and next action
   independent-review gates remain pending. Release 3 remains active and
   incomplete; Release 4, push, merge, deployment, generated protobufs, original
   dirty paths, and `server/**` remain inactive or excluded.
+
+## 2026-08-20 — J083 — r045 aggregate deterministic gates complete
+
+- Separate complete Workspace `-count=1` passes in 123.4 seconds. Backend
+  `make check` passes in 557.8 seconds, including format/policy/generated/vet/
+  full tests and the `server/**` boundary. Full official `make test-race ./...`
+  passes in 546 seconds with GCC 15.2.0 and task-owned F-drive temporary caches.
+- Core passes 103 files/635 tests; Views passes 169 files/1688 tests; their
+  typechecks pass. Core broad lint and exact 23 Core plus 11 Views Release 3
+  path lint pass. Broad Views lint remains NON-PASS with 16 unrelated errors
+  and two warnings.
+- Forced root typecheck passes 6/6 with zero cache. Forced root tests remain
+  NON-PASS at 4/5: Login and Team Control each time out at five seconds, leaving
+  Views 1686/1688. The exact two files pass 44/44, and the standalone complete
+  Views run passes 1688/1688; the root aggregate is not reclassified.
+- Production Web build passes with 17/17 static pages. Its generated
+  `next-env.d.ts` rewrite is restored byte-for-byte to pre-build SHA-256
+  `83a6738771334a63124c8acf38250eccd39fd0aba62846bb0815d952a7936205`;
+  the candidate is clean with zero product drift.
+- Existing jsdom canvas/navigation, React `act`, i18n, and broad lint warnings
+  remain disclosed. The 747,659,709-byte external F-drive gate cache remains
+  after two exact PowerShell deletions were rejected by host policy before
+  execution; it owns no process or listener, and no bypass is attempted.
+- R45.3 is complete with the NON-PASS evidence above retained. R45.4 combined
+  installed acceptance, exact candidate, fresh dual review, and Release 3
+  closure remain pending.

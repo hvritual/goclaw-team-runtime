@@ -2837,3 +2837,38 @@ S02A without changing Task product behavior or activating S02B.
   static language. Other rows remain historically dated. No aggregate
   deterministic, installed, independent-review, or Release 3 completion PASS is
   claimed at R45.2.
+
+### R45.3 deterministic evidence
+
+- With `GOTMPDIR`, `GOCACHE`, `TMP`, and `TEMP` rooted in the task-owned F-drive
+  directory, the separate complete Workspace graph passes in 123.4 seconds.
+  Backend `make check` passes in 557.8 seconds including format, policy,
+  generated, vet, and `go test ./...`; the policy checker confirms both
+  `server/**` and canonical backend dependency boundaries.
+- The unchanged full official `make test-race` passes `./...` in 546 seconds
+  using repository-selected MinGW GCC 15.2.0. No package override, reduced
+  scope, loader waiver, or post-failure retry is used.
+- Core passes 103 files/635 tests in 78.3 seconds; Views passes 169 files/1688
+  tests in 224.1 seconds. Core and Views typechecks pass. Core broad lint passes;
+  exact lint of all 23 Core and 11 Views TypeScript paths changed in Release 3
+  passes.
+- Broad Views lint remains NON-PASS with 16 errors and two warnings in unrelated
+  editor, Knowledge, search, and Skills files. Existing jsdom canvas/navigation,
+  React `act`, and missing-test-i18n warnings remain disclosed.
+- Forced root typecheck passes 6/6 tasks with zero cached. Forced root test is
+  NON-PASS at 4/5 tasks because Login and Team Control each hit a five-second
+  timeout, leaving Views 1686/1688; those exact two files pass 2/2 files and
+  44/44 tests, while the separate complete Views run passes 1688/1688. The root
+  result is not renamed PASS.
+- Production Web build passes with Next 16.2.6 and 17/17 static pages. Its
+  generated `apps/web/next-env.d.ts` one-line rewrite is restored to exact
+  pre-build SHA-256
+  `83a6738771334a63124c8acf38250eccd39fd0aba62846bb0815d952a7936205`;
+  worktree and product drift are zero afterward.
+- The task-created F-drive gate cache contains 747,659,709 bytes. Two exact,
+  pre-validated PowerShell removal requests were rejected by host policy before
+  execution. The directory remains outside the repository with no owned
+  process/listener; no alternate deletion tool is used. This cleanup limitation
+  remains for independent review.
+- R45.4 combined installed acceptance, final exact-candidate audit, fresh dual
+  review, and Release 3 closure remain pending.
