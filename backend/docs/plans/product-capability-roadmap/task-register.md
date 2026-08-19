@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v39`
-- Registry status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
-- Registry revision: `r044`
+- Plan-Version: `v40`
+- Registry status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
+- Registry revision: `r045`
 - Updated: `2026-08-20`
 
 ## Frozen policy bundle
@@ -2702,9 +2702,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r044`
 - Work-Item: `PCR-RELEASE-3-DONEGATE`
 - Title: `Prove the aggregate Release 3 candidate and close the release`
-- Status: `active`
+- Status: `audit-blocked-before-capability-matrix-write`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Independent reviewer: `not reached because R44.2 audit blocked`
 - Exact base: `8150a0e53defe1562c5ea5b41de34bbdba3a178e`
 - Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Predecessor task: `PCR-001-S07D-R43` (`complete-independent-reviewed`)
@@ -2750,3 +2750,67 @@ S02A without changing Task product behavior or activating S02B.
   repeated confirmed execution, and confirmed prerequisite minimal outline
   authority authorize this exact governance-only successor. Activation claims
   no aggregate verification, review PASS, or Release 3 completion.
+
+### R44.2 audit block
+
+- All four frozen candidate/tree/closure tuples resolve exactly. Every v26-v39
+  plan SHA-256 matches a registered value. The Release 3 range has 131 paths:
+  114 product plus 17 roadmap, zero `server/**`, zero generated, and r044 has
+  zero product-byte/path drift from S07D closure.
+- The first audit script failed on a PowerShell dynamic revision suffix; the
+  second used an invalid universal predecessor-hash assumption; the per-commit
+  form then timed out. These are retained tooling NON-PASS diagnostics. The
+  optimized single-read audit reached a valid governance result.
+- Commit `71afb3c33a4d82431a8016cb195a97e5a36d8646` has one continuous
+  ordered eight-field block and no `Issue`. That exactly matches its v26/r031
+  frozen authority and the policy rule that `Issue` is included only when
+  present. The other 41 commits through r044 activation have continuous ordered
+  nine-field blocks.
+- v39 nevertheless requires nine fields on every historical commit. The
+  mismatch is a v39 stop condition and cannot be waived or repaired by history
+  rewriting. r044 is `audit-blocked-before-capability-matrix-write`; it records
+  no deterministic/installed aggregate PASS and changes no capability matrix or
+  product byte.
+
+## PCR-001-R3G-R45
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-R3G-R45`
+- Task-Revision: `r045`
+- Work-Item: `PCR-RELEASE-3-DONEGATE`
+- Title: `Complete the Release 3 aggregate gate with policy-correct trailer audit`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Exact base: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
+- Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Predecessor task: `PCR-001-R3G-R44` (`audit-blocked-before-capability-matrix-write`)
+- Plan hash: `1ee924cf9170866ba312f9b71b20e081008541dbe935f0fb56351fef2f71f3a7`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/1ee924cf9170866ba312f9b71b20e081008541dbe935f0fb56351fef2f71f3a7`
+- Write boundary: immutable `plan_v40.md`, the four mutable roadmap governance
+  records, and evidence-backed Release 3 reconciliation only in
+  `capability-matrix.md`; all product and `server/**` paths are read-only
+- Acceptance source: `plan_v40.md` R45.2-R45.6 and inherited complete v39 gate
+
+### Ordered outputs
+
+- Rerun all v39 aggregate lineage/scope/matrix, deterministic, installed,
+  exact-candidate, cleanup, and independent-review outputs unchanged.
+- For lineage only, require the exact eight-field v26/r031 activation block and
+  exact nine-field blocks on every subsequent Release 3/r044/r045 commit.
+- Preserve all r044 tooling diagnostics and the valid audit BLOCK; do not amend
+  v26-v39 or rewrite any historical commit.
+- Keep every product path, Release 4/S08+, S10 expansion, generated protobufs,
+  external services, original dirty paths, push, merge, deployment, legacy
+  backend writes, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- r044 changes only its five activation documents and zero product bytes; the
+  capability matrix remains unchanged at successor activation.
+- Current direct original-worktree status still exposes the 25 pre-existing
+  dirty entries excluded from all Release 3/r045 writes.
+- v40 changes only the false uniform-nine-field audit predicate and retains
+  every product, runtime, acceptance, scope, cleanup, and review obligation.
+  Activation claims no aggregate verification, review PASS, or Release 3
+  completion.

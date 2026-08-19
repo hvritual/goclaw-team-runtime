@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v39.md](plan_v39.md).
+The approved execution snapshot is [plan_v40.md](plan_v40.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `39`
-- Active step: `Release 3 R44.2`
-- Status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
-- Plan base commit: `8150a0e53defe1562c5ea5b41de34bbdba3a178e`
+- Approved version: `40`
+- Active step: `Release 3 R45.2`
+- Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
+- Plan base commit: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -387,6 +387,18 @@ artifacts, and obtain fresh independent `SPEC PASS` plus
 `CODE/SECURITY/QUALITY PASS`. Activation claims no aggregate PASS or Release 3
 completion; Release 4, push, merge, deployment, generated protobufs, and
 `server/**` remain inactive or excluded.
+
+R44.2 proves the four frozen tuples and all registered v26-v39 hashes, finds 114
+product plus 17 roadmap paths with zero `server/**`, generated, or r044 product
+drift, then stops on v39's incorrect uniform-nine-field history assertion.
+Initial Release 3 activation `71afb3c3` has the exact continuous eight fields
+required by v26/r031; `Issue` was not present in that frozen authority, and
+backend policy requires it only when present. All later range commits have nine
+fields. Immutable v39 cannot be relaxed, so r044 is
+`audit-blocked-before-capability-matrix-write` without product or matrix change.
+The same confirmed authority activates v40/r045 from `a1f6a934`, preserving
+every v39 gate while correcting only that historical audit predicate. No
+aggregate PASS or Release 3 completion is claimed by the successor activation.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

@@ -2264,3 +2264,36 @@ Known limitations, blockers, and next action
   generated protobufs, original dirty paths, external services, push, merge,
   deployment, legacy backend writes, and `server/**` remain inactive or
   excluded.
+
+## 2026-08-20 — J081 — r044 audit blocks; v40/r045 corrects the historical trailer predicate
+
+- R44.2 resolves all four frozen story candidate/tree/closure tuples and matches
+  every registered v26-v39 plan hash. The Release 3 range has 131 paths: 114
+  product plus 17 roadmap, zero `server/**`, zero generated, and zero r044
+  product drift from S07D closure.
+- Three audit-harness diagnostics remain disclosed: PowerShell dynamic revision
+  parsing failed, a universal predecessor-hash assertion did not match plan
+  history, and a per-commit audit timed out. An optimized single-log audit then
+  reached the valid governance result below; none of those invocations is a
+  product test or PASS.
+- Initial Release 3 activation `71afb3c3` has exactly one continuous ordered
+  eight-field trailer block. Its v26/r031 authority did not register `Issue`,
+  and `backend/AGENTS.md` requires that field only when present. Every other
+  commit through r044 activation has one continuous ordered nine-field block.
+- Immutable v39 incorrectly requires nine fields across the entire historical
+  range. r044 therefore stops as `audit-blocked-before-capability-matrix-write`;
+  neither capability matrix nor product bytes changed, no aggregate gates or
+  independent review are claimed, and history is not rewritten.
+- The same confirmed authority activates v40/r045 from exact r044 activation
+  `a1f6a934`. v40 preserves every v39 scope, deterministic, installed, cleanup,
+  and independent-review requirement, correcting only the historical predicate
+  to one exact eight-field block followed by exact nine-field blocks.
+- v40 hash is
+  `1ee924cf9170866ba312f9b71b20e081008541dbe935f0fb56351fef2f71f3a7`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/1ee924cf9170866ba312f9b71b20e081008541dbe935f0fb56351fef2f71f3a7`.
+- Only r045 is active. Direct live status confirms the original worktree still
+  has its 25 excluded dirty entries. Release 3 completion, Release 4/S08+, S10
+  expansion, product changes, generated protobufs, external services, push,
+  merge, deployment, legacy backend writes, and `server/**` remain inactive or
+  excluded.

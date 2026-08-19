@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v39`
-- Status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
+- Plan-Version: `v40`
+- Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
 
 ## Delivery policy
 
@@ -259,7 +259,7 @@ separately frozen aggregate DoneGate.
 
 ### Release 3 aggregate DoneGate
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v39 / r044`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v40 / r045; v39 / r044 audit-blocked before capability-matrix write`
 
 The aggregate gate reopens no story and authorizes no product change. It freezes
 the four reviewed candidate/tree/closure tuples, reconciles only their stale
@@ -269,6 +269,14 @@ Resources, Requirements/coverage/minimal outline, and Retrospectives coexist
 with two identities and restart persistence. Exact documentation scope,
 product-byte stability, trailer lineage, dirty-tree isolation, process cleanup,
 and fresh independent dual PASS are mandatory before Release 3 may close.
+
+R44.2 proves the story tuples, registered plan hashes, and zero forbidden/product
+drift, but v39 incorrectly requires the historical v26 activation to contain an
+`Issue` trailer that was not present in its frozen authority. Policy requires
+that field only when present. v40 preserves every aggregate product/runtime
+gate and corrects only the lineage predicate: exact eight fields for
+`71afb3c3`, exact nine fields for every later commit. r044 remains blocked
+history and Release 3 remains incomplete while r045 executes.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 
