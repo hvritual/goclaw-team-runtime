@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v38`
-- Registry status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
-- Registry revision: `r043`
+- Plan-Version: `v39`
+- Registry status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
+- Registry revision: `r044`
 - Updated: `2026-08-20`
 
 ## Frozen policy bundle
@@ -2694,3 +2694,59 @@ S02A without changing Task product behavior or activating S02B.
   closed; Release 3 completion remains pending a separately frozen aggregate
   DoneGate. S08+, S10, generated protobufs, push, merge, deployment, original
   dirty paths, and `server/**` remain inactive or excluded.
+
+## PCR-001-R3G-R44
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-R3G-R44`
+- Task-Revision: `r044`
+- Work-Item: `PCR-RELEASE-3-DONEGATE`
+- Title: `Prove the aggregate Release 3 candidate and close the release`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Exact base: `8150a0e53defe1562c5ea5b41de34bbdba3a178e`
+- Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Predecessor task: `PCR-001-S07D-R43` (`complete-independent-reviewed`)
+- Plan hash: `ba58180a641ba2bbcbead3673c9f19c987a85e001a581137e3850eb36158f909`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ba58180a641ba2bbcbead3673c9f19c987a85e001a581137e3850eb36158f909`
+- Write boundary: immutable `plan_v39.md`, the four mutable roadmap governance
+  records, and evidence-backed Release 3 reconciliation only in
+  `capability-matrix.md`; every product, test, migration, locale, config,
+  dependency, generated, original dirty, legacy backend, and `server/**` path
+  is read-only
+- Acceptance source: `plan_v39.md` R44.2-R44.6 and story-map Release 3
+  aggregate DoneGate
+
+### Ordered outputs
+
+- Verify the exact S07A-D candidate/tree/closure tuples, plan v26-v39 hashes,
+  complete Release 3 trailer lineage, path scope, product-byte stability,
+  original dirty-tree isolation, and zero `server/**`/generated paths.
+- Reconcile only the Release 3 capability-matrix evidence, then freshly execute
+  complete Workspace, backend check/race, Core/Views test/type/lint, forced-root
+  aggregate, and production-build gates without converting retained NON-PASS.
+- Prove Resources, Requirements/coverage/minimal outline, and Retrospectives
+  coexist in one fresh real Canonical database and production Web runtime with
+  two authenticated identities, restart persistence, visible history/links,
+  strict isolation, and complete process/artifact cleanup.
+- Freeze one exact documentation-only candidate and obtain fresh independent
+  `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS` before marking Release 3
+  complete with zero active tasks.
+- Keep every product path, Release 4/S08+, S10 expansion, generated protobufs,
+  external services, original dirty paths, push, merge, deployment, legacy
+  backend writes, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Exact base `8150a0e5` closes PCR-S07D after fresh dual PASS. Story candidates
+  `b3828be7`, `cd943960`, `47ee4189`, and `64091302` plus closures `07aef1a5`,
+  `f5695de8`, `1d515efc`, and `8150a0e5` resolve in dependency order.
+- Read-only matrix inspection confirms its Project Resources, Requirements, and
+  Retrospectives rows still describe the historical static baseline rather
+  than the now-reviewed Release 3 runtime; v39 limits correction to those rows
+  and explicit aggregate evidence text.
+- The Human Customer's confirmed continuous Release 3 completion direction,
+  repeated confirmed execution, and confirmed prerequisite minimal outline
+  authority authorize this exact governance-only successor. Activation claims
+  no aggregate verification, review PASS, or Release 3 completion.

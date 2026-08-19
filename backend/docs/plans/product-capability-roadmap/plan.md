@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v38.md](plan_v38.md).
+The approved execution snapshot is [plan_v39.md](plan_v39.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `38`
-- Active step: `none`
-- Status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
-- Plan base commit: `28e7a56c99855d21ed39494d2726318be5d64cd0`
+- Approved version: `39`
+- Active step: `Release 3 R44.2`
+- Status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
+- Plan base commit: `8150a0e53defe1562c5ea5b41de34bbdba3a178e`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -375,6 +375,18 @@ and `CODE/SECURITY/QUALITY PASS`. PCR-S07D is
 but Release 3 itself remains active until a separately frozen aggregate
 DoneGate passes. Push, merge, deployment, generated protobufs, original dirty
 paths, and `server/**` remain excluded.
+
+The same confirmed continuous completion direction activates governance-only
+`PRODUCT-CAPABILITY-ROADMAP-001 v39 / r044` from exact S07D closure
+`8150a0e5`. It freezes the four reviewed story candidate/tree/closure tuples,
+permits only six roadmap-document paths, and authorizes no product/test/schema/
+runtime/frontend byte. r044 must freshly audit the complete Release 3 lineage,
+reconcile only the three Release 3 capability-matrix rows, rerun complete
+deterministic and aggregate installed coexistence gates, close all owned
+artifacts, and obtain fresh independent `SPEC PASS` plus
+`CODE/SECURITY/QUALITY PASS`. Activation claims no aggregate PASS or Release 3
+completion; Release 4, push, merge, deployment, generated protobufs, and
+`server/**` remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

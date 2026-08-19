@@ -2238,3 +2238,29 @@ Known limitations, blockers, and next action
   closed, but Release 3 remains active until its separately frozen aggregate
   DoneGate passes. Push, merge, deployment, generated protobufs, original dirty
   paths, external services, and `server/**` remain excluded.
+
+## 2026-08-20 — J080 — v39/r044 activates the Release 3 aggregate DoneGate
+
+- Exact base `8150a0e53defe1562c5ea5b41de34bbdba3a178e` is the clean S07D
+  governance closure. Reviewed candidates `b3828be7`, `cd943960`, `47ee4189`,
+  and `64091302`, with trees `7c4a45ff`, `7e6f045e`, `d0b7d56b`, and
+  `e696d67a`, and closures `07aef1a5`, `f5695de8`, `1d515efc`, and `8150a0e5`
+  resolve in dependency order from Release 3 base `80d92b14`.
+- The capability matrix still preserves its original static-baseline wording
+  for Project Resources, Requirements, and Retrospectives. v39 permits only an
+  evidence-backed Release 3 reconciliation of those rows; it does not authorize
+  broader baseline reinterpretation.
+- Immutable v39 freezes a six-document boundary and zero product bytes. It
+  requires fresh full deterministic gates, one combined two-identity installed
+  runtime journey across all four stories, exact scope/hash/trailer/dirty/
+  process proof, and fresh aggregate `SPEC PASS` plus
+  `CODE/SECURITY/QUALITY PASS` before closure.
+- v39 hash is
+  `ba58180a641ba2bbcbead3673c9f19c987a85e001a581137e3850eb36158f909`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/ba58180a641ba2bbcbead3673c9f19c987a85e001a581137e3850eb36158f909`.
+- Only `PCR-RELEASE-3-DONEGATE` is active. Activation claims no aggregate PASS
+  or Release 3 completion. Release 4/S08+, S10 expansion, product changes,
+  generated protobufs, original dirty paths, external services, push, merge,
+  deployment, legacy backend writes, and `server/**` remain inactive or
+  excluded.

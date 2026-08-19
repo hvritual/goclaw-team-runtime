@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v38`
-- Status: `Release 3 active; PCR-S07A-D complete-independent-reviewed; separate aggregate DoneGate pending`
+- Plan-Version: `v39`
+- Status: `Release 3 aggregate DoneGate active under r044; PCR-S07A-D complete-independent-reviewed`
 
 ## Delivery policy
 
@@ -256,6 +256,19 @@ disclosures. Exact scope, trailer, dirty-tree, and process audits pass, and
 fresh independent `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS` close S07D.
 All Release 3 stories are closed; Release 3 completion remains pending the
 separately frozen aggregate DoneGate.
+
+### Release 3 aggregate DoneGate
+
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v39 / r044`
+
+The aggregate gate reopens no story and authorizes no product change. It freezes
+the four reviewed candidate/tree/closure tuples, reconciles only their stale
+capability-matrix rows, reruns the complete deterministic candidate gates, and
+uses one fresh Canonical database plus production Web runtime to prove Project
+Resources, Requirements/coverage/minimal outline, and Retrospectives coexist
+with two identities and restart persistence. Exact documentation scope,
+product-byte stability, trailer lineage, dirty-tree isolation, process cleanup,
+and fresh independent dual PASS are mandatory before Release 3 may close.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 
