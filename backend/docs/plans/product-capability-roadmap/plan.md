@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v37.md](plan_v37.md).
+The approved execution snapshot is [plan_v38.md](plan_v38.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `37`
-- Active step: `PCR-S07D R42.2`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r042`
-- Plan base commit: `24d3043b322ae27add8023507330f3b9d55b1d95`
+- Approved version: `38`
+- Active step: `PCR-S07D R43.2`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r043`
+- Plan base commit: `28e7a56c99855d21ed39494d2726318be5d64cd0`
 - Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -337,6 +337,17 @@ Continued confirmed authority therefore activates only
 `backend/internal/modules/workspace/sqlite_workspace_services_test.go` so the
 two installed integration assertions can state the correct catalog count 20.
 No production behavior, route, schema, or exclusion changes.
+
+R42.6 exact scope audit then found that immutable v35 spelled one existing Core
+test path as `mutations.test.ts` although the repository and 45-path candidate
+use `mutations.test.tsx`. Zero `server/**`, generated, or additional product
+paths changed, but an allowed-path mismatch cannot be waived. r042 and candidate
+`f3a77a6c` are therefore scope-blocked before independent review and retained
+only as provenance. The same confirmed authority activates
+`PRODUCT-CAPABILITY-ROADMAP-001 v38 / r043` from the last valid governance-only
+activation `28e7a56c`; v38 makes only that one-for-one path correction and
+requires the byte-identical product patch, fresh gates, and fresh independent
+dual review after authorization.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

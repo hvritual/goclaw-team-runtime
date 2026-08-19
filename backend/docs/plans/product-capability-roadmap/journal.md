@@ -2143,3 +2143,56 @@ Known limitations, blockers, and next action
   dirty paths, push, merge, deployment, generated protobufs, external services,
   legacy backend writes, and `server/**` remain inactive or excluded. This
   successor activation claims no product PASS.
+
+## 2026-08-20 — J078 — r042 scope audit blocks candidate; v38/r043 corrects one Core test path
+
+- R42.2-R42.4 produced candidate
+  `f3a77a6c418332e1f0ea2c65073c4be87c41140d`, tree
+  `92d136706f61e4404012ae28aa4d0928c57a1bda`, and binary product-patch hash
+  `a6ebeda199614944fb254d8a5c184cb2d34dc7790c511bae6cd657f6772bcfef`.
+  The diff from governance activation `28e7a56c` has exactly 45 product paths,
+  zero `server/**` paths, and zero generated paths.
+- Focused Retrospective packages, the complete Workspace graph, backend
+  `make check`, official `make test-race`, isolated Core 635/635 and Views
+  1688/1688 tests, Core/Views typechecks, exact changed-file lint, forced root
+  typecheck, and production Web build passed. Broad Views lint retained 16
+  unrelated errors and two warnings. Forced root tests retained two aggregate
+  five-second Team Control timeouts while that exact file passed 10/10 alone;
+  neither aggregate NON-PASS is relabeled.
+- Fresh production-Web/two-identity installed acceptance created a Project,
+  denied an unauthorized ordinary-member facilitator create, created a valid
+  draft, assigned that member as facilitator, published and superseded complete
+  revisions, created default Task and explicit Issue targets, proved
+  byte-identical same-key replay, restarted the installed backend, archived at
+  revision 5, and verified both targets and immutable source revision 3
+  survived. The page had one main landmark, no Next error overlay, and no
+  console error; expected WebSocket reconnect and invitations-404 warnings were
+  retained. Owned processes, ports 3019/38140/39140, browser tab, database,
+  binaries, logs, and external acceptance directory were then closed or
+  removed.
+- Non-PASS diagnostics are retained: cold redirected Go-cache commands timed
+  out before results; the first temporary member fixture attempted a duplicate
+  membership root and rolled back; an initial direct proof expected send-code
+  200 although the contract returns 204; one screenshot helper call used the
+  wrong browser wrapper method. Corrected single executions subsequently
+  produced the evidence above, but none erases the original diagnostics.
+- R42.6 exact path comparison found 44 literal matches and one plan spelling
+  error. Immutable v35 lists the nonexistent
+  `packages/core/implementation-knowledge/mutations.test.ts`; the repository
+  and candidate correctly use `mutations.test.tsx`. Allowed-path mismatch is a
+  stop condition, so r042 is `scope-blocked-before-independent-review` and its
+  candidate is not an accepted PASS despite otherwise conforming product bytes.
+- The blocked branch is preserved as
+  `codex/release3-s07d-r042-scope-blocked`. Immutable v35-v37 are unchanged.
+  v38/r043 starts from last valid governance-only activation `28e7a56c`, makes
+  only the one-for-one `.ts` to `.tsx` path correction, and requires the same
+  product patch to be replayed after authorization with fresh gates and fresh
+  independent review.
+- v38 hash is
+  `3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`.
+- Only PCR-S07D remains active. Release 3 completion, S08+, S10, original
+  dirty paths, push, merge, deployment, generated protobufs, external services,
+  legacy backend writes, and `server/**` remain inactive or excluded. This
+  successor activation claims no product or review PASS.

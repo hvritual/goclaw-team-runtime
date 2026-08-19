@@ -1,10 +1,10 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v37`
+- Plan-Version: `v38`
 - Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active`
-- Registry revision: `r042`
-- Updated: `2026-08-19`
+- Registry revision: `r043`
+- Updated: `2026-08-20`
 
 ## Frozen policy bundle
 
@@ -2544,7 +2544,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r042`
 - Work-Item: `PCR-S07D`
 - Title: `Complete governed Retrospectives with installed migration-count evidence`
-- Status: `active`
+- Status: `scope-blocked-before-independent-review`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `fresh dual decision required before closure`
 - Exact base: `24d3043b322ae27add8023507330f3b9d55b1d95`
@@ -2580,3 +2580,67 @@ S02A without changing Task product behavior or activating S02B.
   `sqlite_workspace_services_test.go`, with no third required path.
 - r041 committed only governance activation `24d3043b`; all S07D product work
   remains uncommitted. Activation claims no implementation or PASS.
+- R42.2-R42.4 produced candidate `f3a77a6c418332e1f0ea2c65073c4be87c41140d`
+  with tree `92d136706f61e4404012ae28aa4d0928c57a1bda`, 45 product paths,
+  zero `server/**` paths, and zero generated paths. Focused, complete, race,
+  frontend, build, restart, and installed lifecycle evidence was collected.
+- R42.6 found one exact allowed-path mismatch: immutable v35 lists the
+  nonexistent `packages/core/implementation-knowledge/mutations.test.ts`,
+  while the existing repository test and candidate path end in `.tsx`.
+  Therefore the r042 candidate is blocked before review; its passing evidence
+  is not a closure PASS and the branch remains provenance only.
+
+## PCR-001-S07D-R43
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07D-R43`
+- Task-Revision: `r043`
+- Work-Item: `PCR-S07D`
+- Title: `Complete governed Retrospectives with exact Core test-path authority`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh dual decision required before closure`
+- Exact base: `28e7a56c99855d21ed39494d2726318be5d64cd0`
+- Predecessor task: `PCR-001-S07D-R42` (`scope-blocked-before-independent-review`)
+- Scope-blocked predecessor candidate: `f3a77a6c418332e1f0ea2c65073c4be87c41140d`
+- Scope-blocked predecessor tree: `92d136706f61e4404012ae28aa4d0928c57a1bda`
+- Plan hash: `3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/3d82ae02163a19f2ba2912db433402111b95699dbb1c204e6016abfadbe3c54d`
+- Write boundary: every exact v37 path with the nonexistent
+  `packages/core/implementation-knowledge/mutations.test.ts` replaced
+  one-for-one by the existing
+  `packages/core/implementation-knowledge/mutations.test.tsx`; generated paths,
+  original dirty paths, legacy backend writes, and every `server/**` path remain
+  read-only
+- Acceptance source: `plan_v38.md` R43.2-R43.6, inherited complete v35-v37
+  acceptance, and story-map PCR-S07D
+
+### Ordered outputs
+
+- Preserve the r042 branch unchanged and replay the same 45-path product patch
+  only after v38 activation, split into authority, target/HTTP/Runtime, bounded
+  snapshot follow-up, and strict Core/Views commits with r043 trailers.
+- Prove the r043 product diff is byte-identical to the blocked r042 product
+  patch and that only governance records differ between the two candidates.
+- Rerun every inherited deterministic, complete, official race, frontend,
+  production-build, installed lifecycle/restart/archive, exact candidate,
+  process, trailer, and dirty-tree gate without converting any NON-PASS.
+- Obtain fresh independent `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` before
+  closing PCR-S07D; keep Release 3 completion for a separate aggregate DoneGate.
+- Keep S08+, S10, generated protobufs, automatic Knowledge integration,
+  realtime Retrospectives, permanent delete, re-target/unlink, original dirty
+  paths, push, merge, deployment, external services, and `server/**` inactive
+  or excluded.
+
+### Activation evidence
+
+- Exact audit of the 45-path predecessor product diff found 44 literal path
+  matches and the sole `.ts`/`.tsx` spelling mismatch. The existing `.tsx`
+  file is the intended mutation test; no `.ts` file exists at the valid base or
+  blocked candidate.
+- r043 starts from governance-only activation `28e7a56c`, before all r042
+  product commits. Candidate `f3a77a6c` and branch
+  `codex/release3-s07d-r042-scope-blocked` remain untouched provenance.
+- v38 changes no product contract or behavior and authorizes only the exact
+  existing `.tsx` path. Activation claims no implementation, verification, or
+  independent-review PASS.
