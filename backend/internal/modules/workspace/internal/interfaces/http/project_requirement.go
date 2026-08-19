@@ -25,6 +25,7 @@ func NewProjectRequirementHandler(service contract.ProjectRequirementService, id
 func (h *ProjectRequirementHandler) Register(server *kratoshttp.Server) {
 	router := server.Route("/")
 	router.GET("/api/projects/{id}/requirement-baseline", h.get)
+	router.GET("/api/projects/{id}/requirement-baseline/coverage", h.getCoverage)
 	router.PUT("/api/projects/{id}/requirement-baseline", h.save)
 	router.POST("/api/projects/{id}/requirement-baseline/submit-review", h.transition("submit-review"))
 	router.POST("/api/projects/{id}/requirement-baseline/withdraw", h.transition("withdraw"))
@@ -47,6 +48,18 @@ func (h *ProjectRequirementHandler) Register(server *kratoshttp.Server) {
 	router.POST("/api/projects/{id}/outline/{node_id}/issues", h.featureUnavailable)
 	router.DELETE("/api/projects/{id}/outline/{node_id}/issues/{issue_id}", h.featureUnavailable)
 	router.POST("/api/projects/{id}/requirement-baseline/items/{requirement_key}/issues", h.featureUnavailable)
+}
+
+func (h *ProjectRequirementHandler) getCoverage(ctx kratoshttp.Context) error {
+	identity, ok := h.resolveIdentity(ctx)
+	if !ok {
+		return nil
+	}
+	result, err := h.service.GetProjectRequirementCoverage(workspaceActorContext(ctx, identity), identity.WorkspaceID, ctx.Vars().Get("id"))
+	if err != nil {
+		return h.writeFailure(ctx, err, "failed to read Project Requirement coverage")
+	}
+	return ctx.JSON(http.StatusOK, result)
 }
 
 func (h *ProjectRequirementHandler) get(ctx kratoshttp.Context) error {

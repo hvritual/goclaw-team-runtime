@@ -90,16 +90,55 @@ func TestProjectRequirementUseCaseRequiresTrustedMemberActorAndMapsTransition(t 
 	}
 }
 
+func TestProjectRequirementUseCaseReadsCoverageWithTrustedActor(t *testing.T) {
+	status := "retired"
+	repository := &projectRequirementRepositoryStub{
+		coverage: contract.ProjectRequirementCoverage{BaselineStatus: &status},
+	}
+	useCase, err := NewProjectRequirementUseCase(
+		repository,
+		func(context.Context) (string, error) { return "baseline-1", nil },
+		func(context.Context) (string, error) { return "outline-1", nil },
+		time.Now,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = useCase.GetProjectRequirementCoverage(context.Background(), "workspace-1", "project-1"); !errors.Is(err, contract.ErrWorkspaceActorRequired) {
+		t.Fatalf("GetProjectRequirementCoverage(no actor) error = %v", err)
+	}
+	ctx := contract.WithWorkspaceActor(context.Background(), "member", "member-1")
+	coverage, err := useCase.GetProjectRequirementCoverage(ctx, " workspace-1 ", " project-1 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if coverage.BaselineStatus == nil || *coverage.BaselineStatus != "retired" || repository.coverageWorkspaceID != "workspace-1" || repository.coverageProjectID != "project-1" || repository.coverageActor.ID != "member-1" {
+		t.Fatalf("coverage = %#v; repository read = workspace %q project %q actor %#v", coverage, repository.coverageWorkspaceID, repository.coverageProjectID, repository.coverageActor)
+	}
+	if _, err = useCase.GetProjectRequirementCoverage(ctx, "", "project-1"); !errors.Is(err, ErrInvalidProjectRequirementRequest) {
+		t.Fatalf("GetProjectRequirementCoverage(blank workspace) error = %v", err)
+	}
+}
+
 type projectRequirementRepositoryStub struct {
-	saved          ProjectRequirementSave
-	transitioned   ProjectRequirementTransition
-	linked         ProjectRequirementLinkMutation
-	accessReplaced ProjectRequirementAccessReplace
-	outlineCreated ProjectOutlineNodeCreate
+	saved               ProjectRequirementSave
+	transitioned        ProjectRequirementTransition
+	linked              ProjectRequirementLinkMutation
+	accessReplaced      ProjectRequirementAccessReplace
+	outlineCreated      ProjectOutlineNodeCreate
+	coverage            contract.ProjectRequirementCoverage
+	coverageWorkspaceID string
+	coverageProjectID   string
+	coverageActor       contract.WorkspaceActor
 }
 
 func (s *projectRequirementRepositoryStub) ReadProjectRequirement(context.Context, string, string, contract.WorkspaceActor) (contract.ProjectRequirementBaselineResponse, error) {
 	return contract.ProjectRequirementBaselineResponse{}, nil
+}
+
+func (s *projectRequirementRepositoryStub) ReadProjectRequirementCoverage(_ context.Context, workspaceID, projectID string, actor contract.WorkspaceActor) (contract.ProjectRequirementCoverage, error) {
+	s.coverageWorkspaceID, s.coverageProjectID, s.coverageActor = workspaceID, projectID, actor
+	return s.coverage, nil
 }
 
 func (s *projectRequirementRepositoryStub) SaveProjectRequirement(_ context.Context, command ProjectRequirementSave) (contract.ProjectRequirementBaselineResponse, error) {

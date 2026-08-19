@@ -122,6 +122,39 @@ type ProjectRequirementBaselineResponse struct {
 	Access           ProjectRequirementAccessProjection `json:"access"`
 }
 
+type ProjectRequirementCoverageIssue struct {
+	ID               string  `json:"id"`
+	Identifier       string  `json:"identifier"`
+	Title            string  `json:"title"`
+	Status           string  `json:"status"`
+	AcceptanceResult *string `json:"acceptance_result"`
+}
+
+type ProjectRequirementCoverageItem struct {
+	RequirementKey string                            `json:"requirement_key"`
+	Section        string                            `json:"section"`
+	Text           string                            `json:"text"`
+	Stage          string                            `json:"stage"`
+	Issues         []ProjectRequirementCoverageIssue `json:"issues"`
+}
+
+type ProjectRequirementCoverageSnapshot struct {
+	Revision    int64                            `json:"revision"`
+	State       string                           `json:"state"`
+	Total       int                              `json:"total"`
+	Linked      int                              `json:"linked"`
+	Implemented int                              `json:"implemented"`
+	Accepted    int                              `json:"accepted"`
+	Unlinked    int                              `json:"unlinked"`
+	Items       []ProjectRequirementCoverageItem `json:"items"`
+}
+
+type ProjectRequirementCoverage struct {
+	BaselineStatus *string                             `json:"baseline_status"`
+	Current        *ProjectRequirementCoverageSnapshot `json:"current"`
+	Effective      *ProjectRequirementCoverageSnapshot `json:"effective"`
+}
+
 type SaveProjectRequirementDraftRequest struct {
 	ExpectedRevision int64                     `json:"expected_revision"`
 	Content          ProjectRequirementContent `json:"content"`
@@ -162,6 +195,7 @@ type CreateProjectOutlineNodeRequest struct {
 
 type ProjectRequirementService interface {
 	GetProjectRequirement(context.Context, string, string) (ProjectRequirementBaselineResponse, error)
+	GetProjectRequirementCoverage(context.Context, string, string) (ProjectRequirementCoverage, error)
 	SaveProjectRequirement(context.Context, string, string, string, SaveProjectRequirementDraftRequest) (ProjectRequirementBaselineResponse, error)
 	TransitionProjectRequirement(context.Context, string, string, string, ProjectRequirementTransitionRequest) (ProjectRequirementBaselineResponse, error)
 	MutateProjectRequirementIssueLink(context.Context, string, string, ProjectRequirementIssueLinkRequest, bool) (ProjectRequirementBaselineResponse, error)

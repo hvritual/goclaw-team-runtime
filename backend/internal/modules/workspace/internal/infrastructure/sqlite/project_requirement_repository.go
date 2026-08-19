@@ -516,6 +516,62 @@ func (r *ProjectRequirementRepository) ReadProjectRequirement(ctx context.Contex
 	return readProjectRequirementResponseOnConnection(ctx, connection, baseline, authority.projection())
 }
 
+func (r *ProjectRequirementRepository) ReadProjectRequirementCoverage(ctx context.Context, workspaceID, projectID string, actor contract.WorkspaceActor) (result contract.ProjectRequirementCoverage, err error) {
+	connection, err := r.db.Conn(ctx)
+	if err != nil {
+		return contract.ProjectRequirementCoverage{}, fmt.Errorf("acquire Project Requirement coverage connection: %w", err)
+	}
+	defer connection.Close()
+	if _, err = connection.ExecContext(ctx, "BEGIN"); err != nil {
+		return contract.ProjectRequirementCoverage{}, fmt.Errorf("begin Project Requirement coverage read: %w", err)
+	}
+	committed := false
+	defer rollbackProjectRequirementConnection(connection, &committed)()
+	if _, err = loadProjectRequirementAuthority(ctx, connection, workspaceID, projectID, actor); err != nil {
+		return contract.ProjectRequirementCoverage{}, err
+	}
+	baseline, currentRevision, err := readProjectRequirementBaselineOnConnection(ctx, connection, workspaceID, projectID)
+	if errors.Is(err, sql.ErrNoRows) {
+		if _, err = connection.ExecContext(ctx, "COMMIT"); err != nil {
+			return contract.ProjectRequirementCoverage{}, fmt.Errorf("commit empty Project Requirement coverage read: %w", err)
+		}
+		committed = true
+		return contract.ProjectRequirementCoverage{}, nil
+	}
+	if err != nil {
+		return contract.ProjectRequirementCoverage{}, fmt.Errorf("read Project Requirement coverage baseline: %w", err)
+	}
+	status := string(baseline.Status)
+	result.BaselineStatus = &status
+	current, err := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline.ID, currentRevision)
+	if err != nil {
+		return contract.ProjectRequirementCoverage{}, err
+	}
+	result.Current = &current
+	if baseline.EffectiveRevision != nil {
+		effectiveRevision := currentRevision
+		if *baseline.EffectiveRevision != currentRevision.Revision {
+			effectiveRevision, err = readProjectRequirementRevisionOnConnection(ctx, connection, baseline.ID, *baseline.EffectiveRevision)
+			if errors.Is(err, sql.ErrNoRows) {
+				return contract.ProjectRequirementCoverage{}, errors.New("Project Requirement coverage effective revision is missing")
+			}
+			if err != nil {
+				return contract.ProjectRequirementCoverage{}, err
+			}
+		}
+		effective, snapshotErr := readProjectRequirementCoverageSnapshotOnConnection(ctx, connection, baseline.ID, effectiveRevision)
+		if snapshotErr != nil {
+			return contract.ProjectRequirementCoverage{}, snapshotErr
+		}
+		result.Effective = &effective
+	}
+	if _, err = connection.ExecContext(ctx, "COMMIT"); err != nil {
+		return contract.ProjectRequirementCoverage{}, fmt.Errorf("commit Project Requirement coverage read: %w", err)
+	}
+	committed = true
+	return result, nil
+}
+
 type projectRequirementAuthority struct {
 	membership projectResourceMembershipAuthority
 	actorID    string
@@ -1024,6 +1080,172 @@ func readProjectRequirementResponseOnConnection(ctx context.Context, connection 
 		return contract.ProjectRequirementBaselineResponse{}, err
 	}
 	return result, nil
+}
+
+func readProjectRequirementRevisionOnConnection(ctx context.Context, connection *sql.Conn, baselineID string, revision int64) (requirementDomain.Revision, error) {
+	row := connection.QueryRowContext(ctx, `SELECT baseline_id,revision,content_json,status,action,change_summary,actor_id,
+		submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at
+		FROM workspace_requirement_revisions WHERE baseline_id=? AND revision=?`, baselineID, revision)
+	return scanProjectRequirementRevision(row)
+}
+
+func readProjectRequirementCoverageSnapshotOnConnection(ctx context.Context, connection *sql.Conn, baselineID string, revision requirementDomain.Revision) (contract.ProjectRequirementCoverageSnapshot, error) {
+	if revision.Revision < 1 || !validProjectRequirementCoverageState(string(revision.Status)) {
+		return contract.ProjectRequirementCoverageSnapshot{}, errors.New("invalid Project Requirement coverage revision")
+	}
+	issuesByKey, err := readProjectRequirementCoverageIssuesOnConnection(ctx, connection, baselineID, revision.Revision)
+	if err != nil {
+		return contract.ProjectRequirementCoverageSnapshot{}, err
+	}
+	snapshot := contract.ProjectRequirementCoverageSnapshot{
+		Revision: revision.Revision,
+		State:    string(revision.Status),
+		Items:    make([]contract.ProjectRequirementCoverageItem, 0),
+	}
+	sections := []struct {
+		name  string
+		items []requirementDomain.Item
+	}{
+		{name: "goals", items: revision.Content.Goals},
+		{name: "in_scope", items: revision.Content.InScope},
+		{name: "constraints", items: revision.Content.Constraints},
+		{name: "acceptance_criteria", items: revision.Content.AcceptanceCriteria},
+	}
+	seenKeys := make(map[string]struct{})
+	for _, section := range sections {
+		for _, source := range section.items {
+			key, itemText := strings.TrimSpace(source.Key), strings.TrimSpace(source.Text)
+			if key == "" || itemText == "" {
+				return contract.ProjectRequirementCoverageSnapshot{}, errors.New("invalid Project Requirement coverage item")
+			}
+			if _, duplicate := seenKeys[key]; duplicate {
+				return contract.ProjectRequirementCoverageSnapshot{}, errors.New("duplicate Project Requirement coverage item")
+			}
+			seenKeys[key] = struct{}{}
+			issues := issuesByKey[key]
+			if issues == nil {
+				issues = []contract.ProjectRequirementCoverageIssue{}
+			}
+			stage := projectRequirementCoverageStage(issues)
+			item := contract.ProjectRequirementCoverageItem{
+				RequirementKey: key,
+				Section:        section.name,
+				Text:           itemText,
+				Stage:          stage,
+				Issues:         issues,
+			}
+			snapshot.Items = append(snapshot.Items, item)
+			snapshot.Total++
+			switch stage {
+			case "accepted":
+				snapshot.Accepted++
+				snapshot.Implemented++
+				snapshot.Linked++
+			case "implemented":
+				snapshot.Implemented++
+				snapshot.Linked++
+			case "linked":
+				snapshot.Linked++
+			case "unlinked":
+			default:
+				return contract.ProjectRequirementCoverageSnapshot{}, errors.New("invalid Project Requirement coverage stage")
+			}
+		}
+	}
+	snapshot.Unlinked = snapshot.Total - snapshot.Linked
+	if snapshot.Accepted > snapshot.Implemented || snapshot.Implemented > snapshot.Linked || snapshot.Linked > snapshot.Total || snapshot.Unlinked < 0 {
+		return contract.ProjectRequirementCoverageSnapshot{}, errors.New("invalid Project Requirement coverage counters")
+	}
+	return snapshot, nil
+}
+
+func readProjectRequirementCoverageIssuesOnConnection(ctx context.Context, connection *sql.Conn, baselineID string, revision int64) (map[string][]contract.ProjectRequirementCoverageIssue, error) {
+	rows, err := connection.QueryContext(ctx, `WITH active_links AS (
+		SELECT workspace_id,project_id,requirement_key,issue_id,linked_revision
+		FROM workspace_requirement_issue_links
+		WHERE baseline_id=? AND linked_revision<=?
+		  AND (unlinked_revision IS NULL OR unlinked_revision>?)
+	), latest_acceptance AS (
+		SELECT c.workspace_id,c.issue_id,c.result,
+		       ROW_NUMBER() OVER (PARTITION BY c.workspace_id,c.issue_id ORDER BY c.created_at DESC,c.id DESC) AS rank
+		FROM workspace_issue_acceptance_conclusions c
+		JOIN (SELECT DISTINCT workspace_id,issue_id FROM active_links) l
+		  ON l.workspace_id=c.workspace_id AND l.issue_id=c.issue_id
+	)
+		SELECT l.requirement_key,i.id,i.identifier,i.title,i.status,a.result
+		FROM active_links l
+		JOIN workspace_issues i
+		  ON i.workspace_id=l.workspace_id AND i.project_id=l.project_id AND i.id=l.issue_id
+		LEFT JOIN latest_acceptance a
+		  ON a.workspace_id=l.workspace_id AND a.issue_id=i.id AND a.rank=1
+		ORDER BY l.requirement_key,i.identifier COLLATE NOCASE,i.identifier,i.id,l.linked_revision`, baselineID, revision, revision)
+	if err != nil {
+		return nil, fmt.Errorf("read Project Requirement coverage Issues: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[string][]contract.ProjectRequirementCoverageIssue)
+	seen := make(map[string]struct{})
+	for rows.Next() {
+		var key string
+		var issue contract.ProjectRequirementCoverageIssue
+		var acceptance sql.NullString
+		if err = rows.Scan(&key, &issue.ID, &issue.Identifier, &issue.Title, &issue.Status, &acceptance); err != nil {
+			return nil, fmt.Errorf("scan Project Requirement coverage Issue: %w", err)
+		}
+		key = strings.TrimSpace(key)
+		issue.ID, issue.Identifier, issue.Title, issue.Status = strings.TrimSpace(issue.ID), strings.TrimSpace(issue.Identifier), strings.TrimSpace(issue.Title), strings.TrimSpace(issue.Status)
+		if key == "" || issue.ID == "" || issue.Identifier == "" || issue.Title == "" || issue.Status == "" {
+			return nil, errors.New("invalid Project Requirement coverage Issue")
+		}
+		identity := key + "\x00" + issue.ID
+		if _, duplicate := seen[identity]; duplicate {
+			return nil, errors.New("duplicate active Project Requirement coverage Issue link")
+		}
+		seen[identity] = struct{}{}
+		if acceptance.Valid {
+			value := strings.TrimSpace(acceptance.String)
+			if value != "accepted" && value != "conditional" && value != "rejected" {
+				return nil, errors.New("invalid Project Requirement coverage acceptance result")
+			}
+			issue.AcceptanceResult = &value
+		}
+		result[key] = append(result[key], issue)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate Project Requirement coverage Issues: %w", err)
+	}
+	return result, nil
+}
+
+func projectRequirementCoverageStage(issues []contract.ProjectRequirementCoverageIssue) string {
+	if len(issues) == 0 {
+		return "unlinked"
+	}
+	allDone, allAccepted := true, true
+	for _, issue := range issues {
+		if issue.Status != "done" {
+			allDone = false
+		}
+		if issue.AcceptanceResult == nil || *issue.AcceptanceResult != "accepted" {
+			allAccepted = false
+		}
+	}
+	if !allDone {
+		return "linked"
+	}
+	if !allAccepted {
+		return "implemented"
+	}
+	return "accepted"
+}
+
+func validProjectRequirementCoverageState(state string) bool {
+	switch state {
+	case "draft", "in_review", "approved", "frozen", "changed", "retired":
+		return true
+	default:
+		return false
+	}
 }
 
 type projectRequirementRevisionScanner interface {

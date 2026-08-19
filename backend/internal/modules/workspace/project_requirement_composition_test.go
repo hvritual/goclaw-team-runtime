@@ -81,6 +81,19 @@ func TestSqliteWorkspaceChainComposesCanonicalProjectRequirementHTTP(t *testing.
 	if readResponse.Code != http.StatusOK || !strings.Contains(readResponse.Body.String(), `"problem_statement":"Govern delivery"`) || !strings.Contains(readResponse.Body.String(), `"revision":1`) {
 		t.Fatalf("read baseline = %d %s", readResponse.Code, readResponse.Body.String())
 	}
+
+	coverage := projectRequirementCompositionRequest(http.MethodGet, "/api/projects/project-1/requirement-baseline/coverage", "")
+	coverageResponse := httptest.NewRecorder()
+	server.ServeHTTP(coverageResponse, coverage)
+	for _, fragment := range []string{
+		`"baseline_status":"draft"`, `"revision":1`, `"total":1`, `"linked":0`,
+		`"implemented":0`, `"accepted":0`, `"unlinked":1`, `"stage":"unlinked"`,
+		`"effective":null`,
+	} {
+		if coverageResponse.Code != http.StatusOK || !strings.Contains(coverageResponse.Body.String(), fragment) {
+			t.Fatalf("coverage = %d %s, missing %s", coverageResponse.Code, coverageResponse.Body.String(), fragment)
+		}
+	}
 }
 
 func projectRequirementCompositionRequest(method, path, body string) *http.Request {

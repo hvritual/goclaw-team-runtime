@@ -18,6 +18,140 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestProjectRequirementRepositoryDerivesCurrentAndEffectiveCoverageFailClosed(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	content := `{"problem_statement":"Ship safely","goals":[{"key":"goal-unlinked","text":"No work"},{"key":"goal-open","text":"Open work"},{"key":"goal-removed","text":"Removed work"}],"in_scope":[{"key":"scope-done","text":"Implemented work"}],"out_of_scope":[],"constraints":[{"key":"constraint-accepted","text":"Accepted work"}],"acceptance_criteria":[{"key":"acceptance-mixed","text":"All work must finish"}],"dependencies":[]}`
+	for _, statement := range []string{
+		`INSERT INTO workspace_requirement_baselines(
+			id,workspace_id,project_id,status,current_revision,approved_revision,effective_revision,
+			review_origin,latest_content_author,submitted_by,submitted_at,approved_by,approved_at,
+			frozen_by,frozen_at,retired_by,retired_at,created_at,updated_at
+		) VALUES('baseline-coverage','workspace-1','project-1','retired',4,2,2,NULL,'lead-1',
+			NULL,NULL,'owner-1','2026-08-19T00:02:00Z','owner-1','2026-08-19T00:03:00Z',
+			'owner-1','2026-08-19T00:04:00Z','2026-08-19T00:00:00Z','2026-08-19T00:04:00Z')`,
+		`INSERT INTO workspace_requirement_revisions(
+			baseline_id,revision,content_json,status,action,change_summary,actor_id,
+			submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at
+		) VALUES
+			('baseline-coverage',1,'` + content + `','draft','create','Create','lead-1',NULL,NULL,NULL,NULL,NULL,NULL,'2026-08-19T00:00:00Z'),
+			('baseline-coverage',2,'` + content + `','frozen','freeze','Freeze','owner-1',NULL,NULL,'owner-1','2026-08-19T00:02:00Z','owner-1','2026-08-19T00:02:00Z','2026-08-19T00:02:00Z'),
+			('baseline-coverage',3,'` + content + `','frozen','unlink_issue','Unlink Issue','lead-1',NULL,NULL,'owner-1','2026-08-19T00:02:00Z','owner-1','2026-08-19T00:02:00Z','2026-08-19T00:03:00Z'),
+			('baseline-coverage',4,'` + content + `','retired','retire','Retire','owner-1',NULL,NULL,'owner-1','2026-08-19T00:02:00Z','owner-1','2026-08-19T00:02:00Z','2026-08-19T00:04:00Z')`,
+		`INSERT INTO workspace_issues(
+			id,workspace_id,number,identifier,title,description,status,priority,creator_type,creator_id,
+			project_id,metadata,properties,asset_ids,created_at,updated_at
+		) VALUES
+			('issue-open','workspace-1',2,'ONE-2','Open','','in_progress','none','member','lead-1','project-1','{}','{}','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z'),
+			('issue-done','workspace-1',3,'ONE-3','Done conditional','','done','none','member','lead-1','project-1','{}','{}','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z'),
+			('issue-accepted','workspace-1',4,'ONE-4','Accepted','','done','none','member','lead-1','project-1','{}','{}','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z'),
+			('issue-removed','workspace-1',5,'ONE-5','Removed accepted','','done','none','member','lead-1','project-1','{}','{}','[]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_requirement_issue_links(
+			workspace_id,project_id,baseline_id,requirement_key,issue_id,linked_revision,
+			unlinked_revision,linked_by,linked_at,unlinked_by,unlinked_at
+		) VALUES
+			('workspace-1','project-1','baseline-coverage','goal-unlinked','issue-deleted',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL),
+			('workspace-1','project-1','baseline-coverage','goal-open','issue-open',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL),
+			('workspace-1','project-1','baseline-coverage','goal-removed','issue-removed',1,3,'lead-1','2026-08-19T00:00:00Z','lead-1','2026-08-19T00:03:00Z'),
+			('workspace-1','project-1','baseline-coverage','scope-done','issue-done',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL),
+			('workspace-1','project-1','baseline-coverage','constraint-accepted','issue-accepted',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL),
+			('workspace-1','project-1','baseline-coverage','acceptance-mixed','issue-open',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL),
+			('workspace-1','project-1','baseline-coverage','acceptance-mixed','issue-accepted',1,NULL,'lead-1','2026-08-19T00:00:00Z',NULL,NULL)`,
+		`INSERT INTO workspace_issue_acceptance_conclusions(
+			id,workspace_id,issue_id,result,rationale,evidence_refs,actor_id,created_at,updated_at
+		) VALUES
+			('conclusion-done-old','workspace-1','issue-done','accepted','Old acceptance','[]','owner-1','2026-08-19T00:01:00Z','2026-08-19T00:01:00Z'),
+			('conclusion-done-new','workspace-1','issue-done','conditional','Latest condition','[]','owner-1','2026-08-19T00:02:00Z','2026-08-19T00:02:00Z'),
+			('conclusion-accepted','workspace-1','issue-accepted','accepted','Accepted','[]','owner-1','2026-08-19T00:01:00Z','2026-08-19T00:01:00Z'),
+			('conclusion-removed','workspace-1','issue-removed','accepted','Accepted','[]','owner-1','2026-08-19T00:01:00Z','2026-08-19T00:01:00Z')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := repository.ReadProjectRequirementCoverage(
+		context.Background(), "workspace-1", "project-1",
+		contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+	)
+	if err != nil {
+		t.Fatalf("ReadProjectRequirementCoverage() error = %v", err)
+	}
+	if coverage.BaselineStatus == nil || *coverage.BaselineStatus != "retired" {
+		t.Fatalf("baseline status = %#v", coverage.BaselineStatus)
+	}
+	if coverage.Current == nil || coverage.Current.Revision != 4 || coverage.Current.State != "retired" {
+		t.Fatalf("current snapshot = %#v", coverage.Current)
+	}
+	if got := []int{coverage.Current.Total, coverage.Current.Linked, coverage.Current.Implemented, coverage.Current.Accepted, coverage.Current.Unlinked}; !equalCoverageCounts(got, []int{6, 4, 2, 1, 2}) {
+		t.Fatalf("current counts = %v", got)
+	}
+	currentStages := []string{"unlinked", "linked", "unlinked", "implemented", "accepted", "linked"}
+	for index, want := range currentStages {
+		if coverage.Current.Items[index].Stage != want {
+			t.Fatalf("current item %d = %#v, want stage %q", index, coverage.Current.Items[index], want)
+		}
+	}
+	if coverage.Current.Items[3].Issues[0].AcceptanceResult == nil || *coverage.Current.Items[3].Issues[0].AcceptanceResult != "conditional" {
+		t.Fatalf("latest conditional issue = %#v", coverage.Current.Items[3].Issues)
+	}
+	if issues := coverage.Current.Items[5].Issues; len(issues) != 2 || issues[0].Identifier != "ONE-2" || issues[1].Identifier != "ONE-4" {
+		t.Fatalf("deterministic mixed issues = %#v", issues)
+	}
+	if coverage.Effective == nil || coverage.Effective.Revision != 2 || coverage.Effective.State != "frozen" {
+		t.Fatalf("effective snapshot = %#v", coverage.Effective)
+	}
+	if got := []int{coverage.Effective.Total, coverage.Effective.Linked, coverage.Effective.Implemented, coverage.Effective.Accepted, coverage.Effective.Unlinked}; !equalCoverageCounts(got, []int{6, 5, 3, 2, 1}) {
+		t.Fatalf("effective counts = %v", got)
+	}
+	if coverage.Effective.Items[2].Stage != "accepted" || len(coverage.Effective.Items[2].Issues) != 1 {
+		t.Fatalf("effective removed-link item = %#v", coverage.Effective.Items[2])
+	}
+
+	if _, err = db.Exec(`UPDATE workspace_projects SET status='completed' WHERE workspace_id='workspace-1' AND id='project-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repository.ReadProjectRequirementCoverage(context.Background(), "workspace-1", "project-1", contract.WorkspaceActor{Type: "member", ID: "ordinary-1"}); err != nil {
+		t.Fatalf("completed-project coverage read error = %v", err)
+	}
+	if _, err = repository.ReadProjectRequirementCoverage(context.Background(), "workspace-1", "project-1", contract.WorkspaceActor{Type: "member", ID: "removed-1"}); !errors.Is(err, contract.ErrActorOutsideWorkspace) {
+		t.Fatalf("removed member error = %v, want ErrActorOutsideWorkspace", err)
+	}
+}
+
+func TestProjectRequirementRepositoryReturnsExplicitEmptyCoverageWithoutBaseline(t *testing.T) {
+	db := openProjectRequirementDB(t)
+	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	coverage, err := repository.ReadProjectRequirementCoverage(
+		context.Background(), "workspace-1", "project-1",
+		contract.WorkspaceActor{Type: "member", ID: "ordinary-1"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if coverage.BaselineStatus != nil || coverage.Current != nil || coverage.Effective != nil {
+		t.Fatalf("empty coverage = %#v", coverage)
+	}
+}
+
+func equalCoverageCounts(got, want []int) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for index := range got {
+		if got[index] != want[index] {
+			return false
+		}
+	}
+	return true
+}
+
 func TestProjectRequirementRepositoryCreatesAndReplaysOneAuthorizedBaseline(t *testing.T) {
 	db := openProjectRequirementDB(t)
 	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})

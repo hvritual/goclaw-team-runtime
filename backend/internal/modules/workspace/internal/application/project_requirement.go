@@ -85,6 +85,7 @@ type ProjectOutlineNodeCreate struct {
 
 type ProjectRequirementRepository interface {
 	ReadProjectRequirement(context.Context, string, string, contract.WorkspaceActor) (contract.ProjectRequirementBaselineResponse, error)
+	ReadProjectRequirementCoverage(context.Context, string, string, contract.WorkspaceActor) (contract.ProjectRequirementCoverage, error)
 	SaveProjectRequirement(context.Context, ProjectRequirementSave) (contract.ProjectRequirementBaselineResponse, error)
 	TransitionProjectRequirement(context.Context, ProjectRequirementTransition) (contract.ProjectRequirementBaselineResponse, error)
 	MutateProjectRequirementLink(context.Context, ProjectRequirementLinkMutation) (contract.ProjectRequirementBaselineResponse, error)
@@ -118,6 +119,18 @@ func (u *ProjectRequirementUseCase) GetProjectRequirement(ctx context.Context, w
 		return contract.ProjectRequirementBaselineResponse{}, ErrInvalidProjectRequirementRequest
 	}
 	return u.repository.ReadProjectRequirement(ctx, workspaceID, projectID, actor)
+}
+
+func (u *ProjectRequirementUseCase) GetProjectRequirementCoverage(ctx context.Context, workspaceID, projectID string) (contract.ProjectRequirementCoverage, error) {
+	workspaceID, projectID = strings.TrimSpace(workspaceID), strings.TrimSpace(projectID)
+	actor, err := projectRequirementActor(ctx)
+	if err != nil {
+		return contract.ProjectRequirementCoverage{}, err
+	}
+	if workspaceID == "" || projectID == "" {
+		return contract.ProjectRequirementCoverage{}, ErrInvalidProjectRequirementRequest
+	}
+	return u.repository.ReadProjectRequirementCoverage(ctx, workspaceID, projectID, actor)
 }
 
 func (u *ProjectRequirementUseCase) SaveProjectRequirement(ctx context.Context, workspaceID, projectID, idempotencyKey string, request contract.SaveProjectRequirementDraftRequest) (contract.ProjectRequirementBaselineResponse, error) {

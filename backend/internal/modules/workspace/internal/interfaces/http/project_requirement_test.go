@@ -25,6 +25,7 @@ type recordingProjectRequirementService struct {
 	outlineLink contract.ProjectRequirementOutlineLinkRequest
 	access      contract.ReplaceProjectRequirementAccessRequest
 	outline     contract.CreateProjectOutlineNodeRequest
+	coverage    *contract.ProjectRequirementCoverage
 	err         error
 }
 
@@ -36,6 +37,14 @@ func (s *recordingProjectRequirementService) record(ctx context.Context, operati
 func (s *recordingProjectRequirementService) GetProjectRequirement(ctx context.Context, workspaceID, projectID string) (contract.ProjectRequirementBaselineResponse, error) {
 	s.record(ctx, "get", workspaceID, projectID)
 	return projectRequirementHTTPFixture(), s.err
+}
+
+func (s *recordingProjectRequirementService) GetProjectRequirementCoverage(ctx context.Context, workspaceID, projectID string) (contract.ProjectRequirementCoverage, error) {
+	s.record(ctx, "get-coverage", workspaceID, projectID)
+	if s.coverage != nil {
+		return *s.coverage, s.err
+	}
+	return projectRequirementHTTPCoverageFixture(), s.err
 }
 
 func (s *recordingProjectRequirementService) SaveProjectRequirement(ctx context.Context, workspaceID, projectID, key string, request contract.SaveProjectRequirementDraftRequest) (contract.ProjectRequirementBaselineResponse, error) {
@@ -106,6 +115,7 @@ func TestProjectRequirementRoutesUseTrustedIdentityAndExactRevisionContracts(t *
 		wantLast   string
 	}{
 		{name: "get baseline", method: http.MethodGet, path: "/api/projects/project-1/requirement-baseline", wantStatus: http.StatusOK, wantLast: "get"},
+		{name: "get coverage", method: http.MethodGet, path: "/api/projects/project-1/requirement-baseline/coverage", wantStatus: http.StatusOK, wantLast: "get-coverage"},
 		{name: "create baseline", method: http.MethodPut, path: "/api/projects/project-1/requirement-baseline", body: `{"expected_revision":0,"content":{"problem_statement":"Need","goals":[],"in_scope":[],"out_of_scope":[],"constraints":[],"acceptance_criteria":[],"dependencies":[]},"change_summary":"Initial"}`, key: "baseline-key", wantStatus: http.StatusCreated, wantLast: "save"},
 		{name: "update baseline", method: http.MethodPut, path: "/api/projects/project-1/requirement-baseline", body: `{"expected_revision":1,"content":{"problem_statement":"Need","goals":[],"in_scope":[],"out_of_scope":[],"constraints":[],"acceptance_criteria":[],"dependencies":[]},"change_summary":"Edit"}`, wantStatus: http.StatusOK, wantLast: "save"},
 		{name: "submit", method: http.MethodPost, path: "/api/projects/project-1/requirement-baseline/submit-review", body: `{"expected_revision":2}`, wantStatus: http.StatusOK, wantLast: "transition"},
@@ -143,6 +153,26 @@ func TestProjectRequirementRoutesUseTrustedIdentityAndExactRevisionContracts(t *
 	}
 	if service.issueLink.ExpectedRevision != 8 || service.outlineLink.ExpectedRevision != 10 {
 		t.Fatalf("unlink revisions = issue %d outline %d", service.issueLink.ExpectedRevision, service.outlineLink.ExpectedRevision)
+	}
+}
+
+func TestProjectRequirementCoverageHTTPSerializesExactProjectionAndEmptyState(t *testing.T) {
+	service := &recordingProjectRequirementService{}
+	server := newProjectRequirementHTTPServer(service, func(*http.Request) error { return nil })
+	request := newProjectRequirementRequest(http.MethodGet, "/api/projects/project-1/requirement-baseline/coverage", "")
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+	want := `{"baseline_status":"retired","current":{"revision":4,"state":"retired","total":1,"linked":1,"implemented":1,"accepted":1,"unlinked":0,"items":[{"requirement_key":"goal-1","section":"goals","text":"Ship","stage":"accepted","issues":[{"id":"issue-1","identifier":"ONE-1","title":"Ship","status":"done","acceptance_result":null}]}]},"effective":null}`
+	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != want {
+		t.Fatalf("coverage response = %d %s", response.Code, response.Body.String())
+	}
+
+	empty := contract.ProjectRequirementCoverage{}
+	service.coverage = &empty
+	response = httptest.NewRecorder()
+	server.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || strings.TrimSpace(response.Body.String()) != `{"baseline_status":null,"current":null,"effective":null}` {
+		t.Fatalf("empty coverage response = %d %s", response.Code, response.Body.String())
 	}
 }
 
@@ -247,5 +277,19 @@ func projectRequirementHTTPFixture() contract.ProjectRequirementBaselineResponse
 		},
 		History: []contract.ProjectRequirementRevision{}, IssueLinks: []contract.ProjectRequirementIssueLink{},
 		OutlineLinks: []contract.ProjectRequirementOutlineLink{},
+	}
+}
+
+func projectRequirementHTTPCoverageFixture() contract.ProjectRequirementCoverage {
+	status := "retired"
+	return contract.ProjectRequirementCoverage{
+		BaselineStatus: &status,
+		Current: &contract.ProjectRequirementCoverageSnapshot{
+			Revision: 4, State: "retired", Total: 1, Linked: 1, Implemented: 1, Accepted: 1,
+			Items: []contract.ProjectRequirementCoverageItem{{
+				RequirementKey: "goal-1", Section: "goals", Text: "Ship", Stage: "accepted",
+				Issues: []contract.ProjectRequirementCoverageIssue{{ID: "issue-1", Identifier: "ONE-1", Title: "Ship", Status: "done"}},
+			}},
+		},
 	}
 }
