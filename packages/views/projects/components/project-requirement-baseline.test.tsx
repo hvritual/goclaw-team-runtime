@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   canEdit: true,
   canApprove: true,
   canManageOutline: true,
+  coverageError: null as Error | null,
 }));
 
 const EMPTY_CONTENT = {
@@ -44,9 +45,13 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: (options: { queryKey: string[] }) => ({
     isLoading: false,
     dataUpdatedAt: 1,
+    error:
+      options.queryKey[0] === "coverage" ? mocks.coverageError : null,
     data:
       options.queryKey[0] === "coverage"
-        ? {
+        ? mocks.coverageError
+          ? undefined
+          : {
             baselineStatus: mocks.status,
             current: {
               revision: 8,
@@ -319,6 +324,7 @@ describe("ProjectRequirementBaseline", () => {
     mocks.canEdit = true;
     mocks.canApprove = true;
     mocks.canManageOutline = true;
+    mocks.coverageError = null;
   });
 
   it("keeps stable item keys across edit, deletion, and addition", () => {
@@ -373,6 +379,23 @@ describe("ProjectRequirementBaseline", () => {
     expect(
       screen.getByText("MUL-1 · Track it · done · Accepted")
     ).toBeInTheDocument();
+  });
+
+  it("shows a safe coverage error instead of the successful empty state", () => {
+    mocks.coverageError = new Error("strict coverage response rejected");
+    renderWithI18n(<ProjectRequirementBaseline projectId="project-1" />);
+
+    expect(
+      screen.getByRole("alert", {
+        name: "Could not load Requirement coverage.",
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("No Requirement coverage yet.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("strict coverage response rejected")
+    ).not.toBeInTheDocument();
   });
 
   it("uses server-projected access for independent approval", () => {

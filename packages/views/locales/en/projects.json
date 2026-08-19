@@ -307,6 +307,7 @@
     "outline_revision": "Root set revision {{revision}}",
     "coverage_title": "Requirement coverage",
     "coverage_empty": "No Requirement coverage yet.",
+    "coverage_load_failed": "Could not load Requirement coverage.",
     "coverage_current": "Current coverage v{{revision}}",
     "coverage_effective": "Effective coverage v{{revision}}",
     "coverage_summary": "{{linked}} linked · {{implemented}} implemented · {{accepted}} accepted · {{unlinked}} unlinked · {{total}} total",

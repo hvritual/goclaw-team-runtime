@@ -305,6 +305,7 @@
     "outline_revision": "루트 집합 개정 {{revision}}",
     "coverage_title": "요구사항 커버리지",
     "coverage_empty": "아직 요구사항 커버리지가 없습니다.",
+    "coverage_load_failed": "요구사항 커버리지를 불러오지 못했습니다.",
     "coverage_current": "현재 커버리지 v{{revision}}",
     "coverage_effective": "유효 커버리지 v{{revision}}",
     "coverage_summary": "연결 {{linked}} · 구현 {{implemented}} · 수락 {{accepted}} · 미연결 {{unlinked}} · 전체 {{total}}",

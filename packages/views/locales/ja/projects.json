@@ -305,6 +305,7 @@
     "outline_revision": "ルートセットのリビジョン {{revision}}",
     "coverage_title": "要件カバレッジ",
     "coverage_empty": "要件カバレッジはまだありません。",
+    "coverage_load_failed": "要件カバレッジを読み込めませんでした。",
     "coverage_current": "現在のカバレッジ v{{revision}}",
     "coverage_effective": "有効なカバレッジ v{{revision}}",
     "coverage_summary": "リンク済み {{linked}} · 実装済み {{implemented}} · 受け入れ済み {{accepted}} · 未リンク {{unlinked}} · 合計 {{total}}",

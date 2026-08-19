@@ -305,6 +305,7 @@
     "outline_revision": "根节点集修订 {{revision}}",
     "coverage_title": "需求覆盖情况",
     "coverage_empty": "尚无需求覆盖数据。",
+    "coverage_load_failed": "无法加载需求覆盖情况。",
     "coverage_current": "当前覆盖 v{{revision}}",
     "coverage_effective": "有效覆盖 v{{revision}}",
     "coverage_summary": "已关联 {{linked}} · 已实现 {{implemented}} · 已验收 {{accepted}} · 未关联 {{unlinked}} · 共 {{total}}",

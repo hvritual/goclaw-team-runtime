@@ -269,16 +269,27 @@ function RequirementCoverageSnapshot({
 
 function RequirementCoverage({
   coverage,
+  error,
 }: {
   coverage: ProjectRequirementCoverage | undefined;
+  error: unknown;
 }) {
   const { t } = useT("projects");
+  const errorMessage = t(($) => $.requirements.coverage_load_failed);
   return (
     <section className="mb-5 rounded-md border bg-muted/20 p-3">
       <h3 className="text-sm font-medium">
         {t(($) => $.requirements.coverage_title)}
       </h3>
-      {!coverage?.current ? (
+      {error ? (
+        <p
+          role="alert"
+          aria-label={errorMessage}
+          className="mt-2 text-sm text-destructive"
+        >
+          {errorMessage}
+        </p>
+      ) : !coverage?.current ? (
         <p className="mt-2 text-sm text-muted-foreground">
           {t(($) => $.requirements.coverage_empty)}
         </p>
@@ -496,9 +507,11 @@ export function ProjectRequirementBaseline({
   const { data, isLoading, dataUpdatedAt } = useQuery(
     projectRequirementBaselineOptions(wsId, projectId)
   );
-  const { data: coverage, isLoading: coverageLoading } = useQuery(
-    projectRequirementCoverageOptions(wsId, projectId)
-  );
+  const {
+    data: coverage,
+    isLoading: coverageLoading,
+    error: coverageError,
+  } = useQuery(projectRequirementCoverageOptions(wsId, projectId));
   const { data: projectIssues } = useQuery(
     projectRequirementIssuesOptions(wsId, projectId)
   );
@@ -836,7 +849,7 @@ export function ProjectRequirementBaseline({
         />
       )}
 
-      <RequirementCoverage coverage={coverage} />
+      <RequirementCoverage coverage={coverage} error={coverageError} />
 
       <MinimalOutlineRoots
         revision={outline?.revision ?? 0}
