@@ -69,7 +69,7 @@ func TestLocalAuthProjectsPersistedOnboardedAtAcrossRestart(t *testing.T) {
 			db.Close()
 			t.Fatal(err)
 		}
-		server := kratoshttp.NewServer()
+		server := kratoshttp.NewServer(kratoshttp.Timeout(10 * time.Second))
 		module.RegisterHTTP(server)
 		verified := authRequest(server, http.MethodPost, "/auth/verify-code", `{"email":"fixture@example.com","code":"888888"}`, nil)
 		if verified.Code != http.StatusOK {
@@ -105,7 +105,7 @@ func TestLocalAuthProjectsPersistedOnboardedAtAcrossRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := kratoshttp.NewServer()
+	server := kratoshttp.NewServer(kratoshttp.Timeout(10 * time.Second))
 	module.RegisterHTTP(server)
 	newUser := authRequest(server, http.MethodPost, "/auth/verify-code", `{"email":"new@example.com","code":"888888"}`, nil)
 	if newUser.Code != http.StatusOK {
