@@ -2,6 +2,7 @@ package retrospective
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -37,6 +38,7 @@ func TestNormalizeContentRejectsInvalidSnapshots(t *testing.T) {
 		{name: "missing lesson", content: Content{Summary: "Summary"}},
 		{name: "duplicate action id", content: Content{Summary: "Summary", Lessons: []string{"Lesson"}, ActionItems: []ActionItem{{ID: "a", Title: "One"}, {ID: "a", Title: "Two"}}}},
 		{name: "invalid action id", content: Content{Summary: "Summary", Lessons: []string{"Lesson"}, ActionItems: []ActionItem{{ID: "bad id", Title: "One"}}}},
+		{name: "invalid due date", content: Content{Summary: "Summary", Lessons: []string{"Lesson"}, ActionItems: []ActionItem{{ID: "action-1", Title: "One", DueDate: "2026-02-30"}}}},
 		{name: "oversized summary", content: Content{Summary: strings.Repeat("x", MaxSummaryRunes+1), Lessons: []string{"Lesson"}}},
 		{name: "too many actions", content: Content{Summary: "Summary", Lessons: []string{"Lesson"}, ActionItems: make([]ActionItem, MaxActionItems+1)}},
 	} {
@@ -48,6 +50,22 @@ func TestNormalizeContentRejectsInvalidSnapshots(t *testing.T) {
 	}
 	if _, err := NormalizeContent(valid); err != nil {
 		t.Fatalf("valid content error = %v", err)
+	}
+}
+
+func TestNormalizeParticipantsNeverProjectsBeyondSnapshotLimit(t *testing.T) {
+	participants := make([]Participant, maxParticipants)
+	for index := range participants {
+		participants[index] = Participant{MemberID: fmt.Sprintf("member-%03d", index), Role: RoleParticipant}
+	}
+	if projected, err := NormalizeParticipants(participants, "creator-member"); !errors.Is(err, ErrInvalidParticipants) || projected != nil {
+		t.Fatalf("projected overflow = %#v, error = %v", projected, err)
+	}
+
+	participants[0].MemberID = "creator-member"
+	projected, err := NormalizeParticipants(participants, "creator-member")
+	if err != nil || len(projected) != maxParticipants {
+		t.Fatalf("bounded projection length = %d, error = %v", len(projected), err)
 	}
 }
 

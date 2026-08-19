@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -83,7 +84,7 @@ func NormalizeContent(input Content) (Content, error) {
 		item.Description = strings.TrimSpace(item.Description)
 		item.AssigneeID = strings.TrimSpace(item.AssigneeID)
 		item.DueDate = strings.TrimSpace(item.DueDate)
-		if !actionIDPattern.MatchString(item.ID) || item.Title == "" || utf8.RuneCountInString(item.Title) > maxActionTitleRunes || utf8.RuneCountInString(item.Description) > maxActionDescriptionRunes {
+		if !actionIDPattern.MatchString(item.ID) || item.Title == "" || utf8.RuneCountInString(item.Title) > maxActionTitleRunes || utf8.RuneCountInString(item.Description) > maxActionDescriptionRunes || !validDueDate(item.DueDate) {
 			return Content{}, ErrInvalidContent
 		}
 		if _, duplicate := seen[item.ID]; duplicate {
@@ -141,10 +142,21 @@ func NormalizeParticipants(input []Participant, creatorMemberID string) ([]Parti
 		result = append(result, participant)
 	}
 	if _, exists := seen[creatorMemberID]; !exists {
+		if len(result) >= maxParticipants {
+			return nil, ErrInvalidParticipants
+		}
 		result = append(result, Participant{MemberID: creatorMemberID, Role: RoleParticipant})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].MemberID < result[j].MemberID })
 	return result, nil
+}
+
+func validDueDate(value string) bool {
+	if value == "" {
+		return true
+	}
+	parsed, err := time.Parse(time.DateOnly, value)
+	return err == nil && parsed.Format(time.DateOnly) == value
 }
 
 func NextStatus(current, action string) (string, error) {
