@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v26`
-- Status: `Release 3 active; PCR-S07A active`
+- Status: `Release 3 active; PCR-S07A complete; PCR-S07B inactive pending scope decision`
 
 ## Delivery policy
 
@@ -158,7 +158,7 @@ source evidence, admin emergency reason, immutable audit, and realtime update.
 
 ### PCR-S07A — Manage project Resources
 
-Status: `review-evidence remediation active under PRODUCT-CAPABILITY-ROADMAP-001 v28 / r033; v27 / r032 and v26 / r031 are review-blocked history`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v28 / r033; v27 / r032 and v26 / r031 are review-blocked history`
 
 As a project member, I can add, validate, reorder, archive, and restore GitHub
 repository and generic URL resources without storing external credentials in

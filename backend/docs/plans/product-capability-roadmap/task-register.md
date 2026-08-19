@@ -1829,7 +1829,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07A-R33`
 - Task-Revision: `r033`
 - Work-Item: `PCR-S07A`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Base commit: `9fb86ea056d253c82ea61b13031550db82eeb526`
@@ -1860,3 +1860,26 @@ S02A without changing Task product behavior or activating S02B.
   mutates retained data. Otherwise product code remains unchanged.
 - The v28 policy bundle is frozen. No evidence repair, PASS, closure, push,
   merge, or deployment is claimed by activation.
+
+### Candidate and closure evidence
+
+- Exact candidate `b3828be7b9b272732c5630975e73e35b629ed9f9`
+  has tree `7c4a45fff414a555688358bd938111f8105c774f` and binary patch
+  hash `eb5f5041fad3944860b914a581aee42902f191dc` from exact base
+  `9fb86ea056d253c82ea61b13031550db82eeb526`. The range contains only
+  six authorized governance/test paths, zero `server/**` paths, passes
+  `git diff --check`, and is clean.
+- Both range commits expose exactly one continuous nine-field Git trailer
+  block. The six guarded down-migration cases compare every retained row field
+  before and after the expected failure; focused and complete Workspace tests
+  pass. Backend `make check` passes with task-specific F-drive Go temp/cache,
+  and the official Windows Workspace race passes with MinGW GCC 15.2.0. The
+  earlier C-drive temporary-space failure and unrelated broad aggregate
+  failures remain explicitly NON-PASS evidence.
+- Fresh independent review of that exact candidate returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS` with no blocking finding. It verifies both r032
+  blockers are closed, exact v28 scope/hash/traceability, unchanged product
+  behavior, empty `server/**`, and the deterministic evidence.
+- r033 and PCR-S07A are `complete-independent-reviewed`. PCR-S07B remains
+  inactive pending a successor plan and the resolved outline authority scope.
+  Release 3 is not complete; no push, merge, or deployment is claimed.

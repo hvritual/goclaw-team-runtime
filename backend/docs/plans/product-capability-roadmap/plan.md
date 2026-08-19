@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v28.md](plan_v28.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `28`
-- Active step: `PCR-S07A R33.1`
-- Status: `Release 3 active; PCR-S07A review-evidence remediation active`
+- Active step: `none`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B inactive pending scope decision`
 - Plan base commit: `9fb86ea056d253c82ea61b13031550db82eeb526`
-- Last closed task candidate: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -44,6 +44,16 @@ unchanged. The standing completion direction activates v28/r033 from exact
 base `9fb86ea` only for continuous trailer proof and exact down-migration data
 preservation assertions. S07B-D, Release 3 completion, push, merge, and
 deployment remain inactive.
+
+Exact v28/r033 candidate `b3828be7b9b272732c5630975e73e35b629ed9f9`
+(tree `7c4a45fff414a555688358bd938111f8105c774f`) adds complete
+before/after retained-row assertions without changing product behavior. Both
+range commits expose all nine required Git trailers; focused Workspace,
+backend check, and official changed-package race gates pass. Fresh independent
+review returns `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` with no blocking
+finding. PCR-S07A is `complete-independent-reviewed`. PCR-S07B remains inactive
+until its outline authority boundary is resolved in a successor plan; no push,
+merge, deployment, or Release 3 completion is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
