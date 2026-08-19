@@ -333,6 +333,9 @@ func (h *ProjectSurfaceHandler) writeProject(ctx kratoshttp.Context, result cont
 	if errors.Is(err, application.ErrInvalidProjectSurfaceRequest) {
 		return writeError(ctx, http.StatusBadRequest, "invalid project request")
 	}
+	if errors.Is(err, contract.ErrWorkspacePermissionDenied) || errors.Is(err, contract.ErrWorkspaceActorRequired) {
+		return writeError(ctx, http.StatusForbidden, contract.ErrWorkspacePermissionDenied.Error())
+	}
 	if projectSurfaceHidden(err) {
 		return writeError(ctx, http.StatusNotFound, "project not found")
 	}

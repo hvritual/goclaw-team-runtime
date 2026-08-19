@@ -185,6 +185,8 @@ func (r *projectRepository) DeleteWithDependents(ctx context.Context, workspaceI
 			SELECT id FROM workspace_requirements WHERE workspace_id = ? AND project_id = ?
 		)`, []any{workspaceID, projectID}},
 		{`DELETE FROM workspace_requirements WHERE workspace_id = ? AND project_id = ?`, []any{workspaceID, projectID}},
+		{`DELETE FROM workspace_project_resources WHERE workspace_id = ? AND project_id = ?`, []any{workspaceID, projectID}},
+		{`DELETE FROM workspace_project_resource_sets WHERE workspace_id = ? AND project_id = ?`, []any{workspaceID, projectID}},
 		{`DELETE FROM workspace_projects WHERE workspace_id = ? AND id = ?`, []any{workspaceID, projectID}},
 	}
 	for _, statement := range statements {

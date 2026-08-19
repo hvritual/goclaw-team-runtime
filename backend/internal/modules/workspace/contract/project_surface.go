@@ -59,15 +59,16 @@ type Pin struct {
 }
 
 type CreateProjectSurfaceRequest struct {
-	Title       string  `json:"title"`
-	Description *string `json:"description"`
-	Icon        *string `json:"icon"`
-	Status      string  `json:"status"`
-	Priority    string  `json:"priority"`
-	LeadType    *string `json:"lead_type"`
-	LeadID      *string `json:"lead_id"`
-	StartDate   *string `json:"start_date"`
-	DueDate     *string `json:"due_date"`
+	Title       string                         `json:"title"`
+	Description *string                        `json:"description"`
+	Icon        *string                        `json:"icon"`
+	Status      string                         `json:"status"`
+	Priority    string                         `json:"priority"`
+	LeadType    *string                        `json:"lead_type"`
+	LeadID      *string                        `json:"lead_id"`
+	StartDate   *string                        `json:"start_date"`
+	DueDate     *string                        `json:"due_date"`
+	Resources   []CreateProjectResourceRequest `json:"resources,omitempty"`
 }
 
 type NullableStringPatch struct {

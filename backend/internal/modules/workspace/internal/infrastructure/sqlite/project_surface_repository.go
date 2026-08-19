@@ -49,7 +49,8 @@ func (r *ProjectSurfaceRepository) rebuildSearch(ctx context.Context) (err error
 
 const projectSurfaceColumns = `p.id,p.workspace_id,p.name,NULLIF(p.description,''),NULLIF(p.icon,''),p.status,p.priority,p.lead_type,p.lead_id,p.start_date,p.due_date,p.created_at,p.updated_at,
 	(SELECT COUNT(*) FROM workspace_issues i WHERE i.workspace_id=p.workspace_id AND i.project_id=p.id),
-	(SELECT COUNT(*) FROM workspace_issues i WHERE i.workspace_id=p.workspace_id AND i.project_id=p.id AND i.status='done')`
+	(SELECT COUNT(*) FROM workspace_issues i WHERE i.workspace_id=p.workspace_id AND i.project_id=p.id AND i.status='done'),
+	(SELECT COUNT(*) FROM workspace_project_resources r WHERE r.workspace_id=p.workspace_id AND r.project_id=p.id AND r.status='active')`
 
 func (r *ProjectSurfaceRepository) ListProjects(ctx context.Context, workspaceID, status string) ([]contract.ProjectSurfaceProject, error) {
 	query := `SELECT ` + projectSurfaceColumns + ` FROM workspace_projects p WHERE p.workspace_id=?`
@@ -173,6 +174,10 @@ func scanProjectSurfaceWithSource(scanner projectSurfaceScanner) (application.Pr
 }
 
 func (r *ProjectSurfaceRepository) CreateProject(ctx context.Context, value contract.ProjectSurfaceProject) (contract.ProjectSurfaceProject, error) {
+	return r.CreateProjectWithResources(ctx, value, nil, contract.WorkspaceActor{})
+}
+
+func (r *ProjectSurfaceRepository) CreateProjectWithResources(ctx context.Context, value contract.ProjectSurfaceProject, resources []application.ProjectResourceSeed, actor contract.WorkspaceActor) (contract.ProjectSurfaceProject, error) {
 	connection, err := r.db.Conn(ctx)
 	if err != nil {
 		return contract.ProjectSurfaceProject{}, fmt.Errorf("acquire project creation connection: %w", err)
@@ -190,11 +195,49 @@ func (r *ProjectSurfaceRepository) CreateProject(ctx context.Context, value cont
 			_, _ = connection.ExecContext(context.Background(), "ROLLBACK")
 		}
 	}()
+	if len(resources) > 0 {
+		if err = ensureInitialProjectResourceManagerOnConnection(ctx, connection, value.WorkspaceID, value.Status, value.LeadType, value.LeadID, actor); err != nil {
+			return contract.ProjectSurfaceProject{}, err
+		}
+	}
 	_, err = connection.ExecContext(ctx, `INSERT INTO workspace_projects(
 		id,workspace_id,name,description,icon,status,priority,lead_type,lead_id,start_date,due_date,asset_ids,created_at,updated_at
 	) VALUES(?,?,?,?,?,?,?,?,?,?,?,'[]',?,?)`, value.ID, value.WorkspaceID, value.Title, projectDescriptionValue(value.Description), value.Icon, value.Status, value.Priority, value.LeadType, value.LeadID, value.StartDate, value.DueDate, value.CreatedAt, value.UpdatedAt)
 	if err != nil {
 		return contract.ProjectSurfaceProject{}, fmt.Errorf("create project surface: %w", err)
+	}
+	if len(resources) > 0 {
+		if _, err = connection.ExecContext(ctx, `INSERT INTO workspace_project_resource_sets(workspace_id,project_id,revision,updated_at) VALUES(?,?,1,?)`, value.WorkspaceID, value.ID, value.CreatedAt); err != nil {
+			return contract.ProjectSurfaceProject{}, fmt.Errorf("initialize Project Resource set: %w", err)
+		}
+		for position, resource := range resources {
+			duplicate, duplicateErr := projectResourceFingerprintExists(ctx, connection, value.WorkspaceID, value.ID, resource.Fingerprint, "")
+			if duplicateErr != nil {
+				return contract.ProjectSurfaceProject{}, fmt.Errorf("check duplicate initial Project Resource: %w", duplicateErr)
+			}
+			if duplicate {
+				return contract.ProjectSurfaceProject{}, application.ErrProjectResourceConflict
+			}
+			_, err = connection.ExecContext(ctx, `INSERT INTO workspace_project_resources(
+				id,workspace_id,project_id,resource_type,canonical_url,resource_ref,fingerprint,label,position,status,revision,
+				connection_state,connection_diagnostic_code,created_at,created_by,updated_at,updated_by
+			) VALUES(?,?,?,?,?,?,?,?,?,'active',1,'unchecked','',?,?,?,?)`,
+				resource.ID, value.WorkspaceID, value.ID, resource.ResourceType, resource.ResourceRef.URL, resource.ResourceRef.Ref,
+				resource.Fingerprint, resource.Label, position, value.CreatedAt, actor.ID, value.CreatedAt, actor.ID)
+			if err != nil {
+				if isProjectResourceConstraint(err) {
+					return contract.ProjectSurfaceProject{}, application.ErrProjectResourceConflict
+				}
+				return contract.ProjectSurfaceProject{}, fmt.Errorf("create initial Project Resource: %w", err)
+			}
+			createdResource, scanErr := scanProjectResource(connection.QueryRowContext(ctx, `SELECT `+projectResourceColumns+` FROM workspace_project_resources WHERE workspace_id=? AND project_id=? AND id=?`, value.WorkspaceID, value.ID, resource.ID))
+			if scanErr != nil {
+				return contract.ProjectSurfaceProject{}, fmt.Errorf("read initial Project Resource: %w", scanErr)
+			}
+			if err = insertProjectResourceAudit(ctx, connection, createdResource, actor, "create", projectResourceRequestID(resource.ID, "initial", 1), parseProjectSurfaceTime(value.CreatedAt)); err != nil {
+				return contract.ProjectSurfaceProject{}, err
+			}
+		}
 	}
 	created, err := scanProjectSurface(connection.QueryRowContext(ctx, `SELECT `+projectSurfaceColumns+` FROM workspace_projects p WHERE p.workspace_id=? AND p.id=?`, value.WorkspaceID, value.ID))
 	if err != nil {
@@ -281,6 +324,8 @@ func (r *ProjectSurfaceRepository) DeleteProject(ctx context.Context, workspaceI
 		{`UPDATE workspace_issues SET project_id=NULL,updated_at=? WHERE workspace_id=? AND project_id=?`, []any{timestamp, workspaceID, projectID}},
 		{`DELETE FROM workspace_requirement_versions WHERE requirement_id IN (SELECT id FROM workspace_requirements WHERE workspace_id=? AND project_id=?)`, []any{workspaceID, projectID}},
 		{`DELETE FROM workspace_requirements WHERE workspace_id=? AND project_id=?`, []any{workspaceID, projectID}},
+		{`DELETE FROM workspace_project_resources WHERE workspace_id=? AND project_id=?`, []any{workspaceID, projectID}},
+		{`DELETE FROM workspace_project_resource_sets WHERE workspace_id=? AND project_id=?`, []any{workspaceID, projectID}},
 		{`DELETE FROM workspace_projects WHERE workspace_id=? AND id=?`, []any{workspaceID, projectID}},
 	}
 	for _, statement := range statements {
@@ -512,11 +557,19 @@ type projectSurfaceScanner interface{ Scan(...any) error }
 func scanProjectSurface(scanner projectSurfaceScanner) (contract.ProjectSurfaceProject, error) {
 	var value contract.ProjectSurfaceProject
 	var description, icon, leadType, leadID, startDate, dueDate sql.NullString
-	if err := scanner.Scan(&value.ID, &value.WorkspaceID, &value.Title, &description, &icon, &value.Status, &value.Priority, &leadType, &leadID, &startDate, &dueDate, &value.CreatedAt, &value.UpdatedAt, &value.IssueCount, &value.DoneCount); err != nil {
+	if err := scanner.Scan(&value.ID, &value.WorkspaceID, &value.Title, &description, &icon, &value.Status, &value.Priority, &leadType, &leadID, &startDate, &dueDate, &value.CreatedAt, &value.UpdatedAt, &value.IssueCount, &value.DoneCount, &value.ResourceCount); err != nil {
 		return value, err
 	}
 	value.Description, value.Icon = projectNullableString(description), projectNullableString(icon)
 	value.LeadType, value.LeadID = projectNullableString(leadType), projectNullableString(leadID)
 	value.StartDate, value.DueDate = projectNullableString(startDate), projectNullableString(dueDate)
 	return value, nil
+}
+
+func parseProjectSurfaceTime(value string) time.Time {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }

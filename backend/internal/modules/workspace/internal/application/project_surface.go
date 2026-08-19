@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
+	"github.com/hvritual/workspace/internal/modules/workspace/internal/domain/projectresource"
 )
 
 var ErrInvalidProjectSurfaceRequest = errors.New("invalid project surface request")
@@ -19,6 +20,7 @@ type ProjectSurfaceRepository interface {
 	ListProjects(context.Context, string, string) ([]contract.ProjectSurfaceProject, error)
 	GetProject(context.Context, string, string) (contract.ProjectSurfaceProject, error)
 	CreateProject(context.Context, contract.ProjectSurfaceProject) (contract.ProjectSurfaceProject, error)
+	CreateProjectWithResources(context.Context, contract.ProjectSurfaceProject, []ProjectResourceSeed, contract.WorkspaceActor) (contract.ProjectSurfaceProject, error)
 	UpdateProject(context.Context, contract.ProjectSurfaceProject) (contract.ProjectSurfaceProject, error)
 	DeleteProject(context.Context, string, string, time.Time) error
 	ListPins(context.Context, string, string) ([]contract.Pin, error)
@@ -27,6 +29,14 @@ type ProjectSurfaceRepository interface {
 	DeletePin(context.Context, string, string, string, string) error
 	ReorderPins(context.Context, string, string, []string, int64) error
 	SearchProjects(context.Context, ProjectSurfaceSearchQuery) ([]ProjectSurfaceSearchResult, int, error)
+}
+
+type ProjectResourceSeed struct {
+	ID           string
+	ResourceType string
+	ResourceRef  contract.ProjectResourceRef
+	Fingerprint  string
+	Label        string
 }
 
 type ProjectSurfaceSearchQuery struct {
@@ -146,16 +156,71 @@ func (u *ProjectSurfaceUseCase) CreateProject(ctx context.Context, workspaceID s
 	if err := u.authorizer.AuthorizeWorkspace(ctx, workspaceID, PermissionProjectCreate); err != nil {
 		return contract.ProjectSurfaceProject{}, err
 	}
+	actor, hasActor := contract.WorkspaceActorFromContext(ctx)
+	if len(request.Resources) > 0 && (!hasActor || actor.Type != "member") {
+		return contract.ProjectSurfaceProject{}, contract.ErrWorkspacePermissionDenied
+	}
+	if len(request.Resources) > 0 {
+		if err := authorizeInitialProjectResources(ctx, u.memberships, workspaceID, actor, request.LeadType, request.LeadID); err != nil {
+			return contract.ProjectSurfaceProject{}, err
+		}
+	}
 	id, err := u.newID(ctx)
 	if err != nil {
 		return contract.ProjectSurfaceProject{}, fmt.Errorf("generate project surface id: %w", err)
 	}
 	now := u.now().UTC().Format(time.RFC3339Nano)
-	return u.repository.CreateProject(ctx, contract.ProjectSurfaceProject{
+	resources := make([]ProjectResourceSeed, len(request.Resources))
+	seen := make(map[string]struct{}, len(request.Resources))
+	for index, input := range request.Resources {
+		kind := projectresource.Type(strings.TrimSpace(input.ResourceType))
+		reference, normalizeErr := projectresource.Normalize(kind, input.ResourceRef.URL, input.ResourceRef.Ref)
+		label := strings.TrimSpace(input.Label)
+		if normalizeErr != nil || len(label) > 120 {
+			return contract.ProjectSurfaceProject{}, ErrInvalidProjectSurfaceRequest
+		}
+		fingerprint := projectresource.Fingerprint(kind, reference)
+		if _, duplicate := seen[fingerprint]; duplicate {
+			return contract.ProjectSurfaceProject{}, ErrInvalidProjectSurfaceRequest
+		}
+		seen[fingerprint] = struct{}{}
+		resourceID, idErr := u.newID(ctx)
+		if idErr != nil {
+			return contract.ProjectSurfaceProject{}, fmt.Errorf("generate Project Resource id: %w", idErr)
+		}
+		resources[index] = ProjectResourceSeed{
+			ID: resourceID, ResourceType: string(kind),
+			ResourceRef: contract.ProjectResourceRef{URL: reference.URL, Ref: reference.Ref},
+			Fingerprint: fingerprint, Label: label,
+		}
+	}
+	return u.repository.CreateProjectWithResources(ctx, contract.ProjectSurfaceProject{
 		ID: id, WorkspaceID: workspaceID, Title: request.Title, Description: request.Description, Icon: request.Icon,
 		Status: request.Status, Priority: request.Priority, LeadType: request.LeadType, LeadID: request.LeadID,
 		StartDate: request.StartDate, DueDate: request.DueDate, CreatedAt: now, UpdatedAt: now,
-	})
+	}, resources, actor)
+}
+
+func authorizeInitialProjectResources(ctx context.Context, memberships contract.WorkspaceMembershipReader, workspaceID string, actor contract.WorkspaceActor, leadType, leadID *string) error {
+	membership, found, err := memberships.FindForUserAndWorkspace(ctx, actor.ID, workspaceID)
+	if err == nil && !found {
+		membership, found, err = memberships.FindByMemberAndWorkspace(ctx, actor.ID, workspaceID)
+	}
+	if err != nil {
+		return err
+	}
+	if !found {
+		return contract.ErrActorOutsideWorkspace
+	}
+	if membership.Role == "owner" || membership.Role == "admin" {
+		return nil
+	}
+	isLead := leadType != nil && leadID != nil && *leadType == "member" &&
+		(*leadID == actor.ID || *leadID == membership.MemberID || *leadID == membership.UserID)
+	if !isLead {
+		return contract.ErrWorkspacePermissionDenied
+	}
+	return nil
 }
 
 func (u *ProjectSurfaceUseCase) UpdateProject(ctx context.Context, workspaceID, projectID string, request contract.UpdateProjectSurfaceRequest) (contract.ProjectSurfaceProject, error) {

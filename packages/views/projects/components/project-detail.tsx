@@ -446,7 +446,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       </div>
 
       {/* Resources */}
-      {projectResourcesEnabled && <ProjectResourcesSection projectId={projectId} />}
+      {projectResourcesEnabled && (
+        <ProjectResourcesSection
+          projectId={projectId}
+          canManage={isWorkspaceAdmin || isProjectLead}
+        />
+      )}
       {projectRetrospectivesEnabled && <ProjectRetrospectiveHistory projectId={projectId} />}
     </div>
   );

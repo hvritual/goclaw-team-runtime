@@ -169,7 +169,9 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 		workspacecontract.PermissionKnowledgeQuery,
 		workspacecontract.PermissionKnowledgePropose,
 		workspacecontract.PermissionKnowledgeReview,
-		workspacecontract.PermissionKnowledgeSelfReviewOverride:
+		workspacecontract.PermissionKnowledgeSelfReviewOverride,
+		workspacecontract.PermissionResourceRead,
+		workspacecontract.PermissionResourceManage:
 		return true
 	default:
 		return p.next != nil && p.next.RoadmapCapabilityInstalled(permission)
@@ -178,7 +180,7 @@ func (p installedRuntimeCapabilities) RoadmapCapabilityInstalled(permission stri
 
 func (p installedRuntimeCapabilities) RoadmapFeatureInstalled(feature string) bool {
 	switch feature {
-	case "tasks", "issue_search", "project_search", "pin_reorder", "skill_administration", "skill_import", "knowledge_query", "knowledge_review":
+	case "tasks", "issue_search", "project_search", "pin_reorder", "skill_administration", "skill_import", "knowledge_query", "knowledge_review", "project_resources":
 		return true
 	default:
 		if next, ok := p.next.(workspacecontract.RoadmapFeatureProvider); ok {

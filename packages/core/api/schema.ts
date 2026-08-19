@@ -16,6 +16,27 @@ export interface ParseOptions {
   endpoint: string;
 }
 
+function describeReceivedShape(
+  value: unknown
+): Record<string, number | string> {
+  if (value === null) return { kind: "null" };
+  if (Array.isArray(value)) return { kind: "array", itemCount: value.length };
+  switch (typeof value) {
+    case "object":
+      return { kind: "object", fieldCount: Object.keys(value).length };
+    case "string":
+      return { kind: "string", length: value.length };
+    case "number":
+    case "boolean":
+    case "bigint":
+    case "symbol":
+    case "undefined":
+    case "function":
+      return { kind: typeof value };
+  }
+  return { kind: "unknown" };
+}
+
 /**
  * Validate a JSON value parsed from an API response against a zod schema,
  * returning the parsed value on success or `fallback` on failure.
@@ -39,17 +60,17 @@ export function parseWithFallback<T>(
   data: unknown,
   schema: ZodType,
   fallback: T,
-  opts: ParseOptions,
+  opts: ParseOptions
 ): T {
   const result = schema.safeParse(data);
   if (result.success) return result.data as T;
-  schemaLogger.warn(
-    `API response failed schema validation: ${opts.endpoint}`,
-    {
-      endpoint: opts.endpoint,
-      issues: result.error.issues,
-      received: data,
-    },
-  );
+  schemaLogger.warn(`API response failed schema validation: ${opts.endpoint}`, {
+    endpoint: opts.endpoint,
+    issues: result.error.issues.map((issue) => ({
+      code: issue.code,
+      pathDepth: issue.path.length,
+    })),
+    receivedShape: describeReceivedShape(data),
+  });
   return fallback;
 }

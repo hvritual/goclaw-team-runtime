@@ -22,6 +22,7 @@ import type {
   SearchIssuesResponse,
   SearchProjectsResponse,
   ListProjectsResponse,
+  ListProjectResourcesResponse,
   PinnedItem,
   SkillSummary,
   TimelineEntry,
@@ -845,6 +846,115 @@ export const ProjectSchema = z.object({
   done_count: z.number().int().nonnegative(),
   resource_count: z.number().int().nonnegative(),
 }).loose();
+
+const ProjectResourceReferenceSchema = z.record(z.string(), z.unknown());
+const hasProjectResourceControlCharacter = (value: string): boolean =>
+  Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 0x1f || code === 0x7f;
+  });
+const ProjectResourceURLSchema = z
+  .string()
+  .url()
+  .max(2048)
+  .refine(
+    (value) => {
+      if (
+        !value.startsWith("https://") ||
+        hasProjectResourceControlCharacter(value) ||
+        /%(?:0[0-9a-f]|1[0-9a-f]|7f)/i.test(value)
+      ) {
+        return false;
+      }
+      try {
+        const parsed = new URL(value);
+        return (
+          parsed.protocol === "https:" &&
+          parsed.username === "" &&
+          parsed.password === "" &&
+          parsed.search === "" &&
+          parsed.hash === ""
+        );
+      } catch {
+        return false;
+      }
+    },
+    { message: "unsafe Project Resource URL" },
+  );
+const GithubProjectResourceReferenceSchema = z.object({
+  url: ProjectResourceURLSchema.refine(
+    (value) => {
+      try {
+        const parsed = new URL(value);
+        const segments = parsed.pathname.split("/").filter(Boolean);
+        return (
+          parsed.hostname === "github.com" &&
+          parsed.port === "" &&
+          segments.length === 2
+        );
+      } catch {
+        return false;
+      }
+    },
+    { message: "invalid GitHub Project Resource URL" },
+  ),
+  ref: z.string().max(255).optional(),
+}).strict();
+const URLProjectResourceReferenceSchema = z.object({
+  url: ProjectResourceURLSchema,
+}).strict();
+
+export const ProjectResourceSchema = z.object({
+  id: z.string().min(1),
+  workspace_id: z.string().min(1),
+  project_id: z.string().min(1),
+  resource_type: z.string().min(1),
+  resource_ref: ProjectResourceReferenceSchema,
+  label: z.string().max(120).optional(),
+  position: z.number().int().nonnegative(),
+  status: z.enum(["active", "archived"]),
+  revision: z.number().int().positive(),
+  connection: z.object({
+    state: z.enum(["unchecked", "available", "degraded", "unavailable"]),
+    diagnostic_code: z.string().regex(/^[a-z0-9_]{1,64}$/).optional(),
+    checked_at: z.string().min(1).optional(),
+  }).strict(),
+  created_at: z.string().min(1),
+  created_by: z.string().min(1),
+  updated_at: z.string().min(1),
+  updated_by: z.string().min(1),
+  archived_at: z.string().min(1).optional(),
+  archived_by: z.string().min(1).optional(),
+}).strict().superRefine((resource, context) => {
+  const schema = resource.resource_type === "github_repo"
+    ? GithubProjectResourceReferenceSchema
+    : resource.resource_type === "url"
+      ? URLProjectResourceReferenceSchema
+      : null;
+  if (schema && !schema.safeParse(resource.resource_ref).success) {
+    context.addIssue({
+      code: "custom",
+      path: ["resource_ref"],
+      message: "invalid known Project Resource reference",
+    });
+  }
+});
+
+export const ListProjectResourcesResponseSchema = z.object({
+  resources: z.array(ProjectResourceSchema),
+  total: z.number().int().nonnegative(),
+  revision: z.number().int().nonnegative(),
+}).strict().superRefine((value, context) => {
+  if (value.total !== value.resources.length) {
+    context.addIssue({ code: "custom", path: ["total"], message: "resource total mismatch" });
+  }
+});
+
+export const EMPTY_LIST_PROJECT_RESOURCES_RESPONSE: ListProjectResourcesResponse = {
+  resources: [],
+  total: 0,
+  revision: 0,
+};
 
 const SearchProjectResultSchema = ProjectSchema.extend({
   match_source: z.enum(["title", "description"]),

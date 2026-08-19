@@ -147,8 +147,10 @@ func TestRuntimeReportsOnlyInstalledRoadmapCapabilities(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
+	if !body.FeatureFlags["project_resources"] {
+		t.Error("project_resources flag = false after the installed S07A runtime")
+	}
 	for _, capability := range []string{
-		"project_resources",
 		"project_requirements",
 		"project_retrospectives",
 		"issue_similarity",

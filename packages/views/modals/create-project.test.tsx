@@ -9,6 +9,7 @@ const longRepoUrl =
 const apiRepoUrl = "https://github.com/multica-ai/api";
 const webRepoUrl = "https://github.com/multica-ai/web";
 const configState = vi.hoisted(() => ({ projectResourcesEnabled: true }));
+const createProjectState = vi.hoisted(() => ({ mutateAsync: vi.fn() }));
 
 vi.mock("@multica/core/config", () => ({
   useConfigStore: (selector: (state: unknown) => unknown) => selector({
@@ -24,7 +25,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@multica/core/projects/mutations", () => ({
-  useCreateProject: () => ({ mutateAsync: vi.fn() }),
+  useCreateProject: () => createProjectState,
 }));
 
 vi.mock("@multica/core/projects", () => ({
@@ -74,8 +75,11 @@ vi.mock("../navigation", () => ({
 }));
 
 vi.mock("../editor", () => {
-  const ContentEditor = React.forwardRef<HTMLTextAreaElement, { placeholder?: string }>(
-    ({ placeholder }, ref) => <textarea ref={ref} placeholder={placeholder} />,
+  const ContentEditor = React.forwardRef<{ getMarkdown: () => string }, { placeholder?: string }>(
+    ({ placeholder }, ref) => {
+      React.useImperativeHandle(ref, () => ({ getMarkdown: () => "" }));
+      return <textarea placeholder={placeholder} />;
+    },
   );
   ContentEditor.displayName = "ContentEditor";
 
@@ -184,7 +188,10 @@ vi.mock("sonner", () => ({
 import { CreateProjectModal } from "./create-project";
 
 describe("CreateProjectModal", () => {
-  afterEach(() => { configState.projectResourcesEnabled = true; });
+  afterEach(() => {
+    configState.projectResourcesEnabled = true;
+    createProjectState.mutateAsync.mockReset();
+  });
 
   it("exposes full repository URLs in the repository picker", () => {
     render(<CreateProjectModal onClose={vi.fn()} />);
@@ -241,5 +248,29 @@ describe("CreateProjectModal", () => {
 
     expect(view.queryByRole("textbox", { name: "Search repositories..." })).not.toBeInTheDocument();
     expect(view.queryByText("Repositories")).not.toBeInTheDocument();
+  });
+
+  it("submits selected repositories in the atomic project-create request", async () => {
+    const user = userEvent.setup();
+    createProjectState.mutateAsync.mockResolvedValue({ id: "project-1" });
+    renderWithI18n(<CreateProjectModal onClose={vi.fn()} />);
+
+    await user.type(screen.getByPlaceholderText("Project title"), "Release 3");
+    await user.click(
+      screen.getByRole("button", { name: (name) => name.includes(apiRepoUrl) }),
+    );
+    await user.click(screen.getByRole("button", { name: "Create Project" }));
+
+    expect(createProjectState.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Release 3",
+        resources: [
+          {
+            resource_type: "github_repo",
+            resource_ref: { url: apiRepoUrl },
+          },
+        ],
+      }),
+    );
   });
 });

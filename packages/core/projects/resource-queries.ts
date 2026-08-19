@@ -3,22 +3,35 @@ import { api } from "../api";
 import { projectKeys } from "./queries";
 import type {
   CreateProjectResourceRequest,
-  ListProjectResourcesResponse,
-  ProjectResource,
   UpdateProjectResourceRequest,
 } from "../types";
 
 export const projectResourceKeys = {
-  list: (wsId: string, projectId: string) =>
+  all: (wsId: string, projectId: string) =>
     [...projectKeys.detail(wsId, projectId), "resources"] as const,
+  list: (wsId: string, projectId: string, includeArchived: boolean) =>
+    [...projectResourceKeys.all(wsId, projectId), { includeArchived }] as const,
 };
 
-export function projectResourcesOptions(wsId: string, projectId: string) {
+export function projectResourcesOptions(
+  wsId: string,
+  projectId: string,
+  includeArchived = true,
+) {
   return queryOptions({
-    queryKey: projectResourceKeys.list(wsId, projectId),
-    queryFn: () => api.listProjectResources(projectId),
-    select: (data) => data.resources,
+    queryKey: projectResourceKeys.list(wsId, projectId, includeArchived),
+    queryFn: () => api.listProjectResources(projectId, { includeArchived }),
   });
+}
+
+function invalidateProjectResourceProjection(
+  qc: ReturnType<typeof useQueryClient>,
+  wsId: string,
+  projectId: string,
+) {
+  qc.invalidateQueries({ queryKey: projectResourceKeys.all(wsId, projectId) });
+  qc.invalidateQueries({ queryKey: projectKeys.detail(wsId, projectId) });
+  qc.invalidateQueries({ queryKey: projectKeys.list(wsId) });
 }
 
 export function useCreateProjectResource(wsId: string, projectId: string) {
@@ -26,23 +39,8 @@ export function useCreateProjectResource(wsId: string, projectId: string) {
   return useMutation({
     mutationFn: (data: CreateProjectResourceRequest) =>
       api.createProjectResource(projectId, data),
-    onSuccess: (created) => {
-      qc.setQueryData<ListProjectResourcesResponse>(
-        projectResourceKeys.list(wsId, projectId),
-        (old) =>
-          old && !old.resources.some((r) => r.id === created.id)
-            ? {
-                ...old,
-                resources: [...old.resources, created],
-                total: old.total + 1,
-              }
-            : old,
-      );
-    },
     onSettled: () => {
-      qc.invalidateQueries({
-        queryKey: projectResourceKeys.list(wsId, projectId),
-      });
+      invalidateProjectResourceProjection(qc, wsId, projectId);
     },
   });
 }
@@ -57,24 +55,8 @@ export function useUpdateProjectResource(wsId: string, projectId: string) {
       resourceId: string;
       data: UpdateProjectResourceRequest;
     }) => api.updateProjectResource(projectId, resourceId, data),
-    onSuccess: (updated) => {
-      qc.setQueryData<ListProjectResourcesResponse>(
-        projectResourceKeys.list(wsId, projectId),
-        (old) =>
-          old
-            ? {
-                ...old,
-                resources: old.resources.map((r) =>
-                  r.id === updated.id ? updated : r,
-                ),
-              }
-            : old,
-      );
-    },
     onSettled: () => {
-      qc.invalidateQueries({
-        queryKey: projectResourceKeys.list(wsId, projectId),
-      });
+      invalidateProjectResourceProjection(qc, wsId, projectId);
     },
   });
 }
@@ -82,39 +64,15 @@ export function useUpdateProjectResource(wsId: string, projectId: string) {
 export function useDeleteProjectResource(wsId: string, projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (resourceId: string) =>
-      api.deleteProjectResource(projectId, resourceId),
-    onMutate: async (resourceId) => {
-      await qc.cancelQueries({
-        queryKey: projectResourceKeys.list(wsId, projectId),
-      });
-      const prev = qc.getQueryData<ListProjectResourcesResponse>(
-        projectResourceKeys.list(wsId, projectId),
-      );
-      qc.setQueryData<ListProjectResourcesResponse>(
-        projectResourceKeys.list(wsId, projectId),
-        (old) =>
-          old
-            ? {
-                ...old,
-                resources: old.resources.filter(
-                  (r: ProjectResource) => r.id !== resourceId,
-                ),
-                total: old.total - 1,
-              }
-            : old,
-      );
-      return { prev };
-    },
-    onError: (_err, _id, ctx) => {
-      if (ctx?.prev) {
-        qc.setQueryData(projectResourceKeys.list(wsId, projectId), ctx.prev);
-      }
-    },
+    mutationFn: ({
+      resourceId,
+      expectedRevision,
+    }: {
+      resourceId: string;
+      expectedRevision: number;
+    }) => api.deleteProjectResource(projectId, resourceId, expectedRevision),
     onSettled: () => {
-      qc.invalidateQueries({
-        queryKey: projectResourceKeys.list(wsId, projectId),
-      });
+      invalidateProjectResourceProjection(qc, wsId, projectId);
     },
   });
 }

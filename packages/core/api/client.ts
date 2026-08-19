@@ -177,6 +177,9 @@ import {
   SearchProjectsResponseSchema,
   ListProjectsResponseSchema,
   ProjectSchema,
+  ProjectResourceSchema,
+  ListProjectResourcesResponseSchema,
+  EMPTY_LIST_PROJECT_RESOURCES_RESPONSE,
   PinSchema,
   PinsSchema,
   ReactionSchema,
@@ -2395,19 +2398,36 @@ export class ApiClient {
 
   // Project resources
   async listProjectResources(
-    projectId: string
+    projectId: string,
+    options?: { includeArchived?: boolean }
   ): Promise<ListProjectResourcesResponse> {
-    return this.fetch(`/api/projects/${projectId}/resources`);
+    const suffix = options?.includeArchived ? "?include_archived=true" : "";
+    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources${suffix}`);
+    return parseWithFallback(
+      raw,
+      ListProjectResourcesResponseSchema,
+      EMPTY_LIST_PROJECT_RESOURCES_RESPONSE,
+      { endpoint: "GET /api/projects/:id/resources" }
+    );
   }
 
   async createProjectResource(
     projectId: string,
     data: CreateProjectResourceRequest
   ): Promise<ProjectResource> {
-    return this.fetch(`/api/projects/${projectId}/resources`, {
+    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources`, {
       method: "POST",
+      headers: { "Idempotency-Key": createSafeId() },
       body: JSON.stringify(data),
     });
+    const resource = parseWithFallback<ProjectResource | null>(
+      raw,
+      ProjectResourceSchema.nullable(),
+      null,
+      { endpoint: "POST /api/projects/:id/resources" }
+    );
+    if (!resource) throw new Error("Invalid Project Resource response");
+    return resource;
   }
 
   async updateProjectResource(
@@ -2415,19 +2435,30 @@ export class ApiClient {
     resourceId: string,
     data: UpdateProjectResourceRequest
   ): Promise<ProjectResource> {
-    return this.fetch(`/api/projects/${projectId}/resources/${resourceId}`, {
+    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources/${resourceId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
+    const resource = parseWithFallback<ProjectResource | null>(
+      raw,
+      ProjectResourceSchema.nullable(),
+      null,
+      { endpoint: "PUT /api/projects/:id/resources/:resource_id" }
+    );
+    if (!resource) throw new Error("Invalid Project Resource response");
+    return resource;
   }
 
   async deleteProjectResource(
     projectId: string,
-    resourceId: string
+    resourceId: string,
+    expectedRevision: number
   ): Promise<void> {
-    await this.fetch(`/api/projects/${projectId}/resources/${resourceId}`, {
+    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources/${resourceId}`, {
       method: "DELETE",
+      body: JSON.stringify({ expected_revision: expectedRevision }),
     });
+    if (raw !== undefined) throw new Error("Invalid Project Resource archive response");
   }
 
   // Labels

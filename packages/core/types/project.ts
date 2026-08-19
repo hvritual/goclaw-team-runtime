@@ -60,19 +60,26 @@ export interface ListProjectsResponse {
 // The resource_ref shape depends on resource_type. New types add a case in
 // validateAndNormalizeResourceRef on the server and a renderer in the UI.
 //
-// Known types (UI must default-case unknown server-side additions):
-//   - github_repo: cloud-side git checkout, ref = { url, ref?, default_branch_hint? }
-export type ProjectResourceType = "github_repo";
+// Known types (UI must default-case unknown server-side additions).
+export type KnownProjectResourceType = "github_repo" | "url";
+export type ProjectResourceType = KnownProjectResourceType | (string & {});
 
-export interface GithubRepoResourceRef {
+export interface GithubRepoResourceRef extends Record<string, unknown> {
   url: string;
   ref?: string;
-  default_branch_hint?: string;
 }
 
-export type ProjectResourceRef =
-  | GithubRepoResourceRef
-  | Record<string, unknown>;
+export interface UrlResourceRef extends Record<string, unknown> {
+  url: string;
+}
+
+export type ProjectResourceRef = Record<string, unknown>;
+
+export interface ProjectResourceConnection {
+  state: "unchecked" | "available" | "degraded" | "unavailable";
+  diagnostic_code?: string;
+  checked_at?: string;
+}
 
 export interface ProjectResource {
   id: string;
@@ -80,29 +87,44 @@ export interface ProjectResource {
   workspace_id: string;
   resource_type: ProjectResourceType;
   resource_ref: ProjectResourceRef;
-  label: string | null;
+  label?: string;
   position: number;
+  status: "active" | "archived";
+  revision: number;
+  connection: ProjectResourceConnection;
   created_at: string;
-  created_by: string | null;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+  archived_at?: string;
+  archived_by?: string;
 }
 
 export interface CreateProjectResourceRequest {
-  resource_type: ProjectResourceType;
-  resource_ref: ProjectResourceRef;
+  resource_type: KnownProjectResourceType;
+  resource_ref: GithubRepoResourceRef | UrlResourceRef;
   label?: string;
-  position?: number;
 }
 
-// resource_type is immutable server-side; partial-update payload mirrors that.
-// Sending only the field(s) you want to change is fine — the server merges
-// the request body with the existing row, including resource_ref shortcuts.
-export interface UpdateProjectResourceRequest {
-  resource_ref?: ProjectResourceRef;
-  label?: string | null;
-  position?: number;
-}
+export type UpdateProjectResourceRequest =
+  | {
+      action: "update";
+      expected_revision: number;
+      resource_ref?: GithubRepoResourceRef | UrlResourceRef;
+      label?: string;
+    }
+  | {
+      action: "reorder";
+      expected_revision: number;
+      before_resource_id?: string;
+    }
+  | {
+      action: "restore" | "refresh";
+      expected_revision: number;
+    };
 
 export interface ListProjectResourcesResponse {
   resources: ProjectResource[];
   total: number;
+  revision: number;
 }

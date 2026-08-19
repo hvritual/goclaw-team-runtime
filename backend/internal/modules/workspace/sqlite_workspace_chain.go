@@ -84,6 +84,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Project surface SQLite persistence: %w", err)
 	}
+	projectResourceRepository, err := persistence.NewProjectResourceRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Project Resource SQLite persistence: %w", err)
+	}
 	issueCollaborationRepository, err := persistence.NewIssueCollaborationRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Issue collaboration SQLite persistence: %w", err)
@@ -105,6 +109,18 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	projectSurface, err := application.NewProjectSurfaceUseCase(projectSurfaceRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, newID(dependencies.NewProjectID), now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Project surface application: %w", err)
+	}
+	resourceID := dependencies.NewProjectResourceID
+	if resourceID == nil {
+		resourceID = func(context.Context) (string, error) { return uuid.NewString(), nil }
+	}
+	resourceChecker := dependencies.ProjectResourceConnectionChecker
+	if resourceChecker == nil {
+		resourceChecker = unavailableProjectResourceConnectionChecker{}
+	}
+	projectResources, err := application.NewProjectResourceUseCase(projectResourceRepository, dependencies.Authorizer, dependencies.WorkspaceMemberships, resourceChecker, resourceID, now)
+	if err != nil {
+		return nil, fmt.Errorf("configure Project Resource application: %w", err)
 	}
 	baseIssueCollaborationService, err := application.NewIssueCollaborationUseCase(issueCollaborationRepository, dependencies.Authorizer, dependencies.Actors, dependencies.WorkspaceMemberships, dependencies.Assets, dependencies.IssueAttachments, newID(dependencies.NewIssueCollaborationID), now)
 	if err != nil {
@@ -241,6 +257,7 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 		))
 		module.extensions = append(module.extensions, newIssueCatalogExtension(issueCatalogService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newProjectSurfaceExtension(projectSurface, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
+		module.extensions = append(module.extensions, newProjectResourceExtension(projectResources, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	}
 	if dependencies.Selection != nil && dependencies.HTTPUserIdentity != nil {
 		var creator contract.WorkspaceCreationService

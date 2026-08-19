@@ -123,9 +123,8 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  // Repos selected to attach as github_repo resources after the project is
-  // created. Stored as URLs (not full ProjectResource rows) — they're not
-  // persisted until handleSubmit fires the createProjectResource calls.
+  // Repos selected for atomic github_repo attachment. Stored as URLs until
+  // handleSubmit includes them in the project-create transaction.
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
   const [repoPopoverOpen, setRepoPopoverOpen] = useState(false);
   const [repoSearch, setRepoSearch] = useState("");

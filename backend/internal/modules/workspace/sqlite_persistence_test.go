@@ -23,7 +23,7 @@ func TestWorkspaceGovernanceMigrationUpgradesRetainedVersionEightDatabase(t *tes
 		t.Fatal(err)
 	}
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 17 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations`).Scan(&migrationCount); err != nil || migrationCount != 18 {
 		t.Fatalf("migration count = %d, %v", migrationCount, err)
 	}
 	var workspaceName string
@@ -131,6 +131,88 @@ func TestKnowledgeReviewDownMigrationRejectsEveryRetainedDependency(t *testing.T
 				t.Fatalf("review catalog = %d, %v", catalog, err)
 			}
 		})
+	}
+}
+
+func TestProjectResourceDownMigrationRejectsEveryRetainedDependency(t *testing.T) {
+	for _, test := range []struct{ name, statement string }{
+		{
+			"resource",
+			`INSERT INTO workspace_project_resources(
+				id,workspace_id,project_id,resource_type,canonical_url,resource_ref,fingerprint,label,position,status,revision,
+				connection_state,connection_diagnostic_code,created_at,created_by,updated_at,updated_by
+			) VALUES('resource-1','workspace-1','project-1','url','https://example.com/docs','','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','Docs',0,'active',1,'unchecked','','2026-08-19T00:00:00Z','user-1','2026-08-19T00:00:00Z','user-1')`,
+		},
+		{
+			"revision zero",
+			`INSERT INTO workspace_project_resource_sets(workspace_id,project_id,revision,updated_at) VALUES('workspace-1','project-1',0,'2026-08-19T00:00:00Z')`,
+		},
+		{
+			"audit resource kind",
+			`INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-19T00:00:00Z','audit-1','member','user-1','workspace.unrelated.action','project_resource','resource-1',1,'request-1','{}')`,
+		},
+		{
+			"audit action namespace",
+			`INSERT INTO workspace_audit_entries(workspace_id,occurred_at,id,actor_type,actor_id,action,resource_kind,resource_id,resource_revision,request_id,metadata_json) VALUES('workspace-1','2026-08-19T00:00:00Z','audit-1','member','user-1','workspace.project.resource.restore','unrelated','resource-1',1,'request-1','{}')`,
+		},
+		{
+			"idempotency resource kind",
+			`INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.unrelated.action','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','project_resource','resource-1',1,201,'{}','2026-08-19T00:00:00Z')`,
+		},
+		{
+			"idempotency action namespace",
+			`INSERT INTO workspace_mutation_idempotency(workspace_id,action,idempotency_key,request_hash,resource_kind,resource_id,resource_revision,response_status,response_body,created_at) VALUES('workspace-1','workspace.project.resource.restore','key-1','aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','unrelated','resource-1',1,200,'{}','2026-08-19T00:00:00Z')`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db := openUnmigratedWorkspaceDB(t, "project-resource-down-"+test.name)
+			if err := MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(test.statement); err != nil {
+				t.Fatal(err)
+			}
+			if err := executeProjectResourceDownForTest(context.Background(), db); err == nil {
+				t.Fatal("Project Resource down succeeded with retained dependency")
+			}
+			var tables, catalog int
+			if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('workspace_project_resources','workspace_project_resource_sets')`).Scan(&tables); err != nil || tables != 2 {
+				t.Fatalf("Project Resource table count = %d, %v", tables, err)
+			}
+			if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000018_project_resources.up.sql'`).Scan(&catalog); err != nil || catalog != 1 {
+				t.Fatalf("Project Resource catalog = %d, %v", catalog, err)
+			}
+		})
+	}
+}
+
+func TestProjectResourceMigrationUsesNoExplicitIndexes(t *testing.T) {
+	contents, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000018_project_resources.up.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlText := strings.ToUpper(string(contents))
+	for _, forbidden := range []string{"FOREIGN KEY", "REFERENCES", "CASCADE", "TRIGGER", "CREATE INDEX", "CREATE UNIQUE INDEX"} {
+		if strings.Contains(sqlText, forbidden) {
+			t.Errorf("Project Resource migration contains forbidden DDL %q", forbidden)
+		}
+	}
+}
+
+func TestProjectResourceDownMigrationRemovesEmptyAuthority(t *testing.T) {
+	db := openUnmigratedWorkspaceDB(t, "project-resource-down-empty")
+	if err := MigrateSqlite(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	if err := executeProjectResourceDownForTest(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	var tables, catalog int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('workspace_project_resources','workspace_project_resource_sets')`).Scan(&tables); err != nil || tables != 0 {
+		t.Fatalf("Project Resource table count = %d, %v", tables, err)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_schema_migrations WHERE version='000018_project_resources.up.sql'`).Scan(&catalog); err != nil || catalog != 0 {
+		t.Fatalf("Project Resource catalog = %d, %v", catalog, err)
 	}
 }
 
@@ -443,6 +525,22 @@ func executeKnowledgeQueryDownForTest(ctx context.Context, db *sql.DB) error {
 
 func executeKnowledgeReviewDownForTest(ctx context.Context, db *sql.DB) error {
 	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000017_knowledge_review.down.sql")
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, string(down)); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func executeProjectResourceDownForTest(ctx context.Context, db *sql.DB) error {
+	down, err := sqliteMigrationFiles.ReadFile(SqliteMigrationDir() + "/000018_project_resources.down.sql")
 	if err != nil {
 		return err
 	}
