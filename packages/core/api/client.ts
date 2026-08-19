@@ -110,6 +110,15 @@ import type {
   PromoteTaskResponse,
 } from "../types";
 import type { ReorderTasksRequest } from "../types/task";
+import type {
+  ProjectRetrospectiveActionItemInput,
+  ProjectRetrospectiveActionLink,
+  ProjectRetrospectiveContentInput,
+  ProjectRetrospectiveListParams,
+  ProjectRetrospectiveParticipantInput,
+  ProjectRetrospectiveTargetInput,
+  ProjectRetrospectiveUpdateInput,
+} from "../types/implementation-knowledge";
 import {
   EMPTY_TASK_LIST,
   reorderedTasksSchema,
@@ -132,9 +141,9 @@ import {
   commentKnowledgeProposalResponseSchema,
 } from "../knowledge/schema";
 import {
-  EMPTY_RETROSPECTIVE_LIST,
   acceptanceConclusionListSchema,
   acceptanceConclusionSchema,
+  projectRetrospectiveActionLinkSchema,
   projectRetrospectiveListSchema,
   projectRetrospectiveSchema,
 } from "../implementation-knowledge/schema";
@@ -259,6 +268,39 @@ export interface ApiClientOptions {
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+function projectRetrospectiveActionItemToWire(
+  item: ProjectRetrospectiveActionItemInput,
+) {
+  return {
+    ...(item.id === undefined ? {} : { id: item.id }),
+    title: item.title,
+    ...(item.description === undefined ? {} : { description: item.description }),
+    ...(item.assigneeId === undefined ? {} : { assignee_id: item.assigneeId }),
+    ...(item.dueDate === undefined ? {} : { due_date: item.dueDate }),
+  };
+}
+
+function projectRetrospectiveContentToWire(
+  content: ProjectRetrospectiveContentInput,
+) {
+  return {
+    summary: content.summary,
+    successes: content.successes,
+    problems: content.problems,
+    lessons: content.lessons,
+    action_items: content.actionItems.map(projectRetrospectiveActionItemToWire),
+  };
+}
+
+function projectRetrospectiveParticipantsToWire(
+  participants: ProjectRetrospectiveParticipantInput[],
+) {
+  return participants.map((participant) => ({
+    member_id: participant.memberId,
+    role: participant.role,
+  }));
 }
 
 export class ApiError extends Error {
@@ -1984,16 +2026,39 @@ export class ApiClient {
   }
 
   async listProjectRetrospectives(
-    id: string
+    id: string,
+    params?: ProjectRetrospectiveListParams,
   ): Promise<ProjectRetrospectiveListResponse> {
-    const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives`);
-    return parseWithFallback(
+    const query = new URLSearchParams();
+    if (params?.limit !== undefined) query.set("limit", String(params.limit));
+    if (params?.cursor !== undefined) query.set("cursor", params.cursor);
+    if (params?.includeArchived !== undefined) {
+      query.set("include_archived", String(params.includeArchived));
+    }
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const raw = await this.fetch<unknown>(`/api/projects/${id}/retrospectives${suffix}`);
+    return parseOrThrow(
       raw,
       projectRetrospectiveListSchema,
-      EMPTY_RETROSPECTIVE_LIST,
       {
         endpoint: "GET /api/projects/:id/retrospectives",
-      }
+      },
+      "Invalid project retrospective list response",
+    );
+  }
+
+  async getProjectRetrospective(
+    projectId: string,
+    retrospectiveId: string,
+  ): Promise<ProjectRetrospective> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/retrospectives/${retrospectiveId}`,
+    );
+    return parseOrThrow(
+      raw,
+      projectRetrospectiveSchema,
+      { endpoint: "GET /api/projects/:projectId/retrospectives/:retrospectiveId" },
+      "Invalid project retrospective response",
     );
   }
 
@@ -2006,25 +2071,94 @@ export class ApiClient {
       {
         method: "POST",
         body: JSON.stringify({
-          summary: input.summary,
-          successes: input.successes,
-          problems: input.problems,
-          lessons: input.lessons,
-          follow_up_refs: input.followUpRefs,
+          content: projectRetrospectiveContentToWire(input.content),
+          participants: projectRetrospectiveParticipantsToWire(input.participants),
         }),
+        headers: {
+          "Idempotency-Key": input.idempotencyKey?.trim() || createSafeId(),
+        },
       }
     );
-    const retrospective = parseWithFallback(
+    return parseOrThrow(
       raw,
-      projectRetrospectiveSchema.nullable(),
-      null,
+      projectRetrospectiveSchema,
       {
         endpoint: "POST /api/projects/:id/retrospectives",
-      }
+      },
+      "Invalid project retrospective response",
     );
-    if (!retrospective)
-      throw new Error("Invalid project retrospective response");
-    return retrospective;
+  }
+
+  async updateProjectRetrospective(
+    projectId: string,
+    retrospectiveId: string,
+    input: ProjectRetrospectiveUpdateInput,
+  ): Promise<ProjectRetrospective> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/retrospectives/${retrospectiveId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          expected_revision: input.expectedRevision,
+          action: input.action,
+          ...(input.content === undefined
+            ? {}
+            : { content: projectRetrospectiveContentToWire(input.content) }),
+          ...(input.participants === undefined
+            ? {}
+            : { participants: projectRetrospectiveParticipantsToWire(input.participants) }),
+        }),
+      },
+    );
+    return parseOrThrow(
+      raw,
+      projectRetrospectiveSchema,
+      { endpoint: "PUT /api/projects/:projectId/retrospectives/:retrospectiveId" },
+      "Invalid project retrospective response",
+    );
+  }
+
+  async archiveProjectRetrospective(
+    projectId: string,
+    retrospectiveId: string,
+    expectedRevision: number,
+  ): Promise<ProjectRetrospective> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/retrospectives/${retrospectiveId}?expected_revision=${encodeURIComponent(String(expectedRevision))}`,
+      { method: "DELETE" },
+    );
+    return parseOrThrow(
+      raw,
+      projectRetrospectiveSchema,
+      { endpoint: "DELETE /api/projects/:projectId/retrospectives/:retrospectiveId" },
+      "Invalid project retrospective response",
+    );
+  }
+
+  async createProjectRetrospectiveTarget(
+    projectId: string,
+    retrospectiveId: string,
+    actionItemId: string,
+    input: ProjectRetrospectiveTargetInput,
+  ): Promise<ProjectRetrospectiveActionLink> {
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/retrospectives/${retrospectiveId}/action-items/${actionItemId}/target`,
+      {
+        method: "POST",
+        body: JSON.stringify(
+          input.targetKind === undefined ? {} : { target_kind: input.targetKind },
+        ),
+        headers: {
+          "Idempotency-Key": input.idempotencyKey?.trim() || createSafeId(),
+        },
+      },
+    );
+    return parseOrThrow(
+      raw,
+      projectRetrospectiveActionLinkSchema,
+      { endpoint: "POST /api/projects/:projectId/retrospectives/:retrospectiveId/action-items/:actionItemId/target" },
+      "Invalid project retrospective target response",
+    );
   }
 
   async deleteProject(id: string): Promise<void> {

@@ -26,6 +26,59 @@ const VALID_ISSUE = {
   updated_at: "2026-08-01T01:00:00Z",
 };
 
+const VALID_RETROSPECTIVE_WIRE = {
+  id: "retro-1",
+  workspace_id: "workspace-1",
+  project_id: "project-1",
+  status: "published",
+  current_revision: 1,
+  published_revision: 1,
+  created_by: "member-1",
+  created_at: "2026-08-01T00:00:00Z",
+  updated_at: "2026-08-01T00:00:00Z",
+  current: {
+    revision: 1,
+    status: "published",
+    action: "publish",
+    content: {
+      summary: "Delivery",
+      successes: [],
+      problems: [],
+      lessons: ["Review sooner"],
+      action_items: [{ id: "action-1", title: "Schedule review" }],
+    },
+    participants: [{ member_id: "member-1", role: "participant" }],
+    actor_id: "member-1",
+    created_at: "2026-08-01T00:00:00Z",
+  },
+  history: [{
+    revision: 1,
+    status: "published",
+    action: "publish",
+    content: {
+      summary: "Delivery",
+      successes: [],
+      problems: [],
+      lessons: ["Review sooner"],
+      action_items: [{ id: "action-1", title: "Schedule review" }],
+    },
+    participants: [{ member_id: "member-1", role: "participant" }],
+    actor_id: "member-1",
+    created_at: "2026-08-01T00:00:00Z",
+  }],
+  action_links: [{
+    retrospective_id: "retro-1",
+    action_item_id: "action-1",
+    source_revision: 1,
+    state: "linked",
+    target_kind: "task",
+    target_id: "task-1",
+    created_by: "member-1",
+    created_at: "2026-08-01T01:00:00Z",
+  }],
+  access: { can_edit: false, can_publish: true, can_archive: true },
+};
+
 describe("issue update API boundary", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -157,7 +210,118 @@ describe("issue update API boundary", () => {
       result: "accepted", rationale: "Passed", evidenceRefs: [],
     })).rejects.toThrow("Invalid acceptance conclusion response");
     await expect(client.createProjectRetrospective("project-1", {
-      summary: "Delivery", successes: [], problems: [], lessons: ["Review sooner"], followUpRefs: [],
+      content: {
+        summary: "Delivery", successes: [], problems: [], lessons: ["Review sooner"], actionItems: [],
+      },
+      participants: [],
+      idempotencyKey: "retro-key",
     })).rejects.toThrow("Invalid project retrospective response");
+  });
+
+  it("serializes the exact Retrospective route family and strict command bodies", async () => {
+    const linked = VALID_RETROSPECTIVE_WIRE.action_links[0];
+    const responses = [
+      { retrospectives: [VALID_RETROSPECTIVE_WIRE], next_cursor: "opaque.cursor" },
+      VALID_RETROSPECTIVE_WIRE,
+      VALID_RETROSPECTIVE_WIRE,
+      VALID_RETROSPECTIVE_WIRE,
+      VALID_RETROSPECTIVE_WIRE,
+      linked,
+      linked,
+    ];
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(
+      JSON.stringify(responses.shift()),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("http://localhost:3000");
+    const content = {
+      summary: "Delivery",
+      successes: ["Small batches"],
+      problems: [],
+      lessons: ["Review sooner"],
+      actionItems: [{ title: "Schedule review", assigneeId: "member-2", dueDate: "2026-08-10" }],
+    };
+    const participants = [{ memberId: "member-2", role: "facilitator" as const }];
+
+    await client.listProjectRetrospectives("project-1", {
+      limit: 25,
+      cursor: "opaque.cursor",
+      includeArchived: true,
+    });
+    await client.getProjectRetrospective("project-1", "retro-1");
+    await client.createProjectRetrospective("project-1", {
+      content,
+      participants,
+      idempotencyKey: "create-key",
+    });
+    await client.updateProjectRetrospective("project-1", "retro-1", {
+      expectedRevision: 1,
+      action: "save_draft",
+      content: {
+        ...content,
+        actionItems: [{
+          id: "action-1",
+          title: "Schedule review",
+          assigneeId: "member-2",
+          dueDate: "2026-08-10",
+        }],
+      },
+      participants,
+    });
+    await client.archiveProjectRetrospective("project-1", "retro-1", 2);
+    await client.createProjectRetrospectiveTarget(
+      "project-1", "retro-1", "action-1", { idempotencyKey: "task-key" },
+    );
+    await client.createProjectRetrospectiveTarget(
+      "project-1", "retro-1", "action-1", { targetKind: "issue", idempotencyKey: "issue-key" },
+    );
+
+    expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual([
+      "http://localhost:3000/api/projects/project-1/retrospectives?limit=25&cursor=opaque.cursor&include_archived=true",
+      "http://localhost:3000/api/projects/project-1/retrospectives/retro-1",
+      "http://localhost:3000/api/projects/project-1/retrospectives",
+      "http://localhost:3000/api/projects/project-1/retrospectives/retro-1",
+      "http://localhost:3000/api/projects/project-1/retrospectives/retro-1?expected_revision=2",
+      "http://localhost:3000/api/projects/project-1/retrospectives/retro-1/action-items/action-1/target",
+      "http://localhost:3000/api/projects/project-1/retrospectives/retro-1/action-items/action-1/target",
+    ]);
+    const requests = fetchMock.mock.calls.map((call) => call[1] as RequestInit | undefined);
+    expect(JSON.parse(requests[2]?.body as string)).toEqual({
+      content: {
+        summary: "Delivery",
+        successes: ["Small batches"],
+        problems: [],
+        lessons: ["Review sooner"],
+        action_items: [{
+          title: "Schedule review",
+          assignee_id: "member-2",
+          due_date: "2026-08-10",
+        }],
+      },
+      participants: [{ member_id: "member-2", role: "facilitator" }],
+    });
+    expect(new Headers(requests[2]?.headers).get("Idempotency-Key")).toBe("create-key");
+    expect(JSON.parse(requests[3]?.body as string)).toMatchObject({
+      expected_revision: 1,
+      action: "save_draft",
+      content: { action_items: [{ id: "action-1", title: "Schedule review" }] },
+    });
+    expect(JSON.parse(requests[5]?.body as string)).toEqual({});
+    expect(JSON.parse(requests[6]?.body as string)).toEqual({ target_kind: "issue" });
+    expect(new Headers(requests[5]?.headers).get("Idempotency-Key")).toBe("task-key");
+    expect(new Headers(requests[6]?.headers).get("Idempotency-Key")).toBe("issue-key");
+  });
+
+  it("does not turn a malformed Retrospective list into an empty success", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ retrospectives: [{ id: "retro-1" }] }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    )));
+    const client = new ApiClient("http://localhost:3000");
+
+    await expect(client.listProjectRetrospectives("project-1")).rejects.toThrow(
+      "Invalid project retrospective list response",
+    );
   });
 });
