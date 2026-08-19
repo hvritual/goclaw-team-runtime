@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v28.md](plan_v28.md).
+The approved execution snapshot is [plan_v29.md](plan_v29.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `28`
-- Active step: `none`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B inactive pending scope decision`
-- Plan base commit: `9fb86ea056d253c82ea61b13031550db82eeb526`
+- Approved version: `29`
+- Active step: `PCR-S07B R34.1`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B approved-active`
+- Plan base commit: `07aef1a577db78598c92c70312a33989e6177d64`
 - Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -51,9 +51,20 @@ before/after retained-row assertions without changing product behavior. Both
 range commits expose all nine required Git trailers; focused Workspace,
 backend check, and official changed-package race gates pass. Fresh independent
 review returns `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` with no blocking
-finding. PCR-S07A is `complete-independent-reviewed`. PCR-S07B remains inactive
-until its outline authority boundary is resolved in a successor plan; no push,
-merge, deployment, or Release 3 completion is claimed.
+finding. PCR-S07A is `complete-independent-reviewed`. PCR-S07B remained inactive
+until its outline authority boundary was resolved in a successor plan; no push,
+merge, deployment, or Release 3 completion was claimed by the S07A closure.
+
+The Human Customer explicitly confirmed the prerequisite minimal outline
+authority on 2026-08-19. `PRODUCT-CAPABILITY-ROADMAP-001 v29 / r034` starts
+from exact S07A closure `07aef1a5` and activates only PCR-S07B. It freezes the
+complete Requirement lifecycle, independent approval, project grants,
+revisioned Issue/outline traceability, material-change review-required
+projection, singular Canonical authority, and only persistent root-level
+outline node create/read with stable IDs. S07C-D, nested hierarchy,
+move/reorder/numbering, Issue-outline links, rollups/board, full outline UI,
+`project_outline`, generated protobufs, push, merge, deployment, and Release 3
+completion remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

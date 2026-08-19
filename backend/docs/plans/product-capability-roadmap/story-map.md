@@ -170,12 +170,20 @@ deletion without deleting the external resource.
 
 ### PCR-S07B — Govern Requirements
 
+Status: `approved-active under PRODUCT-CAPABILITY-ROADMAP-001 v29 / r034`
+
 As a project lead, I can create revisions and move a Requirement through draft,
 review, approval, freeze, material change, re-review, and retirement.
 
 Acceptance scenarios include independent approval, stale revision, Issue and
 outline links, frozen-edit denial, material-change impact, review-required
 projection, and history.
+
+S07B includes only the confirmed prerequisite outline authority: persistent
+project-owned root nodes, stable IDs, create/read, ownership validation, and
+Requirement-to-outline links. Nested hierarchy, move/reorder, numbering, node
+management, Issue-outline links, progress rollups/board, realtime outline
+projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 

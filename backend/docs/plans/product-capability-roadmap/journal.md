@@ -1608,3 +1608,31 @@ Known limitations, blockers, and next action
   the outline authority boundary is resolved and a successor plan is frozen.
   Original dirty paths, generated protobufs, push, merge, deployment, and
   `server/**` remain untouched or excluded.
+
+## 2026-08-19 — J062 — v29/r034 activates PCR-S07B
+
+- The Human Customer explicitly confirmed the prerequisite minimal outline
+  authority: persistent project-owned root nodes, stable IDs, create/read,
+  ownership validation, and Requirement-to-outline links. Nested hierarchy,
+  move/reorder, numbering, node management, Issue-outline relations, progress
+  rollups/board, realtime outline projection, and the standalone outline UI
+  remain S10-owned and inactive.
+- Exact base `07aef1a577db78598c92c70312a33989e6177d64` records the
+  independently reviewed S07A closure. The isolated Release 3 worktree was
+  clean and moved to branch `codex/release3-s07b-r034`; the original dirty
+  worktree remains untouched.
+- Bounded read-only dependency closure confirms no existing outline domain,
+  persistence, HTTP, or acceptance vertical. The existing Requirement skeleton
+  is gRPC-only and draft-only; its real permissions fail closed, while the
+  existing Core/shared UI contract exposes only a partial uninstalled
+  draft/review/approval surface.
+- Immutable v29 freezes a singular Canonical Requirement authority, complete
+  lifecycle, independent approval, revisioned project grants, transaction-owned
+  Issue/outline links, material-change `review_required` projection, strict
+  client/UI, and real two-identity acceptance. Legacy mutation becomes
+  explicitly disabled; no protobuf generation is authorized.
+- The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/646a6452bea95674444fc173a0a9abbe81c29b981b191e091a488efed065cb23`.
+  Only r034/PCR-S07B is active. S07C-D, Release 3 completion, generated
+  protobufs, original dirty paths, push, merge, deployment, and `server/**`
+  remain inactive or excluded. Activation claims no implementation or PASS.

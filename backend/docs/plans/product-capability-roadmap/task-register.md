@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v27`
-- Registry status: `Release 3 active; PCR-S07A is the sole active task`
-- Registry revision: `r032`
+- Plan-Version: `v29`
+- Registry status: `Release 3 active; PCR-S07B is the sole active task`
+- Registry revision: `r034`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -1883,3 +1883,46 @@ S02A without changing Task product behavior or activating S02B.
 - r033 and PCR-S07A are `complete-independent-reviewed`. PCR-S07B remains
   inactive pending a successor plan and the resolved outline authority scope.
   Release 3 is not complete; no push, merge, or deployment is claimed.
+
+## PCR-001-S07B-R34
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07B-R34`
+- Task-Revision: `r034`
+- Work-Item: `PCR-S07B`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
+- Base commit: `07aef1a577db78598c92c70312a33989e6177d64`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v29`
+- Plan hash: `646a6452bea95674444fc173a0a9abbe81c29b981b191e091a488efed065cb23`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/646a6452bea95674444fc173a0a9abbe81c29b981b191e091a488efed065cb23`
+
+### Objective and acceptance
+
+- Install the singular Canonical Requirement baseline/revision authority,
+  complete frozen lifecycle, independent approval, revisioned project grants,
+  Issue/outline traceability, and material-change review-required projection.
+- Install only the Customer-confirmed prerequisite outline root-node
+  persistence/create/read/stable-ID/project-validation boundary. Keep the full
+  S10 outline product and `project_outline` false.
+- Prove stale/idempotency behavior, transaction-owned current authorization and
+  reference validation, immutable history/audit, legacy mutation disablement,
+  import/rollback/deletion safety, strict Core schemas, shared UI, and a real
+  two-identity installed-Chrome journey.
+- Keep S07C-D, Release 3 completion, generated protobufs, original dirty paths,
+  push, merge, deployment, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Exact base `07aef1a577db78598c92c70312a33989e6177d64` closes S07A
+  after fresh independent `SPEC PASS` and `CODE/SECURITY/QUALITY PASS`; the
+  isolated worktree is clean before activation.
+- Read-only dependency closure confirms there is no existing outline domain,
+  table, repository, HTTP handler, or installed acceptance; the existing
+  Requirement skeleton is gRPC-only, draft-only, and not authorized by the
+  real runtime. Core/shared UI declarations are partial and uninstalled.
+- The Human Customer confirmed the minimal outline authority on 2026-08-19.
+  Immutable v29 freezes that exact boundary and the full S07B state/security
+  contract. No product implementation, verification PASS, closure, push,
+  merge, or deployment is claimed by activation.
