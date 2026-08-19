@@ -81,8 +81,14 @@ SELECT CASE WHEN
     OR EXISTS (
         SELECT 1
         FROM workspace_requirement_issue_links l
-        LEFT JOIN workspace_requirements r ON r.id = l.baseline_id
-        WHERE r.id IS NULL
+        LEFT JOIN workspace_requirement_baselines b ON b.id = l.baseline_id
+        LEFT JOIN workspace_requirements r ON r.id = b.legacy_requirement_id
+        WHERE b.id IS NULL
+           OR r.id IS NULL
+           OR l.workspace_id <> b.workspace_id
+           OR l.project_id <> b.project_id
+           OR l.workspace_id <> r.workspace_id
+           OR l.project_id <> r.project_id
            OR l.requirement_key <> 'legacy-root'
            OR l.linked_revision <> 1
            OR l.unlinked_revision IS NOT NULL

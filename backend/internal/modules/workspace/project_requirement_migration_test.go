@@ -191,6 +191,64 @@ func TestProjectRequirementDownMigrationRejectsLegacySnapshotDriftWithoutChangin
 	assertProjectRequirementTablesAndCatalog(t, db, len(projectRequirementAuthorityTables), 1)
 }
 
+func TestProjectRequirementDownMigrationRejectsImportedIssueLinkOwnershipDriftWithoutChangingRows(t *testing.T) {
+	for _, testCase := range []struct {
+		name     string
+		mutation string
+	}{
+		{name: "workspace ownership", mutation: `UPDATE workspace_requirement_issue_links
+			SET workspace_id='other-workspace' WHERE baseline_id='requirement-1' AND issue_id='issue-1'`},
+		{name: "project ownership", mutation: `UPDATE workspace_requirement_issue_links
+			SET project_id='other-project' WHERE baseline_id='requirement-1' AND issue_id='issue-1'`},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			db := openUnmigratedWorkspaceDB(t, "project-requirement-down-link-ownership")
+			applyWorkspaceMigrationsBeforeProjectRequirements(t, db)
+			insertLegacyRequirementFixture(t, db, "requirement-1", "project-1", `["ACM-1"]`)
+			if err := MigrateSqlite(context.Background(), db); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(testCase.mutation); err != nil {
+				t.Fatal(err)
+			}
+			before := projectRequirementImportedIssueLinkSnapshot(t, db)
+
+			if err := executeProjectRequirementDownForTest(context.Background(), db); err == nil {
+				t.Fatal("Project Requirement down succeeded after imported Issue-link ownership drift")
+			}
+
+			after := projectRequirementImportedIssueLinkSnapshot(t, db)
+			if before != after {
+				t.Fatalf("blocked down changed imported rows\nbefore: %s\n after: %s", before, after)
+			}
+			assertProjectRequirementTablesAndCatalog(t, db, len(projectRequirementAuthorityTables), 1)
+		})
+	}
+}
+
+func projectRequirementImportedIssueLinkSnapshot(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	queries := []string{
+		`SELECT json_array(id,workspace_id,project_id,title,current_version,approval_status,coverage_status,issue_ids,created_at,updated_at)
+			FROM workspace_requirements WHERE id='requirement-1'`,
+		`SELECT json_array(id,workspace_id,project_id,status,current_revision,legacy_requirement_id,legacy_snapshot_json,created_at,updated_at)
+			FROM workspace_requirement_baselines WHERE id='requirement-1'`,
+		`SELECT json_array(baseline_id,revision,content_json,status,action,change_summary,actor_id,created_at)
+			FROM workspace_requirement_revisions WHERE baseline_id='requirement-1' ORDER BY revision`,
+		`SELECT json_array(baseline_id,workspace_id,project_id,requirement_key,issue_id,linked_revision,unlinked_revision,linked_by,linked_at,unlinked_by,unlinked_at)
+			FROM workspace_requirement_issue_links WHERE baseline_id='requirement-1' AND issue_id='issue-1'`,
+	}
+	rows := make([]string, 0, len(queries))
+	for _, query := range queries {
+		var row string
+		if err := db.QueryRow(query).Scan(&row); err != nil {
+			t.Fatal(err)
+		}
+		rows = append(rows, row)
+	}
+	return strings.Join(rows, "\n")
+}
+
 func insertLegacyRequirementFixture(t *testing.T, db *sql.DB, requirementID, projectID, issueIDs string) {
 	t.Helper()
 	for _, statement := range []string{

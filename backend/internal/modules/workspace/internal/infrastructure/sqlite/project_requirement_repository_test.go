@@ -97,6 +97,89 @@ func TestProjectRequirementRepositoryDeniesUnprivilegedCreateBeforeWriting(t *te
 	assertProjectRequirementRowCount(t, db, "workspace_outbox_events", 0)
 }
 
+func TestProjectRequirementRepositoryRereadsLiveAuthorityBeforeMutation(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		change  string
+		wantErr error
+	}{
+		{name: "removed membership", change: "membership", wantErr: contract.ErrActorOutsideWorkspace},
+		{name: "reassigned project lead", change: "lead", wantErr: contract.ErrWorkspacePermissionDenied},
+		{name: "removed project editor grant", change: "grant", wantErr: contract.ErrWorkspacePermissionDenied},
+		{name: "completed project", change: "completed", wantErr: contract.ErrWorkspacePermissionDenied},
+		{name: "cancelled project", change: "cancelled", wantErr: contract.ErrWorkspacePermissionDenied},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			db := openProjectRequirementDB(t)
+			repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := time.Date(2026, 8, 19, 10, 5, 0, 0, time.UTC)
+			owner := contract.WorkspaceActor{Type: "member", ID: "owner-1"}
+			actor := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+			if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+				BaselineID: "baseline-1", WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 0,
+				Content: projectRequirementTestContent("Initial authority proof"), ChangeSummary: "Initial authority proof",
+				IdempotencyKey: "live-authority-key", RequestHash: strings.Repeat("9", 64), Actor: owner, OccurredAt: now,
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			if testCase.change == "grant" {
+				actor = contract.WorkspaceActor{Type: "member", ID: "ordinary-1"}
+				if _, err = repository.ReplaceProjectRequirementAccess(context.Background(), application.ProjectRequirementAccessReplace{
+					WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 0,
+					Grants: []application.ProjectRequirementGrantChange{{MemberID: "ordinary-member", GrantKind: "project_editor"}},
+					Actor:  owner, OccurredAt: now.Add(time.Minute),
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 1,
+				Content: projectRequirementTestContent("Authorized before live change"), ChangeSummary: "Authorized before live change",
+				Actor: actor, OccurredAt: now.Add(2 * time.Minute),
+			}); err != nil {
+				t.Fatalf("SaveProjectRequirement(before %s) error = %v", testCase.change, err)
+			}
+
+			switch testCase.change {
+			case "membership":
+				_, err = db.Exec(`DELETE FROM auth_members WHERE workspace_id='workspace-1' AND user_id='lead-1'`)
+			case "lead":
+				_, err = db.Exec(`UPDATE workspace_projects SET lead_id='ordinary-member' WHERE workspace_id='workspace-1' AND id='project-1'`)
+			case "grant":
+				_, err = repository.ReplaceProjectRequirementAccess(context.Background(), application.ProjectRequirementAccessReplace{
+					WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 1,
+					Grants: nil, Actor: owner, OccurredAt: now.Add(3 * time.Minute),
+				})
+			case "completed", "cancelled":
+				_, err = db.Exec(`UPDATE workspace_projects SET status=? WHERE workspace_id='workspace-1' AND id='project-1'`, testCase.change)
+			default:
+				t.Fatalf("unknown live authority change %q", testCase.change)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			before := projectRequirementMutationEffectSnapshot(t, db)
+			_, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 2,
+				Content: projectRequirementTestContent("Must remain denied"), ChangeSummary: "Must remain denied",
+				Actor: actor, OccurredAt: now.Add(4 * time.Minute),
+			})
+			if !errors.Is(err, testCase.wantErr) {
+				t.Fatalf("SaveProjectRequirement(after %s) error = %v, want %v", testCase.change, err, testCase.wantErr)
+			}
+			after := projectRequirementMutationEffectSnapshot(t, db)
+			if before != after {
+				t.Fatalf("denied mutation after %s changed persisted effects\nbefore: %s\n after: %s", testCase.change, before, after)
+			}
+		})
+	}
+}
+
 func TestProjectRequirementRepositoryCommitsGovernedLifecycleAndMaterialRereview(t *testing.T) {
 	db := openProjectRequirementDB(t)
 	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
@@ -674,6 +757,43 @@ func projectRequirementTestContent(problem string) requirementDomain.Content {
 		ProblemStatement: problem,
 		Goals:            []requirementDomain.Item{{Key: "goal-1", Text: "Deliver"}},
 	}
+}
+
+func projectRequirementMutationEffectSnapshot(t *testing.T, db *sql.DB) string {
+	t.Helper()
+	queries := []string{
+		`SELECT json_array(id,workspace_id,project_id,status,current_revision,approved_revision,effective_revision,
+			review_origin,latest_content_author,submitted_by,submitted_at,approved_by,approved_at,frozen_by,frozen_at,
+			retired_by,retired_at,legacy_requirement_id,legacy_snapshot_json,created_at,updated_at)
+			FROM workspace_requirement_baselines WHERE id='baseline-1'`,
+		`SELECT json_array(baseline_id,revision,content_json,status,action,change_summary,actor_id,submitted_by,
+			submitted_at,approved_by,approved_at,frozen_by,frozen_at,created_at)
+			FROM workspace_requirement_revisions WHERE baseline_id='baseline-1' ORDER BY revision DESC LIMIT 1`,
+		`SELECT json_array(
+			(SELECT COUNT(*) FROM workspace_requirement_baselines),
+			(SELECT COUNT(*) FROM workspace_requirement_revisions),
+			(SELECT COUNT(*) FROM workspace_requirement_issue_links),
+			(SELECT COUNT(*) FROM workspace_requirement_outline_links),
+			(SELECT COUNT(*) FROM workspace_requirement_review_projections),
+			(SELECT COUNT(*) FROM workspace_project_requirement_access_sets),
+			(SELECT COUNT(*) FROM workspace_project_requirement_grants),
+			(SELECT COUNT(*) FROM workspace_project_outline_sets),
+			(SELECT COUNT(*) FROM workspace_project_outline_nodes),
+			(SELECT COUNT(*) FROM workspace_mutation_idempotency WHERE resource_kind IN ('requirement_baseline','project_requirement_access','project_outline')),
+			(SELECT COUNT(*) FROM workspace_resource_revisions WHERE resource_kind IN ('requirement_baseline','project_requirement_access','project_outline')),
+			(SELECT COUNT(*) FROM workspace_audit_entries WHERE resource_kind IN ('requirement_baseline','project_requirement_access','project_outline')),
+			(SELECT COUNT(*) FROM workspace_outbox_events WHERE aggregate_kind IN ('requirement_baseline','project_requirement_access','project_outline'))
+		)`,
+	}
+	rows := make([]string, 0, len(queries))
+	for _, query := range queries {
+		var row string
+		if err := db.QueryRow(query).Scan(&row); err != nil {
+			t.Fatal(err)
+		}
+		rows = append(rows, row)
+	}
+	return strings.Join(rows, "\n")
 }
 
 func openProjectRequirementDB(t *testing.T) *sql.DB {
