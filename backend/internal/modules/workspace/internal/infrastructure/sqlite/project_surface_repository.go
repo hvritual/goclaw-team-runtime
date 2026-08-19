@@ -313,6 +313,9 @@ func (r *ProjectSurfaceRepository) DeleteProject(ctx context.Context, workspaceI
 	} else if err != nil {
 		return fmt.Errorf("find project for delete: %w", err)
 	}
+	if err := deleteProjectRequirementAuthority(ctx, connection, workspaceID, projectID); err != nil {
+		return err
+	}
 	timestamp := now.UTC().Format(time.RFC3339Nano)
 	statements := []struct {
 		query string

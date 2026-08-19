@@ -243,7 +243,7 @@ func clearBatchIssueDependents(ctx context.Context, connection *sql.Conn, worksp
 	if _, err := connection.ExecContext(ctx, `UPDATE workspace_issues SET parent_issue_id=NULL WHERE workspace_id=? AND parent_issue_id IN (`+tokenPlaceholders+`)`, tokenArguments...); err != nil {
 		return fmt.Errorf("clear child Issue batch parent references: %w", err)
 	}
-	if err := clearRequirementIssueReferencesMany(ctx, connection, workspaceID, tokens, now.UTC().Format(time.RFC3339Nano)); err != nil {
+	if err := clearRequirementIssueReferencesMany(ctx, connection, workspaceID, tokens, now); err != nil {
 		return fmt.Errorf("clear Workspace Requirement batch Issue references: %w", err)
 	}
 	idPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(issueIDs)), ",")

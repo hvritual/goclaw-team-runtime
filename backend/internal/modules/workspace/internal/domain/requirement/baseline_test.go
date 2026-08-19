@@ -132,6 +132,28 @@ func TestBaselineTraceabilityMutationAdvancesFrozenEffectiveRevision(t *testing.
 	assertBaselineSnapshot(t, baseline, revision, StatusFrozen, 5, &effective, ActionLinkIssue)
 }
 
+func TestBaselineAllowsOnlySystemIssueCleanupAfterRetirement(t *testing.T) {
+	now := time.Date(2026, 8, 19, 8, 45, 0, 0, time.UTC)
+	baseline, _, err := NewBaseline("baseline-1", "workspace-1", "project-1", testBaselineContent("Initial"), "Initial", "author-1", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline, _, err = baseline.Retire(1, "approver-1", now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = baseline.RecordTraceabilityMutation(2, ActionLinkIssue, "editor-1", now.Add(2*time.Minute)); !errors.Is(err, ErrInvalidTransition) {
+		t.Fatalf("RecordTraceabilityMutation(retired user link) error = %v", err)
+	}
+	cleaned, revision, err := baseline.RecordTraceabilityMutation(2, ActionIssueDeleted, "system:issue-deletion", now.Add(3*time.Minute))
+	if err != nil {
+		t.Fatalf("RecordTraceabilityMutation(retired cleanup) error = %v", err)
+	}
+	if cleaned.Status != StatusRetired || cleaned.CurrentRevision != 3 || revision.Action != ActionIssueDeleted || revision.ActorID != "system:issue-deletion" {
+		t.Fatalf("retired cleanup = baseline %#v revision %#v", cleaned, revision)
+	}
+}
+
 func testBaselineContent(problem string) Content {
 	return Content{
 		ProblemStatement: problem,

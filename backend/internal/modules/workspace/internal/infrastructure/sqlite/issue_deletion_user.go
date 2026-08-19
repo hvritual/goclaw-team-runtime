@@ -3,13 +3,9 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
-	"time"
 
-	"github.com/google/uuid"
 	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
 )
@@ -92,83 +88,4 @@ func (r *issueDeletionRepository) Delete(ctx context.Context, workspaceID, issue
 		attachmentCleanup.Commit(context.WithoutCancel(ctx))
 	}
 	return resolvedID, nil
-}
-
-type requirementIssueReference struct {
-	id, content, rawIssueIDs string
-	currentVersion           int
-}
-
-func clearRequirementIssueReferences(ctx context.Context, connection *sql.Conn, workspaceID, issueID, identifier string) error {
-	return clearRequirementIssueReferencesMany(ctx, connection, workspaceID, []string{issueID, identifier}, time.Now().UTC().Format(time.RFC3339Nano))
-}
-
-func clearRequirementIssueReferencesMany(ctx context.Context, connection *sql.Conn, workspaceID string, removed []string, now string) error {
-	if len(removed) == 0 {
-		return nil
-	}
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(removed)), ",")
-	arguments := make([]any, 0, len(removed)+1)
-	arguments = append(arguments, workspaceID)
-	removedSet := make(map[string]struct{}, len(removed))
-	for _, value := range removed {
-		arguments = append(arguments, value)
-		removedSet[value] = struct{}{}
-	}
-	rows, err := connection.QueryContext(ctx, `SELECT r.id,r.current_version,r.issue_ids,v.content
-		FROM workspace_requirements r
-		JOIN workspace_requirement_versions v ON v.requirement_id=r.id AND v.version=r.current_version
-		WHERE r.workspace_id=? AND EXISTS (SELECT 1 FROM json_each(r.issue_ids) WHERE value IN (`+placeholders+`))`, arguments...)
-	if err != nil {
-		return err
-	}
-	var affected []requirementIssueReference
-	for rows.Next() {
-		var reference requirementIssueReference
-		if err := rows.Scan(&reference.id, &reference.currentVersion, &reference.rawIssueIDs, &reference.content); err != nil {
-			_ = rows.Close()
-			return err
-		}
-		affected = append(affected, reference)
-	}
-	if err := rows.Close(); err != nil {
-		return err
-	}
-	for _, reference := range affected {
-		var current []string
-		if err := json.Unmarshal([]byte(reference.rawIssueIDs), &current); err != nil {
-			return fmt.Errorf("decode Requirement Issue references: %w", err)
-		}
-		retained := make([]string, 0, len(current))
-		for _, value := range current {
-			if _, remove := removedSet[value]; !remove {
-				retained = append(retained, value)
-			}
-		}
-		encoded, err := json.Marshal(retained)
-		if err != nil {
-			return err
-		}
-		nextVersion := reference.currentVersion + 1
-		coverage := "covered"
-		if len(retained) == 0 {
-			coverage = "uncovered"
-		}
-		result, err := connection.ExecContext(ctx, `UPDATE workspace_requirements
-			SET current_version=?,approval_status='draft',coverage_status=?,issue_ids=?,updated_at=?
-			WHERE workspace_id=? AND id=? AND current_version=?`, nextVersion, coverage, string(encoded), now, workspaceID, reference.id, reference.currentVersion)
-		if err != nil {
-			return err
-		}
-		if count, err := result.RowsAffected(); err != nil || count != 1 {
-			if err != nil {
-				return err
-			}
-			return errors.New("requirement version conflict")
-		}
-		if _, err := connection.ExecContext(ctx, `INSERT INTO workspace_requirement_versions(id,requirement_id,version,content,created_at) VALUES(?,?,?,?,?)`, uuid.NewString(), reference.id, nextVersion, reference.content, now); err != nil {
-			return err
-		}
-	}
-	return nil
 }

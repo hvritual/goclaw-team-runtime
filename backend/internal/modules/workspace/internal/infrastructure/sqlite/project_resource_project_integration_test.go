@@ -12,6 +12,7 @@ import (
 	workspace "github.com/hvritual/workspace/internal/modules/workspace"
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"github.com/hvritual/workspace/internal/modules/workspace/internal/application"
+	requirementDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/requirement"
 	persistence "github.com/hvritual/workspace/internal/modules/workspace/internal/infrastructure/sqlite"
 )
 
@@ -141,6 +142,7 @@ func TestBothProjectDeletionRepositoriesCleanLocalResourceAuthority(t *testing.T
 			if _, err := db.Exec(`INSERT INTO workspace_project_resources(id,workspace_id,project_id,resource_type,canonical_url,fingerprint,position,status,revision,created_at,created_by,updated_at,updated_by) VALUES('resource-delete','workspace-1',?,'url','https://example.com',?,0,'active',1,'2026-08-19T06:00:00Z','owner-1','2026-08-19T06:00:00Z','owner-1')`, projectID, strings.Repeat("d", 64)); err != nil {
 				t.Fatal(err)
 			}
+			seedProjectRequirementDeletionAuthority(t, db, projectID)
 			if useSurface {
 				repository, err := persistence.NewProjectSurfaceRepository(persistence.Config{DB: db})
 				if err != nil {
@@ -161,7 +163,93 @@ func TestBothProjectDeletionRepositoriesCleanLocalResourceAuthority(t *testing.T
 			assertProjectResourceQueryCount(t, db, "project", `SELECT COUNT(*) FROM workspace_projects WHERE id='project-delete'`, 0)
 			assertProjectResourceQueryCount(t, db, "resource", `SELECT COUNT(*) FROM workspace_project_resources WHERE project_id='project-delete'`, 0)
 			assertProjectResourceQueryCount(t, db, "set", `SELECT COUNT(*) FROM workspace_project_resource_sets WHERE project_id='project-delete'`, 0)
+			for _, table := range []string{
+				"workspace_requirement_baselines", "workspace_requirement_revisions", "workspace_requirement_issue_links",
+				"workspace_requirement_outline_links", "workspace_requirement_review_projections",
+				"workspace_project_requirement_access_sets", "workspace_project_requirement_grants",
+				"workspace_project_outline_sets", "workspace_project_outline_nodes",
+				"workspace_requirements", "workspace_requirement_versions",
+				"workspace_audit_entries", "workspace_mutation_idempotency", "workspace_outbox_events",
+			} {
+				assertProjectResourceQueryCount(t, db, table, `SELECT COUNT(*) FROM `+table, 0)
+			}
 		})
+	}
+}
+
+func seedProjectRequirementDeletionAuthority(t *testing.T, db *sql.DB, projectID string) {
+	t.Helper()
+	for _, statement := range []string{
+		`INSERT INTO auth_members(id,workspace_id,user_id,role,created_at) VALUES('editor-member','workspace-1','editor-1','member','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_issues(id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,project_id,created_at,updated_at)
+		 VALUES('issue-delete','workspace-1',77,'ONE-77','Delete-linked Issue','todo','none','member','editor-1','project-delete','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_requirements(id,workspace_id,project_id,title,current_version,approval_status,coverage_status,issue_ids,created_at,updated_at)
+		 VALUES('legacy-delete','workspace-1','project-delete','Legacy',1,'draft','covered','["issue-delete"]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`,
+		`INSERT INTO workspace_requirement_versions(id,requirement_id,version,content,created_at)
+		 VALUES('legacy-delete-v1','legacy-delete',1,'Legacy content','2026-08-19T00:00:00Z')`,
+	} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 8, 19, 6, 1, 0, 0, time.UTC)
+	owner := contract.WorkspaceActor{Type: "member", ID: "owner-1"}
+	editor := contract.WorkspaceActor{Type: "member", ID: "editor-1"}
+	if _, err = repository.ReplaceProjectRequirementAccess(context.Background(), application.ProjectRequirementAccessReplace{
+		WorkspaceID: "workspace-1", ProjectID: projectID, ExpectedRevision: 0,
+		Grants: []application.ProjectRequirementGrantChange{{MemberID: "editor-member", GrantKind: "project_editor"}},
+		Actor:  owner, OccurredAt: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repository.CreateProjectOutlineNode(context.Background(), application.ProjectOutlineNodeCreate{
+		NodeID: "outline-delete", WorkspaceID: "workspace-1", ProjectID: projectID, ExpectedRevision: 0,
+		Title: "Delete root", IdempotencyKey: "outline-delete-key", RequestHash: strings.Repeat("8", 64),
+		Actor: editor, OccurredAt: now.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+		BaselineID: "baseline-delete", WorkspaceID: "workspace-1", ProjectID: projectID, ExpectedRevision: 0,
+		Content:       requirementDomain.Content{ProblemStatement: "Delete baseline", Goals: []requirementDomain.Item{{Key: "goal-delete", Text: "Delete safely"}}},
+		ChangeSummary: "Initial", IdempotencyKey: "baseline-delete-key", RequestHash: strings.Repeat("9", 64),
+		Actor: editor, OccurredAt: now.Add(2 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mutate := func(kind, target string, expected int64) {
+		t.Helper()
+		if _, mutationErr := repository.MutateProjectRequirementLink(context.Background(), application.ProjectRequirementLinkMutation{
+			WorkspaceID: "workspace-1", ProjectID: projectID, RequirementKey: "goal-delete", TargetKind: kind,
+			TargetID: target, ExpectedRevision: expected, Actor: editor, OccurredAt: now.Add(time.Duration(expected+2) * time.Minute),
+		}); mutationErr != nil {
+			t.Fatal(mutationErr)
+		}
+	}
+	mutate("outline", "outline-delete", 1)
+	mutate("issue", "issue-delete", 2)
+	transition := func(action string, expected int64, actor contract.WorkspaceActor) {
+		t.Helper()
+		if _, transitionErr := repository.TransitionProjectRequirement(context.Background(), application.ProjectRequirementTransition{
+			WorkspaceID: "workspace-1", ProjectID: projectID, Action: action, ExpectedRevision: expected,
+			Actor: actor, OccurredAt: now.Add(time.Duration(expected+4) * time.Minute),
+		}); transitionErr != nil {
+			t.Fatal(transitionErr)
+		}
+	}
+	transition("submit_review", 3, editor)
+	transition("approve", 4, owner)
+	transition("freeze", 5, owner)
+	if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+		WorkspaceID: "workspace-1", ProjectID: projectID, ExpectedRevision: 6,
+		Content:       requirementDomain.Content{ProblemStatement: "Changed before delete", Goals: []requirementDomain.Item{{Key: "goal-delete", Text: "Delete safely"}}},
+		ChangeSummary: "Material delete change", MaterialChange: true, Actor: editor, OccurredAt: now.Add(11 * time.Minute),
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

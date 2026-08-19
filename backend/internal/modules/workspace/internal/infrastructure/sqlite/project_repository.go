@@ -172,6 +172,9 @@ func (r *projectRepository) DeleteWithDependents(ctx context.Context, workspaceI
 	} else if err != nil {
 		return fmt.Errorf("select project for deletion: %w", err)
 	}
+	if err := deleteProjectRequirementAuthority(ctx, tx, workspaceID, projectID); err != nil {
+		return err
+	}
 	timestamp := now.UTC().Format(time.RFC3339Nano)
 	statements := []struct {
 		query string

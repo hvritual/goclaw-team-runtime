@@ -265,7 +265,7 @@ func (b Baseline) RecordTraceabilityMutation(expectedRevision int64, action Acti
 		return Baseline{}, Revision{}, err
 	}
 	actorID = strings.TrimSpace(actorID)
-	if actorID == "" || b.Status == StatusRetired || !validTraceabilityAction(action) {
+	if actorID == "" || !validTraceabilityAction(action) || (b.Status == StatusRetired && action != ActionIssueDeleted) {
 		return Baseline{}, Revision{}, ErrInvalidTransition
 	}
 	if b.Status == StatusFrozen {

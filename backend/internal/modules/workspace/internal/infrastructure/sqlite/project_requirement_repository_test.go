@@ -550,6 +550,125 @@ func TestProjectRequirementRepositoryAllowsOneConcurrentInitialCreateWinner(t *t
 	assertProjectRequirementRowCount(t, db, "workspace_mutation_idempotency", 1)
 }
 
+func TestUserAndBatchIssueDeletionCloseCanonicalLinksWithoutLegacyWrites(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		name := "user Issue deletion"
+		if batch {
+			name = "batch Issue deletion"
+		}
+		t.Run(name, func(t *testing.T) {
+			db := openProjectRequirementDB(t)
+			if _, err := db.Exec(`INSERT INTO workspace_issues(
+				id,workspace_id,number,identifier,title,status,priority,creator_type,creator_id,project_id,created_at,updated_at
+			) VALUES('issue-1','workspace-1',1,'ONE-1','Linked Issue','todo','none','member','lead-1','project-1','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`INSERT INTO workspace_requirements(
+				id,workspace_id,project_id,title,current_version,approval_status,coverage_status,issue_ids,created_at,updated_at
+			) VALUES('legacy-1','workspace-1','project-1','Legacy',1,'draft','covered','["issue-1"]','2026-08-19T00:00:00Z','2026-08-19T00:00:00Z')`); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Exec(`INSERT INTO workspace_requirement_versions(id,requirement_id,version,content,created_at)
+				VALUES('legacy-v1','legacy-1',1,'Legacy content','2026-08-19T00:00:00Z')`); err != nil {
+				t.Fatal(err)
+			}
+			repository, err := persistence.NewProjectRequirementRepository(persistence.Config{DB: db})
+			if err != nil {
+				t.Fatal(err)
+			}
+			now := time.Date(2026, 8, 19, 13, 30, 0, 0, time.UTC)
+			lead := contract.WorkspaceActor{Type: "member", ID: "lead-1"}
+			owner := contract.WorkspaceActor{Type: "member", ID: "owner-1"}
+			if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+				BaselineID: "baseline-1", WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 0,
+				Content: projectRequirementTestContent("Before deletion"), ChangeSummary: "Initial", IdempotencyKey: "delete-baseline-key",
+				RequestHash: strings.Repeat("a", 64), Actor: lead, OccurredAt: now,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = repository.MutateProjectRequirementLink(context.Background(), application.ProjectRequirementLinkMutation{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", RequirementKey: "goal-1", TargetKind: "issue",
+				TargetID: "issue-1", ExpectedRevision: 1, Actor: lead, OccurredAt: now.Add(time.Minute),
+			}); err != nil {
+				t.Fatal(err)
+			}
+			for _, transition := range []struct {
+				action   string
+				expected int64
+				actor    contract.WorkspaceActor
+			}{
+				{action: "submit_review", expected: 2, actor: lead},
+				{action: "approve", expected: 3, actor: owner},
+				{action: "freeze", expected: 4, actor: owner},
+			} {
+				if _, err = repository.TransitionProjectRequirement(context.Background(), application.ProjectRequirementTransition{
+					WorkspaceID: "workspace-1", ProjectID: "project-1", Action: transition.action,
+					ExpectedRevision: transition.expected, Actor: transition.actor, OccurredAt: now.Add(time.Duration(transition.expected) * time.Minute),
+				}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err = repository.SaveProjectRequirement(context.Background(), application.ProjectRequirementSave{
+				WorkspaceID: "workspace-1", ProjectID: "project-1", ExpectedRevision: 5,
+				Content: projectRequirementTestContent("Material change"), ChangeSummary: "Material change", MaterialChange: true,
+				Actor: lead, OccurredAt: now.Add(6 * time.Minute),
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			if batch {
+				issues, createErr := persistence.NewIssueRepository(persistence.Config{DB: db})
+				if createErr != nil {
+					t.Fatal(createErr)
+				}
+				batchIssues, ok := issues.(interface {
+					BatchDelete(context.Context, application.IssueBatchDeleteCommand) ([]string, error)
+				})
+				if !ok {
+					t.Fatal("SQLite Issue repository does not expose batch deletion")
+				}
+				if _, err = batchIssues.BatchDelete(context.Background(), application.IssueBatchDeleteCommand{
+					WorkspaceID: "workspace-1", IssueIDs: []string{"ONE-1"}, Now: now.Add(7 * time.Minute),
+				}); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				deletion, createErr := persistence.NewIssueDeletionRepository(persistence.Config{DB: db})
+				if createErr != nil {
+					t.Fatal(createErr)
+				}
+				if _, err = deletion.Delete(context.Background(), "workspace-1", "ONE-1"); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			var currentRevision int64
+			if err = db.QueryRow(`SELECT current_revision FROM workspace_requirement_baselines WHERE id='baseline-1'`).Scan(&currentRevision); err != nil || currentRevision != 7 {
+				t.Fatalf("baseline revision after Issue deletion = %d, %v", currentRevision, err)
+			}
+			var action, actorID string
+			if err = db.QueryRow(`SELECT action,actor_id FROM workspace_requirement_revisions WHERE baseline_id='baseline-1' AND revision=7`).Scan(&action, &actorID); err != nil || action != "issue_deleted" || actorID != "system:issue-deletion" {
+				t.Fatalf("Issue deletion revision = action %q actor %q error %v", action, actorID, err)
+			}
+			var unlinkedRevision sql.NullInt64
+			var unlinkedBy sql.NullString
+			if err = db.QueryRow(`SELECT unlinked_revision,unlinked_by FROM workspace_requirement_issue_links WHERE baseline_id='baseline-1' AND issue_id='issue-1'`).Scan(&unlinkedRevision, &unlinkedBy); err != nil || !unlinkedRevision.Valid || unlinkedRevision.Int64 != 7 || !unlinkedBy.Valid || unlinkedBy.String != "system:issue-deletion" {
+				t.Fatalf("closed Issue link = revision %+v actor %+v error %v", unlinkedRevision, unlinkedBy, err)
+			}
+			assertProjectRequirementRowCount(t, db, "workspace_requirement_review_projections", 0)
+			var legacyVersion int
+			var legacyIssueIDs string
+			if err = db.QueryRow(`SELECT current_version,issue_ids FROM workspace_requirements WHERE id='legacy-1'`).Scan(&legacyVersion, &legacyIssueIDs); err != nil || legacyVersion != 1 || legacyIssueIDs != `["issue-1"]` {
+				t.Fatalf("legacy Requirement mutated = version %d issues %q error %v", legacyVersion, legacyIssueIDs, err)
+			}
+			var legacyVersions int
+			if err = db.QueryRow(`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id='legacy-1'`).Scan(&legacyVersions); err != nil || legacyVersions != 1 {
+				t.Fatalf("legacy Requirement versions = %d, %v", legacyVersions, err)
+			}
+		})
+	}
+}
+
 func projectRequirementTestContent(problem string) requirementDomain.Content {
 	return requirementDomain.Content{
 		ProblemStatement: problem,
