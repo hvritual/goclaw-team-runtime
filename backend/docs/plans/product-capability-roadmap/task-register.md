@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v30`
-- Registry status: `Release 3 active; PCR-S07B independent-review remediation approved-active`
+- Registry status: `Release 3 active; PCR-S07B remediation candidate ready; independent review pending`
 - Registry revision: `r035`
 - Updated: `2026-08-19`
 
@@ -2020,7 +2020,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07B-R35`
 - Task-Revision: `r035`
 - Work-Item: `PCR-S07B`
-- Status: `approved-active`
+- Status: `remediation-candidate-ready-awaiting-independent-review`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
 - Base commit: `fa1153164882adb4880d57f7349597900196402f`
@@ -2054,3 +2054,32 @@ S02A without changing Task product behavior or activating S02B.
   is carried into r035.
 - The Human Customer's confirmed continuous direction authorizes this minimal
   successor. Activation claims no remediation or review PASS.
+
+### R35.2-R35.4 remediation and verification evidence
+
+- The first focused migration RED attempt timed out during compilation at 120
+  seconds and remains NON-PASS. The unchanged rerun captures both required
+  behavioral failures: workspace-ownership and project-ownership drift each let
+  the old down migration succeed destructively.
+- The smallest GREEN adds canonical baseline and retained legacy ownership
+  equality to the imported Issue-link guard. Both drift cases then pass with
+  exact before/after retained row snapshots and catalog survival; the complete
+  existing untouched-import and down-migration set also passes.
+- Live-authority proof first exposed two test-authoring issues: a missing
+  delimiter and an assertion that expected permission denial instead of the
+  existing typed `ErrActorOutsideWorkspace` sentinel after membership removal.
+  After correcting only the test, all five cases pass. Lead reassignment,
+  editor-grant removal, completed project, and cancelled project return typed
+  permission denial; membership removal returns the typed outside-Workspace
+  denial. Exact persisted-effect snapshots are unchanged in every case.
+- Focused migration and repository suites pass. The complete Workspace tree
+  passes in 89.7 seconds, including SQLite infrastructure in 77.2 seconds.
+- Backend `make check` passes in 349.6 seconds, including format, policy and
+  `server/**` boundary, generated-output, vet, and `go test ./...` checks. The
+  official seven-package race passes in 409.4 seconds using repository-selected
+  MinGW GCC 15.2.0.
+- r035 changes no frontend, HTTP/Core, runtime composition, capability flag, or
+  authorization production code. The r034 production build and installed
+  two-identity acceptance remain applicable without reclassification. Exact
+  candidate/scope/trailer/dirty-tree audit and fresh independent dual PASS are
+  still required.

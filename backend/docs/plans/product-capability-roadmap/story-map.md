@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v30`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B review-remediation approved-active`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B remediation candidate ready awaiting independent review`
 
 ## Delivery policy
 
@@ -170,7 +170,7 @@ deletion without deleting the external resource.
 
 ### PCR-S07B — Govern Requirements
 
-Status: `review-blocked under PRODUCT-CAPABILITY-ROADMAP-001 v29 / r034; independent-review remediation approved-active under v30 / r035`
+Status: `review-blocked under PRODUCT-CAPABILITY-ROADMAP-001 v29 / r034; remediation candidate ready awaiting independent review under v30 / r035`
 
 As a project lead, I can create revisions and move a Requirement through draft,
 review, approval, freeze, material change, re-review, and retirement.

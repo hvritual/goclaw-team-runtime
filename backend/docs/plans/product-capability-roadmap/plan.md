@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v30.md](plan_v30.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `30`
-- Active step: `PCR-S07B R35.2`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B review-remediation approved-active`
+- Active step: `PCR-S07B R35.5`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B remediation-candidate-ready-awaiting-independent-review`
 - Plan base commit: `fa1153164882adb4880d57f7349597900196402f`
 - Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -102,6 +102,24 @@ the two ownership-drift rollback guards/tests and the missing transaction-owned
 live-authorization proofs. The S07B product and public contract otherwise stay
 unchanged. S07C-D, Release 3 completion, generated protobufs, original dirty
 paths, push, merge, deployment, and `server/**` remain inactive or excluded.
+
+R35.2 captures both missing ownership guards as real RED failures against the
+r034 down migration, then extends only the imported Issue-link guard so link,
+baseline, and retained legacy workspace/project ownership must agree. Both
+cases preserve exact retained rows/catalog after blocked rollback, and exact
+untouched legacy rollback still succeeds. R35.3 proves current authorization
+after membership removal, lead reassignment, editor-grant removal, and both
+terminal project states; every denied save leaves baseline/revision,
+idempotency, governance, link, grant, and outline effects unchanged. Existing
+transaction authorization production code required no change.
+
+Focused migration/repository checks and the complete Workspace package pass.
+Backend `make check` passes in 349.6 seconds; the official seven-package race
+passes in 409.4 seconds with repository-selected MinGW GCC 15.2.0. No frontend,
+HTTP/Core, runtime composition, flag, or installed behavior changed, so the
+r034 production-build and two-identity installed acceptance evidence remains
+applicable. Exact r035 candidate audit and fresh independent review remain
+pending; no S07B or Release 3 completion is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

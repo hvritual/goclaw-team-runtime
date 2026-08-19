@@ -1733,3 +1733,36 @@ Known limitations, blockers, and next action
   boundary. S07C-D, Release 3 completion, frontend behavior, generated
   protobufs, original dirty paths, push, merge, deployment, and `server/**`
   remain inactive or excluded. Activation claims no remediation PASS.
+
+## 2026-08-19 — J066 — r035 closes both S07B review findings locally
+
+- Assertion-first migration coverage mutates the imported canonical Issue-link
+  `workspace_id` and `project_id` independently. The first command times out
+  during compilation at 120 seconds and is retained as NON-PASS; the unchanged
+  rerun produces the intended two RED failures because the old down migration
+  succeeds destructively in both cases.
+- Commit `63783549` extends only the imported Issue-link rollback guard to join
+  the canonical baseline and retained legacy Requirement and require all three
+  workspace/project ownership values to agree. Both RED cases become GREEN with
+  exact before/after row snapshots and catalog survival; untouched-import
+  rollback and the broader down-migration set remain GREEN.
+- Repository proof creates a real baseline, proves the lead or current editor
+  can mutate it, then changes live authority before the next repository command.
+  Membership removal returns typed `ErrActorOutsideWorkspace`; lead reassignment,
+  editor-grant removal, `completed`, and `cancelled` return typed permission
+  denial. Baseline/latest-revision values and all Requirement governance,
+  idempotency, link, grant, and outline counts remain byte-identical before and
+  after each denial. Existing production authorization code is unchanged.
+- One missing test delimiter and one initially over-narrow error assertion are
+  retained as test-authoring NON-PASS results and corrected without product
+  changes. Focused migration/repository checks and the complete Workspace tree
+  then pass; the latter completes in 89.7 seconds.
+- Backend `make check` passes in 349.6 seconds. The official seven-package race
+  passes in 409.4 seconds with repository-selected MinGW GCC 15.2.0. r035 does
+  not change frontend, HTTP/Core, runtime composition, flags, or installed
+  behavior, so the prior production-build and installed two-identity evidence
+  remains applicable.
+- Status is `remediation-candidate-ready-awaiting-independent-review`. Exact
+  candidate hash, path/trailer/server/generated/dirty-tree audit and fresh
+  independent dual PASS remain required. S07C-D, Release 3 completion, push,
+  merge, deployment, and `server/**` remain inactive or excluded.
