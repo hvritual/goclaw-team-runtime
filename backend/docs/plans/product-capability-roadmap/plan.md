@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v34.md](plan_v34.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `34`
-- Active step: `PCR-S07C R39.5`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review`
+- Active step: `none`
+- Status: `Release 3 active; PCR-S07A, PCR-S07B, and PCR-S07C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
 - Plan base commit: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
-- Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
+- Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -273,8 +273,19 @@ return typed 500 with no partial or foreign detail; restoring either fixture
 returns the page to valid linked coverage. The in-app browser again cannot
 reach host loopback, so installed Chrome supplies the allowed fallback. The
 known WebSocket-upgrade 403 and uninstalled-invitations 404 remain disclosed,
-and the three dedicated ports are closed. Exact candidate/scope/trailer/dirty
-audit and fresh independent dual review remain before PCR-S07C closure.
+and the three dedicated ports are closed.
+
+Exact r039 candidate `47ee4189cb5571ec38ae39480c758d4decad22bd`
+has tree `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca`, binary patch hash
+`6d58ab21a2b39a9328c457e00d0a8ea6ffef7e1493e11af8cdc29e5b178ada34`,
+15 authorized paths, zero `server/**` or generated paths, four complete
+continuous nine-trailer commits, a clean isolated worktree, and zero overlap
+with the original 25 dirty entries. v31-v34 and policy hashes match, all owned
+processes are stopped, and ports 3018/38139/39139 are closed. Fresh independent
+review returns `SPEC PASS` and `CODE/SECURITY/QUALITY PASS` with no blocking
+finding. PCR-S07C is `complete-independent-reviewed`; PCR-S07D remains inactive
+until its own immutable successor plan is activated. No push, merge,
+deployment, generated-protobuf change, or Release 3 completion is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

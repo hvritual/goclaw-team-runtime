@@ -2030,3 +2030,30 @@ Known limitations, blockers, and next action
   All owned processes are stopped and ports 3018/38139/39139 are closed. Exact
   candidate/scope/trailer/dirty audit and fresh independent dual review remain;
   PCR-S07C, PCR-S07D, and Release 3 are not closed.
+
+## 2026-08-19 — J074 — r039 independent dual PASS closes PCR-S07C
+
+- Exact r039 candidate `47ee4189cb5571ec38ae39480c758d4decad22bd`
+  has tree `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca` and binary patch SHA-256
+  `6d58ab21a2b39a9328c457e00d0a8ea6ffef7e1493e11af8cdc29e5b178ada34`.
+  Its 15 authorized paths contain zero `server/**` and zero generated paths;
+  the isolated worktree is clean and overlaps none of the original worktree's
+  25 dirty entries.
+- `35db90f9`, `63e666df`, `eef133c2`, and `47ee4189` each contain exactly one
+  complete, continuous, ordered nine-field trailer block. v31-v34, CLAUDE, and
+  backend/AGENTS hashes match; `diff --check` passes. All owned processes are
+  stopped and ports 3018/38139/39139 are closed.
+- Two final evidence directories remain outside the repository because the
+  host policy denied exact file removal. This is retained as a non-blocking
+  disclosure: neither directory is a candidate path, and neither leaves a
+  process or listener.
+- Fresh independent read-only review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`. It independently verifies complete
+  persisted-content failure closure, coverage and sibling-baseline ownership
+  denial before foreign Issue detail, safe localized query-error projection,
+  the exact real-driver eight-query bound, the RED-to-GREEN installed evidence,
+  scope, trailers, policy hashes, and honest broad NON-PASS disclosures.
+- r039 and PCR-S07C are `complete-independent-reviewed`. PCR-S07D remains
+  inactive until an immutable successor plan is activated. Release 3 is not
+  complete; push, merge, deployment, generated protobufs, original dirty paths,
+  and `server/**` remain excluded.

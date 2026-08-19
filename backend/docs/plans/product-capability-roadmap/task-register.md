@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v34`
-- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review`
+- Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
 - Registry revision: `r039`
 - Updated: `2026-08-19`
 
@@ -2324,13 +2324,16 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r039`
 - Work-Item: `PCR-S07C`
 - Title: `Close Requirement coverage independent-review findings`
-- Status: `verification-complete-awaiting-independent-review`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `fresh dual decision pending before closure`
+- Independent reviewer: `fresh SPEC PASS and CODE/SECURITY/QUALITY PASS on exact candidate`
 - Exact base: `8116b79f075eb7fe972087abbeebbc76e30ef6b9`
 - Blocked input tree: `d328692cc8a2724d2524c279c190d55c01286524`
 - Blocked input binary patch hash: `943514fc385a78df5e987145b3340d897ff71a6f`
 - Plan hash: `81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`
+- Exact candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
+- Candidate tree: `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca`
+- Candidate binary patch hash: `6d58ab21a2b39a9328c457e00d0a8ea6ffef7e1493e11af8cdc29e5b178ada34`
 - Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/81a865472383e853052bf8a904f66591e473f1f4845924296792f4ea0676641f`
 - Write boundary: exact paths in immutable `plan_v34.md`; every migration,
   HTTP production handler, Core contract, Bootstrap/Auth path, generated
@@ -2402,5 +2405,30 @@ S02A without changing Task product behavior or activating S02B.
   typed failure and safe alert, foreign baseline/coverage typed failure without
   foreign detail, and restored valid rendering. In-app Browser host-loopback
   isolation, production WebSocket 403 reconnects, and uninstalled invitations
-  404 remain disclosed. Ports 3018/38139/39139 are closed. Exact candidate
-  freeze/audit and fresh independent dual review remain pending.
+  404 remain disclosed. Ports 3018/38139/39139 are closed.
+
+### R39.5 closure evidence
+
+- Exact candidate `47ee4189cb5571ec38ae39480c758d4decad22bd` has tree
+  `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca` and binary patch SHA-256
+  `6d58ab21a2b39a9328c457e00d0a8ea6ffef7e1493e11af8cdc29e5b178ada34`.
+  Its 15 paths contain zero `server/**` and zero generated paths; the isolated
+  worktree is clean and overlaps none of the original worktree's 25 dirty
+  entries.
+- Commits `35db90f9`, `63e666df`, `eef133c2`, and `47ee4189` each expose exactly
+  one complete, continuous, ordered nine-field trailer block. v31-v34 and both
+  policy hashes match; `diff --check` passes.
+- All task-owned processes are stopped and ports 3018/38139/39139 have no
+  listener. Two evidence directories remain outside the repository because the
+  host policy denied exact file removal; they are not candidate paths and do
+  not leave a running process or listener.
+- Fresh independent read-only review of that exact candidate returns
+  `SPEC PASS` and `CODE/SECURITY/QUALITY PASS`. It independently confirms the
+  four r038 blockers and the installed sibling-baseline leak are closed, the
+  eight-query bound is executable, the scope and traceability are exact, and
+  every retained broad NON-PASS/fixture/browser diagnostic is honestly
+  disclosed.
+- r039 and PCR-S07C are `complete-independent-reviewed`. PCR-S07D and Release 3
+  completion remain inactive pending their own governed plan and DoneGates;
+  push, merge, deployment, generated protobufs, and `server/**` remain
+  excluded.

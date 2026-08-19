@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v34`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C verification complete awaiting exact freeze and independent review under r039`
+- Status: `Release 3 active; PCR-S07A, PCR-S07B, and PCR-S07C complete-independent-reviewed; PCR-S07D inactive pending a successor plan`
 
 ## Delivery policy
 
@@ -187,7 +187,7 @@ projection, and the standalone outline UI remain owned by S10 and inactive.
 
 ### PCR-S07C — See Requirement coverage
 
-Status: `verification complete awaiting exact freeze and independent review under PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039; v33 / r038 is review-blocked; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v34 / r039; v33 / r038 is review-blocked; v32 / r037 stopped at the official race gate; v31 / r036 stopped at the aggregate backend gate`
 
 As a reviewer, I can distinguish Requirements that are linked, implemented, and
 accepted rather than treating any relation as coverage.
@@ -211,10 +211,13 @@ installed run additionally exposed the same stored ownership drift through the
 sibling baseline link projection; the v34-authorized repository boundary now
 rejects both baseline and coverage projections before returning foreign Issue
 detail. Repaired full backend/race and fresh 38-check installed gates pass.
-PCR-S07D stays inactive until exact scope/trailer/dirty audit and fresh
-independent dual review close S07C.
+Exact r039 scope/trailer/dirty/process audit and fresh independent `SPEC PASS`
+plus `CODE/SECURITY/QUALITY PASS` close S07C. PCR-S07D stays inactive until its
+own immutable successor plan is activated.
 
 ### PCR-S07D — Publish a retrospective and create action items
+
+Status: `inactive pending an immutable successor plan`
 
 As a project team, we can draft and publish a retrospective, preserve revisions,
 and turn an action item into a task or Issue.
