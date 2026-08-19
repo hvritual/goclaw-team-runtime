@@ -259,7 +259,7 @@ separately frozen aggregate DoneGate.
 
 ### Release 3 aggregate DoneGate
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v40 / r045; v39 / r044 audit-blocked before capability-matrix write`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v41 / r046; v40 / r045 review-blocked before closure; v39 / r044 audit-blocked before capability-matrix write`
 
 The aggregate gate reopens no story and authorizes no product change. It freezes
 the four reviewed candidate/tree/closure tuples, reconciles only their stale
@@ -289,8 +289,21 @@ with byte-stable default Task replay and explicit Issue provenance from source
 revision 3. All state survives backend restart and is visible in production
 Web with zero Next overlay and zero clean-tab console error. Owned processes,
 browser tabs, and ports close; task-owned F-drive artifacts remain only because
-host policy blocks their exact removal. R45.5 exact-candidate audit and fresh
-dual review still gate Release 3 closure.
+host policy blocks their exact removal.
+
+R45.5 freezes candidate `a63bf58a` (tree `aba1d1c1`, r045 patch SHA-256
+`f9322809dba511553c127c490705c6438943ad6466c631ff504ae2bc23b9260b`).
+Fresh review independently confirms its exact six-document scope and returns
+`CODE/SECURITY/QUALITY PASS`, but returns `SPEC BLOCK`: `9fb86ea0` has nine
+correct historical fields separated by blank lines rather than one continuous
+block, and the v39-required external-directory removal did not execute. r045
+stops before closure.
+
+v41/r046 preserves every product and story byte, freezes the exact
+blank-separated `9fb86ea0` shape beside the valid eight-field `71afb3c3` and
+continuous-nine-field remainder, and permits only an explicitly inventoried,
+zero-live-resource host-policy retention disposition. Corrected audit and fresh
+independent dual PASS still gate Release 3; Release 4 remains inactive.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 

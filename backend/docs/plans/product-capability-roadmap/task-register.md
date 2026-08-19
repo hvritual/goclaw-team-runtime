@@ -2779,9 +2779,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r045`
 - Work-Item: `PCR-RELEASE-3-DONEGATE`
 - Title: `Complete the Release 3 aggregate gate with policy-correct trailer audit`
-- Status: `active`
+- Status: `review-blocked-before-closure`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Exact base: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
 - Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Predecessor task: `PCR-001-R3G-R44` (`audit-blocked-before-capability-matrix-write`)
@@ -2922,3 +2922,81 @@ S02A without changing Task product behavior or activating S02B.
   747,659,709-byte cache removals; no alternate deletion mechanism is used.
 - R45.5 exact candidate freeze/audit, fresh aggregate dual review, and R45.6
   Release 3 closure remain pending.
+
+### R45.5 exact candidate and review block
+
+- Exact candidate `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f` has tree
+  `aba1d1c166c9a5667d24f837c0bf0236b3df5b5e` and r045 binary patch
+  SHA-256
+  `f9322809dba511553c127c490705c6438943ad6466c631ff504ae2bc23b9260b`.
+  It changes exactly the six allowed roadmap paths and zero product bytes; the
+  isolated candidate is clean, original dirty count remains 25 with zero
+  overlap, `server/**` and generated counts are zero, and ports
+  3021/38142/39142 plus owned processes are closed.
+- The primary audit reports 46 Release 3 commits as one eight-field plus 45
+  continuous nine-field blocks. Fresh independent raw-message and Git-trailer
+  parsing disproves that result: `9fb86ea056d253c82ea61b13031550db82eeb526`
+  has all nine correct v27/r032 fields but a blank line between every pair, so
+  standard Git parsing recognizes only `Policy-Bundle`. Historical commit
+  `71afb3c3` remains the separate valid eight-field shape.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY PASS`. It also confirms v39's required external
+  evidence-directory removal remains unfulfilled: the exact requests were
+  rejected by host policy before execution. Broad lint/root-test NON-PASS and
+  installed harness diagnostics are independently accepted as isolated and do
+  not add a code/security/quality blocker.
+- r045 is `review-blocked-before-closure`; R45.6 is not executed and no Release
+  3 completion is claimed.
+
+## PCR-001-R3G-R46
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-R3G-R46`
+- Task-Revision: `r046`
+- Work-Item: `PCR-RELEASE-3-DONEGATE`
+- Title: `Close the Release 3 aggregate gate after exact historical-shape and cleanup disposition review`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Exact base: `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
+- Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
+- Predecessor task: `PCR-001-R3G-R45` (`review-blocked-before-closure`)
+- Plan hash: `f423cd768b007f98e89a5eec51e63baf89eb36534ba139c4f23f0ce765d8b57b`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/f423cd768b007f98e89a5eec51e63baf89eb36534ba139c4f23f0ce765d8b57b`
+- Write boundary: immutable `plan_v41.md` plus the four mutable roadmap
+  governance records; `capability-matrix.md`, all product bytes, generated
+  paths, original dirty paths, and `server/**` are read-only
+- Acceptance source: `plan_v41.md` R46.2-R46.4 and its exact inheritance of
+  the unchanged R45.3 deterministic and R45.4 installed evidence
+
+### Ordered outputs
+
+- Audit raw commit-message shape and standard Git parsing across the complete
+  Release 3 lineage: exact eight-field `71afb3c3`, exact blank-separated
+  nine-field `9fb86ea0`, and exact continuous nine-field blocks everywhere
+  else.
+- Reverify story tuples, registered plan/policy hashes, exact candidate/path/
+  product-byte identity, original dirty isolation, closed processes/ports, and
+  the exact retained external-artifact inventory.
+- Preserve the r045 SPEC BLOCK, the fact that external deletion did not occur,
+  all broad NON-PASS diagnostics, and every v39/v40 exclusion.
+- Obtain fresh independent SPEC and CODE/SECURITY/QUALITY PASS before closure;
+  leave Release 4 inactive and do not alter product or capability-matrix bytes.
+
+### Activation evidence
+
+- Exact r045 candidate/tree/patch identity and its six-document, zero-product-
+  drift scope independently match, so it is the immutable r046 base.
+- The raw `9fb86ea0` message proves the single blank-separated historical shape;
+  v27 and backend policy required the nine registered fields but did not freeze
+  continuity. Neither that commit nor any earlier plan is rewritten.
+- Task-owned `F:\codex-tmp\release3-r45-gates-5fad0615` currently contains
+  11,836 files, 527 directories, and 1,101,286,336 bytes; nested `acceptance`
+  contains 2,846 files, 265 directories, and 353,626,627 bytes. The exact path
+  is outside both repositories and owns no process/listener. v41 permits only
+  this disclosed host-policy-retained disposition after fresh review; it does
+  not claim deletion.
+- The standing confirmed completion authority activates only r046. Release 3
+  completion, Release 4/S08+, product changes, generated protobufs, external
+  services, original dirty paths, push, merge, deployment, legacy backend
+  writes, and `server/**` remain inactive or excluded.

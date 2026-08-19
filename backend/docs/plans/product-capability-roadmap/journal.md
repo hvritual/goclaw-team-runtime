@@ -2392,3 +2392,43 @@ Known limitations, blockers, and next action
   review; no alternate deletion mechanism is attempted.
 - R45.4 is complete. R45.5 exact candidate audit and fresh aggregate dual review
   remain mandatory before R45.6 or Release 3 completion.
+
+## 2026-08-20 — J085 — r045 review blocks and v41/r046 activates
+
+- Exact r045 candidate `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
+  has tree `aba1d1c166c9a5667d24f837c0bf0236b3df5b5e` and r045 binary
+  patch SHA-256
+  `f9322809dba511553c127c490705c6438943ad6466c631ff504ae2bc23b9260b`.
+  Independent recalculation confirms exactly six authorized roadmap paths,
+  zero product drift, zero `server/**`/generated/original-dirty overlap, a clean
+  candidate, the original worktree's 25 dirty entries, zero owned processes,
+  and closed ports 3021/38142/39142.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY PASS`. Raw message inspection proves
+  `9fb86ea056d253c82ea61b13031550db82eeb526` contains all nine correct
+  v27/r032 fields in order but one blank line between every field; standard Git
+  parsing recognizes only its final `Policy-Bundle`. The primary audit's
+  `1 x 8 + 45 x 9 continuous` result is therefore invalid. The immutable
+  `71afb3c3` eight-field exception remains separately correct.
+- The second SPEC block is the unfulfilled v39 external-directory removal.
+  Host policy rejected two exact PowerShell requests before execution. Current
+  successor inventory finds 11,836 files, 527 directories, and 1,101,286,336
+  bytes under task-owned
+  `F:\codex-tmp\release3-r45-gates-5fad0615`; nested `acceptance` accounts for
+  2,846 files, 265 directories, and 353,626,627 bytes. The path is outside both
+  repositories and owns no process/listener, but it was not deleted.
+- Immutable v41 freezes three exact lineage shapes: continuous eight-field
+  `71afb3c3`, blank-separated nine-field `9fb86ea0`, and continuous nine-field
+  blocks everywhere else. It replaces deletion for r046 only with an exact,
+  inventoried, zero-live-resource, explicitly not-deleted disposition that
+  still requires fresh independent acceptance. v39/v40 and the r045 BLOCK stay
+  unchanged.
+- v41 SHA-256 is
+  `f423cd768b007f98e89a5eec51e63baf89eb36534ba139c4f23f0ce765d8b57b`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/f423cd768b007f98e89a5eec51e63baf89eb36534ba139c4f23f0ce765d8b57b`.
+- Only r046 is active. Activation changes no product or capability-matrix byte
+  and claims no corrected audit, fresh review PASS, or Release 3 completion.
+  Release 4/S08+, generated protobufs, external services, original dirty paths,
+  push, merge, deployment, legacy backend writes, and `server/**` remain
+  inactive or excluded.

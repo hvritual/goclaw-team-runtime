@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v40.md](plan_v40.md).
+The approved execution snapshot is [plan_v41.md](plan_v41.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `40`
-- Active step: `Release 3 R45.5`
-- Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
-- Plan base commit: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
+- Approved version: `41`
+- Active step: `Release 3 R46.2`
+- Status: `Release 3 aggregate DoneGate active under r046; r045 review-blocked; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
+- Plan base commit: `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -469,6 +469,26 @@ root because exact PowerShell removal requests were rejected by host policy
 before execution; no alternate deletion mechanism is used. Exact-candidate
 audit and fresh independent dual review remain pending, so Release 3 is not yet
 complete.
+
+R45.5 freezes exact documentation-only candidate `a63bf58a` with tree
+`aba1d1c1` and r045 binary patch SHA-256
+`f9322809dba511553c127c490705c6438943ad6466c631ff504ae2bc23b9260b`.
+Its six roadmap paths, zero product drift, zero `server/**`/generated/original-
+dirty overlap, clean worktree, and closed processes/ports pass independent
+recalculation. Fresh review returns `CODE/SECURITY/QUALITY PASS` but
+`SPEC BLOCK`: historical commit `9fb86ea0` separates each of its nine correct
+v27/r032 fields with a blank line, so it is not the continuous nine-field block
+claimed by v40; additionally, v39's required external-directory removal did
+not execute because host policy rejected the exact requests. r045 stops before
+closure and its audit PASS is not retained.
+
+The confirmed continuous completion direction activates governance-only
+`PRODUCT-CAPABILITY-ROADMAP-001 v41 / r046` from exact blocked candidate
+`a63bf58a`. It freezes three exact historical trailer shapes, permits the
+host-policy-retained F-drive directory only as a fully inventoried, zero-live-
+resource disposition subject to fresh independent acceptance, and leaves all
+product bytes plus `capability-matrix.md` read-only. No Release 3 completion or
+review PASS is claimed by successor activation.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
