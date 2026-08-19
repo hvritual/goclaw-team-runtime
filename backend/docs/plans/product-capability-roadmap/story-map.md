@@ -259,7 +259,7 @@ separately frozen aggregate DoneGate.
 
 ### Release 3 aggregate DoneGate
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v41 / r046; v40 / r045 review-blocked before closure; v39 / r044 audit-blocked before capability-matrix write`
+Status: `complete-independent-reviewed under PRODUCT-CAPABILITY-ROADMAP-001 v41 / r046; v40 / r045 review-blocked before closure; v39 / r044 audit-blocked before capability-matrix write`
 
 The aggregate gate reopens no story and authorizes no product change. It freezes
 the four reviewed candidate/tree/closure tuples, reconciles only their stale
@@ -313,7 +313,17 @@ with zero forbidden/generated/dirty overlap, while the five-path r046 boundary
 and host-policy-retained artifact inventory pass. Final exact candidate and
 fresh independent dual PASS still gate closure.
 
+R46.3 exact candidate `daab0777` (tree `b012a2c1`, r046 patch SHA-256
+`528aa873dea5d477be4ddbdef956b643d393204f6811bd19da08c02f5689d482`)
+passes the complete corrected audit. Fresh independent review returns
+`SPEC PASS` and `CODE/SECURITY/QUALITY PASS`, independently confirming the
+three lineage shapes, unchanged story/product evidence, exact scope, retained
+NON-PASS disclosures, and bounded host-policy-retained artifact disposition.
+R46.4 closes the aggregate gate and Release 3 with zero active tasks.
+
 ## Release 4 — Duplicate prevention and dependable reminders
+
+Status: `inactive`
 
 ### PCR-S08A — Warn about similar Issues
 

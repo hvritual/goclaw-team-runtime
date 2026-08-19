@@ -2955,9 +2955,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r046`
 - Work-Item: `PCR-RELEASE-3-DONEGATE`
 - Title: `Close the Release 3 aggregate gate after exact historical-shape and cleanup disposition review`
-- Status: `active`
+- Status: `complete-independent-reviewed`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `fresh aggregate dual decision required before closure`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Exact base: `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
 - Release 3 base: `80d92b14b1f5a1525fbce0c60ce992e28c7f0e8b`
 - Predecessor task: `PCR-001-R3G-R45` (`review-blocked-before-closure`)
@@ -3035,3 +3035,38 @@ S02A without changing Task product behavior or activating S02B.
   exception or product result is inferred from the tooling failures.
 - R46.2 is complete. R46.3 exact candidate and fresh aggregate dual review
   remain mandatory before R46.4 or Release 3 closure.
+
+### R46.3 exact candidate and independent dual PASS
+
+- Exact r046 candidate `daab0777b110ec6b21645ffe68771263d4619ec5`
+  has tree `b012a2c1aa7cc6dae4e016206585e51102e2a69b` and r046 binary patch
+  SHA-256
+  `528aa873dea5d477be4ddbdef956b643d393204f6811bd19da08c02f5689d482`.
+  Its exact five-document scope, clean worktree, immutable v41 hash, zero
+  capability-matrix/product drift, and complete continuous r046 trailers pass.
+- Final strict audit passes 48 commits as one continuous eight-field
+  `71afb3c3`, one blank-separated nine-field `9fb86ea0`, and 46 continuous
+  nine-field messages. The range remains 135 paths: 114 product plus 21
+  roadmap, with product patch SHA-256
+  `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`
+  and zero `server/**`, generated, product-drift, or original-dirty overlap.
+- Fresh independent review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS`. It independently verifies candidate/base/tree/
+  patch and plan/policy identities, all three lineage shapes, v27 authority,
+  unchanged R45.3/R45.4 product evidence, retained broad NON-PASS diagnostics,
+  and the bounded external-artifact disposition.
+- Independent inventory matches 11,837 files, 527 directories, and
+  1,101,307,455 bytes at the retained root; nested `acceptance` is 2,847 files,
+  265 directories, and 353,647,746 bytes. Both paths are outside the
+  repositories, ports 3021/38142/39142 and owned processes are closed, deletion
+  remains explicitly unexecuted, and v41's result is not a general waiver.
+
+### R46.4 closure
+
+- r046 and `PCR-RELEASE-3-DONEGATE` are
+  `complete-independent-reviewed`. PCR-S07A-D and the aggregate DoneGate are all
+  closed, so Release 3 is `complete-independent-reviewed` with zero active
+  tasks.
+- Release 4/S08+, S10 expansion, product changes, generated protobufs,
+  external services, original dirty paths, push, merge, deployment, legacy
+  backend writes, and `server/**` remain inactive or excluded.

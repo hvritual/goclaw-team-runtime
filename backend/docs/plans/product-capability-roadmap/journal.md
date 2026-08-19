@@ -2466,3 +2466,39 @@ Known limitations, blockers, and next action
 - R46.2 is complete. Exact candidate freeze and fresh independent SPEC plus
   CODE/SECURITY/QUALITY review remain pending; r046 and Release 3 stay active,
   Release 4 stays inactive, and every product/deployment exclusion remains.
+
+## 2026-08-20 — J087 — r046 dual PASS closes Release 3
+
+- Exact r046 candidate `daab0777b110ec6b21645ffe68771263d4619ec5`
+  has tree `b012a2c1aa7cc6dae4e016206585e51102e2a69b` and r046 binary patch
+  SHA-256
+  `528aa873dea5d477be4ddbdef956b643d393204f6811bd19da08c02f5689d482`.
+  It changes exactly `plan_v41.md` plus the four mutable roadmap records,
+  changes no capability-matrix or product byte, is clean, and preserves the
+  original worktree's 25 dirty entries with zero overlap.
+- Final deterministic Git capture passes all 48 Release 3 commits: exact
+  continuous eight-field `71afb3c3`, exact blank-separated nine-field
+  `9fb86ea0`, and 46 exact continuous nine-field messages. Every registered
+  task/plan/policy value matches. The 135-path range remains 114 product plus
+  21 roadmap, with zero `server/**`, generated, or product drift and unchanged
+  product-only patch SHA-256
+  `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`.
+- Fresh independent review returns `SPEC PASS` and
+  `CODE/SECURITY/QUALITY PASS` on the exact candidate. It confirms the v27
+  authority for the unique blank-separated message, the validity and bounded
+  scope of v41, unchanged R45.3 deterministic and R45.4 installed evidence,
+  honest broad lint/root-timeout/harness disclosures, and no product/security/
+  quality regression.
+- The reviewer independently inventories the retained external root at 11,837
+  files, 527 directories, and 1,101,307,455 bytes; nested `acceptance` is 2,847
+  files, 265 directories, and 353,647,746 bytes. It is outside both
+  repositories; owned processes and ports 3021/38142/39142 are closed; two
+  removal requests remain host-policy-rejected before execution; no retry,
+  alternate deletion, or deletion claim occurs. The reviewer explicitly
+  accepts this as v41's task-bounded terminal disposition, not a general waiver.
+- r046 and `PCR-RELEASE-3-DONEGATE` are
+  `complete-independent-reviewed`. PCR-S07A-D plus the aggregate gate are all
+  closed; Release 3 is complete with zero active tasks. Release 4/S08+, S10
+  expansion, product changes, generated protobufs, external services, original
+  dirty paths, push, merge, deployment, legacy backend writes, and `server/**`
+  remain inactive or excluded.

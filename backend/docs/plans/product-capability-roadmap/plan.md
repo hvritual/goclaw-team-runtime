@@ -4,10 +4,10 @@ The approved execution snapshot is [plan_v41.md](plan_v41.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `41`
-- Active step: `Release 3 R46.3`
-- Status: `Release 3 aggregate DoneGate active under r046; r045 review-blocked; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
+- Active step: `none`
+- Status: `Release 3 complete-independent-reviewed; Release 4 inactive; no active task`
 - Plan base commit: `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
-- Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
+- Last closed task candidate: `daab0777b110ec6b21645ffe68771263d4619ec5`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
 - Ordered delivery stories: [story-map.md](story-map.md)
@@ -503,6 +503,27 @@ Ports and processes remain closed. The exact retained root now has 11,837
 files, 527 directories, and 1,101,304,235 bytes and is explicitly not deleted.
 Exact final candidate and fresh independent dual review remain pending, so
 Release 3 is not complete.
+
+R46.3 freezes exact candidate `daab0777b110ec6b21645ffe68771263d4619ec5`
+with tree `b012a2c1aa7cc6dae4e016206585e51102e2a69b` and r046 binary
+patch SHA-256
+`528aa873dea5d477be4ddbdef956b643d393204f6811bd19da08c02f5689d482`.
+Its strict audit passes 48 commits as one continuous eight-field, one exact
+blank-separated nine-field, and 46 continuous nine-field messages; five r046
+roadmap paths, 114 unchanged product paths, all plan/policy hashes, zero
+forbidden/generated/drift/dirty overlap, clean candidate, and closed ports/
+processes pass. The retained external root is independently inventoried at
+11,837 files, 527 directories, and 1,101,307,455 bytes and remains explicitly
+not deleted under v41's bounded terminal disposition.
+
+Fresh independent review of that exact candidate returns `SPEC PASS` and
+`CODE/SECURITY/QUALITY PASS`. It confirms the unique `9fb86ea0` historical
+shape against v27 authority, accepts the exact host-policy-retained disposition
+without creating a general waiver, and confirms unchanged R45.3/R45.4 product
+evidence plus all retained NON-PASS disclosures. R46.4 closes r046 and Release
+3 as `complete-independent-reviewed` with zero active tasks. Release 4 remains
+inactive; no push, merge, deployment, generated protobuf, original-dirty, or
+`server/**` action is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
