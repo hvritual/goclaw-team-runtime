@@ -63,9 +63,12 @@ from this scoped update.
 - v40/r045 R45.2 verifies all four tuples, registered v26-v40 hashes, 131
   Release 3 paths (114 product plus 17 roadmap), zero `server/**`, zero
   generated paths, zero original-dirty overlap, zero r045 product drift, and
-  policy-correct trailers across 43 commits. Deterministic, aggregate installed,
-  exact-candidate, and independent-review gates remain pending; this
-  reconciliation is not a Release 3 completion claim.
+  policy-correct trailers across 43 commits. R45.3 completes the aggregate
+  deterministic evidence, and R45.4 proves all three rows coexist in one fresh
+  two-identity Canonical database and production Web runtime with restart
+  persistence, strict isolation, visible history/links, zero Next overlay, and
+  zero clean-tab console error. Exact-candidate and independent-review gates
+  remain pending; this reconciliation is not a Release 3 completion claim.
 
 ## 2. Installed-runtime and authorization gap
 

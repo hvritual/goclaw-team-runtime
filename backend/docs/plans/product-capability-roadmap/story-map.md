@@ -278,6 +278,20 @@ gate and corrects only the lineage predicate: exact eight fields for
 `71afb3c3`, exact nine fields for every later commit. r044 remains blocked
 history and Release 3 remains incomplete while r045 executes.
 
+R45.2 passes the corrected lineage/scope/matrix audit and R45.3 completes the
+full deterministic backend, race, frontend, root, lint, and production-build
+evidence without relabeling retained broad NON-PASS results. R45.4 then passes
+the one-database, one-Project, two-identity installed journey: Resource
+create/reorder/archive/restore; Requirement revision 13 with independent
+review/freeze/material re-review, one root outline, and 4/4 linked,
+implemented, and accepted coverage; and Retrospective publish/supersede/archive
+with byte-stable default Task replay and explicit Issue provenance from source
+revision 3. All state survives backend restart and is visible in production
+Web with zero Next overlay and zero clean-tab console error. Owned processes,
+browser tabs, and ports close; task-owned F-drive artifacts remain only because
+host policy blocks their exact removal. R45.5 exact-candidate audit and fresh
+dual review still gate Release 3 closure.
+
 ## Release 4 — Duplicate prevention and dependable reminders
 
 ### PCR-S08A — Warn about similar Issues

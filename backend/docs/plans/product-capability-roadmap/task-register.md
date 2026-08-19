@@ -2870,5 +2870,55 @@ S02A without changing Task product behavior or activating S02B.
   execution. The directory remains outside the repository with no owned
   process/listener; no alternate deletion tool is used. This cleanup limitation
   remains for independent review.
-- R45.4 combined installed acceptance, final exact-candidate audit, fresh dual
-  review, and Release 3 closure remain pending.
+- R45.4 combined installed acceptance is complete. Final exact-candidate audit,
+  fresh dual review, and Release 3 closure remain pending.
+
+### R45.4 combined installed evidence
+
+- One fresh SQLite database, real Canonical HTTP backend, production Next
+  16.2.6 Web, two independently authenticated identities, and exactly one
+  Project pass the combined Release 3 journey. Loaded flags are
+  `project_resources=true`, `project_requirements=true`,
+  `project_retrospectives=true`, and full `project_outline=false`; the confirmed
+  minimal root prerequisite remains available through Requirements.
+- Project `d48a22fa-ce08-4638-8fce-4be579106181` creates, reorders, archives,
+  and restores Resources `80bd9b8b-f8e6-488f-b588-d1c4a34fc490` and
+  `2e25dd29-7e4d-42f7-b6fe-2b7f792fb33b`, ending with two active rows at set
+  revision 5 and the reordered repository first.
+- Requirement baseline `f0ee857a-1bf6-479c-b8b5-fa50634aa614` records 13
+  immutable revisions through draft, four Issue links, one root-outline link,
+  independent review/approval/freeze, material change, re-review/re-approval,
+  and refreeze. Current coverage proves 4 linked, then 4 implemented, then 4
+  accepted; final current and effective snapshots are both 4/4 accepted.
+- Ordinary-member facilitator self-appointment returns 403. After current
+  Project-lead assignment, Retrospective
+  `b2769a21-e682-4b83-aa9c-c052bdf0e308` publishes, supersedes, and archives at
+  revision 4 with four immutable history entries. Default Task
+  `5334d009-43d3-4ae3-8142-76df99a08b08` and explicit Issue
+  `7048a2af-986e-4417-8203-91f1515d4442` both retain immutable source revision
+  3; repeated same-key Task targeting is byte-identical.
+- A real backend stop/start preserves both Resources, all 13 Requirement
+  revisions, accepted current/effective coverage, all four Retrospective
+  revisions, both links, and both targets. Unknown Project probes return 404
+  for Resources, Requirements, and Retrospectives; a foreign Workspace header
+  returns 404 without Project-ID disclosure.
+- Production Web visibly renders the Resources, archived Retrospective and
+  Task/Issue links, four-entry Retrospective history, frozen Requirement v13,
+  root outline, 4/4 accepted current/effective coverage, and all 13 Requirement
+  history entries. A clean authenticated in-app Browser tab has zero Next
+  overlay and zero console error. Known WebSocket reconnect and uninstalled
+  invitations 404 warnings remain disclosed.
+- Harness diagnostics remain NON-PASS evidence: an invalid denial fixture
+  omitted mandatory lessons; an approval assertion confused user and member
+  IDs; one PowerShell URL interpolated `?` into a variable name; one minified
+  restart probe miscalled its login function and reused reserved `$PID`; and
+  two direct production-Web launch requests were policy-rejected before a
+  task-owned wrapper started the unchanged server. Corrected executions pass;
+  none rewrites these diagnostics as product failures or earlier PASS results.
+- Both Browser tabs, all owned processes, and ports 3021/38142/39142 are
+  closed. The validated acceptance directory has 2,845 files, 265 directories,
+  and 353,616,921 bytes with zero owned process/listener. Its exact recursive
+  removal is rejected by host policy before execution, as were the prior
+  747,659,709-byte cache removals; no alternate deletion mechanism is used.
+- R45.5 exact candidate freeze/audit, fresh aggregate dual review, and R45.6
+  Release 3 closure remain pending.

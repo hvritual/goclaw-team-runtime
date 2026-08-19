@@ -2345,3 +2345,50 @@ Known limitations, blockers, and next action
 - R45.3 is complete with the NON-PASS evidence above retained. R45.4 combined
   installed acceptance, exact candidate, fresh dual review, and Release 3
   closure remain pending.
+
+## 2026-08-20 — J084 — r045 combined installed acceptance passes
+
+- A fresh Canonical SQLite database, real HTTP backend, production Next 16.2.6
+  Web, two authenticated identities, and exactly one Project exercise all
+  Release 3 verticals together. The runtime reports Project Resources,
+  Requirements, and Retrospectives loaded while full Project Outline remains
+  false; the confirmed minimal root prerequisite is exposed only through the
+  Requirement contract.
+- Project `d48a22fa-ce08-4638-8fce-4be579106181` ends with Resources
+  `80bd9b8b-f8e6-488f-b588-d1c4a34fc490` and
+  `2e25dd29-7e4d-42f7-b6fe-2b7f792fb33b` active at revision 5 after create,
+  reorder, archive, and restore. Requirement baseline
+  `f0ee857a-1bf6-479c-b8b5-fa50634aa614` has 13 immutable revisions, one root
+  outline link, four Issue links, independent approval/re-approval, two frozen
+  states around a material change, and observed 4 linked, 4 implemented, then
+  4 accepted coverage; final current/effective snapshots are both accepted.
+- Ordinary-member facilitator self-appointment returns 403. The current
+  Project lead then creates, publishes, supersedes, targets, and archives
+  Retrospective `b2769a21-e682-4b83-aa9c-c052bdf0e308` at revision 4. Default
+  Task `5334d009-43d3-4ae3-8142-76df99a08b08` and explicit Issue
+  `7048a2af-986e-4417-8203-91f1515d4442` retain immutable source revision 3;
+  identical target keys return byte-identical Task-link bodies.
+- After a real backend stop/start, both Resources, Requirement revision/history
+  and accepted coverage, Retrospective revision/history/links, and target rows
+  remain exact. Unknown-Project reads are 404 across all three verticals; a
+  foreign Workspace header is 404 without Project-ID disclosure.
+- Production Web visibly renders both Resources, the archived Retrospective,
+  both target links, Retrospective history 4, frozen Requirement v13, root
+  outline, both 4/4 accepted coverage summaries, and Requirement history 13.
+  A fresh authenticated in-app Browser tab records zero Next overlay and zero
+  console error. Expected WebSocket reconnect and invitations-404 warnings
+  remain disclosed; an earlier inherited stale cookie produced pre-login 401
+  errors only on the discarded login tab.
+- Harness diagnostics are preserved: mandatory-lessons fixture 400, user-ID
+  versus member-ID assertion mismatch, PowerShell query-string interpolation,
+  one malformed minified restart probe, and two policy-rejected direct Web
+  launch commands. Each stopped before or at its assertion; corrected bounded
+  executions supplied the evidence above without hiding the originals.
+- Two Browser tabs close, all task processes stop, and ports
+  3021/38142/39142 close. The 353,616,921-byte acceptance directory validates
+  inside the task-owned F-drive root with zero process/listener, but its exact
+  recursive removal is host-policy rejected before execution. Together with
+  the prior 747,659,709-byte gate cache, it remains disclosed for independent
+  review; no alternate deletion mechanism is attempted.
+- R45.4 is complete. R45.5 exact candidate audit and fresh aggregate dual review
+  remain mandatory before R45.6 or Release 3 completion.

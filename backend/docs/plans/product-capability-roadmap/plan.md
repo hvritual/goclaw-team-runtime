@@ -4,7 +4,7 @@ The approved execution snapshot is [plan_v40.md](plan_v40.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `40`
-- Active step: `Release 3 R45.4`
+- Active step: `Release 3 R45.5`
 - Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
 - Plan base commit: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
@@ -431,6 +431,44 @@ navigation, React `act`, and i18n warnings remain visible. The created
 the repository after two host-policy deletion rejections; no alternate deletion
 mechanism is used. Aggregate installed acceptance and independent review remain
 pending, so Release 3 is not yet complete.
+
+R45.4 combined installed acceptance passes on one fresh Canonical SQLite
+database, one Project, two independently authenticated identities, the real
+HTTP backend, and the production Next 16.2.6 Web build. Project
+`d48a22fa-ce08-4638-8fce-4be579106181` retains Resources
+`80bd9b8b-f8e6-488f-b588-d1c4a34fc490` and
+`2e25dd29-7e4d-42f7-b6fe-2b7f792fb33b` after create, reorder, archive, and
+restore at set revision 5. Requirement baseline
+`f0ee857a-1bf6-479c-b8b5-fa50634aa614` reaches frozen revision 13 with 13
+immutable history entries, independent approval/re-approval, one authorized
+root-outline link, four Issue links, and observed 4/4 linked, implemented, then
+accepted current/effective coverage. Full `project_outline` stays false while
+the confirmed root prerequisite remains installed under
+`project_requirements=true`.
+
+The same Project denies ordinary-member facilitator self-appointment with 403,
+then permits the current Project lead to publish, supersede, target, and archive
+Retrospective `b2769a21-e682-4b83-aa9c-c052bdf0e308`. Its revision-4 history
+retains default Task `5334d009-43d3-4ae3-8142-76df99a08b08` and explicit Issue
+`7048a2af-986e-4417-8203-91f1515d4442`, both immutably linked to source revision
+3; repeated Task-target requests with the same key are byte-identical.
+Resources, all 13 Requirement revisions, accepted coverage, all four
+Retrospective revisions, both links, and both targets survive a real backend
+restart. Unknown Project reads return 404 across all three verticals; a foreign
+Workspace header returns 404 without disclosing the Project ID.
+
+A clean authenticated in-app Browser tab renders both Resources, the archived
+Retrospective with Task/Issue links and four-entry history, frozen Requirement
+v13, four accepted current/effective coverage items, the root-outline link, and
+all 13 Requirement history entries. It has zero Next overlay and zero console
+error. Known production WebSocket reconnect and uninstalled-invitations 404
+warnings remain disclosed. All browser tabs, owned processes, and ports
+3021/38142/39142 are closed. The validated 353,616,921-byte acceptance directory
+and the prior 747,659,709-byte gate cache remain under the task-owned F-drive
+root because exact PowerShell removal requests were rejected by host policy
+before execution; no alternate deletion mechanism is used. Exact-candidate
+audit and fresh independent dual review remain pending, so Release 3 is not yet
+complete.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
