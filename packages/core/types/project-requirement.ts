@@ -190,34 +190,46 @@ export interface ProjectRequirementTransitionRequest {
   expectedRevision: number;
 }
 
-// S07C owns coverage semantics. These types remain available for its inactive
-// compatibility endpoint, but the S07B view does not treat links as coverage.
-export interface ProjectRequirementLinkedIssue {
+export type ProjectRequirementCoverageStage =
+  | "unlinked"
+  | "linked"
+  | "implemented"
+  | "accepted";
+
+export type ProjectRequirementAcceptanceResult =
+  | "accepted"
+  | "conditional"
+  | "rejected";
+
+export interface ProjectRequirementCoverageIssue {
   id: string;
   identifier: string;
   title: string;
   status: string;
-  createdBy: string;
-  createdAt: string;
+  acceptanceResult: ProjectRequirementAcceptanceResult | null;
 }
 
 export interface ProjectRequirementCoverageItem {
   requirementKey: string;
   section: "goals" | "inScope" | "constraints" | "acceptanceCriteria";
-  issues: ProjectRequirementLinkedIssue[];
+  text: string;
+  stage: ProjectRequirementCoverageStage;
+  issues: ProjectRequirementCoverageIssue[];
 }
 
 export interface ProjectRequirementCoverageSnapshot {
   revision: number;
+  state: ProjectRequirementRevisionState;
   total: number;
   linked: number;
+  implemented: number;
+  accepted: number;
   unlinked: number;
-  linkedIssueDone: number;
-  linkedIssueBlocked: number;
   items: ProjectRequirementCoverageItem[];
 }
 
 export interface ProjectRequirementCoverage {
+  baselineStatus: ProjectRequirementStatus | null;
   current: ProjectRequirementCoverageSnapshot | null;
   effective: ProjectRequirementCoverageSnapshot | null;
 }

@@ -8,11 +8,11 @@ import type {
   ProjectRequirementBaselineResponse,
   ProjectRequirementContent,
   ProjectRequirementCoverage,
+  ProjectRequirementCoverageIssue,
   ProjectRequirementCoverageItem,
   ProjectRequirementCoverageSnapshot,
   ProjectRequirementGrant,
   ProjectRequirementIssueLink,
-  ProjectRequirementLinkedIssue,
   ProjectRequirementOutlineLink,
   ProjectRequirementRevision,
 } from "../types";
@@ -246,20 +246,21 @@ export const projectRequirementBaselineResponseSchema = z
     })
   );
 
-export const EMPTY_PROJECT_REQUIREMENT_BASELINE: ProjectRequirementBaselineResponse = {
-  baseline: null,
-  currentContent: null,
-  effectiveContent: null,
-  history: [],
-  issueLinks: [],
-  outlineLinks: [],
-  access: {
-    canEdit: false,
-    canApprove: false,
-    canManageAccess: false,
-    canManageOutline: false,
-  },
-};
+export const EMPTY_PROJECT_REQUIREMENT_BASELINE: ProjectRequirementBaselineResponse =
+  {
+    baseline: null,
+    currentContent: null,
+    effectiveContent: null,
+    history: [],
+    issueLinks: [],
+    outlineLinks: [],
+    access: {
+      canEdit: false,
+      canApprove: false,
+      canManageAccess: false,
+      canManageOutline: false,
+    },
+  };
 
 const grantSchema = z
   .object({
@@ -323,32 +324,39 @@ export const projectOutlineSchema = z
     })
   );
 
-const linkedIssueSchema = z
+const coverageIssueSchema = z
   .object({
     id: nonEmptyString,
     identifier: nonEmptyString,
     title: nonEmptyString,
     status: nonEmptyString,
-    created_by: nonEmptyString,
-    created_at: timestamp,
+    acceptance_result: z
+      .enum(["accepted", "conditional", "rejected"])
+      .nullable(),
   })
   .strict()
   .transform(
-    (value): ProjectRequirementLinkedIssue => ({
+    (value): ProjectRequirementCoverageIssue => ({
       id: value.id,
       identifier: value.identifier,
       title: value.title,
       status: value.status,
-      createdBy: value.created_by,
-      createdAt: value.created_at,
+      acceptanceResult: value.acceptance_result,
     })
   );
 
 const coverageItemSchema = z
   .object({
     requirement_key: nonEmptyString,
-    section: z.enum(["goals", "in_scope", "constraints", "acceptance_criteria"]),
-    issues: z.array(linkedIssueSchema),
+    section: z.enum([
+      "goals",
+      "in_scope",
+      "constraints",
+      "acceptance_criteria",
+    ]),
+    text: nonEmptyString,
+    stage: z.enum(["unlinked", "linked", "implemented", "accepted"]),
+    issues: z.array(coverageIssueSchema),
   })
   .strict()
   .transform(
@@ -358,49 +366,149 @@ const coverageItemSchema = z
         value.section === "in_scope"
           ? "inScope"
           : value.section === "acceptance_criteria"
-            ? "acceptanceCriteria"
-            : value.section,
+          ? "acceptanceCriteria"
+          : value.section,
+      text: value.text,
+      stage: value.stage,
       issues: value.issues,
     })
   );
 
 const coverageSnapshotSchema = z
   .object({
-    revision: revisionNumber,
+    revision: z.number().int().positive(),
+    state: baselineStatusSchema,
     total: revisionNumber,
     linked: revisionNumber,
+    implemented: revisionNumber,
+    accepted: revisionNumber,
     unlinked: revisionNumber,
-    linked_issue_done: revisionNumber,
-    linked_issue_blocked: revisionNumber,
     items: z.array(coverageItemSchema),
   })
   .strict()
+  .superRefine((value, context) => {
+    const keys = new Set<string>();
+    let linked = 0;
+    let implemented = 0;
+    let accepted = 0;
+    let unlinked = 0;
+    for (const [index, item] of value.items.entries()) {
+      if (keys.has(item.requirementKey)) {
+        context.addIssue({
+          code: "custom",
+          path: ["items", index, "requirement_key"],
+          message: "duplicate Requirement key",
+        });
+      }
+      keys.add(item.requirementKey);
+      const allDone =
+        item.issues.length > 0 &&
+        item.issues.every((issue) => issue.status === "done");
+      const allAccepted =
+        item.issues.length > 0 &&
+        item.issues.every((issue) => issue.acceptanceResult === "accepted");
+      const validStage =
+        (item.stage === "unlinked" && item.issues.length === 0) ||
+        (item.stage === "linked" && item.issues.length > 0 && !allDone) ||
+        (item.stage === "implemented" && allDone && !allAccepted) ||
+        (item.stage === "accepted" && allDone && allAccepted);
+      if (!validStage) {
+        context.addIssue({
+          code: "custom",
+          path: ["items", index, "stage"],
+          message: "coverage stage does not match Issue evidence",
+        });
+      }
+      switch (item.stage) {
+        case "accepted":
+          accepted += 1;
+          implemented += 1;
+          linked += 1;
+          break;
+        case "implemented":
+          implemented += 1;
+          linked += 1;
+          break;
+        case "linked":
+          linked += 1;
+          break;
+        case "unlinked":
+          unlinked += 1;
+          break;
+      }
+    }
+    if (
+      value.total !== value.items.length ||
+      value.linked !== linked ||
+      value.implemented !== implemented ||
+      value.accepted !== accepted ||
+      value.unlinked !== unlinked ||
+      value.unlinked !== value.total - value.linked
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["total"],
+        message: "coverage counters do not match item stages",
+      });
+    }
+  })
   .transform(
     (value): ProjectRequirementCoverageSnapshot => ({
       revision: value.revision,
+      state: value.state,
       total: value.total,
       linked: value.linked,
+      implemented: value.implemented,
+      accepted: value.accepted,
       unlinked: value.unlinked,
-      linkedIssueDone: value.linked_issue_done,
-      linkedIssueBlocked: value.linked_issue_blocked,
       items: value.items,
     })
   );
 
 export const projectRequirementCoverageSchema = z
   .object({
+    baseline_status: baselineStatusSchema.nullable(),
     current: coverageSnapshotSchema.nullable(),
     effective: coverageSnapshotSchema.nullable(),
   })
   .strict()
+  .superRefine((value, context) => {
+    if (value.baseline_status === null) {
+      if (value.current !== null || value.effective !== null) {
+        context.addIssue({
+          code: "custom",
+          path: ["baseline_status"],
+          message: "missing baseline cannot expose coverage snapshots",
+        });
+      }
+      return;
+    }
+    if (
+      value.current === null ||
+      value.current.state !== value.baseline_status
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["current"],
+        message: "current coverage must match baseline status",
+      });
+    }
+    if (
+      value.current &&
+      value.effective &&
+      value.effective.revision > value.current.revision
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["effective", "revision"],
+        message: "effective revision cannot exceed current revision",
+      });
+    }
+  })
   .transform(
     (value): ProjectRequirementCoverage => ({
+      baselineStatus: value.baseline_status,
       current: value.current,
       effective: value.effective,
     })
   );
-
-export const EMPTY_PROJECT_REQUIREMENT_COVERAGE: ProjectRequirementCoverage = {
-  current: null,
-  effective: null,
-};

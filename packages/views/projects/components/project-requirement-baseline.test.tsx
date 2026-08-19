@@ -45,7 +45,100 @@ vi.mock("@tanstack/react-query", () => ({
     isLoading: false,
     dataUpdatedAt: 1,
     data:
-      options.queryKey[0] === "issues"
+      options.queryKey[0] === "coverage"
+        ? {
+            baselineStatus: mocks.status,
+            current: {
+              revision: 8,
+              state: mocks.status,
+              total: 4,
+              linked: 3,
+              implemented: 2,
+              accepted: 1,
+              unlinked: 1,
+              items: [
+                {
+                  requirementKey: "goal-1",
+                  section: "goals",
+                  text: "Track this",
+                  stage: "accepted",
+                  issues: [
+                    {
+                      id: "issue-1",
+                      identifier: "MUL-1",
+                      title: "Track it",
+                      status: "done",
+                      acceptanceResult: "accepted",
+                    },
+                  ],
+                },
+                {
+                  requirementKey: "scope-1",
+                  section: "inScope",
+                  text: "Open scope",
+                  stage: "linked",
+                  issues: [
+                    {
+                      id: "issue-2",
+                      identifier: "MUL-2",
+                      title: "Existing issue",
+                      status: "todo",
+                      acceptanceResult: null,
+                    },
+                  ],
+                },
+                {
+                  requirementKey: "constraint-1",
+                  section: "constraints",
+                  text: "Implemented constraint",
+                  stage: "implemented",
+                  issues: [
+                    {
+                      id: "issue-3",
+                      identifier: "MUL-3",
+                      title: "Implemented issue",
+                      status: "done",
+                      acceptanceResult: "conditional",
+                    },
+                  ],
+                },
+                {
+                  requirementKey: "acceptance-1",
+                  section: "acceptanceCriteria",
+                  text: "No linked work",
+                  stage: "unlinked",
+                  issues: [],
+                },
+              ],
+            },
+            effective: {
+              revision: 6,
+              state: "frozen",
+              total: 1,
+              linked: 1,
+              implemented: 0,
+              accepted: 0,
+              unlinked: 0,
+              items: [
+                {
+                  requirementKey: "goal-1",
+                  section: "goals",
+                  text: "Track this",
+                  stage: "linked",
+                  issues: [
+                    {
+                      id: "issue-2",
+                      identifier: "MUL-2",
+                      title: "Existing issue",
+                      status: "todo",
+                      acceptanceResult: null,
+                    },
+                  ],
+                },
+              ],
+            },
+          }
+        : options.queryKey[0] === "issues"
         ? {
             issues: [
               {
@@ -57,107 +150,107 @@ vi.mock("@tanstack/react-query", () => ({
             ],
           }
         : options.queryKey[0] === "outline"
-          ? {
-              revision: 2,
-              nodes: [
-                {
-                  id: "node-1",
-                  workspaceId: "workspace-1",
-                  projectId: "project-1",
-                  title: "Delivery",
-                  createdBy: "member-1",
-                  createdAt: "2026-08-01T00:00:00Z",
-                },
-                {
-                  id: "node-2",
-                  workspaceId: "workspace-1",
-                  projectId: "project-1",
-                  title: "Operations",
-                  createdBy: "member-1",
-                  createdAt: "2026-08-01T00:01:00Z",
-                },
-              ],
-            }
-          : {
-              baseline: {
-                id: "baseline-1",
+        ? {
+            revision: 2,
+            nodes: [
+              {
+                id: "node-1",
                 workspaceId: "workspace-1",
                 projectId: "project-1",
-                status: mocks.status,
-                currentRevision: 8,
-                approvedRevision: 5,
-                effectiveRevision: 6,
+                title: "Delivery",
+                createdBy: "member-1",
+                createdAt: "2026-08-01T00:00:00Z",
+              },
+              {
+                id: "node-2",
+                workspaceId: "workspace-1",
+                projectId: "project-1",
+                title: "Operations",
+                createdBy: "member-1",
+                createdAt: "2026-08-01T00:01:00Z",
+              },
+            ],
+          }
+        : {
+            baseline: {
+              id: "baseline-1",
+              workspaceId: "workspace-1",
+              projectId: "project-1",
+              status: mocks.status,
+              currentRevision: 8,
+              approvedRevision: 5,
+              effectiveRevision: 6,
+              submittedBy: null,
+              submittedAt: null,
+              approvedBy: "owner-1",
+              approvedAt: "2026-08-01T00:00:00Z",
+              frozenBy: "owner-1",
+              frozenAt: "2026-08-01T01:00:00Z",
+              retiredBy: null,
+              retiredAt: null,
+              createdAt: "2026-08-01T00:00:00Z",
+              updatedAt: "2026-08-01T02:00:00Z",
+            },
+            currentContent: {
+              ...EMPTY_CONTENT,
+              problemStatement: "New scope",
+              goals: [{ key: "goal-1", text: "Track this" }],
+            },
+            effectiveContent: {
+              ...EMPTY_CONTENT,
+              problemStatement: "Effective scope",
+              goals: [{ key: "goal-1", text: "Track this" }],
+            },
+            history: [
+              {
+                baselineId: "baseline-1",
+                revision: 8,
+                content: { ...EMPTY_CONTENT, problemStatement: "New scope" },
+                state: "changed",
+                action: "material_change",
+                changeSummary: "Expand scope",
+                actorId: "member-1",
                 submittedBy: null,
                 submittedAt: null,
                 approvedBy: "owner-1",
                 approvedAt: "2026-08-01T00:00:00Z",
                 frozenBy: "owner-1",
                 frozenAt: "2026-08-01T01:00:00Z",
-                retiredBy: null,
-                retiredAt: null,
-                createdAt: "2026-08-01T00:00:00Z",
-                updatedAt: "2026-08-01T02:00:00Z",
+                createdAt: "2026-08-01T02:00:00Z",
               },
-              currentContent: {
-                ...EMPTY_CONTENT,
-                problemStatement: "New scope",
-                goals: [{ key: "goal-1", text: "Track this" }],
+            ],
+            issueLinks: [
+              {
+                requirementKey: "goal-1",
+                issueId: "issue-1",
+                identifier: "MUL-1",
+                title: "Track it",
+                status: "blocked",
+                linkedRevision: 5,
+                reviewRequired: true,
+                linkedBy: "member-1",
+                linkedAt: "2026-08-01T00:30:00Z",
+                unlinkedAt: null,
               },
-              effectiveContent: {
-                ...EMPTY_CONTENT,
-                problemStatement: "Effective scope",
-                goals: [{ key: "goal-1", text: "Track this" }],
+            ],
+            outlineLinks: [
+              {
+                requirementKey: "goal-1",
+                nodeId: "node-1",
+                nodeTitle: "Delivery",
+                linkedRevision: 7,
+                linkedBy: "member-1",
+                linkedAt: "2026-08-01T01:30:00Z",
+                unlinkedAt: null,
               },
-              history: [
-                {
-                  baselineId: "baseline-1",
-                  revision: 8,
-                  content: { ...EMPTY_CONTENT, problemStatement: "New scope" },
-                  state: "changed",
-                  action: "material_change",
-                  changeSummary: "Expand scope",
-                  actorId: "member-1",
-                  submittedBy: null,
-                  submittedAt: null,
-                  approvedBy: "owner-1",
-                  approvedAt: "2026-08-01T00:00:00Z",
-                  frozenBy: "owner-1",
-                  frozenAt: "2026-08-01T01:00:00Z",
-                  createdAt: "2026-08-01T02:00:00Z",
-                },
-              ],
-              issueLinks: [
-                {
-                  requirementKey: "goal-1",
-                  issueId: "issue-1",
-                  identifier: "MUL-1",
-                  title: "Track it",
-                  status: "blocked",
-                  linkedRevision: 5,
-                  reviewRequired: true,
-                  linkedBy: "member-1",
-                  linkedAt: "2026-08-01T00:30:00Z",
-                  unlinkedAt: null,
-                },
-              ],
-              outlineLinks: [
-                {
-                  requirementKey: "goal-1",
-                  nodeId: "node-1",
-                  nodeTitle: "Delivery",
-                  linkedRevision: 7,
-                  linkedBy: "member-1",
-                  linkedAt: "2026-08-01T01:30:00Z",
-                  unlinkedAt: null,
-                },
-              ],
-              access: {
-                canEdit: mocks.canEdit,
-                canApprove: mocks.canApprove,
-                canManageAccess: false,
-                canManageOutline: mocks.canManageOutline,
-              },
+            ],
+            access: {
+              canEdit: mocks.canEdit,
+              canApprove: mocks.canApprove,
+              canManageAccess: false,
+              canManageOutline: mocks.canManageOutline,
             },
+          },
   }),
 }));
 
@@ -170,19 +263,53 @@ vi.mock("@multica/core/workspace/hooks", () => ({
 }));
 vi.mock("@multica/core/project-requirements", () => ({
   projectRequirementBaselineOptions: () => ({ queryKey: ["requirements"] }),
+  projectRequirementCoverageOptions: () => ({ queryKey: ["coverage"] }),
   projectRequirementIssuesOptions: () => ({ queryKey: ["issues"] }),
   projectOutlineOptions: () => ({ queryKey: ["outline"] }),
-  useSaveProjectRequirementDraft: () => ({ mutate: mocks.save, isPending: false }),
-  useSubmitProjectRequirementReview: () => ({ mutate: mocks.submit, isPending: false }),
-  useApproveProjectRequirement: () => ({ mutate: mocks.approve, isPending: false }),
-  useWithdrawProjectRequirementReview: () => ({ mutate: mocks.withdraw, isPending: false }),
-  useFreezeProjectRequirement: () => ({ mutate: mocks.freeze, isPending: false }),
-  useRetireProjectRequirement: () => ({ mutate: mocks.retire, isPending: false }),
-  useLinkProjectRequirementIssue: () => ({ mutate: mocks.linkIssue, isPending: false }),
-  useUnlinkProjectRequirementIssue: () => ({ mutate: mocks.unlinkIssue, isPending: false }),
-  useLinkProjectRequirementOutline: () => ({ mutate: mocks.linkOutline, isPending: false }),
-  useUnlinkProjectRequirementOutline: () => ({ mutate: mocks.unlinkOutline, isPending: false }),
-  useCreateProjectOutlineNode: () => ({ mutate: mocks.createOutline, isPending: false }),
+  useSaveProjectRequirementDraft: () => ({
+    mutate: mocks.save,
+    isPending: false,
+  }),
+  useSubmitProjectRequirementReview: () => ({
+    mutate: mocks.submit,
+    isPending: false,
+  }),
+  useApproveProjectRequirement: () => ({
+    mutate: mocks.approve,
+    isPending: false,
+  }),
+  useWithdrawProjectRequirementReview: () => ({
+    mutate: mocks.withdraw,
+    isPending: false,
+  }),
+  useFreezeProjectRequirement: () => ({
+    mutate: mocks.freeze,
+    isPending: false,
+  }),
+  useRetireProjectRequirement: () => ({
+    mutate: mocks.retire,
+    isPending: false,
+  }),
+  useLinkProjectRequirementIssue: () => ({
+    mutate: mocks.linkIssue,
+    isPending: false,
+  }),
+  useUnlinkProjectRequirementIssue: () => ({
+    mutate: mocks.unlinkIssue,
+    isPending: false,
+  }),
+  useLinkProjectRequirementOutline: () => ({
+    mutate: mocks.linkOutline,
+    isPending: false,
+  }),
+  useUnlinkProjectRequirementOutline: () => ({
+    mutate: mocks.unlinkOutline,
+    isPending: false,
+  }),
+  useCreateProjectOutlineNode: () => ({
+    mutate: mocks.createOutline,
+    isPending: false,
+  }),
 }));
 
 describe("ProjectRequirementBaseline", () => {
@@ -218,13 +345,33 @@ describe("ProjectRequirementBaseline", () => {
     expect(screen.getByText("Effective v6")).toBeInTheDocument();
     expect(screen.getByText("Effective scope")).toBeInTheDocument();
     expect(screen.getByText("MUL-1 · Track it · blocked")).toBeInTheDocument();
-    expect(screen.getByText("Review required after material change")).toBeInTheDocument();
+    expect(
+      screen.getByText("Review required after material change")
+    ).toBeInTheDocument();
     expect(screen.getByText("Delivery")).toBeInTheDocument();
-    expect(screen.getByText("Revision 8 · Changed · Material change")).toBeInTheDocument();
+    expect(
+      screen.getByText("Revision 8 · Changed · Material change")
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
-        `Frozen by Owner One at ${formatRequirementAuditTime("2026-08-01T01:00:00Z")}`
+        `Frozen by Owner One at ${formatRequirementAuditTime(
+          "2026-08-01T01:00:00Z"
+        )}`
       )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Current coverage v8")).toBeInTheDocument();
+    expect(screen.getByText("Effective coverage v6")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "3 linked · 2 implemented · 1 accepted · 1 unlinked · 4 total"
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.getByText("Implemented")).toBeInTheDocument();
+    expect(screen.getAllByText("Linked")).toHaveLength(2);
+    expect(screen.getByText("Unlinked")).toBeInTheDocument();
+    expect(
+      screen.getByText("MUL-1 · Track it · done · Accepted")
     ).toBeInTheDocument();
   });
 
@@ -233,8 +380,12 @@ describe("ProjectRequirementBaseline", () => {
     mocks.canApprove = false;
     renderWithI18n(<ProjectRequirementBaseline projectId="project-1" />);
 
-    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Withdraw" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Withdraw" })
+    ).toBeInTheDocument();
     expect(screen.getByDisplayValue("New scope")).toBeDisabled();
   });
 
@@ -245,13 +396,17 @@ describe("ProjectRequirementBaseline", () => {
     );
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retire" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Freeze" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Freeze" })
+    ).not.toBeInTheDocument();
     unmount();
 
     mocks.status = "approved";
     renderWithI18n(<ProjectRequirementBaseline projectId="project-1" />);
     expect(screen.getByRole("button", { name: "Freeze" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save draft" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save draft" })
+    ).not.toBeInTheDocument();
   });
 
   it("requires an explicit material-change intent before saving a frozen baseline", async () => {
@@ -262,7 +417,10 @@ describe("ProjectRequirementBaseline", () => {
     const save = screen.getByRole("button", { name: "Save material change" });
     expect(save).toBeDisabled();
     await user.click(screen.getByRole("checkbox", { name: "Material change" }));
-    await user.type(screen.getByLabelText("Change summary"), " impacts delivery");
+    await user.type(
+      screen.getByLabelText("Change summary"),
+      " impacts delivery"
+    );
     expect(save).toBeEnabled();
     await user.click(save);
     expect(mocks.save).toHaveBeenCalledWith(
@@ -279,7 +437,10 @@ describe("ProjectRequirementBaseline", () => {
     const user = userEvent.setup();
     renderWithI18n(<ProjectRequirementBaseline projectId="project-1" />);
 
-    await user.selectOptions(screen.getByLabelText("Link existing issue"), "issue-2");
+    await user.selectOptions(
+      screen.getByLabelText("Link existing issue"),
+      "issue-2"
+    );
     expect(mocks.linkIssue).toHaveBeenCalledWith(
       { requirementKey: "goal-1", issueId: "issue-2", expectedRevision: 8 },
       expect.anything()
@@ -289,17 +450,24 @@ describe("ProjectRequirementBaseline", () => {
       { requirementKey: "goal-1", issueId: "issue-1", expectedRevision: 8 },
       expect.anything()
     );
-    await user.selectOptions(screen.getByLabelText("Link outline root"), "node-2");
+    await user.selectOptions(
+      screen.getByLabelText("Link outline root"),
+      "node-2"
+    );
     expect(mocks.linkOutline).toHaveBeenCalledWith(
       { requirementKey: "goal-1", nodeId: "node-2", expectedRevision: 8 },
       expect.anything()
     );
-    await user.click(screen.getByRole("button", { name: "Unlink outline Delivery" }));
+    await user.click(
+      screen.getByRole("button", { name: "Unlink outline Delivery" })
+    );
     expect(mocks.unlinkOutline).toHaveBeenCalledWith(
       { requirementKey: "goal-1", nodeId: "node-1", expectedRevision: 8 },
       expect.anything()
     );
-    expect(screen.queryByRole("button", { name: "Create issue" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Create issue" })
+    ).not.toBeInTheDocument();
   });
 
   it("creates only a persistent root node when outline authority is projected", async () => {
@@ -312,7 +480,9 @@ describe("ProjectRequirementBaseline", () => {
       { expectedRevision: 2, title: "Launch" },
       expect.anything()
     );
-    expect(screen.queryByText(/parent|reorder|number/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/parent|reorder|number/i)
+    ).not.toBeInTheDocument();
   });
 
   it("renders retired baselines read-only with no mutation controls", () => {
@@ -320,9 +490,15 @@ describe("ProjectRequirementBaseline", () => {
     renderWithI18n(<ProjectRequirementBaseline projectId="project-1" />);
 
     expect(screen.getByDisplayValue("New scope")).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Save draft" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Submit for review" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retire" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save draft" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Submit for review" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Retire" })
+    ).not.toBeInTheDocument();
   });
 
   it("extracts safe stale and independent-approval problem metadata", () => {

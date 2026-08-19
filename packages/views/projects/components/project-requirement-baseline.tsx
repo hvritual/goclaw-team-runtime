@@ -8,6 +8,7 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import {
   projectOutlineOptions,
   projectRequirementBaselineOptions,
+  projectRequirementCoverageOptions,
   projectRequirementIssuesOptions,
   useApproveProjectRequirement,
   useCreateProjectOutlineNode,
@@ -26,6 +27,9 @@ import type {
   ProjectOutlineNode,
   ProjectRequirementAction,
   ProjectRequirementContent,
+  ProjectRequirementCoverage,
+  ProjectRequirementCoverageSnapshot,
+  ProjectRequirementCoverageStage,
   ProjectRequirementIssueLink,
   ProjectRequirementItem,
   ProjectRequirementOutlineLink,
@@ -46,7 +50,10 @@ const EMPTY_CONTENT: ProjectRequirementContent = {
   dependencies: [],
 };
 
-type ContentListKey = Exclude<keyof ProjectRequirementContent, "problemStatement">;
+type ContentListKey = Exclude<
+  keyof ProjectRequirementContent,
+  "problemStatement"
+>;
 
 const SECTIONS: ContentListKey[] = [
   "goals",
@@ -94,7 +101,9 @@ export function appendRequirementItem(
   return [...items, { key, text: "" }];
 }
 
-export function formatRequirementAuditTime(value: string | null): string | null {
+export function formatRequirementAuditTime(
+  value: string | null
+): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -111,8 +120,14 @@ type ProjectRequirementProblem =
   | { code: "invalid_transition" }
   | { code: "unknown" };
 
-export function getProjectRequirementError(error: unknown): ProjectRequirementProblem {
-  if (!(error instanceof ApiError) || !error.body || typeof error.body !== "object") {
+export function getProjectRequirementError(
+  error: unknown
+): ProjectRequirementProblem {
+  if (
+    !(error instanceof ApiError) ||
+    !error.body ||
+    typeof error.body !== "object"
+  ) {
     return { code: "unknown" };
   }
   const body = error.body as { code?: unknown; current_revision?: unknown };
@@ -157,6 +172,130 @@ function EffectiveBaseline({
       <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
         {content.problemStatement}
       </p>
+    </section>
+  );
+}
+
+function RequirementCoverageSnapshot({
+  kind,
+  snapshot,
+}: {
+  kind: "current" | "effective";
+  snapshot: ProjectRequirementCoverageSnapshot;
+}) {
+  const { t } = useT("projects");
+  const stageLabel = (stage: ProjectRequirementCoverageStage) => {
+    switch (stage) {
+      case "unlinked":
+        return t(($) => $.requirements.coverage_stage_unlinked);
+      case "linked":
+        return t(($) => $.requirements.coverage_stage_linked);
+      case "implemented":
+        return t(($) => $.requirements.coverage_stage_implemented);
+      case "accepted":
+        return t(($) => $.requirements.coverage_stage_accepted);
+    }
+  };
+  const acceptanceLabel = (
+    result: "accepted" | "conditional" | "rejected" | null
+  ) => {
+    switch (result) {
+      case "accepted":
+        return t(($) => $.requirements.coverage_acceptance_accepted);
+      case "conditional":
+        return t(($) => $.requirements.coverage_acceptance_conditional);
+      case "rejected":
+        return t(($) => $.requirements.coverage_acceptance_rejected);
+      case null:
+        return t(($) => $.requirements.coverage_acceptance_none);
+    }
+  };
+
+  return (
+    <div className="rounded-md border bg-background p-3">
+      <h4 className="text-sm font-medium">
+        {kind === "current"
+          ? t(($) => $.requirements.coverage_current, {
+              revision: snapshot.revision,
+            })
+          : t(($) => $.requirements.coverage_effective, {
+              revision: snapshot.revision,
+            })}
+      </h4>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {t(($) => $.requirements.coverage_summary, {
+          linked: snapshot.linked,
+          implemented: snapshot.implemented,
+          accepted: snapshot.accepted,
+          unlinked: snapshot.unlinked,
+          total: snapshot.total,
+        })}
+      </p>
+      <ol className="mt-3 space-y-2">
+        {snapshot.items.map((item) => (
+          <li
+            key={item.requirementKey}
+            className="rounded-md bg-muted/30 px-3 py-2 text-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>{item.text}</span>
+              <span className="rounded-full border px-2 py-0.5 text-xs">
+                {stageLabel(item.stage)}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {item.requirementKey}
+            </p>
+            {item.issues.length > 0 ? (
+              <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                {item.issues.map((issue) => (
+                  <li key={issue.id}>
+                    {t(($) => $.requirements.coverage_issue, {
+                      identifier: issue.identifier,
+                      title: issue.title,
+                      status: issue.status,
+                      acceptance: acceptanceLabel(issue.acceptanceResult),
+                    })}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function RequirementCoverage({
+  coverage,
+}: {
+  coverage: ProjectRequirementCoverage | undefined;
+}) {
+  const { t } = useT("projects");
+  return (
+    <section className="mb-5 rounded-md border bg-muted/20 p-3">
+      <h3 className="text-sm font-medium">
+        {t(($) => $.requirements.coverage_title)}
+      </h3>
+      {!coverage?.current ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t(($) => $.requirements.coverage_empty)}
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <RequirementCoverageSnapshot
+            kind="current"
+            snapshot={coverage.current}
+          />
+          {coverage.effective ? (
+            <RequirementCoverageSnapshot
+              kind="effective"
+              snapshot={coverage.effective}
+            />
+          ) : null}
+        </div>
+      )}
     </section>
   );
 }
@@ -244,7 +383,9 @@ function RequirementTrackingControls({
       <div className="flex flex-wrap gap-2">
         {issueLinks.map((link) => (
           <span key={link.issueId} className="rounded bg-muted px-2 py-1">
-            <span>{link.identifier} · {link.title} · {link.status}</span>
+            <span>
+              {link.identifier} · {link.title} · {link.status}
+            </span>
             {link.reviewRequired && (
               <span className="ml-2 text-amber-700 dark:text-amber-400">
                 {t(($) => $.requirements.review_required)}
@@ -325,12 +466,16 @@ function RequirementTrackingControls({
             }}
             className="rounded-md border bg-background px-2 py-1"
           >
-            <option value="">{t(($) => $.requirements.link_outline_root)}</option>
+            <option value="">
+              {t(($) => $.requirements.link_outline_root)}
+            </option>
             {outlineNodes
               .filter((node) => !linkedNodeIds.has(node.id))
               .map((node) => (
                 <option key={node.id} value={node.id}>
-                  {t(($) => $.requirements.outline_root_option, { title: node.title })}
+                  {t(($) => $.requirements.outline_root_option, {
+                    title: node.title,
+                  })}
                 </option>
               ))}
           </select>
@@ -340,12 +485,19 @@ function RequirementTrackingControls({
   );
 }
 
-export function ProjectRequirementBaseline({ projectId }: { projectId: string }) {
+export function ProjectRequirementBaseline({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const { t } = useT("projects");
   const wsId = useWorkspaceId();
   const { getActorName } = useActorName();
   const { data, isLoading, dataUpdatedAt } = useQuery(
     projectRequirementBaselineOptions(wsId, projectId)
+  );
+  const { data: coverage, isLoading: coverageLoading } = useQuery(
+    projectRequirementCoverageOptions(wsId, projectId)
   );
   const { data: projectIssues } = useQuery(
     projectRequirementIssuesOptions(wsId, projectId)
@@ -362,7 +514,8 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
     canManageOutline: false,
   };
 
-  const [content, setContent] = useState<ProjectRequirementContent>(EMPTY_CONTENT);
+  const [content, setContent] =
+    useState<ProjectRequirementContent>(EMPTY_CONTENT);
   const [changeSummary, setChangeSummary] = useState("");
   const [materialChange, setMaterialChange] = useState(false);
   const [outlineTitle, setOutlineTitle] = useState("");
@@ -528,7 +681,7 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
   const updateList = (key: ContentListKey, items: ProjectRequirementItem[]) =>
     setContent((previous) => ({ ...previous, [key]: items }));
 
-  if (isLoading) {
+  if (isLoading || coverageLoading) {
     return (
       <div className="space-y-4 p-6">
         <Skeleton className="h-8 w-48" />
@@ -538,7 +691,10 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
   }
 
   const saveAllowed =
-    !baseline || status === "draft" || status === "changed" || status === "frozen";
+    !baseline ||
+    status === "draft" ||
+    status === "changed" ||
+    status === "frozen";
   const contentDisabled =
     isBusy ||
     !access.canEdit ||
@@ -634,14 +790,18 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
     <div className="mx-auto w-full max-w-4xl overflow-y-auto px-6 py-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{t(($) => $.requirements.title)}</h2>
+          <h2 className="text-lg font-semibold">
+            {t(($) => $.requirements.title)}
+          </h2>
           <p className="text-sm text-muted-foreground">
             {t(($) => $.requirements.subtitle)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="rounded-full bg-muted px-2 py-1">
-            {status ? statusLabel(status) : t(($) => $.requirements.status_draft)}
+            {status
+              ? statusLabel(status)
+              : t(($) => $.requirements.status_draft)}
           </span>
           {baseline && (
             <span className="text-muted-foreground">
@@ -675,6 +835,8 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
           content={data.effectiveContent}
         />
       )}
+
+      <RequirementCoverage coverage={coverage} />
 
       <MinimalOutlineRoots
         revision={outline?.revision ?? 0}
@@ -710,7 +872,8 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
               {content[section].map((item) => {
                 const savedItem = savedItems.get(item.key);
                 const canTrack =
-                  savedItem?.section === section && savedItem.text === item.text;
+                  savedItem?.section === section &&
+                  savedItem.text === item.text;
                 return (
                   <div key={item.key} className="rounded-md border p-2">
                     <div className="flex gap-2">
@@ -775,7 +938,9 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
               variant="secondary"
               size="sm"
               disabled={contentDisabled}
-              onClick={() => updateList(section, appendRequirementItem(content[section]))}
+              onClick={() =>
+                updateList(section, appendRequirementItem(content[section]))
+              }
             >
               {t(($) => $.requirements.add_item)}
             </Button>
@@ -800,7 +965,11 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
             </span>
             <input
               aria-label={t(($) => $.requirements.change_summary)}
-              disabled={isBusy || !access.canEdit || (status === "frozen" && !materialChange)}
+              disabled={
+                isBusy ||
+                !access.canEdit ||
+                (status === "frozen" && !materialChange)
+              }
               value={changeSummary}
               onChange={(event) => setChangeSummary(event.target.value)}
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -824,13 +993,23 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
               : t(($) => $.requirements.save_draft)}
           </Button>
         )}
-        {(status === "draft" || status === "changed") && access.canEdit && baseline && (
-          <Button variant="secondary" disabled={isBusy} onClick={submitReview}>
-            {t(($) => $.requirements.submit_review)}
-          </Button>
-        )}
+        {(status === "draft" || status === "changed") &&
+          access.canEdit &&
+          baseline && (
+            <Button
+              variant="secondary"
+              disabled={isBusy}
+              onClick={submitReview}
+            >
+              {t(($) => $.requirements.submit_review)}
+            </Button>
+          )}
         {status === "in_review" && access.canEdit && (
-          <Button variant="secondary" disabled={isBusy} onClick={withdrawReview}>
+          <Button
+            variant="secondary"
+            disabled={isBusy}
+            onClick={withdrawReview}
+          >
             {t(($) => $.requirements.withdraw)}
           </Button>
         )}
@@ -845,7 +1024,11 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
           </Button>
         )}
         {baseline && !terminal && access.canApprove && (
-          <Button variant="destructive" disabled={isBusy} onClick={retireBaseline}>
+          <Button
+            variant="destructive"
+            disabled={isBusy}
+            onClick={retireBaseline}
+          >
             {t(($) => $.requirements.retire)}
           </Button>
         )}
@@ -862,14 +1045,20 @@ export function ProjectRequirementBaseline({ projectId }: { projectId: string })
         ) : (
           <ol className="space-y-2">
             {history.map((item) => (
-              <li key={item.revision} className="rounded-md border px-3 py-2 text-sm">
+              <li
+                key={item.revision}
+                className="rounded-md border px-3 py-2 text-sm"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    {t(($) => $.requirements.revision, { revision: item.revision })} ·{" "}
-                    {statusLabel(item.state)} · {actionLabel(item.action)}
+                    {t(($) => $.requirements.revision, {
+                      revision: item.revision,
+                    })}{" "}
+                    · {statusLabel(item.state)} · {actionLabel(item.action)}
                   </span>
                   <span className="text-muted-foreground">
-                    {item.changeSummary || t(($) => $.requirements.no_change_summary)}
+                    {item.changeSummary ||
+                      t(($) => $.requirements.no_change_summary)}
                   </span>
                 </div>
                 {item.submittedBy && (

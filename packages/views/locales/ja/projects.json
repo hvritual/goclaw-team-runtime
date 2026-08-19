@@ -222,8 +222,8 @@
       "cancel": "キャンセル",
       "submit": "コマンドを送信"
     }
-  }
-  ,"requirements": {
+  },
+  "requirements": {
     "title": "要件ベースライン",
     "subtitle": "作業を開始する前に実装範囲を定義します。",
     "status_draft": "下書き",
@@ -303,6 +303,20 @@
     "new_outline_root": "新しいアウトラインルート",
     "create_outline_root": "ルートを作成",
     "outline_revision": "ルートセットのリビジョン {{revision}}",
+    "coverage_title": "要件カバレッジ",
+    "coverage_empty": "要件カバレッジはまだありません。",
+    "coverage_current": "現在のカバレッジ v{{revision}}",
+    "coverage_effective": "有効なカバレッジ v{{revision}}",
+    "coverage_summary": "リンク済み {{linked}} · 実装済み {{implemented}} · 受け入れ済み {{accepted}} · 未リンク {{unlinked}} · 合計 {{total}}",
+    "coverage_stage_unlinked": "未リンク",
+    "coverage_stage_linked": "リンク済み",
+    "coverage_stage_implemented": "実装済み",
+    "coverage_stage_accepted": "受け入れ済み",
+    "coverage_acceptance_none": "受け入れ未記録",
+    "coverage_acceptance_accepted": "受け入れ済み",
+    "coverage_acceptance_conditional": "条件付き",
+    "coverage_acceptance_rejected": "却下",
+    "coverage_issue": "{{identifier}} · {{title}} · {{status}} · {{acceptance}}",
     "save_before_tracking": "イシューをリンクする前に下書きを保存してください。"
   },
   "resources": {

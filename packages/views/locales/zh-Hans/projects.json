@@ -222,8 +222,8 @@
       "cancel": "取消",
       "submit": "提交命令"
     }
-  }
-  ,"requirements": {
+  },
+  "requirements": {
     "title": "需求基线",
     "subtitle": "在实施前明确项目范围和验收标准。",
     "status_draft": "草稿",
@@ -303,6 +303,20 @@
     "new_outline_root": "新建大纲根节点",
     "create_outline_root": "创建根节点",
     "outline_revision": "根节点集修订 {{revision}}",
+    "coverage_title": "需求覆盖情况",
+    "coverage_empty": "尚无需求覆盖数据。",
+    "coverage_current": "当前覆盖 v{{revision}}",
+    "coverage_effective": "有效覆盖 v{{revision}}",
+    "coverage_summary": "已关联 {{linked}} · 已实现 {{implemented}} · 已验收 {{accepted}} · 未关联 {{unlinked}} · 共 {{total}}",
+    "coverage_stage_unlinked": "未关联",
+    "coverage_stage_linked": "已关联",
+    "coverage_stage_implemented": "已实现",
+    "coverage_stage_accepted": "已验收",
+    "coverage_acceptance_none": "尚未验收",
+    "coverage_acceptance_accepted": "已验收",
+    "coverage_acceptance_conditional": "有条件通过",
+    "coverage_acceptance_rejected": "已拒绝",
+    "coverage_issue": "{{identifier}} · {{title}} · {{status}} · {{acceptance}}",
     "save_before_tracking": "请先保存草稿，再关联 issue。"
   },
   "resources": {

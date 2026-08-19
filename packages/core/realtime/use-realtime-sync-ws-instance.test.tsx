@@ -104,6 +104,7 @@ describe("useRealtimeSync", () => {
     expect(keys).toContainEqual(["issues", "attachments"]);
     expect(keys).toContainEqual(["implementation-knowledge", "ws-1"]);
     expect(keys).toContainEqual(["knowledge", "ws-1"]);
+    expect(keys).toContainEqual(["project-requirement-coverage", "ws-1"]);
   });
 
   it("debounces retained-domain events into one workspace refresh", () => {
@@ -118,7 +119,10 @@ describe("useRealtimeSync", () => {
     expect(invalidate).not.toHaveBeenCalled();
 
     act(() => vi.advanceTimersByTime(75));
-    expect(invalidate).toHaveBeenCalledTimes(14);
+    expect(invalidate).toHaveBeenCalledTimes(15);
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: ["project-requirement-coverage", "ws-1"],
+    });
   });
 
   it("tolerates duplicate committed events with one authoritative refresh", () => {
@@ -132,7 +136,7 @@ describe("useRealtimeSync", () => {
     socket.emit("issue_metadata:changed");
     act(() => vi.advanceTimersByTime(75));
 
-    expect(invalidate).toHaveBeenCalledTimes(14);
+    expect(invalidate).toHaveBeenCalledTimes(15);
   });
 
   it("invalidates the non-workspace-scoped attachment cache after an attachment event", () => {
@@ -169,6 +173,6 @@ describe("useRealtimeSync", () => {
     });
 
     socket.reconnect();
-    expect(invalidate).toHaveBeenCalledTimes(14);
+    expect(invalidate).toHaveBeenCalledTimes(15);
   });
 });

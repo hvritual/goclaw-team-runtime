@@ -222,8 +222,8 @@
       "cancel": "취소",
       "submit": "명령 제출"
     }
-  }
-  ,"requirements": {
+  },
+  "requirements": {
     "title": "요구사항 기준선",
     "subtitle": "작업을 시작하기 전에 구현 범위를 정의하세요.",
     "status_draft": "초안",
@@ -303,6 +303,20 @@
     "new_outline_root": "새 아웃라인 루트",
     "create_outline_root": "루트 생성",
     "outline_revision": "루트 집합 개정 {{revision}}",
+    "coverage_title": "요구사항 커버리지",
+    "coverage_empty": "아직 요구사항 커버리지가 없습니다.",
+    "coverage_current": "현재 커버리지 v{{revision}}",
+    "coverage_effective": "유효 커버리지 v{{revision}}",
+    "coverage_summary": "연결 {{linked}} · 구현 {{implemented}} · 수락 {{accepted}} · 미연결 {{unlinked}} · 전체 {{total}}",
+    "coverage_stage_unlinked": "미연결",
+    "coverage_stage_linked": "연결됨",
+    "coverage_stage_implemented": "구현됨",
+    "coverage_stage_accepted": "수락됨",
+    "coverage_acceptance_none": "수락 기록 없음",
+    "coverage_acceptance_accepted": "수락됨",
+    "coverage_acceptance_conditional": "조건부",
+    "coverage_acceptance_rejected": "거부됨",
+    "coverage_issue": "{{identifier}} · {{title}} · {{status}} · {{acceptance}}",
     "save_before_tracking": "이슈를 연결하기 전에 초안을 저장하세요."
   },
   "resources": {

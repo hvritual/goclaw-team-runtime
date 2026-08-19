@@ -13,6 +13,7 @@ import { propertyKeys } from "../properties/queries";
 import { pinKeys } from "../pins/queries";
 import { implementationKnowledgeKeys } from "../implementation-knowledge/queries";
 import { knowledgeKeys } from "../knowledge/queries";
+import { projectRequirementKeys } from "../project-requirements/queries";
 import { workspaceKeys } from "../workspace/queries";
 import { getCurrentWsId } from "../platform/workspace-storage";
 
@@ -60,6 +61,9 @@ export function useRealtimeSync(
         queryKey: implementationKnowledgeKeys.all(workspaceId),
       });
       void qc.invalidateQueries({ queryKey: knowledgeKeys.all(workspaceId) });
+      void qc.invalidateQueries({
+        queryKey: projectRequirementKeys.coverageAll(workspaceId),
+      });
       const userId = stores.authStore.getState().user?.id;
       if (userId) {
         void qc.invalidateQueries({

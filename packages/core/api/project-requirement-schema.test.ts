@@ -86,6 +86,69 @@ const VALID_RESPONSE = {
   },
 };
 
+const VALID_COVERAGE_RESPONSE = {
+  baseline_status: "retired",
+  current: {
+    revision: 8,
+    state: "retired",
+    total: 2,
+    linked: 1,
+    implemented: 1,
+    accepted: 1,
+    unlinked: 1,
+    items: [
+      {
+        requirement_key: "goal-1",
+        section: "goals",
+        text: "Ship safely",
+        stage: "accepted",
+        issues: [
+          {
+            id: "issue-1",
+            identifier: "MUL-1",
+            title: "Ship",
+            status: "done",
+            acceptance_result: "accepted",
+          },
+        ],
+      },
+      {
+        requirement_key: "scope-1",
+        section: "in_scope",
+        text: "Document scope",
+        stage: "unlinked",
+        issues: [],
+      },
+    ],
+  },
+  effective: {
+    revision: 6,
+    state: "frozen",
+    total: 1,
+    linked: 1,
+    implemented: 0,
+    accepted: 0,
+    unlinked: 0,
+    items: [
+      {
+        requirement_key: "goal-1",
+        section: "goals",
+        text: "Ship safely",
+        stage: "linked",
+        issues: [
+          {
+            id: "issue-1",
+            identifier: "MUL-1",
+            title: "Ship",
+            status: "in_progress",
+            acceptance_result: null,
+          },
+        ],
+      },
+    ],
+  },
+};
+
 function jsonResponse(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), {
     status,
@@ -120,10 +183,19 @@ describe("project requirement API boundary", () => {
   it("throws and emits only safe diagnostics for a malformed baseline read", async () => {
     const warn = vi.fn();
     setSchemaLogger({ ...noopLogger, warn });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ baseline: { id: 42, secret: "do-not-log" } })));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse({ baseline: { id: 42, secret: "do-not-log" } })
+        )
+    );
 
     await expect(
-      new ApiClient("http://localhost:3000").getProjectRequirementBaseline("project-1")
+      new ApiClient("http://localhost:3000").getProjectRequirementBaseline(
+        "project-1"
+      )
     ).rejects.toThrow("Invalid project requirement baseline response");
 
     expect(warn).toHaveBeenCalledWith(
@@ -138,9 +210,14 @@ describe("project requirement API boundary", () => {
   });
 
   it("strictly maps the complete lifecycle, history, links, impact, and access projection", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(VALID_RESPONSE)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(VALID_RESPONSE))
+    );
 
-    const response = await new ApiClient("http://localhost:3000").getProjectRequirementBaseline("project-1");
+    const response = await new ApiClient(
+      "http://localhost:3000"
+    ).getProjectRequirementBaseline("project-1");
 
     expect(response.baseline).toMatchObject({
       status: "changed",
@@ -178,29 +255,111 @@ describe("project requirement API boundary", () => {
     const client = new ApiClient("http://localhost:3000");
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({ ...VALID_RESPONSE, baseline: { ...VALID_RESPONSE.baseline, status: "future" } }))
-      .mockResolvedValueOnce(jsonResponse({ ...VALID_RESPONSE, access: undefined }));
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...VALID_RESPONSE,
+          baseline: { ...VALID_RESPONSE.baseline, status: "future" },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ ...VALID_RESPONSE, access: undefined })
+      );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(client.getProjectRequirementBaseline("project-1")).rejects.toThrow(
-      "Invalid project requirement baseline response"
+    await expect(
+      client.getProjectRequirementBaseline("project-1")
+    ).rejects.toThrow("Invalid project requirement baseline response");
+    await expect(
+      client.getProjectRequirementBaseline("project-1")
+    ).rejects.toThrow("Invalid project requirement baseline response");
+  });
+
+  it("strictly maps current and effective Requirement coverage without fallback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(VALID_COVERAGE_RESPONSE))
     );
-    await expect(client.getProjectRequirementBaseline("project-1")).rejects.toThrow(
-      "Invalid project requirement baseline response"
-    );
+
+    const coverage = await new ApiClient(
+      "http://localhost:3000"
+    ).getProjectRequirementCoverage("project-1");
+
+    expect(coverage.baselineStatus).toBe("retired");
+    expect(coverage.current).toMatchObject({
+      revision: 8,
+      state: "retired",
+      total: 2,
+      linked: 1,
+      implemented: 1,
+      accepted: 1,
+      unlinked: 1,
+    });
+    expect(coverage.current?.items[0]).toMatchObject({
+      requirementKey: "goal-1",
+      section: "goals",
+      text: "Ship safely",
+      stage: "accepted",
+    });
+    expect(coverage.current?.items[0]?.issues[0]).toMatchObject({
+      identifier: "MUL-1",
+      status: "done",
+      acceptanceResult: "accepted",
+    });
+    expect(coverage.effective).toMatchObject({ revision: 6, state: "frozen" });
+  });
+
+  it("rejects malformed, inconsistent, or partial coverage instead of returning empty data", async () => {
+    const client = new ApiClient("http://localhost:3000");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...VALID_COVERAGE_RESPONSE,
+          current: { ...VALID_COVERAGE_RESPONSE.current, accepted: 2 },
+        })
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...VALID_COVERAGE_RESPONSE,
+          current: {
+            ...VALID_COVERAGE_RESPONSE.current,
+            items: [
+              {
+                ...VALID_COVERAGE_RESPONSE.current.items[0],
+                stage: "future",
+              },
+            ],
+          },
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ current: null, effective: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      client.getProjectRequirementCoverage("project-1")
+    ).rejects.toThrow("Invalid project requirement coverage response");
+    await expect(
+      client.getProjectRequirementCoverage("project-1")
+    ).rejects.toThrow("Invalid project requirement coverage response");
+    await expect(
+      client.getProjectRequirementCoverage("project-1")
+    ).rejects.toThrow("Invalid project requirement coverage response");
   });
 
   it("serializes the exact draft wire contract and reusable create key", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(VALID_RESPONSE, 201));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(VALID_RESPONSE, 201));
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await new ApiClient("http://localhost:3000").saveProjectRequirementDraft(
-      "project-1",
-      draftInput(0)
-    );
+    const response = await new ApiClient(
+      "http://localhost:3000"
+    ).saveProjectRequirementDraft("project-1", draftInput(0));
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
 
-    expect(new Headers(request.headers).get("Idempotency-Key")).toBe("requirement-create-key");
+    expect(new Headers(request.headers).get("Idempotency-Key")).toBe(
+      "requirement-create-key"
+    );
     expect(JSON.parse(request.body as string)).toEqual({
       expected_revision: 0,
       content: CONTENT,
@@ -211,25 +370,40 @@ describe("project requirement API boundary", () => {
   });
 
   it("throws for malformed draft and transition responses", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(jsonResponse({ baseline: { id: 42 } }))));
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(jsonResponse({ baseline: { id: 42 } }))
+        )
+    );
     const client = new ApiClient("http://localhost:3000");
 
-    await expect(client.saveProjectRequirementDraft("project-1", draftInput())).rejects.toThrow(
-      "Invalid project requirement draft response"
-    );
-    await expect(client.freezeProjectRequirement("project-1", { expectedRevision: 8 })).rejects.toThrow(
-      "Invalid project requirement transition response"
-    );
+    await expect(
+      client.saveProjectRequirementDraft("project-1", draftInput())
+    ).rejects.toThrow("Invalid project requirement draft response");
+    await expect(
+      client.freezeProjectRequirement("project-1", { expectedRevision: 8 })
+    ).rejects.toThrow("Invalid project requirement transition response");
   });
 
   it("supports every explicit lifecycle route with expected_revision", async () => {
-    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(VALID_RESPONSE)));
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(jsonResponse(VALID_RESPONSE)));
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:3000");
 
-    await client.submitProjectRequirementReview("project-1", { expectedRevision: 1 });
-    await client.withdrawProjectRequirementReview("project-1", { expectedRevision: 2 });
-    await client.approveProjectRequirement("project-1", { expectedRevision: 3 });
+    await client.submitProjectRequirementReview("project-1", {
+      expectedRevision: 1,
+    });
+    await client.withdrawProjectRequirementReview("project-1", {
+      expectedRevision: 2,
+    });
+    await client.approveProjectRequirement("project-1", {
+      expectedRevision: 3,
+    });
     await client.freezeProjectRequirement("project-1", { expectedRevision: 4 });
     await client.retireProjectRequirement("project-1", { expectedRevision: 5 });
 
@@ -240,7 +414,11 @@ describe("project requirement API boundary", () => {
       "http://localhost:3000/api/projects/project-1/requirement-baseline/freeze",
       "http://localhost:3000/api/projects/project-1/requirement-baseline/retire",
     ]);
-    expect(fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string))).toEqual([
+    expect(
+      fetchMock.mock.calls.map(([, init]) =>
+        JSON.parse((init as RequestInit).body as string)
+      )
+    ).toEqual([
       { expected_revision: 1 },
       { expected_revision: 2 },
       { expected_revision: 3 },
@@ -268,7 +446,9 @@ describe("project requirement API boundary", () => {
       expectedRevision: 9,
     });
 
-    expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toEqual({
+    expect(
+      JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)
+    ).toEqual({
       expected_revision: 8,
       requirement_key: "goal 1",
       issue_id: "issue/1",
@@ -317,7 +497,9 @@ describe("project requirement API boundary", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = new ApiClient("http://localhost:3000");
 
-    expect((await client.getProjectOutline("project-1")).nodes[0]?.title).toBe("Delivery");
+    expect((await client.getProjectOutline("project-1")).nodes[0]?.title).toBe(
+      "Delivery"
+    );
     await client.createProjectOutlineNode("project-1", {
       expectedRevision: 2,
       title: "Delivery",
@@ -333,20 +515,28 @@ describe("project requirement API boundary", () => {
       nodeId: "node-1",
       expectedRevision: 9,
     });
-    expect((await client.getProjectRequirementAccess("project-1")).revision).toBe(3);
+    expect(
+      (await client.getProjectRequirementAccess("project-1")).revision
+    ).toBe(3);
     await client.replaceProjectRequirementAccess("project-1", {
       expectedRevision: 3,
       grants: [{ memberId: "member-1", grantKind: "requirement_approver" }],
     });
 
-    expect(new Headers((fetchMock.mock.calls[1]?.[1] as RequestInit).headers).get("Idempotency-Key")).toBe(
-      "outline-create-key"
-    );
-    expect(JSON.parse((fetchMock.mock.calls[1]?.[1] as RequestInit).body as string)).toEqual({
+    expect(
+      new Headers((fetchMock.mock.calls[1]?.[1] as RequestInit).headers).get(
+        "Idempotency-Key"
+      )
+    ).toBe("outline-create-key");
+    expect(
+      JSON.parse((fetchMock.mock.calls[1]?.[1] as RequestInit).body as string)
+    ).toEqual({
       expected_revision: 2,
       title: "Delivery",
     });
-    expect(JSON.parse((fetchMock.mock.calls[2]?.[1] as RequestInit).body as string)).toEqual({
+    expect(
+      JSON.parse((fetchMock.mock.calls[2]?.[1] as RequestInit).body as string)
+    ).toEqual({
       expected_revision: 8,
       requirement_key: "goal-1",
       node_id: "node-1",
@@ -354,7 +544,9 @@ describe("project requirement API boundary", () => {
     expect(fetchMock.mock.calls[3]?.[0]).toContain(
       "/outline-links/goal-1/node-1?expected_revision=9"
     );
-    expect(JSON.parse((fetchMock.mock.calls[5]?.[1] as RequestInit).body as string)).toEqual({
+    expect(
+      JSON.parse((fetchMock.mock.calls[5]?.[1] as RequestInit).body as string)
+    ).toEqual({
       expected_revision: 3,
       grants: [{ member_id: "member-1", grant_kind: "requirement_approver" }],
     });

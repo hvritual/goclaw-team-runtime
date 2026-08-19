@@ -97,8 +97,8 @@
     "no_issues_yet": "No issues yet",
     "toast_link_copied": "Link copied",
     "toast_project_deleted": "Project deleted",
-    "toast_move_issue_failed": "Failed to move issue"
-    ,"work_items": "Work items",
+    "toast_move_issue_failed": "Failed to move issue",
+    "work_items": "Work items",
     "requirements": "Requirements"
   },
   "team_control": {
@@ -224,8 +224,8 @@
       "cancel": "Cancel",
       "submit": "Submit command"
     }
-  }
-  ,"requirements": {
+  },
+  "requirements": {
     "title": "Requirement baseline",
     "subtitle": "Define the implementation scope before work begins.",
     "status_draft": "Draft",
@@ -305,6 +305,20 @@
     "new_outline_root": "New outline root",
     "create_outline_root": "Create root",
     "outline_revision": "Root set revision {{revision}}",
+    "coverage_title": "Requirement coverage",
+    "coverage_empty": "No Requirement coverage yet.",
+    "coverage_current": "Current coverage v{{revision}}",
+    "coverage_effective": "Effective coverage v{{revision}}",
+    "coverage_summary": "{{linked}} linked · {{implemented}} implemented · {{accepted}} accepted · {{unlinked}} unlinked · {{total}} total",
+    "coverage_stage_unlinked": "Unlinked",
+    "coverage_stage_linked": "Linked",
+    "coverage_stage_implemented": "Implemented",
+    "coverage_stage_accepted": "Accepted",
+    "coverage_acceptance_none": "No acceptance",
+    "coverage_acceptance_accepted": "Accepted",
+    "coverage_acceptance_conditional": "Conditional",
+    "coverage_acceptance_rejected": "Rejected",
+    "coverage_issue": "{{identifier}} · {{title}} · {{status}} · {{acceptance}}",
     "save_before_tracking": "Save the draft before linking an issue."
   },
   "resources": {

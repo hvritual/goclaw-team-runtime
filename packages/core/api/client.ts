@@ -139,7 +139,6 @@ import {
   projectRetrospectiveSchema,
 } from "../implementation-knowledge/schema";
 import {
-  EMPTY_PROJECT_REQUIREMENT_COVERAGE,
   projectOutlineSchema,
   projectRequirementAccessSetSchema,
   projectRequirementBaselineResponseSchema,
@@ -2054,11 +2053,11 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(
       `/api/projects/${id}/requirement-baseline/coverage`
     );
-    return parseWithFallback(
+    return parseOrThrow(
       raw,
       projectRequirementCoverageSchema,
-      EMPTY_PROJECT_REQUIREMENT_COVERAGE,
-      { endpoint: "GET /api/projects/:id/requirement-baseline/coverage" }
+      { endpoint: "GET /api/projects/:id/requirement-baseline/coverage" },
+      "Invalid project requirement coverage response"
     );
   }
 
@@ -2092,7 +2091,9 @@ export class ApiClient {
     await this.fetch(
       `/api/projects/${id}/requirement-baseline/links/${encodeURIComponent(
         input.requirementKey
-      )}/${encodeURIComponent(input.issueId)}?expected_revision=${input.expectedRevision}`,
+      )}/${encodeURIComponent(input.issueId)}?expected_revision=${
+        input.expectedRevision
+      }`,
       { method: "DELETE" }
     );
   }
@@ -2127,7 +2128,9 @@ export class ApiClient {
     await this.fetch(
       `/api/projects/${id}/requirement-baseline/outline-links/${encodeURIComponent(
         input.requirementKey
-      )}/${encodeURIComponent(input.nodeId)}?expected_revision=${input.expectedRevision}`,
+      )}/${encodeURIComponent(input.nodeId)}?expected_revision=${
+        input.expectedRevision
+      }`,
       { method: "DELETE" }
     );
   }
@@ -2520,7 +2523,9 @@ export class ApiClient {
     options?: { includeArchived?: boolean }
   ): Promise<ListProjectResourcesResponse> {
     const suffix = options?.includeArchived ? "?include_archived=true" : "";
-    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources${suffix}`);
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/resources${suffix}`
+    );
     return parseWithFallback(
       raw,
       ListProjectResourcesResponseSchema,
@@ -2533,11 +2538,14 @@ export class ApiClient {
     projectId: string,
     data: CreateProjectResourceRequest
   ): Promise<ProjectResource> {
-    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources`, {
-      method: "POST",
-      headers: { "Idempotency-Key": createSafeId() },
-      body: JSON.stringify(data),
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/resources`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": createSafeId() },
+        body: JSON.stringify(data),
+      }
+    );
     const resource = parseWithFallback<ProjectResource | null>(
       raw,
       ProjectResourceSchema.nullable(),
@@ -2553,10 +2561,13 @@ export class ApiClient {
     resourceId: string,
     data: UpdateProjectResourceRequest
   ): Promise<ProjectResource> {
-    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources/${resourceId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/resources/${resourceId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    );
     const resource = parseWithFallback<ProjectResource | null>(
       raw,
       ProjectResourceSchema.nullable(),
@@ -2572,11 +2583,15 @@ export class ApiClient {
     resourceId: string,
     expectedRevision: number
   ): Promise<void> {
-    const raw = await this.fetch<unknown>(`/api/projects/${projectId}/resources/${resourceId}`, {
-      method: "DELETE",
-      body: JSON.stringify({ expected_revision: expectedRevision }),
-    });
-    if (raw !== undefined) throw new Error("Invalid Project Resource archive response");
+    const raw = await this.fetch<unknown>(
+      `/api/projects/${projectId}/resources/${resourceId}`,
+      {
+        method: "DELETE",
+        body: JSON.stringify({ expected_revision: expectedRevision }),
+      }
+    );
+    if (raw !== undefined)
+      throw new Error("Invalid Project Resource archive response");
   }
 
   // Labels

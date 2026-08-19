@@ -1,4 +1,8 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useRef } from "react";
 import { api } from "../api";
 import { createSafeId } from "../utils";
@@ -14,8 +18,10 @@ import type {
 export const projectRequirementKeys = {
   detail: (wsId: string, projectId: string) =>
     ["project-requirements", wsId, projectId] as const,
+  coverageAll: (wsId: string) =>
+    ["project-requirement-coverage", wsId] as const,
   coverage: (wsId: string, projectId: string) =>
-    ["project-requirements", wsId, projectId, "coverage"] as const,
+    [...projectRequirementKeys.coverageAll(wsId), projectId] as const,
   issues: (wsId: string, projectId: string) =>
     ["project-requirements", wsId, projectId, "issues"] as const,
   access: (wsId: string, projectId: string) =>
@@ -24,7 +30,10 @@ export const projectRequirementKeys = {
     ["project-requirements", wsId, projectId, "outline"] as const,
 };
 
-export function projectRequirementBaselineOptions(wsId: string, projectId: string) {
+export function projectRequirementBaselineOptions(
+  wsId: string,
+  projectId: string
+) {
   return queryOptions({
     queryKey: projectRequirementKeys.detail(wsId, projectId),
     queryFn: () => api.getProjectRequirementBaseline(projectId),
@@ -33,14 +42,20 @@ export function projectRequirementBaselineOptions(wsId: string, projectId: strin
 
 // S07C owns coverage semantics. The compatibility query remains uninstalled in
 // the S07B view and must not be interpreted as acceptance coverage.
-export function projectRequirementCoverageOptions(wsId: string, projectId: string) {
+export function projectRequirementCoverageOptions(
+  wsId: string,
+  projectId: string
+) {
   return queryOptions({
     queryKey: projectRequirementKeys.coverage(wsId, projectId),
     queryFn: () => api.getProjectRequirementCoverage(projectId),
   });
 }
 
-export function projectRequirementIssuesOptions(wsId: string, projectId: string) {
+export function projectRequirementIssuesOptions(
+  wsId: string,
+  projectId: string
+) {
   return queryOptions({
     queryKey: projectRequirementKeys.issues(wsId, projectId),
     queryFn: () => api.listIssues({ project_id: projectId }),
@@ -69,12 +84,20 @@ export function projectOutlineOptions(wsId: string, projectId: string) {
 function useInvalidateBaseline(wsId: string, projectId: string) {
   const queryClient = useQueryClient();
   return () =>
-    queryClient.invalidateQueries({
-      queryKey: projectRequirementKeys.detail(wsId, projectId),
-    });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: projectRequirementKeys.detail(wsId, projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: projectRequirementKeys.coverage(wsId, projectId),
+      }),
+    ]);
 }
 
-function saveSignature(projectId: string, input: SaveProjectRequirementDraftRequest): string {
+function saveSignature(
+  projectId: string,
+  input: SaveProjectRequirementDraftRequest
+): string {
   return JSON.stringify([
     projectId,
     input.expectedRevision,
@@ -91,7 +114,10 @@ function outlineCreateSignature(
   return JSON.stringify([projectId, input.expectedRevision, input.title]);
 }
 
-export function useSaveProjectRequirementDraft(wsId: string, projectId: string) {
+export function useSaveProjectRequirementDraft(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   const retryKeys = useRef(new Map<string, string>());
   return useMutation({
@@ -119,7 +145,10 @@ export function useSaveProjectRequirementDraft(wsId: string, projectId: string) 
   });
 }
 
-export function useSubmitProjectRequirementReview(wsId: string, projectId: string) {
+export function useSubmitProjectRequirementReview(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementTransitionRequest) =>
@@ -137,7 +166,10 @@ export function useApproveProjectRequirement(wsId: string, projectId: string) {
   });
 }
 
-export function useWithdrawProjectRequirementReview(wsId: string, projectId: string) {
+export function useWithdrawProjectRequirementReview(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementTransitionRequest) =>
@@ -164,7 +196,10 @@ export function useRetireProjectRequirement(wsId: string, projectId: string) {
   });
 }
 
-export function useLinkProjectRequirementIssue(wsId: string, projectId: string) {
+export function useLinkProjectRequirementIssue(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementLinkRequest) =>
@@ -173,7 +208,10 @@ export function useLinkProjectRequirementIssue(wsId: string, projectId: string) 
   });
 }
 
-export function useUnlinkProjectRequirementIssue(wsId: string, projectId: string) {
+export function useUnlinkProjectRequirementIssue(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementLinkRequest) =>
@@ -182,7 +220,10 @@ export function useUnlinkProjectRequirementIssue(wsId: string, projectId: string
   });
 }
 
-export function useLinkProjectRequirementOutline(wsId: string, projectId: string) {
+export function useLinkProjectRequirementOutline(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementOutlineLinkRequest) =>
@@ -191,7 +232,10 @@ export function useLinkProjectRequirementOutline(wsId: string, projectId: string
   });
 }
 
-export function useUnlinkProjectRequirementOutline(wsId: string, projectId: string) {
+export function useUnlinkProjectRequirementOutline(
+  wsId: string,
+  projectId: string
+) {
   const invalidate = useInvalidateBaseline(wsId, projectId);
   return useMutation({
     mutationFn: (input: ProjectRequirementOutlineLinkRequest) =>
@@ -226,7 +270,10 @@ export function useCreateProjectOutlineNode(wsId: string, projectId: string) {
   });
 }
 
-export function useReplaceProjectRequirementAccess(wsId: string, projectId: string) {
+export function useReplaceProjectRequirementAccess(
+  wsId: string,
+  projectId: string
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: ReplaceProjectRequirementAccessRequest) =>
