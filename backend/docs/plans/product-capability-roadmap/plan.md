@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v30.md](plan_v30.md).
+The approved execution snapshot is [plan_v31.md](plan_v31.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `30`
-- Active step: `none`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; no active task`
-- Plan base commit: `fa1153164882adb4880d57f7349597900196402f`
+- Approved version: `31`
+- Active step: `PCR-S07C R36.1`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C active`
+- Plan base commit: `f5695de83d55e277c8eeb9db7461b81137dc93ad`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -130,6 +130,24 @@ Fresh independent review returns `SPEC PASS` and
 `complete-independent-reviewed`; PCR-S07C remains inactive until its own
 successor plan is frozen. No push, merge, deployment, or Release 3 completion
 is claimed.
+
+The Human Customer's confirmed continuous Release 3 direction and confirmed
+execution activate `PRODUCT-CAPABILITY-ROADMAP-001 v31 / r036` from exact S07B
+closure `f5695de8` only for PCR-S07C. The frozen coverage authority is a
+read-derived current/effective projection over the four traceable Requirement
+sections, revision-relative Issue-link intervals, current Issue status, and the
+latest Issue acceptance conclusion. Exact item stages are `unlinked`, `linked`,
+`implemented`, and `accepted`; multi-Issue aggregation advances only when every
+linked Issue satisfies the next stage.
+
+v31 adds only the strict authenticated coverage GET contract, bounded
+consistent SQLite read path, strict Core parsing and invalidation, shared
+current/effective coverage view, four-locale labels, deterministic tests, and
+fresh production installed acceptance. It adds no storage cache, migration,
+permission, flag, generated contract, or Issue mutation behavior.
+`project_requirements` remains true and `project_outline` remains false.
+PCR-S07D, Release 3 completion, S10, original dirty paths, push, merge,
+deployment, generated protobufs, and `server/**` remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

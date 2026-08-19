@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v30`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C inactive pending successor plan`
+- Plan-Version: `v31`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C active under r036`
 
 ## Delivery policy
 
@@ -192,6 +192,14 @@ accepted rather than treating any relation as coverage.
 
 Acceptance scenarios cover no links, open Issues, completed Issues, accepted
 Issues, retired Requirements, and link removal.
+
+v31/r036 freezes the installed coverage stages as `unlinked`, `linked`,
+`implemented`, and `accepted`. Multiple linked Issues advance only when every
+current Issue satisfies the next stage; latest acceptance conclusions supersede
+older conclusions. Current/effective Requirement content and link intervals are
+revision-relative, while Issue status and latest acceptance remain current
+canonical projections. PCR-S07D stays inactive until S07C closes through its
+own deterministic, installed, scope, and fresh independent-review gates.
 
 ### PCR-S07D — Publish a retrospective and create action items
 

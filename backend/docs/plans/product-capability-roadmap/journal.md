@@ -1790,3 +1790,29 @@ Known limitations, blockers, and next action
   active task; PCR-S07C requires its own immutable successor plan. PCR-S07D,
   Release 3 completion, push, merge, deployment, generated protobufs, and
   `server/**` remain inactive or excluded.
+
+## 2026-08-19 — J068 — v31/r036 activates PCR-S07C
+
+- Exact S07B closure `f5695de83d55e277c8eeb9db7461b81137dc93ad`
+  records fresh independent `SPEC PASS` and `CODE/SECURITY/QUALITY PASS`; the
+  isolated worktree is clean. The original worktree still has 25 unrelated
+  dirty entries and remains untouched.
+- The Customer confirmed the prerequisite minimal outline authority and
+  continued execution. A bounded five-round context discovery loop then
+  stabilizes with `new_dependencies_count=0` across Requirement revisions,
+  Issue-link intervals, current/effective projections, Issue status, acceptance
+  history, Core compatibility code, shared UI, authorization, and realtime
+  invalidation.
+- Immutable v31 freezes exact stages `unlinked`, `linked`, `implemented`, and
+  `accepted`; all linked Issues must satisfy the next stage. Snapshot content
+  and links are revision-relative, while status and the latest acceptance
+  conclusion are current canonical projections. Retired Requirements remain
+  readable and outline links never count as coverage.
+- The endpoint is a bounded consistent derived read with strict HTTP/Core/UI
+  contracts and no storage cache, migration, new permission, new flag, or
+  generated artifact. The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/422f6ea3ab573f77c7c718105b04c06f132e1b4fd9c422bc06e8ee4433e2a081`.
+- Only r036/PCR-S07C is active. PCR-S07D, Release 3 completion, S10,
+  `project_outline`, generated protobufs, original dirty paths, push, merge,
+  deployment, external services, and `server/**` remain inactive or excluded.
+  Activation claims no implementation or PASS.

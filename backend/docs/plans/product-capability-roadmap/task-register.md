@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v30`
-- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; no active task`
-- Registry revision: `r035`
+- Plan-Version: `v31`
+- Registry status: `Release 3 active; PCR-S07B complete-independent-reviewed; PCR-S07C active`
+- Registry revision: `r036`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2102,3 +2102,58 @@ S02A without changing Task product behavior or activating S02B.
 - PCR-S07B is `complete-independent-reviewed`. PCR-S07C-D and Release 3
   completion remain inactive pending their own governed plans and DoneGates;
   push, merge, deployment, generated protobufs, and `server/**` remain excluded.
+
+## PCR-001-S07C-R36
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07C-R36`
+- Task-Revision: `r036`
+- Work-Item: `PCR-S07C`
+- Title: `Requirement coverage from current Issue and acceptance authority`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before closure`
+- Exact base: `f5695de83d55e277c8eeb9db7461b81137dc93ad`
+- Predecessor candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
+- Plan hash: `422f6ea3ab573f77c7c718105b04c06f132e1b4fd9c422bc06e8ee4433e2a081`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/422f6ea3ab573f77c7c718105b04c06f132e1b4fd9c422bc06e8ee4433e2a081`
+- Write boundary: exact paths in immutable `plan_v31.md`; no migration,
+  generated protobuf, original dirty path, legacy backend write, or `server/**`
+  path
+- Acceptance source: `plan_v31.md` R36.2-R36.5 and story-map PCR-S07C
+
+### Ordered outputs
+
+- Install a strict authenticated coverage GET response for no baseline plus
+  current/effective snapshots, cumulative counters, exact item stages, and
+  linked current Issue evidence.
+- Derive coverage from immutable Requirement content, revision-active Issue
+  links, current Issue status, and the latest acceptance conclusion without a
+  stored coverage cache or per-item/per-Issue query.
+- Enforce fail-closed multi-Issue aggregation, latest-conclusion precedence,
+  retirement visibility, link-removal/effective semantics, deterministic
+  ordering, and existing member/project authorization.
+- Remove the inactive Core fallback, install coverage-specific query
+  invalidation and Issue-event refresh, and display server-projected stages in
+  the shared Requirement view with four-locale parity.
+- Pass assertion-first backend/Core/Views/realtime tests, full Workspace and
+  backend gates, official race, strict frontend/build gates, production
+  installed acceptance, exact scope/trailer/dirty/process audit, and fresh
+  independent `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS`.
+- Keep PCR-S07D, Release 3 completion, S10, `project_outline`, generated
+  protobufs, original dirty paths, push, merge, deployment, and `server/**`
+  inactive or excluded.
+
+### Activation evidence
+
+- S07B exact candidate `cd943960` and closure `f5695de8` retain the fresh
+  independent dual PASS, clean isolated worktree, complete continuous trailers,
+  and zero original-dirty overlap recorded by v30/r035.
+- A bounded five-round context discovery loop stabilizes with
+  `new_dependencies_count=0`: no backend coverage route or derived repository
+  exists; the Core compatibility endpoint is uninstalled and fallback-based;
+  current/effective revisions, link intervals, Issue status, acceptance history,
+  and Issue realtime events already provide the required authority.
+- The Customer confirmed the prerequisite minimal outline authority and
+  confirmed continued execution. Immutable v31 freezes only PCR-S07C from the
+  clean exact base. Activation claims no implementation or PASS.
