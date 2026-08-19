@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v36.md](plan_v36.md).
+The approved execution snapshot is [plan_v37.md](plan_v37.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `36`
-- Active step: `PCR-S07D R41.2`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r041`
-- Plan base commit: `fbfc1c05b622e08540564b235661b53cc2894aad`
+- Approved version: `37`
+- Active step: `PCR-S07D R42.2`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r042`
+- Plan base commit: `24d3043b322ae27add8023507330f3b9d55b1d95`
 - Last closed task candidate: `47ee4189cb5571ec38ae39480c758d4decad22bd`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -324,6 +324,19 @@ to the writable boundary so both installed Project-deletion transactions can
 reuse one scoped Retrospective cleanup. Target Tasks/Issues and immutable
 Retrospective audit/outbox evidence remain retained. Release 3 completion,
 push, merge, deployment, generated code, and `server/**` remain excluded.
+
+The complete Workspace graph then exposed exactly two stale migration-count
+assertions after installing migration 000020. One assertion path was already
+authorized; `sqlite_workspace_services_test.go` was not. Exact repository-wide
+search found no third count-19 dependency, and no S07D product candidate was
+committed under r041.
+
+Continued confirmed authority therefore activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v37 / r042` from exact governance activation
+`24d3043b`. It inherits every v35-v36 product requirement and adds only
+`backend/internal/modules/workspace/sqlite_workspace_services_test.go` so the
+two installed integration assertions can state the correct catalog count 20.
+No production behavior, route, schema, or exclusion changes.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

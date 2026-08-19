@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v36`
+- Plan-Version: `v37`
 - Registry status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active`
-- Registry revision: `r041`
+- Registry revision: `r042`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -2499,7 +2499,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r041`
 - Work-Item: `PCR-S07D`
 - Title: `Complete governed Retrospectives across both Project deletion entries`
-- Status: `active`
+- Status: `superseded-before-product-commit`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `fresh dual decision required before closure`
 - Exact base: `fbfc1c05b622e08540564b235661b53cc2894aad`
@@ -2536,3 +2536,47 @@ S02A without changing Task product behavior or activating S02B.
 - The Human Customer's confirmed continuous Release 3 authority permits this
   minimal successor without broadening the frozen product goal. Activation
   claims no implementation or PASS.
+
+## PCR-001-S07D-R42
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07D-R42`
+- Task-Revision: `r042`
+- Work-Item: `PCR-S07D`
+- Title: `Complete governed Retrospectives with installed migration-count evidence`
+- Status: `active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `fresh dual decision required before closure`
+- Exact base: `24d3043b322ae27add8023507330f3b9d55b1d95`
+- Predecessor task: `PCR-001-S07D-R41` (`superseded-before-product-commit`)
+- Plan hash: `9ef4d4aa9dca5bf44142b30dc4f6edfff31694b16cf83656a5e294df1b92050c`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/9ef4d4aa9dca5bf44142b30dc4f6edfff31694b16cf83656a5e294df1b92050c`
+- Write boundary: every exact v36 path plus only
+  `backend/internal/modules/workspace/sqlite_workspace_services_test.go`;
+  generated paths, original dirty paths, legacy backend writes, and every
+  `server/**` path remain read-only
+- Acceptance source: `plan_v37.md` R42.2-R42.6, inherited complete v35-v36
+  acceptance, and story-map PCR-S07D
+
+### Ordered outputs
+
+- Complete inherited R41.2 and update only the two exact migration-count
+  assertions from 19 to 20, then pass the unchanged complete Workspace graph.
+- Execute inherited target/HTTP/Runtime, Core/Views, installed-verification,
+  exact-candidate, and fresh independent-review outputs without product-scope
+  change.
+- Keep Release 3 completion, S08+, S10, generated protobufs, automatic
+  Knowledge integration, realtime Retrospectives, permanent delete,
+  re-target/unlink, original dirty paths, push, merge, deployment, and
+  `server/**` inactive or excluded.
+
+### Activation evidence
+
+- Complete Workspace execution found exactly two stale count-19 assertions;
+  all subpackages other than the root assertion package passed, including the
+  159.9-second SQLite integration package.
+- Exact repository-wide search found the already-authorized
+  `sqlite_persistence_test.go` and the single omitted
+  `sqlite_workspace_services_test.go`, with no third required path.
+- r041 committed only governance activation `24d3043b`; all S07D product work
+  remains uncommitted. Activation claims no implementation or PASS.

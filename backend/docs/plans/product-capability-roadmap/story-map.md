@@ -1,8 +1,8 @@
 # Product Capability Roadmap Story Map
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v36`
-- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r041`
+- Plan-Version: `v37`
+- Status: `Release 3 active; PCR-S07A-C complete-independent-reviewed; PCR-S07D active under r042`
 
 ## Delivery policy
 
@@ -217,7 +217,7 @@ own immutable successor plan is activated.
 
 ### PCR-S07D — Publish a retrospective and create action items
 
-Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v36 / r041`
+Status: `active under PRODUCT-CAPABILITY-ROADMAP-001 v37 / r042`
 
 As a project team, we can draft and publish a retrospective, preserve revisions,
 and turn an action item into a task or Issue.
@@ -237,6 +237,10 @@ omission: both already-installed Project deletion repositories must invoke the
 same scoped Retrospective cleanup transaction. Target Tasks/Issues and immutable
 audit/outbox evidence survive Project deletion. No other behavior or path scope
 changes.
+
+v37 preserves the same product contract and adds only the omitted Workspace
+integration-test path needed to advance the exact installed migration count
+from 19 to 20. It adds no behavior or product scope.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 

@@ -2120,3 +2120,26 @@ Known limitations, blockers, and next action
   dirty paths, push, merge, deployment, generated protobufs, external services,
   legacy backend writes, and `server/**` remain inactive or excluded. This
   successor activation claims no product PASS.
+
+## 2026-08-19 — J077 — v37/r042 authorizes the final migration-count assertion
+
+- The unchanged complete `go test ./internal/modules/workspace/... -count=1`
+  graph installed 20 migrations and failed only two root assertions that still
+  expected 19. Every Workspace subpackage otherwise passed, including the full
+  SQLite repository package in 159.9 seconds. This is recorded as a real
+  aggregate NON-PASS, not waived or relabeled.
+- `sqlite_persistence_test.go` is already authorized by v35-v36.
+  Repository-wide exact search found one additional required path,
+  `sqlite_workspace_services_test.go`, and no other count-19 dependency.
+- Immutable v36 is not amended. r041 is
+  `superseded-before-product-commit`; its sole commit is governance activation
+  `24d3043b322ae27add8023507330f3b9d55b1d95`. v37/r042 inherits the complete
+  v35-v36 contract and adds only that one integration-test path.
+- v37 hash is
+  `9ef4d4aa9dca5bf44142b30dc4f6edfff31694b16cf83656a5e294df1b92050c`;
+  the policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/9ef4d4aa9dca5bf44142b30dc4f6edfff31694b16cf83656a5e294df1b92050c`.
+- Only PCR-S07D remains active. Release 3 completion, S08+, S10, original
+  dirty paths, push, merge, deployment, generated protobufs, external services,
+  legacy backend writes, and `server/**` remain inactive or excluded. This
+  successor activation claims no product PASS.
