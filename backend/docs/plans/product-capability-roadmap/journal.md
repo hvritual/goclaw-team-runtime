@@ -1711,3 +1711,25 @@ Known limitations, blockers, and next action
 - R34.6 exact candidate/hash/scope/trailer/process cleanup and fresh independent
   review remain pending. No S07B/Release 3 completion, push, merge, deployment,
   generated protobuf, original dirty-tree, or `server/**` claim is made.
+
+## 2026-08-19 — J065 — v30/r035 activates S07B review remediation
+
+- Exact r034 candidate `fa1153164882adb4880d57f7349597900196402f`
+  has tree `70de766121f06487eeb7c259906b1bbd0118594f`, binary patch hash
+  `e975739c2daf10088af9b24ae7cf034fd3aa8994`, 55 authorized paths, zero
+  generated or `server/**` paths, nine commits with complete continuous trailer
+  blocks, a clean isolated worktree, and zero overlap with the original dirty
+  worktree.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK`: the `000019` down guard can miss ownership
+  drift in an imported canonical Issue link, and explicit live membership,
+  lead, editor-grant, and terminal-project mutation-denial tests are absent.
+- r034 is review-blocked; v29 and its product candidate remain immutable. The
+  Human Customer's confirmed continuous direction activates only v30/r035 from
+  exact base `fa115316` for assertion-first repair of those two findings.
+- The frozen policy bundle is
+  `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/374c52c1fe307e90046f4f3f170b647379a0ce8fffff795c0a38def54c4b07db`.
+  Branch `codex/release3-s07b-r035` and immutable v30 preserve the exact writable
+  boundary. S07C-D, Release 3 completion, frontend behavior, generated
+  protobufs, original dirty paths, push, merge, deployment, and `server/**`
+  remain inactive or excluded. Activation claims no remediation PASS.

@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v29.md](plan_v29.md).
+The approved execution snapshot is [plan_v30.md](plan_v30.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `29`
-- Active step: `PCR-S07B R34.6`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B candidate-ready-awaiting-independent-review`
-- Plan base commit: `07aef1a577db78598c92c70312a33989e6177d64`
+- Approved version: `30`
+- Active step: `PCR-S07B R35.2`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B review-remediation approved-active`
+- Plan base commit: `fa1153164882adb4880d57f7349597900196402f`
 - Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -86,9 +86,22 @@ approval/freeze, frozen plain-edit denial, material-change old-effective and
 review-required behavior without Issue mutation, re-review/refreeze, reload-
 persistent v1-v10 history, cross-project 404 without revision advance, and
 terminal v11 retirement. Runtime config reports `project_requirements=true`
-and `project_outline=false`. R34.6 exact candidate/scope/trailer/cleanup and
-fresh independent review remain pending; no S07B or Release 3 completion,
-push, merge, or deployment is claimed.
+and `project_outline=false`.
+
+Exact r034 candidate `fa1153164882adb4880d57f7349597900196402f`
+(tree `70de766121f06487eeb7c259906b1bbd0118594f`) passes its scope,
+continuous-trailer, clean-worktree, and process-cleanup audit. Fresh independent
+review nevertheless returns `SPEC BLOCK` and `CODE/SECURITY/QUALITY BLOCK`:
+the imported Issue-link down guard misses canonical workspace/project ownership
+drift, and explicit live membership/lead/grant/terminal-project mutation-denial
+proof is incomplete. r034 and immutable v29 are review-blocked.
+
+The Customer's confirmed continuous Release 3 authority activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v30 / r035` from exact base `fa115316` to add
+the two ownership-drift rollback guards/tests and the missing transaction-owned
+live-authorization proofs. The S07B product and public contract otherwise stay
+unchanged. S07C-D, Release 3 completion, generated protobufs, original dirty
+paths, push, merge, deployment, and `server/**` remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

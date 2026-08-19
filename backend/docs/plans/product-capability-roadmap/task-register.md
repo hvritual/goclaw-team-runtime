@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v29`
-- Registry status: `Release 3 active; PCR-S07B candidate ready; independent review pending`
-- Registry revision: `r034`
+- Plan-Version: `v30`
+- Registry status: `Release 3 active; PCR-S07B independent-review remediation approved-active`
+- Registry revision: `r035`
 - Updated: `2026-08-19`
 
 ## Frozen policy bundle
@@ -1890,9 +1890,9 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07B-R34`
 - Task-Revision: `r034`
 - Work-Item: `PCR-S07B`
-- Status: `candidate-ready-awaiting-independent-review`
+- Status: `review-blocked`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
+- Independent reviewer: `Codex independent subagent release3_s07a_discovery`
 - Base commit: `07aef1a577db78598c92c70312a33989e6177d64`
 - Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v29`
 - Plan hash: `646a6452bea95674444fc173a0a9abbe81c29b981b191e091a488efed065cb23`
@@ -2000,8 +2000,57 @@ S02A without changing Task product behavior or activating S02B.
   inserted only for acceptance setup; project-lead selection and every S07B
   Requirement/outline/Issue action used the production UI or Canonical HTTP
   authority. No setup shortcut is counted as product acceptance.
-- Status is `candidate-ready-awaiting-independent-review`. R34.6 exact
-  candidate/hash/scope/trailer/process-cleanup proof and fresh independent
-  `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS` remain required. S07C-D,
-  Release 3 completion, push, merge, deployment, generated protobufs, and
-  `server/**` remain inactive or excluded.
+- Exact candidate `fa1153164882adb4880d57f7349597900196402f` has tree
+  `70de766121f06487eeb7c259906b1bbd0118594f`, binary patch hash
+  `e975739c2daf10088af9b24ae7cf034fd3aa8994`, 55 authorized paths, zero
+  `server/**` or generated paths, nine valid r034 trailer blocks, a clean
+  isolated worktree, and zero overlap with the original dirty worktree.
+- Fresh independent review returns `SPEC BLOCK` and
+  `CODE/SECURITY/QUALITY BLOCK`. The imported canonical Issue-link down guard
+  omits `workspace_id`/`project_id` ownership equality, and repository evidence
+  does not explicitly cover live membership removal, lead reassignment,
+  editor-grant removal, or terminal project-state mutation denial.
+- r034 is review-blocked and immutable v29 remains unchanged. S07C-D, Release 3
+  completion, push, merge, deployment, generated protobufs, and `server/**`
+  remain inactive or excluded.
+
+## PCR-001-S07B-R35
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07B-R35`
+- Task-Revision: `r035`
+- Work-Item: `PCR-S07B`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
+- Base commit: `fa1153164882adb4880d57f7349597900196402f`
+- Blocked input tree: `70de766121f06487eeb7c259906b1bbd0118594f`
+- Blocked input patch hash: `e975739c2daf10088af9b24ae7cf034fd3aa8994`
+- Approved plan: `PRODUCT-CAPABILITY-ROADMAP-001 v30`
+- Plan hash: `374c52c1fe307e90046f4f3f170b647379a0ce8fffff795c0a38def54c4b07db`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/374c52c1fe307e90046f4f3f170b647379a0ce8fffff795c0a38def54c4b07db`
+
+### Objective and acceptance
+
+- Preserve the complete r034 S07B product candidate and public contract.
+- RED/GREEN the imported canonical Issue-link `workspace_id` and `project_id`
+  down-migration ownership guards with exact retained-row/catalog proof.
+- Prove same-transaction current authorization after live membership removal,
+  lead reassignment, editor-grant removal, and terminal project-state changes,
+  with typed denial and zero persisted mutation effects.
+- Pass focused and full Workspace/backend deterministic and official race gates,
+  then freeze one exact scoped candidate and obtain fresh independent
+  `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS`.
+- Keep S07C-D, Release 3 completion, frontend behavior, generated protobufs,
+  original dirty paths, push, merge, deployment, and `server/**` inactive or
+  excluded.
+
+### Activation evidence
+
+- The exact r034 candidate and its previously passed deterministic, installed,
+  scope, trailer, and cleanup evidence are retained without reclassification.
+- Fresh independent review identifies exactly the two findings frozen by v30;
+  no additional product, public-contract, outline-boundary, or frontend blocker
+  is carried into r035.
+- The Human Customer's confirmed continuous direction authorizes this minimal
+  successor. Activation claims no remediation or review PASS.
