@@ -305,6 +305,14 @@ continuous-nine-field remainder, and permits only an explicitly inventoried,
 zero-live-resource host-policy retention disposition. Corrected audit and fresh
 independent dual PASS still gate Release 3; Release 4 remains inactive.
 
+R46.2 passes the raw-message-aware audit at activation candidate `b9719f73`:
+47 commits resolve as one continuous eight-field, one exact blank-separated
+nine-field, and 45 continuous nine-field messages; all registered plan/policy
+hashes and story tuples match. The 114-path product patch remains byte-exact,
+with zero forbidden/generated/dirty overlap, while the five-path r046 boundary
+and host-policy-retained artifact inventory pass. Final exact candidate and
+fresh independent dual PASS still gate closure.
+
 ## Release 4 — Duplicate prevention and dependable reminders
 
 ### PCR-S08A — Warn about similar Issues

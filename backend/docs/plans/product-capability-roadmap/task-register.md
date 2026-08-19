@@ -3000,3 +3000,38 @@ S02A without changing Task product behavior or activating S02B.
   completion, Release 4/S08+, product changes, generated protobufs, external
   services, original dirty paths, push, merge, deployment, legacy backend
   writes, and `server/**` remain inactive or excluded.
+
+### R46.2 corrected audit evidence
+
+- Exact activation candidate `b9719f73f161b056b9a00b670d609ad78137f877`
+  has tree `d182077505dc50294cea1460cbef3c62a400a3d6` and r046 binary patch
+  SHA-256
+  `1e3044468c1c2ee34ec80078c2e9da52e575e9beb597ae04f5585c4a2cd8a337`.
+  It changes exactly the five v41 paths and no capability-matrix or product
+  byte; plan/policy hashes, story tuples, `diff --check`, clean worktree, and
+  original dirty isolation pass.
+- Raw message plus standard Git parsing validates 47 commits as exactly one
+  continuous eight-field `71afb3c3`, one blank-separated nine-field
+  `9fb86ea0`, and 45 continuous nine-field messages. Every Task-ID resolves in
+  the task register; Task-Revision/Work-Item and plan/revision mapping agree;
+  every Policy-Bundle resolves to the actual v26-v41 plan SHA-256 and both
+  policy hashes.
+- The complete range has 135 paths: 114 product plus 21 roadmap, zero
+  `server/**`, zero generated, and zero product drift. Its product-only binary
+  patch remains exact at SHA-256
+  `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`.
+  The original worktree retains 25 dirty entries with zero overlap.
+- Ports 3021/38142/39142 and all artifact-root processes are closed. Retained
+  `F:\codex-tmp\release3-r45-gates-5fad0615` contains 11,837 files, 527
+  directories, and 1,101,304,235 bytes; nested `acceptance` contains 2,847
+  files, 265 directories, and 353,644,526 bytes. It is outside both repositories
+  and explicitly remains `host-policy-retained-not-deleted`.
+- Two initial strict-audit invocations remain tooling NON-PASS: a repeated
+  two-process PowerShell/Git pipeline returned an empty parsed stream at valid
+  continuous commit `79ceefcf`, and the first diagnostic message then accessed
+  a missing Name property. Standalone raw/standard parsing was 9/9. Replacing
+  only that nondeterministic pipeline with Git's single-process
+  `%(trailers:only)` atom makes the complete unchanged audit pass; no historical
+  exception or product result is inferred from the tooling failures.
+- R46.2 is complete. R46.3 exact candidate and fresh aggregate dual review
+  remain mandatory before R46.4 or Release 3 closure.

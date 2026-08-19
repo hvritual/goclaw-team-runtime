@@ -2432,3 +2432,37 @@ Known limitations, blockers, and next action
   Release 4/S08+, generated protobufs, external services, original dirty paths,
   push, merge, deployment, legacy backend writes, and `server/**` remain
   inactive or excluded.
+
+## 2026-08-20 — J086 — r046 corrected aggregate audit passes
+
+- Exact activation candidate `b9719f73f161b056b9a00b670d609ad78137f877`
+  has tree `d182077505dc50294cea1460cbef3c62a400a3d6` and r046 binary patch
+  SHA-256
+  `1e3044468c1c2ee34ec80078c2e9da52e575e9beb597ae04f5585c4a2cd8a337`.
+  Its diff is exactly the five v41-authorized roadmap paths; the worktree is
+  clean and capability-matrix/product drift is zero.
+- The corrected audit reads raw commit-message lines and Git's standard
+  single-process `%(trailers:only)` projection for every Release 3 commit. All
+  47 pass as one exact continuous eight-field `71afb3c3`, one exact
+  blank-separated nine-field `9fb86ea0`, and 45 exact continuous nine-field
+  messages. Task register metadata, plan/revision mapping, actual v26-v41 plan
+  hashes, and both policy hashes match every registered value.
+- Frozen S07A-D tuples resolve. The complete range contains 135 paths: 114
+  product plus 21 roadmap, zero `server/**`, zero generated, and zero product
+  drift. Product-only binary patch SHA-256 remains
+  `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`;
+  the original worktree retains 25 dirty entries with zero overlap.
+- Ports 3021/38142/39142 have no listener and no artifact-root process remains.
+  The retained external root has 11,837 files, 527 directories, and
+  1,101,304,235 bytes; nested `acceptance` has 2,847 files, 265 directories,
+  and 353,644,526 bytes. Both are outside the repositories and are explicitly
+  `host-policy-retained-not-deleted` rather than removed.
+- Two earlier r046 audit invocations remain disclosed tooling NON-PASS. Their
+  two-process PowerShell/Git pipeline returned an empty parsed stream for valid
+  continuous commit `79ceefcf`; the first diagnostic expansion then referenced
+  a missing Name property. Direct raw and standard parsing returned 9/9. A
+  single-process Git trailer atom removes only that pipeline nondeterminism and
+  the complete audit passes without adding another historical exception.
+- R46.2 is complete. Exact candidate freeze and fresh independent SPEC plus
+  CODE/SECURITY/QUALITY review remain pending; r046 and Release 3 stay active,
+  Release 4 stays inactive, and every product/deployment exclusion remains.

@@ -4,7 +4,7 @@ The approved execution snapshot is [plan_v41.md](plan_v41.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `41`
-- Active step: `Release 3 R46.2`
+- Active step: `Release 3 R46.3`
 - Status: `Release 3 aggregate DoneGate active under r046; r045 review-blocked; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
 - Plan base commit: `a63bf58a0098e5b39bd04f0d96efcbc97e9f6a9f`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
@@ -489,6 +489,20 @@ host-policy-retained F-drive directory only as a fully inventoried, zero-live-
 resource disposition subject to fresh independent acceptance, and leaves all
 product bytes plus `capability-matrix.md` read-only. No Release 3 completion or
 review PASS is claimed by successor activation.
+
+R46.2 raw-message-aware audit then passes exact activation candidate
+`b9719f73` (tree `d1820775`, r046 patch SHA-256
+`1e3044468c1c2ee34ec80078c2e9da52e575e9beb597ae04f5585c4a2cd8a337`).
+Across 47 Release 3 commits it proves one continuous eight-field message, one
+exact blank-separated nine-field message, and 45 continuous nine-field
+messages with registered task/plan/policy values. The range has 135 paths: 114
+product plus 21 roadmap; product patch SHA-256 remains
+`0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`,
+with zero `server/**`, generated, product-drift, or original-dirty overlap.
+Ports and processes remain closed. The exact retained root now has 11,837
+files, 527 directories, and 1,101,304,235 bytes and is explicitly not deleted.
+Exact final candidate and fresh independent dual review remain pending, so
+Release 3 is not complete.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure
