@@ -33,6 +33,8 @@ type WorkspaceServiceDependencies struct {
 	NewKnowledgeID                   func(context.Context) (string, error)
 	NewRequirementID                 func(context.Context) (string, error)
 	NewRequirementVersionID          func(context.Context) (string, error)
+	NewProjectRequirementID          func(context.Context) (string, error)
+	NewProjectOutlineNodeID          func(context.Context) (string, error)
 	Now                              func() time.Time
 	HTTPIdentity                     contract.WorkspaceHTTPIdentityResolver
 	HTTPMutationAuthorizer           func(*http.Request) error

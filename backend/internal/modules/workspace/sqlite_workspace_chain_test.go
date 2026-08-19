@@ -11,8 +11,10 @@ import (
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -248,28 +250,11 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 		t.Fatalf("cross-workspace Knowledge error = %v", err)
 	}
 
-	savedRequirement, err := module.RequirementLocal().SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{
+	_, err = module.RequirementLocal().SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{
 		WorkspaceId: "workspace-1", ProjectId: "project-1", Title: "First", Content: "v1", IssueIds: []string{"issue-1", "issue-1"},
 	})
-	if err != nil || savedRequirement.Requirement == nil || savedRequirement.Version == nil || savedRequirement.Requirement.CurrentVersion != 1 || len(savedRequirement.Requirement.IssueIds) != 1 {
-		t.Fatalf("SaveRequirementVersion(v1) = %+v / %+v, %v", savedRequirement.Requirement, savedRequirement.Version, err)
-	}
-	requirementID := savedRequirement.Requirement.Id
-	savedRequirement, err = module.RequirementLocal().SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{
-		WorkspaceId: "workspace-1", ProjectId: "project-1", RequirementId: &requirementID, Title: "Second", Content: "v2", IssueIds: []string{"WSP-1"},
-	})
-	if err != nil || savedRequirement.Requirement.CurrentVersion != 2 || savedRequirement.Version.Version != 2 {
-		t.Fatalf("SaveRequirementVersion(v2) = %+v / %+v, %v", savedRequirement.Requirement, savedRequirement.Version, err)
-	}
-	gotRequirement, err := module.RequirementLocal().GetRequirement(ctx, contract.GetRequirementRequest{WorkspaceId: "workspace-1", RequirementId: requirementID})
-	if err != nil || gotRequirement.CurrentVersion == nil || gotRequirement.CurrentVersion.Content != "v2" {
-		t.Fatalf("GetRequirement() = %+v, %v", gotRequirement, err)
-	}
-	if _, err := module.RequirementLocal().SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{WorkspaceId: "workspace-1", ProjectId: "project-1", Title: "bad", Content: "bad", IssueIds: []string{"issue-other-project"}}); !errors.Is(err, contract.ErrInvalidRequirement) {
-		t.Fatalf("cross-project Requirement Issue error = %v", err)
-	}
-	if _, err := module.RequirementLocal().SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{WorkspaceId: "workspace-1", ProjectId: "project-1", Title: "bad", Content: "bad", IssueIds: []string{"issue-foreign"}}); !errors.Is(err, contract.ErrIssueNotFound) {
-		t.Fatalf("foreign Requirement Issue error = %v", err)
+	if !errors.Is(err, contract.ErrLegacyRequirementMutationDisabled) {
+		t.Fatalf("SaveRequirementVersion(legacy disabled) error = %v", err)
 	}
 
 	settingResponse, err := module.SettingLocal().PutWorkspaceSetting(ctx, contract.PutWorkspaceSettingRequest{WorkspaceId: "workspace-1", Key: "notifications", Value: map[string]any{"email": true}})
@@ -302,9 +287,11 @@ func TestSqliteWorkspaceChainLocalContracts(t *testing.T) {
 	if err := db.QueryRow(`SELECT agent_ids FROM workspace_skill_bindings WHERE workspace_id = 'workspace-1' AND skill_id = 'skill-1'`).Scan(&agentIDs); err != nil || agentIDs != `["agent-1"]` {
 		t.Fatalf("persisted Agent ids = %q, %v", agentIDs, err)
 	}
-	var versionCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM workspace_requirement_versions WHERE requirement_id = ?`, requirementID).Scan(&versionCount); err != nil || versionCount != 2 {
-		t.Fatalf("Requirement version count = %d, %v", versionCount, err)
+	for _, table := range []string{"workspace_requirements", "workspace_requirement_versions"} {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("legacy Requirement table %s count = %d, %v", table, count, err)
+		}
 	}
 }
 
@@ -373,9 +360,9 @@ func TestSqliteWorkspaceChainGRPCContracts(t *testing.T) {
 	if err != nil || createdKnowledge.Knowledge == nil || createdKnowledge.Knowledge.Status != "candidate" {
 		t.Fatalf("gRPC CreateKnowledge() = %+v, %v", createdKnowledge.Knowledge, err)
 	}
-	savedRequirement, err := NewRequirementGRPCClient(connection).SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{WorkspaceId: "workspace-1", ProjectId: "project-1", Title: "gRPC Requirement", Content: "v1", IssueIds: []string{"issue-1"}})
-	if err != nil || savedRequirement.Requirement == nil || savedRequirement.Requirement.CoverageStatus != "covered" {
-		t.Fatalf("gRPC SaveRequirementVersion() = %+v, %v", savedRequirement.Requirement, err)
+	_, err = NewRequirementGRPCClient(connection).SaveRequirementVersion(ctx, contract.SaveRequirementVersionRequest{WorkspaceId: "workspace-1", ProjectId: "project-1", Title: "gRPC Requirement", Content: "v1", IssueIds: []string{"issue-1"}})
+	if status.Code(err) != codes.FailedPrecondition || status.Convert(err).Message() != "legacy Requirement mutation is disabled" {
+		t.Fatalf("gRPC SaveRequirementVersion() error = %v", err)
 	}
 	binding, err := NewSettingGRPCClient(connection).PutWorkspaceSkillBinding(ctx, contract.PutWorkspaceSkillBindingRequest{WorkspaceId: "workspace-1", SkillId: "skill-1", Enabled: true, AgentIds: []string{"agent-1"}})
 	if err != nil || binding.Binding == nil || !binding.Binding.Enabled {
