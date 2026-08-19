@@ -4,7 +4,7 @@ The approved execution snapshot is [plan_v29.md](plan_v29.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `29`
-- Active step: `PCR-S07B R34.1`
+- Active step: `PCR-S07B R34.5`
 - Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B approved-active`
 - Plan base commit: `07aef1a577db78598c92c70312a33989e6177d64`
 - Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
@@ -65,6 +65,19 @@ outline node create/read with stable IDs. S07C-D, nested hierarchy,
 move/reorder/numbering, Issue-outline links, rollups/board, full outline UI,
 `project_outline`, generated protobufs, push, merge, deployment, and Release 3
 completion remain inactive or excluded.
+
+R34.2-R34.4 now install the Requirement domain/migration foundation, singular
+Canonical SQLite/application/HTTP authority, transaction-owned deletion
+cleanup, strict Core boundary, and shared Requirement view through exact
+commits `29fc0ed0`, `1c437313`, `cfffe2ae`, and `8167897f`. Focused backend,
+Core, Views, locale-parity, typecheck, and changed-file lint evidence passes.
+The first broad Workspace run failed under C-drive temporary-space pressure
+and a later bounded run timed out; the same complete Workspace package passes
+with the recorded F-drive task cache. Broad Views lint remains NON-PASS on
+pre-existing Knowledge/Skills paths outside r034, so no aggregate, installed,
+feature-enabled, or release PASS is claimed. `project_requirements` and
+`project_outline` both remain false while R34.5 full gates and the fresh
+installed-Chrome journey are pending.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

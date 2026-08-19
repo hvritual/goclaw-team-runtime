@@ -1636,3 +1636,40 @@ Known limitations, blockers, and next action
   Only r034/PCR-S07B is active. S07C-D, Release 3 completion, generated
   protobufs, original dirty paths, push, merge, deployment, and `server/**`
   remain inactive or excluded. Activation claims no implementation or PASS.
+
+## 2026-08-19 — J063 — R34.2-R34.4 Canonical Requirement and shared view
+
+- Assertion-first backend work captures the absent six-state lifecycle,
+  migration/rollback, transaction authorization, stale/idempotency, link,
+  impact, deletion, restart, and legacy-write-disable behavior before the
+  production foundation. Commits `29fc0ed0`, `1c437313`, and `cfffe2ae` then
+  install the singular Canonical SQLite/application/HTTP authority and exact
+  minimal root-outline boundary without changing generated protobufs or
+  `server/**`.
+- The first complete Workspace test attempt is retained as NON-PASS because C:
+  runs out of temporary space. A later 120-second bounded run is also retained
+  as a timeout, not a PASS. With `GOTMPDIR`, `GOCACHE`, `TMP`, and `TEMP` under
+  `F:\code\ai\.codex-temp`, the identical complete Workspace package passes;
+  the full SQLite infrastructure package also passes independently.
+- Core RED is 10/10 expected failures against the old fallback/alias/partial
+  contract. Commit `8167897f` makes the exact suite GREEN 10/10, passes Core
+  typecheck and lint, throws on malformed baseline/mutation data with only safe
+  schema metadata, uses `expected_revision`, retains create idempotency across
+  same-intent retry, and implements access/minimal-outline boundaries. The
+  S07C compatibility coverage declaration stays uninstalled.
+- Shared-view RED is eight expected failures plus the unchanged stable-key
+  helper PASS against the old client-inferred approval and Create-Issue
+  skeleton. GREEN passes 9/9 with server-projected access, all six states,
+  current/effective distinction, material-change review impact, Issue/outline
+  links, history, stale problem handling, and only root-node create/read.
+  Four-locale parity plus the focused view pass 133/133; Views typecheck and all
+  changed-file lint pass.
+- Broad Views lint is honestly NON-PASS on 16 pre-existing errors in
+  `knowledge/knowledge-page.tsx`, `skills/components/create-skill-dialog.tsx`,
+  and `skills/components/file-viewer.tsx`, with unrelated hook warnings. The
+  one r034 effect warning from that run was corrected before commit. No
+  unrelated path is edited.
+- R34.5 full deterministic/backend race/root test/production build and fresh
+  installed-Chrome acceptance remain pending. Both `project_requirements` and
+  `project_outline` remain false; no S07B, Release 3, push, merge, or deployment
+  completion is claimed.

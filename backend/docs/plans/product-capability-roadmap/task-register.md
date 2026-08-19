@@ -1926,3 +1926,35 @@ S02A without changing Task product behavior or activating S02B.
   Immutable v29 freezes that exact boundary and the full S07B state/security
   contract. No product implementation, verification PASS, closure, push,
   merge, or deployment is claimed by activation.
+
+### R34.2-R34.4 implementation evidence
+
+- Commits `29fc0ed0`, `1c437313`, and `cfffe2ae` install the exact lifecycle,
+  migration, canonical repository/application/HTTP authority, legacy mutation
+  disablement, minimal root outline authority, grants/links, and transactional
+  Project/Issue deletion cleanup. No generated protobuf or `server/**` path is
+  changed.
+- The complete Workspace package passes with task-specific F-drive Go
+  temp/cache after the retained C-drive disk-full failure and one bounded
+  timeout. The full SQLite infrastructure package passes separately. These are
+  backend implementation checks, not installed acceptance.
+- Commit `8167897f` installs strict throw-on-malformed Core schemas/client,
+  complete route serialization, retry-stable create idempotency, all six
+  lifecycle states, server-projected access, Issue/outline traceability,
+  material-change impact, immutable history, and only the confirmed minimal
+  root-node create/read picker. It removes the uninstalled Requirement-driven
+  Issue creation control and does not consume S07C coverage semantics.
+- Captured Core RED fails all ten new contract/idempotency expectations before
+  implementation; GREEN passes 10/10. Captured Views RED fails eight of nine
+  new acceptance expectations against the old skeleton; GREEN passes 9/9.
+  Core and Views typechecks pass, Core lint and every r034 changed TypeScript
+  file lint pass, and Views locale parity plus the focused Requirement view
+  pass 133/133.
+- Broad Views lint remains NON-PASS on 16 pre-existing literal/unused-expression
+  errors in Knowledge, Skills, and file-viewer paths plus unrelated existing
+  hook warnings. The r034 Requirement warning found during that run was fixed
+  and changed-file lint is clean. No broad failure is renamed PASS.
+- Status remains `approved-active`; R34.5 full deterministic gates, fresh
+  retries-disabled installed Chrome, and the post-acceptance flip of only
+  `project_requirements` are pending. `project_outline`, S07C-D, push, merge,
+  deployment, and Release 3 closure remain inactive or excluded.
