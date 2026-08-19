@@ -2,7 +2,7 @@
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Plan-Version: `v29`
-- Registry status: `Release 3 active; PCR-S07B is the sole active task`
+- Registry status: `Release 3 active; PCR-S07B candidate ready; independent review pending`
 - Registry revision: `r034`
 - Updated: `2026-08-19`
 
@@ -1890,7 +1890,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-ID: `PCR-001-S07B-R34`
 - Task-Revision: `r034`
 - Work-Item: `PCR-S07B`
-- Status: `approved-active`
+- Status: `candidate-ready-awaiting-independent-review`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `pending; reuse Codex independent subagent release3_s07a_discovery`
 - Base commit: `07aef1a577db78598c92c70312a33989e6177d64`
@@ -1954,7 +1954,54 @@ S02A without changing Task product behavior or activating S02B.
   errors in Knowledge, Skills, and file-viewer paths plus unrelated existing
   hook warnings. The r034 Requirement warning found during that run was fixed
   and changed-file lint is clean. No broad failure is renamed PASS.
-- Status remains `approved-active`; R34.5 full deterministic gates, fresh
-  retries-disabled installed Chrome, and the post-acceptance flip of only
-  `project_requirements` are pending. `project_outline`, S07C-D, push, merge,
-  deployment, and Release 3 closure remain inactive or excluded.
+- Commit `9fe63f11` preserves the immutable legacy Requirement aggregate and
+  constructor tests after the Canonical HTTP composition. Commit `48599860`
+  installs only the two S07B Requirement permissions and
+  `project_requirements`, while keeping `project_outline=false`; it also
+  distinguishes idempotency-key/body conflict from other typed resource
+  conflict responses.
+
+### R34.5 deterministic and installed evidence
+
+- Final backend `make check` passes in 235.3 seconds with task-specific F-drive
+  Go temp/cache, including formatting, canonical policy/server-boundary,
+  generated-output, `go vet ./...`, and `go test ./...`.
+- A direct `go test -race` diagnostic selects legacy PATH GCC 8.1 and exits
+  `0xc0000139` before any assertion; it is retained as NON-PASS environment
+  evidence. The repository-owned official seven-package
+  `make test-race RACE_PACKAGES=...` passes in 303.4 seconds and explicitly
+  selects Scoop GCC 15.2.0 process-locally.
+- Core full tests pass 625/625; Views full isolated tests pass 1683/1683; root
+  typecheck passes. Root tests remain NON-PASS on three pre-existing
+  five-second aggregate-load timeouts, while the two implicated files pass
+  44/44 in isolation. Broad Views lint remains NON-PASS only on the previously
+  recorded unrelated paths. No broad failure is renamed PASS.
+- Production Web build and standalone production build both pass with all
+  17/17 static pages; each retains two non-blocking CSS `::highlight` warnings.
+- Fresh SQLite installed-Chrome acceptance uses a production standalone Web
+  server, the real Canonical HTTP backend, and independent lead/owner browser
+  identities. The lead creates a baseline and stable project-owned root outline
+  node, links same-project Issue `REL-1` and the outline root, and submits v4.
+  The owner's retained stale v3 submit receives HTTP 409, then the owner
+  independently approves v5 and freezes effective v6.
+- Frozen ordinary inputs are disabled. A lead-owned material change creates v7
+  while effective content remains v6 and `REL-1` is marked review-required;
+  the Issue title, todo state, and project remain unchanged before/after. A
+  second independent review produces v8-v10 and moves the effective baseline
+  to v10. All v1-v10 history survives reload.
+- A real Canonical HTTP attempt to link foreign-project `REL-2` returns
+  `404/not_found`; the baseline remains revision 7 with one Issue link. Owner
+  retirement produces terminal read-only v11; after reload there are zero
+  submit/approve/freeze/retire/material-save/link controls and v1/v11 history
+  remains visible. Runtime config reports `project_requirements=true` and
+  `project_outline=false`.
+- The local invitation route is historically unavailable (`404`), so the
+  second authenticated user's Workspace membership/onboarding fixture was
+  inserted only for acceptance setup; project-lead selection and every S07B
+  Requirement/outline/Issue action used the production UI or Canonical HTTP
+  authority. No setup shortcut is counted as product acceptance.
+- Status is `candidate-ready-awaiting-independent-review`. R34.6 exact
+  candidate/hash/scope/trailer/process-cleanup proof and fresh independent
+  `SPEC PASS` plus `CODE/SECURITY/QUALITY PASS` remain required. S07C-D,
+  Release 3 completion, push, merge, deployment, generated protobufs, and
+  `server/**` remain inactive or excluded.

@@ -4,8 +4,8 @@ The approved execution snapshot is [plan_v29.md](plan_v29.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `29`
-- Active step: `PCR-S07B R34.5`
-- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B approved-active`
+- Active step: `PCR-S07B R34.6`
+- Status: `Release 3 active; PCR-S07A complete-independent-reviewed; PCR-S07B candidate-ready-awaiting-independent-review`
 - Plan base commit: `07aef1a577db78598c92c70312a33989e6177d64`
 - Last closed task candidate: `b3828be7b9b272732c5630975e73e35b629ed9f9`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
@@ -66,18 +66,29 @@ move/reorder/numbering, Issue-outline links, rollups/board, full outline UI,
 `project_outline`, generated protobufs, push, merge, deployment, and Release 3
 completion remain inactive or excluded.
 
-R34.2-R34.4 now install the Requirement domain/migration foundation, singular
+R34.2-R34.5 install the Requirement domain/migration foundation, singular
 Canonical SQLite/application/HTTP authority, transaction-owned deletion
-cleanup, strict Core boundary, and shared Requirement view through exact
-commits `29fc0ed0`, `1c437313`, `cfffe2ae`, and `8167897f`. Focused backend,
-Core, Views, locale-parity, typecheck, and changed-file lint evidence passes.
-The first broad Workspace run failed under C-drive temporary-space pressure
-and a later bounded run timed out; the same complete Workspace package passes
-with the recorded F-drive task cache. Broad Views lint remains NON-PASS on
-pre-existing Knowledge/Skills paths outside r034, so no aggregate, installed,
-feature-enabled, or release PASS is claimed. `project_requirements` and
-`project_outline` both remain false while R34.5 full gates and the fresh
-installed-Chrome journey are pending.
+cleanup, strict Core boundary, shared Requirement view, and the runtime
+`project_requirements` capability through exact commits `29fc0ed0`,
+`1c437313`, `cfffe2ae`, `8167897f`, `9fe63f11`, and `48599860`. Focused
+backend/Core/Views/locale/type/lint checks, backend `make check`, the official
+seven-package Windows race command, and two production Web builds pass. The
+direct old-GCC race probe remains a truthful NON-PASS `0xc0000139` environment
+result; the repository-owned wrapper passes with Scoop GCC 15.2.0. Root tests
+remain NON-PASS on three pre-existing five-second aggregate-load timeouts while
+the two implicated files pass 44/44 in isolation; broad Views lint remains
+NON-PASS on pre-existing Knowledge/Skills paths outside r034.
+
+Fresh SQLite installed-Chrome acceptance on the production standalone Web app
+and real Canonical HTTP backend passes with independent lead/owner identities:
+stable root outline create/link, Issue link, stale-revision 409, independent
+approval/freeze, frozen plain-edit denial, material-change old-effective and
+review-required behavior without Issue mutation, re-review/refreeze, reload-
+persistent v1-v10 history, cross-project 404 without revision advance, and
+terminal v11 retirement. Runtime config reports `project_requirements=true`
+and `project_outline=false`. R34.6 exact candidate/scope/trailer/cleanup and
+fresh independent review remain pending; no S07B or Release 3 completion,
+push, merge, or deployment is claimed.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

@@ -1673,3 +1673,41 @@ Known limitations, blockers, and next action
   installed-Chrome acceptance remain pending. Both `project_requirements` and
   `project_outline` remain false; no S07B, Release 3, push, merge, or deployment
   completion is claimed.
+
+## 2026-08-19 — J064 — R34.5 deterministic and installed acceptance
+
+- Commit `9fe63f11` retains the legacy Requirement aggregate/constructor
+  evidence after Canonical composition. Assertion-first runtime/config and
+  typed-conflict checks then fail against the uninstalled flag and conflated
+  conflict mapping; commit `48599860` makes them GREEN by installing only the
+  S07B Requirement permissions plus `project_requirements` and by separating
+  `idempotency_conflict` from generic `conflict`. `project_outline` stays false.
+- Final backend `make check` passes in 235.3 seconds with the F-drive task cache.
+  A direct legacy-PATH GCC 8.1 race probe exits `0xc0000139` before assertions
+  and is retained as NON-PASS. The official repository-owned seven-package
+  `make test-race` passes in 303.4 seconds with process-local Scoop GCC 15.2.0.
+- Core 625/625, isolated Views 1683/1683, root typecheck, and two production Web
+  builds with 17/17 static pages pass. Root tests remain NON-PASS on three
+  pre-existing five-second aggregate-load timeouts while the two exact files
+  pass 44/44 in isolation. Broad Views lint remains NON-PASS only on the
+  previously recorded unrelated paths; neither broad failure is renamed PASS.
+- Fresh SQLite production-standalone installed Chrome proves a lead-created
+  v1 baseline, same-project Issue and stable root-outline links through v3,
+  stale-owner HTTP 409 at v3/v4, independent owner approval/freeze through
+  effective v6, disabled frozen plain editing, material-change v7 with effective
+  v6 and Issue review-required projection but unchanged Issue content, and
+  independent re-review/refreeze through effective v10. All v1-v10 history
+  survives reload.
+- Cross-project `REL-2` linkage returns `404/not_found` with the baseline still
+  at revision 7 and one Issue link. Owner retirement creates read-only v11;
+  after reload all transition, material-save, and link controls are absent while
+  effective v10 content and v1/v11 history remain. Runtime config exposes only
+  `project_requirements=true`; `project_outline=false`.
+- The historical local invitation endpoint returns 404, so only the second
+  identity's membership/onboarding setup used a direct fresh-database fixture.
+  Project lead assignment and every S07B product mutation used the production
+  UI or Canonical HTTP backend. This setup limitation is disclosed and is not
+  counted as product PASS.
+- R34.6 exact candidate/hash/scope/trailer/process cleanup and fresh independent
+  review remain pending. No S07B/Release 3 completion, push, merge, deployment,
+  generated protobuf, original dirty-tree, or `server/**` claim is made.
