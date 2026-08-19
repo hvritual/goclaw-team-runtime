@@ -2297,3 +2297,25 @@ Known limitations, blockers, and next action
   expansion, product changes, generated protobufs, external services, push,
   merge, deployment, legacy backend writes, and `server/**` remain inactive or
   excluded.
+
+## 2026-08-20 — J082 — r045 lineage audit passes and Release 3 matrix rows reconcile
+
+- R45.2 passes all four frozen candidate/tree/closure tuples and every
+  registered v26-v40 plan hash. The corrected single-log trailer audit passes
+  all 43 commits: exact frozen eight-field `71afb3c3` plus 42 exact nine-field
+  successors, with matching project/plan IDs and policy bundles.
+- Release 3 closure tree is `2caa262bc714b4fb08755d470e877b4ea78850c9`.
+  Its range from `80d92b14` has 131 paths: 114 product plus 17 roadmap, zero
+  `server/**`, zero generated, and zero overlap with the directly observed 25
+  original dirty entries. r045 has zero product drift.
+- Under the recorded UTF-8 line-normalized binary-diff method, complete and
+  product-only Release 3 patch SHA-256 values are
+  `34d5b356e382f037fdddac2371bb467945c50fee74ab9ea5f5fd8d9d08fc56a2`
+  and `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`.
+- Only the Project Resources, Requirements, and Retrospectives rows are updated
+  from historical static-baseline wording, with explicit evidence tuples and a
+  warning that other rows retain their original date. No product path changes.
+- Complete deterministic, aggregate installed, cleanup, exact-candidate, and
+  independent-review gates remain pending. Release 3 remains active and
+  incomplete; Release 4, push, merge, deployment, generated protobufs, original
+  dirty paths, and `server/**` remain inactive or excluded.

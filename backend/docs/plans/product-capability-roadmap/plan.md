@@ -4,7 +4,7 @@ The approved execution snapshot is [plan_v40.md](plan_v40.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
 - Approved version: `40`
-- Active step: `Release 3 R45.2`
+- Active step: `Release 3 R45.3`
 - Status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
 - Plan base commit: `a1f6a934370ddbc2d645035767c80a24edf2ad4c`
 - Last closed task candidate: `64091302b703a4590bdbe88d154f65fec9d6b37c`
@@ -399,6 +399,18 @@ fields. Immutable v39 cannot be relaxed, so r044 is
 The same confirmed authority activates v40/r045 from `a1f6a934`, preserving
 every v39 gate while correcting only that historical audit predicate. No
 aggregate PASS or Release 3 completion is claimed by the successor activation.
+
+R45.2 then passes the policy-correct audit across 43 commits: exact S07A-D
+candidate/tree/closure tuples, registered v26-v40 hashes, one frozen historical
+eight-field block followed by 42 nine-field blocks, 114 product plus 17 roadmap
+paths, zero `server/**`/generated/original-dirty overlap, and zero r045 product
+drift. Exact Release 3 closure tree is `2caa262b`; its full and product-only
+binary patch SHA-256 values are respectively
+`34d5b356e382f037fdddac2371bb467945c50fee74ab9ea5f5fd8d9d08fc56a2`
+and `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`
+under the recorded UTF-8 line-normalized method. Only the three Release 3
+capability-matrix rows are reconciled; complete deterministic and installed
+aggregate gates remain pending, so Release 3 is not yet complete.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

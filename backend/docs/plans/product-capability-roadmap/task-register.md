@@ -2814,3 +2814,26 @@ S02A without changing Task product behavior or activating S02B.
   every product, runtime, acceptance, scope, cleanup, and review obligation.
   Activation claims no aggregate verification, review PASS, or Release 3
   completion.
+
+### R45.2 lineage and capability-matrix evidence
+
+- The corrected single-read audit passes 43 commits: exact frozen eight-field
+  v26 activation followed by 42 exact nine-field commits. Project/plan IDs and
+  every per-version policy bundle match the computed v26-v40 plan hashes and
+  the two governing policy hashes.
+- All four reviewed candidate/tree/closure tuples resolve. Exact Release 3
+  closure tree is `2caa262bc714b4fb08755d470e877b4ea78850c9`; the range from
+  `80d92b14` contains 131 paths: 114 product plus 17 roadmap, zero `server/**`,
+  zero generated, and zero overlap with the original worktree's live 25 dirty
+  entries. r045 changes five activation documents and zero product paths before
+  this matrix evidence commit.
+- Using UTF-8 joined Git binary-diff lines with one terminal LF, the complete
+  Release 3 patch SHA-256 is
+  `34d5b356e382f037fdddac2371bb467945c50fee74ab9ea5f5fd8d9d08fc56a2`;
+  excluding the roadmap directory, the 114-path product patch SHA-256 is
+  `0a9e59e2aab7b23d3c6dad4b69c54df3f0c1ea702b7d362838b3c7dcc7668aa0`.
+- Only the Project Resources, Requirements, and Retrospectives matrix rows and
+  an explicit scoped-reconciliation note are updated from their historical v1
+  static language. Other rows remain historically dated. No aggregate
+  deterministic, installed, independent-review, or Release 3 completion PASS is
+  claimed at R45.2.

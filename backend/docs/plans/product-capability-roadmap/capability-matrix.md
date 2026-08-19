@@ -24,9 +24,9 @@
 | Skill list/detail/create/edit/delete/import/files | Shared Skill views and API client methods exist | System Skill service only declares publish/get and returns not implemented; no HTTP administration | Partial UI, missing backend, deferred | Versioned Workspace-visible Skill catalog with safe import and file manifests |
 | Task CRUD | Shared task page, queries, mutations, API client methods exist | Todo proto/use case/SQLite CRUD exist; default service and HTTP installation are absent; runtime authorization lacks actions | Partial, not installed, deferred | Canonical task CRUD and explicit task-to-Issue promotion |
 | Knowledge query and review | Knowledge page, schemas, candidate review client methods exist | Workspace supports candidate create/get only; no list/query/review transitions | Partial, deferred | Query, review, publication, provenance, revision, audit |
-| Project Resources | Create-project and resource UI/client methods exist | Project `resource_count` is declared but not projected; no resource route or table | Partial UI, missing backend | GitHub repository and generic URL resources |
-| Requirements | Baseline/coverage/review client contracts and UI exist | Workspace saves/gets draft versions only; richer Control Plane model is separate | Partial plus separate model | Workspace-owned lifecycle, traceability, coverage, impact review |
-| Retrospectives | Project UI/API client surface exists | No Canonical retrospective model, persistence, or route found | Partial UI, missing backend | Versioned retrospective and action-item creation |
+| Project Resources | Loaded shared Project Resources surface with strict Core schemas, create/reorder/update/archive/restore mutations, safe connection projection, and localized states | Installed Workspace migration/repository/HTTP/runtime authority with current membership checks, revision conflicts, credential-free normalization, ordered archive/restore, audit/idempotency, cleanup, and restart evidence | Installed and independently reviewed under PCR-S07A | GitHub repository and generic URL resources |
+| Requirements | Loaded shared Requirement baseline, revision/history, review/freeze/material-change, minimal root-outline link, and linked/implemented/accepted coverage surface | Installed Workspace lifecycle/outline/Issue-link/coverage migration, repository, HTTP, runtime permission and feature-flag authority with current transaction authorization, ownership guards, history, cleanup, and restart evidence | Installed and independently reviewed under PCR-S07B/C; outline limited to the confirmed root prerequisite | Workspace-owned lifecycle, traceability, coverage, impact review |
+| Retrospectives | Loaded four-locale shared draft/participant/history/publication/archive and Task/Issue action-target surface with strict Core schemas and stable retry keys | Installed Workspace immutable revisions, current facilitator/lead authorization, resumable target claims through injected Task/Issue contracts, provenance links, audit/outbox, project cleanup, and restart persistence | Installed and independently reviewed under PCR-S07D | Versioned retrospective and action-item creation |
 | Pin reorder | Sidebar mutation and client method exist | Pins list/create/delete; position appends with `MAX+1`; reorder deferred | Partial, deferred | Revisioned atomic reorder |
 | Issue search | Search UI and client method exist | Installed HTTP list/query filters in memory by title substring, identifier, or number; no repository search RPC | Partial | Repository-backed ranked search |
 | Project search | Search UI and client method exist | Opt-in gRPC/repository search exists; Product Surface HTTP route and installed default service are absent | Partial, not installed | Installed stable HTTP/gRPC search |
@@ -36,6 +36,36 @@
 | Project outline | Issue hierarchy UI can represent child Issues | Issue parent/child exists; no project outline/TOC model | Missing | Ordered tree, stable numbering, Issue links |
 | Project progress board | Project issue counts and views exist | Project counts exist; no phase/outline board | Partial projection | Phase board plus outline progress rollups |
 | Auto-plan Issues from outline | No approved UI contract | No model or service found | Deferred by v1 decision | Later proposal only |
+
+### 1.1 Release 3 governed reconciliation — 2026-08-20
+
+The baseline commit and static-inspection metadata above remain the historical
+v1 discovery record. Only the Project Resources, Requirements, and
+Retrospectives rows are reconciled here to later governed Release 3 evidence;
+all other rows retain their prior evidence date and must not be inferred current
+from this scoped update.
+
+- PCR-S07A exact reviewed candidate/tree/closure is
+  `b3828be7b9b272732c5630975e73e35b629ed9f9` /
+  `7c4a45fff414a555688358bd938111f8105c774f` /
+  `07aef1a577db78598c92c70312a33989e6177d64`.
+- PCR-S07B exact reviewed candidate/tree/closure is
+  `cd94396093ea73f3f9434fed7410036ae61170ab` /
+  `7e6f045ec5a48c4465e7f2fd5261e0d2a3b4b42d` /
+  `f5695de83d55e277c8eeb9db7461b81137dc93ad`; PCR-S07C is
+  `47ee4189cb5571ec38ae39480c758d4decad22bd` /
+  `d0b7d56b65964e1559e3bbe33aa734f70e2f8eca` /
+  `1d515efcca0919eed1e8a811c53d015efa89dfa3`.
+- PCR-S07D exact reviewed candidate/tree/closure is
+  `64091302b703a4590bdbe88d154f65fec9d6b37c` /
+  `e696d67ad72aad52bc53e4a6bfe3211aac2f89d7` /
+  `8150a0e53defe1562c5ea5b41de34bbdba3a178e`.
+- v40/r045 R45.2 verifies all four tuples, registered v26-v40 hashes, 131
+  Release 3 paths (114 product plus 17 roadmap), zero `server/**`, zero
+  generated paths, zero original-dirty overlap, zero r045 product drift, and
+  policy-correct trailers across 43 commits. Deterministic, aggregate installed,
+  exact-candidate, and independent-review gates remain pending; this
+  reconciliation is not a Release 3 completion claim.
 
 ## 2. Installed-runtime and authorization gap
 
