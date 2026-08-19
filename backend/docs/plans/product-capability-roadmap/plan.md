@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v32.md](plan_v32.md).
+The approved execution snapshot is [plan_v33.md](plan_v33.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `32`
-- Active step: `PCR-S07C R37.1`
-- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C aggregate-gate remediation active`
-- Plan base commit: `5d769058d289300e6b8851a5885cca183d5f9be9`
+- Approved version: `33`
+- Active step: `PCR-S07C R38.1`
+- Status: `Release 3 active; PCR-S07A and PCR-S07B complete-independent-reviewed; PCR-S07C race-gate remediation active`
+- Plan base commit: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
 - Last closed task candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
@@ -169,6 +169,26 @@ the full backend/race/frontend/build/installed gates and obtain fresh
 independent dual PASS before S07C closes. PCR-S07D, Release 3 completion, push,
 merge, deployment, generated protobufs, original dirty paths, and `server/**`
 remain inactive or excluded.
+
+Commit `2f4e8015` applies the exact v32 finite test-server timeout and a fresh
+complete backend `make check` passes in 383.6 seconds. The next official
+seven-package race uses repository-selected Scoop GCC 15.2.0; six Workspace
+packages pass, but Bootstrap exposes a real test-harness data race between the
+Governance outbox reading the injected `Now` closure and the onboarding test
+advancing its shared mutable clock. The official race remains NON-PASS after
+439 seconds. A focused single race run passes due to scheduling, while the
+focused ten-execution run reproduces the same detector stack and fails after
+39.1 seconds.
+
+Because the necessary Bootstrap test path is outside v32, r037 stops and v32
+remains immutable. The Customer's standing direction activates only
+`PRODUCT-CAPABILITY-ROADMAP-001 v33 / r038` from exact base `2f4e8015`. It adds
+one test-local `RWMutex` around the injected clock reads and sole time advance,
+without suppressing the outbox or changing Bootstrap/Auth/Workspace production
+concurrency. r038 must pass repeated focused and official race gates plus every
+remaining S07C deterministic, installed, scope, and independent-review gate.
+PCR-S07D, Release 3 completion, push, merge, deployment, generated protobufs,
+original dirty paths, and `server/**` remain inactive or excluded.
 
 The Human Customer's standing direction to complete Release 2 activated
 `PRODUCT-CAPABILITY-ROADMAP-001 v20 / r025` from exact Release 1 closure

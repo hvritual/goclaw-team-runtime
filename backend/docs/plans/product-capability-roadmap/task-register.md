@@ -2186,7 +2186,7 @@ S02A without changing Task product behavior or activating S02B.
 - Task-Revision: `r037`
 - Work-Item: `PCR-S07C`
 - Title: `Stabilize aggregate Auth test and close Requirement coverage`
-- Status: `approved-active`
+- Status: `verification-blocked-successor-active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `required before closure`
 - Exact base: `5d769058d289300e6b8851a5885cca183d5f9be9`
@@ -2224,3 +2224,66 @@ S02A without changing Task product behavior or activating S02B.
 - Immutable v32 preserves the v31 product semantics and authorizes exactly one
   additional test path. The Human Customer's confirmed continuous direction
   provides successor authority; activation claims no remediation or PASS.
+
+### R37.2-R37.3 Auth GREEN and official-race stop evidence
+
+- Commit `2f4e8015` changes only the two in-process server constructors in the
+  affected Auth restart-persistence test to a finite ten-second timeout. The
+  exact test and full Auth package pass without retry; no production path or
+  assertion changes.
+- After clearing only test-result cache, a fresh complete backend `make check`
+  passes in 383.6 seconds under normal package parallelism. The Auth package
+  passes in 11.3 seconds and the full format/policy/generated/vet/test chain
+  exits zero. Both earlier r036 aggregate failures remain NON-PASS evidence.
+- The official seven-package race uses the repository wrapper and Scoop GCC
+  15.2.0. Six Workspace packages pass, but Bootstrap detects a concurrent read
+  and write of the onboarding test's mutable `now` through the running outbox
+  clock and test-time advance. The command exits NON-PASS after 439 seconds.
+- A focused race passes once due to scheduling; the unchanged focused x10 race
+  reproduces the same detector stack and fails after 39.1 seconds. The required
+  Bootstrap test path is outside v32, so r037 stops and immutable v33/r038 is
+  required. No six-of-seven result is renamed race PASS.
+
+## PCR-001-S07C-R38
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S07C-R38`
+- Task-Revision: `r038`
+- Work-Item: `PCR-S07C`
+- Title: `Remove onboarding test-clock race and close Requirement coverage`
+- Status: `approved-active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `required before closure`
+- Exact base: `2f4e801552c3bdcc8a20e4e9fe6981a83c79ee1a`
+- Retained predecessor candidate: `cd94396093ea73f3f9434fed7410036ae61170ab`
+- Plan hash: `5f596081b0aa97ffdfc4aad7aaebce997681406d474d8bcbfa1efcd2019cb8ca`
+- Policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/5f596081b0aa97ffdfc4aad7aaebce997681406d474d8bcbfa1efcd2019cb8ca`
+- Write boundary: exact paths in immutable `plan_v33.md`; every other
+  Bootstrap/Auth path, migration, generated protobuf, original dirty path,
+  legacy backend write, and `server/**` path is read-only
+- Acceptance source: `plan_v33.md` R38.2-R38.4 and story-map PCR-S07C
+
+### Ordered outputs
+
+- Protect both injected reads and the sole write of the onboarding test's
+  mutable clock with one local `sync.RWMutex`, without stopping/serializing the
+  outbox or changing production behavior and assertions.
+- Pass the exact Bootstrap race at least 10 consecutive times and then the
+  fresh official seven-package race through the repository GCC wrapper.
+- Re-run the complete frozen S07C/Auth/backend/Core/Views/realtime/locale/root/
+  build gates and fresh real-HTTP production-Web acceptance.
+- Freeze one exact scoped candidate with continuous nine-field trailers, clean
+  isolated/original dirty/process evidence, and fresh independent `SPEC PASS`
+  plus `CODE/SECURITY/QUALITY PASS` before closing PCR-S07C.
+- Keep PCR-S07D, Release 3 completion, S10, `project_outline`, generated
+  protobufs, production concurrency, original dirty paths, push, merge,
+  deployment, and `server/**` inactive or excluded.
+
+### Activation evidence
+
+- The official race and focused x10 race independently expose the exact same
+  test-local read/write conflict. The detector, source lines, and outbox reader
+  identify a lockable test clock; no product repair or human decision remains.
+- Immutable v33 preserves v31/v32 behavior and adds exactly one Bootstrap test
+  path. The Human Customer's confirmed continuous direction provides successor
+  authority; activation claims no remediation or PASS.

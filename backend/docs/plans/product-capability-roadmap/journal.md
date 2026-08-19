@@ -1852,3 +1852,34 @@ Known limitations, blockers, and next action
   `project_outline`, Auth production code, generated protobufs, original dirty
   paths, push, merge, deployment, external services, and `server/**` remain
   inactive or excluded. Activation claims no remediation or PASS.
+
+## 2026-08-19 — J070 — r037 clears Auth gate, stops at race; v33/r038 activates
+
+- Commit `2f4e8015` implements only v32's finite ten-second in-process server
+  timeout at the two Auth restart-test sites. The exact test and full Auth
+  package pass. After clearing test-result cache, a fresh complete backend
+  `make check` passes in 383.6 seconds, including Auth in 11.3 seconds and all
+  format, policy/`server/**`, generated, vet, and Go test checks. The two prior
+  r036 complete-check failures remain disclosed as NON-PASS.
+- The official seven-package race command selects Scoop MinGW GCC 15.2.0.
+  Workspace contract, application, Requirement domain, SQLite infrastructure,
+  HTTP, and root packages pass. Bootstrap then reports a real race between the
+  Governance outbox goroutine reading `dependencies.Now` at
+  `onboarding_runtime_test.go:20` and the test goroutine writing `now` at line
+  155. The official gate remains NON-PASS after 439 seconds.
+- A focused exact race passes once because the conflicting operations do not
+  overlap. An unchanged focused ten-execution race reproduces the identical
+  detector stack and fails after 39.1 seconds. This is not the historical GCC
+  8.1 loader limitation, and six passing packages are not a race PASS.
+- The necessary `backend/internal/bootstrap/onboarding_runtime_test.go` path is
+  outside immutable v32, so r037 stops. The Customer's standing continuous
+  Release 3 direction activates only v33/r038 from exact base `2f4e8015`.
+- v33 authorizes one test-local `sync.RWMutex` protecting both injected clock
+  reads and the sole time advance. It forbids outbox suppression, production
+  concurrency change, sleep/retry/skip, or detector waiver. The policy bundle
+  is `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209/5f596081b0aa97ffdfc4aad7aaebce997681406d474d8bcbfa1efcd2019cb8ca`.
+- Only r038/PCR-S07C is active. PCR-S07D, Release 3 completion, S10,
+  `project_outline`, Bootstrap/Auth production code, generated protobufs,
+  original dirty paths, push, merge, deployment, external services, and
+  `server/**` remain inactive or excluded. Activation claims no remediation or
+  PASS.
