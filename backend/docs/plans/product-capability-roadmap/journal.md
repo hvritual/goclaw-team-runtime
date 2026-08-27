@@ -2705,3 +2705,19 @@ Known limitations, blockers, and next action
   quality review of the exact committed candidate. Canonical is unchanged; no
   push, deployment, migration, generated, legacy, or `server/**` action has
   occurred.
+
+## 2026-08-27 — J103 — R50.6 independent dual PASS
+
+- Fresh independent SPEC review passes exact candidate
+  `1478a6e71d3ff1a8567e391b1c82230891de75d0` (tree
+  `d5f9f4345d90dc0188c78be03771aba753117bc5`): warning-only S08A semantics,
+  per-field bounds, typed HTTP 400, empty-description validity, scope, inherited
+  v43 whitespace disclosure, and canonical/user-dirt protections all remain
+  correct.
+- Fresh independent code/security/quality review also passes. It confirms
+  `utf8.RuneCountInString` and normalized `strings.Fields` enforce the declared
+  limits before authorization/repository use, and the tests prove zero dependency
+  calls for all four oversize cases. No blocking finding remains.
+- R50.7 may now revalidate the final document-only successor, canonical base,
+  clean candidate, and dirty-path disjointness before a no-push/no-deploy
+  fast-forward.

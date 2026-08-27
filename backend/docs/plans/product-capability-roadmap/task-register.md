@@ -3159,9 +3159,9 @@ Expected outputs:
 - Task-Revision: `r050`
 - Work-Item: `PCR-S08A`
 - Title: `Bound normalized Issue-similarity input before query construction`
-- Status: `active — R50.1-R50.5 PASS; exact candidate frozen; R50.6 independent dual review active`
+- Status: `active — R50.1-R50.6 PASS; R50.7 canonical fast-forward preflight active`
 - Assignee: `Codex primary agent`
-- Independent reviewer: `Codex independent subagent s08a_r50_plan_review — DRAFT SPEC PASS`
+- Independent reviewers: `s08a_r50_plan_review — DRAFT SPEC PASS; s08a_r50_spec_review — SPEC PASS; s08a_r50_quality_review — CODE/SECURITY/QUALITY PASS`
 - Exact base: `f412279976c74df575cb8038c64f5474cfdda25d`
 - Frozen plan SHA-256: `c2a72b3f5c108343d4c28990a908e12dc9635d1ab5a21a0e3c47d43400155af4`
 - Frozen policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209`
