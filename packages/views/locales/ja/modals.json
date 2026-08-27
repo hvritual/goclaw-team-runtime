@@ -179,6 +179,7 @@
     "set_project": "プロジェクトを設定...",
     "customize_fields": "フィールドをカスタマイズ...",
     "custom_properties": "カスタムプロパティ",
+    "similarity_region": "重複している可能性のあるイシュー",
     "remove_parent": "親を削除",
     "set_parent_picker": {
       "title": "親イシューを設定",

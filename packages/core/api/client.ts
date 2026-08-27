@@ -9,6 +9,8 @@ import type {
   GroupedIssuesResponse,
   ListIssuesResponse,
   SearchIssuesResponse,
+  CheckIssueSimilarityRequest,
+  IssueSimilarityResponse,
   SearchProjectsResponse,
   UpdateMeRequest,
   CreateMemberRequest,
@@ -170,6 +172,7 @@ import {
   EMPTY_ISSUE_TABLE_ROWS_RESPONSE,
   EMPTY_LIST_ISSUES_RESPONSE,
   EMPTY_SEARCH_ISSUES_RESPONSE,
+  EMPTY_ISSUE_SIMILARITY_RESPONSE,
   IssueMetadataResponseSchema,
   IssueReactionSchema,
   IssueReactionsListSchema,
@@ -187,6 +190,7 @@ import {
   ListIssuesResponseSchema,
   CreateIssueResponseSchema,
   SearchIssuesResponseSchema,
+  IssueSimilarityResponseSchema,
   SearchProjectsResponseSchema,
   ListProjectsResponseSchema,
   ProjectSchema,
@@ -803,6 +807,36 @@ export class ApiClient {
       {
         endpoint: "GET /api/issues/search",
       }
+    );
+  }
+
+  async checkIssueSimilarity(
+    data: CheckIssueSimilarityRequest,
+  ): Promise<IssueSimilarityResponse> {
+    const raw = await this.fetch<unknown>("/api/issues/similarity/check", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(
+      raw,
+      IssueSimilarityResponseSchema,
+      EMPTY_ISSUE_SIMILARITY_RESPONSE,
+      { endpoint: "POST /api/issues/similarity/check" },
+    );
+  }
+
+  async checkExistingIssueSimilarity(
+    issueId: string,
+  ): Promise<IssueSimilarityResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/issues/${encodeURIComponent(issueId)}/similarity/check`,
+      { method: "POST" },
+    );
+    return parseWithFallback(
+      raw,
+      IssueSimilarityResponseSchema,
+      EMPTY_ISSUE_SIMILARITY_RESPONSE,
+      { endpoint: "POST /api/issues/:id/similarity/check" },
     );
   }
 

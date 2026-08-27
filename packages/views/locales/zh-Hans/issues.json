@@ -621,6 +621,15 @@
     "update_failed": "更新标签失败",
     "delete_failed": "删除标签失败"
   },
+  "similarity": {
+    "heading": "可能重复的 issue",
+    "checking": "正在检查相似 issue…",
+    "unavailable": "暂时无法检查相似 issue。你仍可继续创建或编辑此 issue。",
+    "same_project": "同一项目",
+    "closed": "已关闭",
+    "score": "匹配分：{{score}}",
+    "truncated": "正在显示最佳匹配结果。"
+  },
   "backlog_hint": {
     "title": "智能体在 backlog 状态下暂停",
     "description": "这个 issue 处于待规划状态，被分配的智能体会等待。准备启动时把它移到 todo。",

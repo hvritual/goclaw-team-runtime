@@ -27,6 +27,7 @@ const mockDescriptionUploadWithToast = vi.hoisted(() => vi.fn());
 // stable identity. A fresh `[]` per call would loop useSyncExternalStore.
 const emptyDraftAttachments = vi.hoisted(() => [] as unknown[]);
 const mockRealtimeConsumers = vi.hoisted(() => ({ event: vi.fn(), reconnect: vi.fn() }));
+const mockUseIssueSimilarity = vi.hoisted(() => vi.fn());
 
 vi.mock("@multica/ui/hooks/use-mobile", () => ({
   useIsMobile: () => mockViewport.isMobile,
@@ -42,6 +43,10 @@ vi.mock("./batch-action-toolbar", () => ({
 // directly so the bridge hook returns the test UUID.
 vi.mock("@multica/core/hooks", () => ({
   useWorkspaceId: () => "ws-1",
+}));
+
+vi.mock("@multica/core/issues/similarity", () => ({
+  useIssueSimilarity: mockUseIssueSimilarity,
 }));
 
 // ---------------------------------------------------------------------------
@@ -573,7 +578,11 @@ const mockTimeline: TimelineEntry[] = [
 // Import component under test (after mocks)
 // ---------------------------------------------------------------------------
 
-import { IssueDetail, groupSubIssuesByStage } from "./issue-detail";
+import {
+  IssueDetail,
+  IssueDetailSimilarityWarning,
+  groupSubIssuesByStage,
+} from "./issue-detail";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -2006,6 +2015,47 @@ describe("IssueDetail (shared)", () => {
       expect(due.closest("span")?.className).not.toContain("text-destructive");
       expect(due.closest("span")?.className).toContain("text-muted-foreground");
     });
+  });
+});
+
+describe("IssueDetailSimilarityWarning", () => {
+  it("checks the canonical Issue only after a material saved revision", () => {
+    mockUseIssueSimilarity.mockReturnValue({
+      inputPending: false,
+      isFetching: false,
+      isError: false,
+      data: {
+        ranking_version: "lexical-v1",
+        candidates: [{
+          ...mockIssue,
+          id: "issue-2",
+          identifier: "TES-2",
+          title: "Existing authentication work",
+          score: 70,
+          component_scores: { title_terms: 1 },
+          same_project: false,
+          closed: false,
+        }],
+        truncated: false,
+        detector_available: true,
+      },
+    });
+
+    render(
+      <I18nProvider locale="en" resources={TEST_RESOURCES}>
+        <IssueDetailSimilarityWarning issue={mockIssue} enabled revision={1} />
+      </I18nProvider>,
+    );
+
+    expect(mockUseIssueSimilarity).toHaveBeenCalledWith({
+      issueId: "issue-1",
+      title: "Implement authentication",
+      description: "Add JWT auth to the backend",
+      projectId: null,
+      refreshKey: 1,
+      enabled: true,
+    });
+    expect(screen.getByText("Existing authentication work")).toBeInTheDocument();
   });
 });
 

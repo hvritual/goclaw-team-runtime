@@ -44,6 +44,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue search SQLite persistence: %w", err)
 	}
+	issueSimilarityRepository, err := persistence.NewIssueSimilarityRepository(config)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue similarity SQLite persistence: %w", err)
+	}
 	issueMetadata, err := persistence.NewIssueMetadataRepository(config)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata SQLite persistence: %w", err)
@@ -168,6 +172,10 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue search application: %w", err)
 	}
+	issueSimilarityService, err := application.NewIssueSimilarityUseCase(issueSimilarityRepository, dependencies.Authorizer)
+	if err != nil {
+		return nil, fmt.Errorf("configure Workspace Issue similarity application: %w", err)
+	}
 	baseIssueMetadataService, err := application.NewIssueMetadataUseCase(issueMetadata, dependencies.Authorizer, dependencies.Actors, now)
 	if err != nil {
 		return nil, fmt.Errorf("configure Workspace Issue metadata application: %w", err)
@@ -275,6 +283,12 @@ func NewWithSqliteWorkspaceChain(config SqlitePersistenceConfig, dependencies Wo
 	))
 	module.extensions = append(module.extensions, newIssueDeletionExtension(issueDeletionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 	if dependencies.HTTPIdentity != nil && dependencies.HTTPUserIdentity != nil {
+		module.extensions = append(module.extensions, newIssueSimilarityExtension(
+			issueSimilarityService,
+			issueService,
+			dependencies.HTTPIdentity,
+			dependencies.HTTPUserIdentity,
+		))
 		module.extensions = append(module.extensions, newKnowledgeReviewHTTPExtension(knowledgeReviewService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))
 		module.extensions = append(module.extensions, newKnowledgeQueryHTTPExtension(knowledgeQueryService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity))
 		module.extensions = append(module.extensions, newTaskHTTPExtension(todoService, taskPromotionService, dependencies.HTTPIdentity, dependencies.HTTPUserIdentity, dependencies.HTTPMutationAuthorizer))

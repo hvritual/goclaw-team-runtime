@@ -2620,3 +2620,23 @@ Known limitations, blockers, and next action
   product/test paths. The r048 whitespace failure remains immutable history.
 - No source governance file, S08B/S09 work, generated path, canonical dirty
   path, legacy backend path, push, or deployment is authorized.
+
+## 2026-08-27 — J096 — R49.2 selective transplant and direct verification
+
+- The isolated candidate applies only the 34 frozen product/test paths from
+  `02359a01`, then `496013ea`, then `76265a27`. The final worktree blobs match
+  `76265a27` for all 34 paths; it has zero staged path, zero `server/**`, zero
+  generated protobuf, zero migration, and zero source-roadmap path.
+- Direct verification passes: `cd backend && go test ./internal/bootstrap
+  ./internal/modules/workspace/...`; Core similarity/schema tests pass 5/5; and
+  Views Issue-detail/warning/create-modal tests pass 51/51. `git diff --check`
+  passes. A read-only `gofmt -d` reports only CRLF/LF representation differences
+  on transplanted files; no formatting rewrite was made.
+- An implementation-agent generic patch initially targeted the canonical root,
+  not the isolated worktree. It was immediately reversed and no similarity
+  content remained. Independent audit identified 16 formerly-clean manifest
+  files with only stale line-ending status; each had zero content diff from
+  canonical HEAD and was restored by exact path. Source-path status is now
+  clean and all 21 original unrelated canonical dirty entries remain. The
+  isolated candidate was subsequently created only through explicit worktree-
+  scoped source selection.

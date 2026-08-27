@@ -44,6 +44,34 @@ export interface UpdateIssueRequest {
   acceptanceConclusion?: AcceptanceConclusionInput;
 }
 
+/** Request body for the warning-only pre-create similarity check. */
+export interface CheckIssueSimilarityRequest {
+  title: string;
+  description?: string;
+  project_id?: string;
+  include_closed?: boolean;
+}
+
+/** A standard Issue projection enriched with explainable similarity ranking. */
+export interface IssueSimilarityCandidate extends Issue {
+  score: number;
+  component_scores: Record<string, number>;
+  same_project: boolean;
+  closed: boolean;
+}
+
+/**
+ * Detector availability is intentionally separate from candidate count:
+ * `detector_available: false` means the client must not interpret an empty
+ * candidate list as proof that no duplicate exists.
+ */
+export interface IssueSimilarityResponse {
+  ranking_version: string;
+  candidates: IssueSimilarityCandidate[];
+  truncated: boolean;
+  detector_available: boolean;
+}
+
 /**
  * Server-owned drag intent. The client may use a provisional position for its
  * optimistic animation, but the canonical position is derived from these

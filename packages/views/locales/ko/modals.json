@@ -179,6 +179,7 @@
     "set_project": "프로젝트 설정...",
     "customize_fields": "필드 사용자 지정...",
     "custom_properties": "사용자 지정 속성",
+    "similarity_region": "중복 가능성이 있는 이슈",
     "remove_parent": "상위 이슈 제거",
     "set_parent_picker": {
       "title": "상위 이슈 설정",

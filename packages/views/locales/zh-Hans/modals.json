@@ -179,6 +179,7 @@
     "set_project": "设置项目...",
     "customize_fields": "自定义字段...",
     "custom_properties": "自定义属性",
+    "similarity_region": "可能重复的 issue",
     "remove_parent": "移除父级",
     "set_parent_picker": {
       "title": "设置父 issue",

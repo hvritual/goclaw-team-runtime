@@ -646,6 +646,15 @@
     "update_failed": "Failed to update label",
     "delete_failed": "Failed to delete label"
   },
+  "similarity": {
+    "heading": "Possible duplicate issues",
+    "checking": "Checking for similar issues…",
+    "unavailable": "Similarity checking is unavailable. You can still create or edit this issue.",
+    "same_project": "Same project",
+    "closed": "Closed",
+    "score": "Match score: {{score}}",
+    "truncated": "Showing the best available matches."
+  },
   "backlog_hint": {
     "title": "Agent is paused in Backlog",
     "description": "This issue is parked, so the assigned agent will wait. Move it to Todo when you want the agent to start.",

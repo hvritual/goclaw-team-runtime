@@ -5,6 +5,7 @@ import type {
   GitHubConnectResponse,
   GitHubPullRequest,
   Issue,
+  IssueSimilarityResponse,
   Label,
   IssueProperty,
   ListPropertiesResponse,
@@ -826,6 +827,30 @@ export const SearchIssuesResponseSchema = z.object({
 export const EMPTY_SEARCH_ISSUES_RESPONSE: SearchIssuesResponse = {
   issues: [],
   total: 0,
+};
+
+const IssueSimilarityCandidateSchema = IssueSchema.extend({
+  score: z.number(),
+  component_scores: z.record(z.string(), z.number()),
+  same_project: z.boolean(),
+  closed: z.boolean(),
+}).loose();
+
+export const IssueSimilarityResponseSchema = z.object({
+  ranking_version: z.string().min(1),
+  candidates: z.array(IssueSimilarityCandidateSchema),
+  truncated: z.boolean(),
+  detector_available: z.boolean(),
+}).strict();
+
+// A malformed server response is a detector failure, not an empty search.
+// This lets every caller render a truthful degraded state without fabricating
+// a "no possible duplicates" result.
+export const EMPTY_ISSUE_SIMILARITY_RESPONSE: IssueSimilarityResponse = {
+  ranking_version: "unavailable",
+  candidates: [],
+  truncated: false,
+  detector_available: false,
 };
 
 export const ProjectSchema = z.object({

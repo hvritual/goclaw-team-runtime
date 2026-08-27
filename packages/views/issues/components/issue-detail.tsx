@@ -67,6 +67,7 @@ import { useGitHubSettings } from "@multica/core/github";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
 import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
+import { useIssueSimilarity } from "@multica/core/issues/similarity";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useProposeCommentDecision } from "@multica/core/knowledge";
@@ -106,6 +107,7 @@ import { useT } from "../../i18n";
 import { useIssueDetailScrollRestore } from "../hooks/use-issue-detail-scroll-restore";
 import { useInPageFind } from "../hooks/use-in-page-find";
 import { FindBar } from "./find-bar";
+import { IssueSimilarityWarning } from "./issue-similarity-warning";
 import {
   AnimatedRightSidebar,
   getAnimatedRightSidebarInitialOpen,
@@ -861,6 +863,36 @@ interface IssueDetailProps {
   highlightCommentId?: string;
 }
 
+export function IssueDetailSimilarityWarning({
+  issue,
+  enabled,
+  revision,
+}: {
+  issue: Issue;
+  enabled: boolean;
+  revision: number;
+}) {
+  const similarity = useIssueSimilarity({
+    issueId: issue.id,
+    title: issue.title,
+    description: issue.description,
+    projectId: issue.project_id,
+    refreshKey: revision,
+    enabled: enabled && revision > 0,
+  });
+
+  if (!enabled || revision === 0) return null;
+
+  return (
+    <IssueSimilarityWarning
+      checking={similarity.inputPending || similarity.isFetching}
+      className="mt-4"
+      result={similarity.data}
+      unavailable={similarity.isError}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // IssueDetail
 // ---------------------------------------------------------------------------
@@ -915,6 +947,7 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
 	const childProgressEnabled = useFeatureEnabled("issue_child_progress", true);
 	const acceptanceEnabled = useFeatureEnabled("issue_acceptance", true);
 	const pullRequestsEnabled = useFeatureEnabled("issue_detail_pull_requests", true);
+	const similarityEnabled = useFeatureEnabled("issue_similarity", false);
 
   // Issue navigation — read from TQ list cache
   const wsId = useWorkspaceId();
@@ -1107,6 +1140,55 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
       return cached?.description != null ? cached : undefined;
     },
   });
+
+  const [similarityRevision, setSimilarityRevision] = useState(0);
+  const similarityBaselineRef = useRef<{
+    id: string;
+    title: string;
+    description: string | null;
+    updatedAt: string;
+  } | null>(null);
+  const similarityIssueID = issue?.id;
+  const similarityTitle = issue?.title;
+  const similarityDescription = issue?.description;
+  const similarityUpdatedAt = issue?.updated_at;
+  useEffect(() => {
+    if (
+      !similarityIssueID ||
+      similarityTitle === undefined ||
+      similarityUpdatedAt === undefined
+    ) {
+      return;
+    }
+    const current = {
+      id: similarityIssueID,
+      title: similarityTitle,
+      description: similarityDescription ?? null,
+      updatedAt: similarityUpdatedAt,
+    };
+    const baseline = similarityBaselineRef.current;
+    if (!baseline || baseline.id !== current.id) {
+      similarityBaselineRef.current = current;
+      setSimilarityRevision(0);
+      return;
+    }
+    // Optimistic title/description patches retain updated_at. Waiting for a
+    // new canonical timestamp means the self-excluding endpoint cannot race
+    // ahead of the write it is checking.
+    if (baseline.updatedAt === current.updatedAt) return;
+    similarityBaselineRef.current = current;
+    if (
+      baseline.title !== current.title ||
+      baseline.description !== current.description
+    ) {
+      setSimilarityRevision((revision) => revision + 1);
+    }
+  }, [
+    similarityIssueID,
+    similarityTitle,
+    similarityDescription,
+    similarityUpdatedAt,
+  ]);
 
   // Record recent visit
   const recordVisit = useRecentIssuesStore((s) => s.recordVisit);
@@ -2446,6 +2528,12 @@ function FullIssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = true,
             )}
             {descDragOver && <FileDropOverlay />}
           </div>
+
+          <IssueDetailSimilarityWarning
+            enabled={similarityEnabled}
+            issue={issue}
+            revision={similarityRevision}
+          />
 
           {/* Sub-issues — Linear-style */}
           {childIssues.length === 0 && (

@@ -181,6 +181,7 @@
     "set_project": "Set project...",
     "customize_fields": "Customize fields...",
     "custom_properties": "Custom properties",
+    "similarity_region": "Possible duplicate issues",
     "remove_parent": "Remove parent",
     "set_parent_picker": {
       "title": "Set parent issue",

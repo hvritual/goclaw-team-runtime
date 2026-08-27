@@ -621,6 +621,15 @@
     "update_failed": "라벨을 업데이트하지 못했습니다",
     "delete_failed": "라벨을 삭제하지 못했습니다"
   },
+  "similarity": {
+    "heading": "중복 가능성이 있는 이슈",
+    "checking": "유사한 이슈를 확인하는 중…",
+    "unavailable": "유사성 검사를 사용할 수 없습니다. 이 이슈를 계속 만들거나 수정할 수 있습니다.",
+    "same_project": "같은 프로젝트",
+    "closed": "완료됨",
+    "score": "일치 점수: {{score}}",
+    "truncated": "가장 일치하는 후보를 표시합니다."
+  },
   "backlog_hint": {
     "title": "백로그에서는 에이전트가 대기합니다",
     "description": "이 이슈는 보류 상태이므로 할당된 에이전트가 기다립니다. 에이전트를 시작하려면 할 일로 이동하세요.",

@@ -79,6 +79,7 @@ import { ProjectPicker } from "../projects/components/project-picker";
 import { useCurrentWorkspace, useWorkspacePaths } from "@multica/core/paths";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useFeatureEnabled } from "@multica/core/config";
+import { useIssueSimilarity } from "@multica/core/issues/similarity";
 import {
   useIssueDraftStore,
   type IssueCreateDraft,
@@ -111,8 +112,42 @@ import {
   CustomPropertyValueDisplay,
   CustomPropertyValueInput,
 } from "../issues/components/pickers/custom-property-picker";
+import { IssueSimilarityWarning } from "../issues/components/issue-similarity-warning";
 import { IssuePickerModal } from "./issue-picker-modal";
 import { useT } from "../i18n";
+
+// ---------------------------------------------------------------------------
+
+export function CreateIssueSimilarityWarning({
+  title,
+  description,
+  projectId,
+  enabled,
+}: {
+  title: string;
+  description: string;
+  projectId?: string;
+  enabled: boolean;
+}) {
+  const similarity = useIssueSimilarity({
+    title,
+    description,
+    projectId,
+    enabled,
+  });
+
+  if (!enabled || !title.trim()) return null;
+
+  return (
+    <div className="px-5 pb-2 shrink-0">
+      <IssueSimilarityWarning
+        checking={similarity.inputPending || similarity.isFetching}
+        result={similarity.data}
+        unavailable={similarity.isError}
+      />
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // ManualCreatePanel — manual-mode body of the create-issue dialog. Renders
@@ -155,6 +190,7 @@ export function ManualCreatePanel({
   const propertiesEnabled = useFeatureEnabled("issue_properties", false);
   const labelsEnabled = useFeatureEnabled("issue_labels", false);
   const attachmentsEnabled = useFeatureEnabled("issue_attachments", false);
+  const similarityEnabled = useFeatureEnabled("issue_similarity", false);
   const [title, setTitle] = useState(draft.manual.title);
   const [formResetKey, setFormResetKey] = useState(0);
   const titleEditorRef = useRef<TitleEditorRef>(null);
@@ -860,6 +896,13 @@ export function ManualCreatePanel({
         />
         {attachmentsEnabled && descDragOver && <FileDropOverlay />}
       </div>
+
+      <CreateIssueSimilarityWarning
+        description={draft.manual.description}
+        enabled={similarityEnabled}
+        projectId={projectId}
+        title={title}
+      />
 
       {/* Property toolbar — each field renders per the Settings → Issue
                 selection (see showField above). */}
