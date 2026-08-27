@@ -1,10 +1,10 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v40`
-- Registry status: `Release 3 aggregate DoneGate active under r045; r044 audit-blocked; PCR-S07A-D complete-independent-reviewed`
-- Registry revision: `r045`
-- Updated: `2026-08-20`
+- Plan-Version: `v43`
+- Registry status: `Release 3 complete-independent-reviewed; Release 4 S08A governed selective integration active under r048`
+- Registry revision: `r048`
+- Updated: `2026-08-27`
 
 ## Frozen policy bundle
 
@@ -3070,3 +3070,58 @@ S02A without changing Task product behavior or activating S02B.
 - Release 4/S08+, S10 expansion, product changes, generated protobufs,
   external services, original dirty paths, push, merge, deployment, legacy
   backend writes, and `server/**` remain inactive or excluded.
+
+## PCR-001-S08A-R047
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S08A-R047`
+- Task-Revision: `r047`
+- Work-Item: `PCR-S08A`
+- Title: `Selectively integrate the Issue-similarity warning candidate`
+- Status: `review-blocked-before-product-code — immutable v42 omitted required dependencies, risks, rollback, and frozen content-hash revalidation`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `pending assignment after immutable plan write`
+- Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
+- Source evidence: `02359a01`, `496013ea`, `76265a27` from
+  `codex/release4-s08a-r070`; these are content sources only, not a merge base
+- Write boundary: `plan_v42.md`, the four mutable roadmap records, and the
+  exact product/test path list in `plan_v42.md`; no other source paths
+- Product-code authority: R47.2 activates only after independent R47.1 SPEC
+  PASS; TDD transplant exception is limited to the existing tests in the frozen
+  path list
+- Acceptance source: `plan_v42.md` R47.1-R47.6
+
+Expected outputs:
+
+- a warning-only, current-workspace Issue similarity endpoint and client flow;
+- deterministic backend, Core, and shared-Views coverage for ranking,
+  isolation, cache partitioning, unavailable handling, and localization;
+- clean exact-scope, static, regression, and dual independent-review evidence;
+- fast-forward integration into the canonical branch only after every required
+  gate passes; no push, deployment, legacy backend write, or S08B/S09 work.
+
+## PCR-001-S08A-R048
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S08A-R048`
+- Task-Revision: `r048`
+- Work-Item: `PCR-S08A`
+- Title: `Governed successor for selective Issue-similarity warning integration`
+- Status: `active — R48.1 independent SPEC PASS; R48.2 selective transplant active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent s08a_r48_plan_spec_review — SPEC PASS`
+- Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
+- Frozen plan SHA-256: `9441040d081df945dc84641dc18af057c10d1736c4cb26c832ecaf177f56a583`
+- Frozen source product/test path-set SHA-256: `3492158580b5d22780c8c7faab8fb7e18df3162155651dd3dc8e3d05e356ccd3` (34 sorted paths, UTF-8 LF-terminated)
+- Frozen policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209`
+- Source evidence: `02359a01`, `496013ea`, `76265a27` from
+  `codex/release4-s08a-r070`; these are content sources only, not a merge base
+- Revalidation points: R48.1 review, R48.2 start, R48.5 candidate freeze, and
+  R48.7 canonical fast-forward acceptance must each match the plan/base/policy/
+  source/path-set identities above
+- Write boundary: `plan_v43.md`, the four mutable roadmap records, and the
+  exact 34 product/test paths in `plan_v43.md`; no other source path
+- Product-code authority: R48.1 SPEC PASS is recorded; R48.2 may apply only
+  the frozen manifest. TDD transplant exception is limited to those existing
+  tests
+- Acceptance source: `plan_v43.md` R48.1-R48.7

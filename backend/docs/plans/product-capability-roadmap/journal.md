@@ -2502,3 +2502,52 @@ Known limitations, blockers, and next action
   expansion, product changes, generated protobufs, external services, original
   dirty paths, push, merge, deployment, legacy backend writes, and `server/**`
   remain inactive or excluded.
+
+## 2026-08-27 — J088 — Release 4 S08A selective integration activates
+
+- The Human Customer explicitly selected canonical branch
+  `codex/multica-six-domain-baseline` and confirmed execution. A clean isolated
+  worktree on `codex/release4-s08a-integrate` starts at exact base
+  `bbc1a452c84945cde3fe633a43610a8f1db3ae77`.
+- Immutable `plan_v42.md` activates only PCR-S08A/r047. The source evidence is
+  limited to the candidate content in `02359a01`, `496013ea`, and `76265a27`;
+  their Release 4 governance history is neither copied nor treated as approval.
+- The source path selection is warning-only and workspace-local. S08B, S09+,
+  generated protobufs, migrations, source roadmap documents, push, deployment,
+  legacy backend writes, `server/**`, and the canonical worktree's unrelated
+  dirty paths remain excluded.
+- R47.1 requires a fresh independent plan/spec PASS before product bytes are
+  changed. The Customer's limited TDD transplant exception allows only the
+  selected existing source tests to travel with the selected implementation;
+  R47.3-R47.5 still require deterministic checks and independent dual review.
+
+## 2026-08-27 — J089 — r047 plan review block and r048 successor activation
+
+- Fresh independent SPEC review blocks immutable v42/r047 before any product
+  byte changes: the plan omitted explicit dependencies, risks, rollback, and
+  frozen plan/content-hash revalidation required by `backend/AGENTS.md`.
+- v42 is not amended. Immutable v43/r048 is the narrow successor. It retains
+  the same exact base, source commits, 34-path manifest, warning-only contract,
+  TDD exception, and exclusions, while adding the required governance fields
+  and deterministic identity revalidation points.
+- v43 SHA-256 is
+  `9441040d081df945dc84641dc18af057c10d1736c4cb26c832ecaf177f56a583`.
+  The 34-path UTF-8 LF source manifest SHA-256 is
+  `3492158580b5d22780c8c7faab8fb7e18df3162155651dd3dc8e3d05e356ccd3`.
+  R48.1 fresh independent SPEC review is now required before R48.2 product
+  code starts. Canonical branch, user dirt, source governance history, S08B,
+  S09+, push, deployment, generated paths, and `server/**` remain untouched.
+
+## 2026-08-27 — J090 — r048 plan review PASS and selective transplant start
+
+- A fresh independent SPEC review returns PASS for v43/r048. It confirms the
+  predecessor block is accurately preserved; dependencies, risks, rollback,
+  exact identity revalidation, 34-path manifest, exclusions, traceability, and
+  review order are complete.
+- Primary recalculation independently matches the frozen plan SHA, both policy
+  hashes, and the 34-path UTF-8 LF source-manifest SHA. The three source commits
+  resolve and their four `backend/docs` files remain excluded.
+- R48.1 is complete. R48.2 now authorizes only chronological selective
+  transplantation of the frozen product/test manifest. No other source bytes,
+  canonical dirty paths, generated paths, `server/**`, S08B/S09 work, push, or
+  deployment are authorized.
