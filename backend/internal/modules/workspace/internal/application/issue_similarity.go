@@ -5,15 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
 	issueDomain "github.com/hvritual/workspace/internal/modules/workspace/internal/domain/issue"
 )
 
 const (
-	issueSimilarityRankingVersion = "lexical-v1"
-	issueSimilarityCandidateLimit = 5
-	issueSimilarityPoolLimit      = 50
+	issueSimilarityRankingVersion          = "lexical-v1"
+	issueSimilarityCandidateLimit          = 5
+	issueSimilarityPoolLimit               = 50
+	issueSimilarityMaximumTitleRunes       = 1024
+	issueSimilarityMaximumDescriptionRunes = 4096
+	issueSimilarityMaximumTerms            = 32
 )
 
 type IssueSimilarityQuery struct {
@@ -53,15 +57,17 @@ func NewIssueSimilarityUseCase(repository IssueSimilarityRepository, authorizer 
 func (s *IssueSimilarityUseCase) CheckIssueSimilarity(ctx context.Context, request contract.CheckIssueSimilarityRequest) (contract.CheckIssueSimilarityResponse, error) {
 	workspaceID := strings.TrimSpace(request.WorkspaceID)
 	title := NormalizeIssueSearchText(request.Title)
-	if workspaceID == "" || title == "" {
+	description := ""
+	if request.Description != nil {
+		description = NormalizeIssueSearchText(*request.Description)
+	}
+	if workspaceID == "" || title == "" ||
+		!issueSimilarityTextWithinBounds(title, issueSimilarityMaximumTitleRunes) ||
+		!issueSimilarityTextWithinBounds(description, issueSimilarityMaximumDescriptionRunes) {
 		return contract.CheckIssueSimilarityResponse{}, contract.ErrInvalidIssueSimilarity
 	}
 	if err := s.authorizer.AuthorizeWorkspace(ctx, workspaceID, contract.PermissionSimilarityCheck); err != nil {
 		return contract.CheckIssueSimilarityResponse{}, err
-	}
-	description := ""
-	if request.Description != nil {
-		description = NormalizeIssueSearchText(*request.Description)
 	}
 	projectID := ""
 	if request.ProjectID != nil {
@@ -95,4 +101,8 @@ func (s *IssueSimilarityUseCase) CheckIssueSimilarity(ctx context.Context, reque
 	return contract.CheckIssueSimilarityResponse{
 		RankingVersion: issueSimilarityRankingVersion, Candidates: result, Truncated: truncated, DetectorAvailable: true,
 	}, nil
+}
+
+func issueSimilarityTextWithinBounds(value string, maximumRunes int) bool {
+	return utf8.RuneCountInString(value) <= maximumRunes && len(strings.Fields(value)) <= issueSimilarityMaximumTerms
 }

@@ -2676,3 +2676,17 @@ Known limitations, blockers, and next action
 
 - Fresh independent R50.1 draft SPEC review passes exact v45 SHA `c2a72b3f5c108343d4c28990a908e12dc9635d1ab5a21a0e3c47d43400155af4`, exact base `f412279976c74df575cb8038c64f5474cfdda25d`, the policy bundle, plan pointer state, and the exact eight-path write boundary.
 - v45/r050 is now the approved execution snapshot. R50.2 is authorized only for assertion-first RED tests in the three declared backend paths; implementation remains unauthorized until the recorded RED evidence exists. Canonical, user dirt, `server/**`, generated paths, migrations, S08B/S09, push, and deployment remain outside scope.
+
+## 2026-08-27 — J101 — R50.2 RED and R50.3 GREEN bounded-input correction
+
+- Assertion-first application coverage adds title 1,025-rune, description
+  4,097-rune, title 33-term, and description 33-term cases. Before implementation,
+  all four fail with `error = <nil>, want ErrInvalidIssueSimilarity`; direct HTTP
+  coverage confirms the existing typed invalid-input mapping is HTTP 400.
+- The minimal application change normalizes both fields before authorization and
+  rejects either field above its declared rune or term ceiling with
+  `ErrInvalidIssueSimilarity`. Each test proves zero authorizer/repository calls;
+  an empty description remains valid. The required focused application command and
+  focused application/HTTP packages are GREEN. R50.4 Workspace-wide gates remain
+  active; no handler, repository, migration, generated, `server/**`, canonical,
+  push, or deployment change has occurred.

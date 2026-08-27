@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hvritual/workspace/internal/modules/workspace/contract"
@@ -100,6 +101,63 @@ func TestIssueSimilarityUseCaseRejectsInvalidInputBeforeAuthorization(t *testing
 	}
 	if repository.calls != 0 || len(authorizer.permissions) != 0 {
 		t.Fatalf("invalid input reached dependencies: repository=%d authorization=%v", repository.calls, authorizer.permissions)
+	}
+}
+
+func TestIssueSimilarityUseCaseRejectsOversizedInputBeforeAuthorization(t *testing.T) {
+	validDescription := "Description"
+	stringPointer := func(value string) *string { return &value }
+	for _, test := range []struct {
+		name    string
+		request contract.CheckIssueSimilarityRequest
+	}{
+		{
+			name: "title exceeds normalized rune limit",
+			request: contract.CheckIssueSimilarityRequest{
+				WorkspaceID: "workspace-1",
+				Title:       strings.Repeat("界", 1025),
+			},
+		},
+		{
+			name: "description exceeds normalized rune limit",
+			request: contract.CheckIssueSimilarityRequest{
+				WorkspaceID: "workspace-1",
+				Title:       "Issue",
+				Description: stringPointer(strings.Repeat("界", 4097)),
+			},
+		},
+		{
+			name: "title exceeds normalized term limit",
+			request: contract.CheckIssueSimilarityRequest{
+				WorkspaceID: "workspace-1",
+				Title:       strings.TrimSpace(strings.Repeat("term ", 33)),
+				Description: &validDescription,
+			},
+		},
+		{
+			name: "description exceeds normalized term limit",
+			request: contract.CheckIssueSimilarityRequest{
+				WorkspaceID: "workspace-1",
+				Title:       "Issue",
+				Description: stringPointer(strings.TrimSpace(strings.Repeat("term ", 33))),
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repository := &issueSimilarityRepositoryStub{}
+			authorizer := &accessAuthorizerStub{}
+			service, err := NewIssueSimilarityUseCase(repository, authorizer)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := service.CheckIssueSimilarity(context.Background(), test.request); !errors.Is(err, contract.ErrInvalidIssueSimilarity) {
+				t.Fatalf("error = %v, want ErrInvalidIssueSimilarity", err)
+			}
+			if repository.calls != 0 || len(authorizer.permissions) != 0 {
+				t.Fatalf("oversized input reached dependencies: repository=%d authorization=%v", repository.calls, authorizer.permissions)
+			}
+		})
 	}
 }
 

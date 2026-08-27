@@ -3159,7 +3159,7 @@ Expected outputs:
 - Task-Revision: `r050`
 - Work-Item: `PCR-S08A`
 - Title: `Bound normalized Issue-similarity input before query construction`
-- Status: `active — R50.1 independent plan PASS; R50.2 assertion-first RED tests active`
+- Status: `active — R50.1 plan PASS; R50.2 RED and R50.3 GREEN recorded; R50.4 focused gates active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent s08a_r50_plan_review — DRAFT SPEC PASS`
 - Exact base: `f412279976c74df575cb8038c64f5474cfdda25d`
@@ -3168,5 +3168,5 @@ Expected outputs:
 - Predecessor and review finding: `f412279976c74df575cb8038c64f5474cfdda25d` r049 candidate; unbounded normalized title/description terms may reach SQLite predicate construction
 - Revalidation points: R50.1 review, R50.5 candidate freeze, and R50.7 canonical fast-forward must each match this plan/base/policy identity
 - Write boundary: `plan_v45.md`, the four mutable roadmap records, and only the three product/test paths named in `plan_v45.md`
-- Product-code authority: R50.1 fresh independent SPEC PASS is recorded; R50.2 requires assertion-first RED evidence before implementation
+- Product-code authority: R50.2 RED proves all four oversize cases initially returned nil; R50.3 adds only application bounds and returns the cases GREEN before dependencies run
 - Acceptance source: `plan_v45.md` R50.1-R50.7

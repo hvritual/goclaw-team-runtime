@@ -87,6 +87,12 @@ func TestIssueSimilarityRoutesRejectMalformedRequestsAndMapFailures(t *testing.T
 		t.Fatalf("denied = %d calls=%d body=%s", response.Code, denied.calls, response.Body.String())
 	}
 
+	invalid := &recordingIssueSimilarityService{err: contract.ErrInvalidIssueSimilarity}
+	response = serveIssueSimilarity(t, invalid, &recordingIssueSimilarityIssueService{}, http.MethodPost, "/api/issues/similarity/check", `{"title":"Alpha"}`)
+	if response.Code != http.StatusBadRequest || invalid.calls != 1 {
+		t.Fatalf("invalid = %d calls=%d body=%s", response.Code, invalid.calls, response.Body.String())
+	}
+
 	notFound := &recordingIssueSimilarityIssueService{err: contract.ErrIssueNotFound}
 	response = serveIssueSimilarity(t, &recordingIssueSimilarityService{}, notFound, http.MethodPost, "/api/issues/missing/similarity/check", "")
 	if response.Code != http.StatusNotFound || notFound.calls != 1 {
