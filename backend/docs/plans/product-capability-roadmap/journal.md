@@ -2640,3 +2640,19 @@ Known limitations, blockers, and next action
   clean and all 21 original unrelated canonical dirty entries remain. The
   isolated candidate was subsequently created only through explicit worktree-
   scoped source selection.
+
+## 2026-08-27 — J097 — R49.3-R49.5 deterministic gates and review-candidate freeze
+
+- Full frontend gates pass on exact code candidate `aa0a7a30`: `pnpm typecheck`
+  completes 6/6 tasks in 140.592 seconds; `pnpm test` completes 5/5 tasks with
+  338 test files and 2,922 tests in 369.394 seconds. React `act`, DOM-prop,
+  navigation, and canvas warnings are non-fatal test diagnostics.
+- Full backend gates pass on the same candidate: `go test ./...` in 26.693
+  seconds; `make check` (format, policy, generated, vet, tests) in 74.053
+  seconds; and repository-owned `make test-race` in 584.875 seconds under
+  MinGW GCC 15.2.0. Each final worktree status is clean.
+- R49.3 and R49.4 are complete. This documentation update freezes the exact
+  review candidate for R49.5. The next action is an identity/scope audit, then
+  separate fresh SPEC and code/security/quality reviews. No canonical merge,
+  push, deployment, S08B/S09, generated, legacy backend, or `server/**` work
+  has occurred.

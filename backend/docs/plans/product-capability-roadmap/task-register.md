@@ -3133,7 +3133,7 @@ Expected outputs:
 - Task-Revision: `r049`
 - Work-Item: `PCR-S08A`
 - Title: `Whitespace-validated successor for selective Issue-similarity warning integration`
-- Status: `active — R49.1 independent SPEC PASS; R49.2 selective transplant active`
+- Status: `active — R49.1-R49.4 PASS; R49.5 exact candidate freeze active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent s08a_r49_manifest_plan_review — DRAFT SPEC PASS`
 - Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
