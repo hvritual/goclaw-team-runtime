@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v43`
-- Registry status: `Release 3 complete-independent-reviewed; Release 4 S08A governed selective integration active under r048`
-- Registry revision: `r048`
+- Plan-Version: `v44`
+- Registry status: `Release 3 complete-independent-reviewed; Release 4 S08A selective integration active under reviewed r049`
+- Registry revision: `r049`
 - Updated: `2026-08-27`
 
 ## Frozen policy bundle
@@ -3107,7 +3107,7 @@ Expected outputs:
 - Task-Revision: `r048`
 - Work-Item: `PCR-S08A`
 - Title: `Governed successor for selective Issue-similarity warning integration`
-- Status: `active — R48.1 independent SPEC PASS; R48.2 selective transplant active`
+- Status: `validation-blocked-before-product-code — plan-freeze commit 4f52e592 has a trailing blank-line whitespace error in immutable plan_v43.md`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent s08a_r48_plan_spec_review — SPEC PASS`
 - Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
@@ -3125,3 +3125,29 @@ Expected outputs:
   the frozen manifest. TDD transplant exception is limited to those existing
   tests
 - Acceptance source: `plan_v43.md` R48.1-R48.7
+
+## PCR-001-S08A-R049
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S08A-R049`
+- Task-Revision: `r049`
+- Work-Item: `PCR-S08A`
+- Title: `Whitespace-validated successor for selective Issue-similarity warning integration`
+- Status: `active — R49.1 independent SPEC PASS; R49.2 selective transplant active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent s08a_r49_manifest_plan_review — DRAFT SPEC PASS`
+- Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
+- Frozen plan SHA-256: `3e4efb52d499d5ee36e1b438d33e1f5b65e5f697f106495077004731b5fec120`
+- Frozen source product/test manifest SHA-256: `3492158580b5d22780c8c7faab8fb7e18df3162155651dd3dc8e3d05e356ccd3` (the 34 exact plan_v44.md lines in listed order, UTF-8 with one trailing LF)
+- Frozen policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209`
+- Source evidence: `02359a01`, `496013ea`, `76265a27` from
+  `codex/release4-s08a-r070`; these are content sources only, not a merge base
+- Revalidation points: R49.1 review, R49.2 start, R49.5 candidate freeze, and
+  R49.7 canonical fast-forward acceptance must each match the plan/base/policy/
+  source/path-set identities above
+- Write boundary: `plan_v44.md`, the four mutable roadmap records, and the
+  exact 34 product/test paths in `plan_v44.md`; no other source path
+- Product-code authority: R49.1 SPEC PASS is recorded; R49.2 may apply only
+  the frozen manifest. TDD transplant exception is limited to those existing
+  tests
+- Acceptance source: `plan_v44.md` R49.1-R49.7

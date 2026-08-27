@@ -2551,3 +2551,72 @@ Known limitations, blockers, and next action
   transplantation of the frozen product/test manifest. No other source bytes,
   canonical dirty paths, generated paths, `server/**`, S08B/S09 work, push, or
   deployment are authorized.
+
+## 2026-08-27 — J091 — r048 whitespace-validation block and r049 successor
+
+- The r048 plan-freeze commit `4f52e592` was created after `git diff --check`
+  reported `plan_v43.md:123: new blank line at EOF`. The failed whitespace gate
+  was not accepted or hidden. No R48.2 product byte was changed.
+- v43/r048 remains immutable validation-blocked evidence. v44/r049 is a narrow
+  successor with identical product contract, source commits, 34-path manifest,
+  policy hashes, and exclusions; it removes only the trailing blank line and
+  resets execution to R49.1 fresh independent SPEC review.
+- Initial v44 draft SHA-256 was
+  `f1546bbc3728ddc6d976cec897f31e4f7c17691d5e797ce4ee1f3ba0c27ec772`;
+  the source-manifest SHA remains
+  `3492158580b5d22780c8c7faab8fb7e18df3162155651dd3dc8e3d05e356ccd3`.
+  Canonical branch, user dirt, source governance history, S08B, S09+, push,
+  deployment, generated paths, and `server/**` remain untouched.
+
+## 2026-08-27 — J092 — r049 pre-freeze authoring correction
+
+- Fresh R49.1 review blocks the uncommitted v44 draft on two mechanical
+  substitutions: it self-referenced as the failed predecessor, and its commit
+  trailer contract retained r048/v43 values. No product byte or plan-freeze
+  commit was created from that draft.
+- The v44 draft now accurately names immutable v43/r048 as its whitespace-gate
+  predecessor and freezes R49 commit trailers as Task-ID `PCR-001-S08A-R049`
+  and Plan-Version `44`. `git diff --check` passes.
+- The corrected pre-freeze v44 SHA-256 is
+  `73271e09cd0f121f5abb2af47ad00d8a3c72c6653a25c8918ed0408a9bbe20d5`.
+  A fresh independent R49.1 review is required before any plan-freeze or
+  product-code action.
+
+## 2026-08-27 — J093 — r049 pointer-state correction before plan approval
+
+- Fresh review correctly blocks the second v44 draft because `plan.md` called
+  an uncommitted plan the approved execution snapshot while v44 itself remained
+  review-pending. The authoritative pointer is restored to committed v43/r048,
+  whose whitespace gate is validation-blocked; no product step is active.
+- v44/r049 is now explicitly a draft and retains no product-code authority.
+  This metadata correction changes its pre-freeze SHA-256 to
+  `cc5d522117e86a2a67a0496128cf839391edf6788996e5c92594e8e7a1b49566`.
+  It must receive a fresh independent review before it can be frozen, pointed
+  to, or used for plan/product execution.
+
+## 2026-08-27 — J094 — r049 manifest serialization correction
+
+- Independent draft review proves that the source and v44 manifests contain
+  the same 34 paths but the plan presented eight test/source pairs in a
+  different order, so direct UTF-8 LF serialization did not match the declared
+  manifest hash. No product or plan-freeze commit was created.
+- v44 now lists the source manifest in its frozen serialization order and
+  explicitly defines that byte contract. The source set and listed manifest
+  both hash to
+  `3492158580b5d22780c8c7faab8fb7e18df3162155651dd3dc8e3d05e356ccd3`.
+- This draft-only correction changes v44 SHA-256 to
+  `3e4efb52d499d5ee36e1b438d33e1f5b65e5f697f106495077004731b5fec120`.
+  Fresh independent R49.1 review remains required before any freeze, pointer,
+  or product-code action.
+
+## 2026-08-27 — J095 — r049 draft SPEC PASS and plan freeze
+
+- Fresh independent DRAFT SPEC review returns PASS. It confirms the correct
+  v43/r048 predecessor, R49 trailer contract, v44 SHA, ordered 34-path manifest
+  SHA, policy hashes, scope/exclusions, zero product/`server/**` diff, and
+  passing whitespace check.
+- v44/r049 is now the approved execution snapshot. R49.1 is complete and R49.2
+  authorizes chronological selective transplantation of only the frozen 34
+  product/test paths. The r048 whitespace failure remains immutable history.
+- No source governance file, S08B/S09 work, generated path, canonical dirty
+  path, legacy backend path, push, or deployment is authorized.

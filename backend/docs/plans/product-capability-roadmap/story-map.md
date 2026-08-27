@@ -323,7 +323,7 @@ R46.4 closes the aggregate gate and Release 3 with zero active tasks.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 
-Status: `S08A active under PCR-001-S08A-R048; S08B and S09 remain inactive`
+Status: `S08A active under reviewed PCR-001-S08A-R049; S08B and S09 remain inactive`
 
 ### PCR-S08A — Warn about similar Issues
 
@@ -334,9 +334,9 @@ Acceptance scenarios include exact title, normalized punctuation, near title,
 description overlap, identifier, same-project boost, closed candidate, unrelated
 candidate, detector unavailable, and latency budget.
 
-R48 is a selective canonical integration of the bounded warning candidate. Its
-immediate predecessor r047 is review-blocked before product code because its
-immutable plan did not freeze all governance fields. R48
+R49 is a selective canonical integration of the bounded warning candidate. Its
+immediate predecessor r048 is validation-blocked before product code because
+its freeze commit has a trailing blank-line whitespace error. R49
 does not merge the Release 4 source branch or activate a duplicate-decision
 record, relationship persistence, reminders, generated contracts, or a legacy
 backend change. Independent SPEC and code/security/quality PASS remain required
