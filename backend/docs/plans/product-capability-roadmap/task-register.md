@@ -3159,7 +3159,7 @@ Expected outputs:
 - Task-Revision: `r050`
 - Work-Item: `PCR-S08A`
 - Title: `Bound normalized Issue-similarity input before query construction`
-- Status: `active — R50.1 plan PASS; R50.2 RED and R50.3 GREEN recorded; R50.4 focused gates active`
+- Status: `active — R50.1-R50.5 PASS; exact candidate frozen; R50.6 independent dual review active`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent s08a_r50_plan_review — DRAFT SPEC PASS`
 - Exact base: `f412279976c74df575cb8038c64f5474cfdda25d`

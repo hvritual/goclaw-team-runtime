@@ -2690,3 +2690,18 @@ Known limitations, blockers, and next action
   focused application/HTTP packages are GREEN. R50.4 Workspace-wide gates remain
   active; no handler, repository, migration, generated, `server/**`, canonical,
   push, or deployment change has occurred.
+
+## 2026-08-27 — J102 — R50.4-R50.5 deterministic gates and candidate freeze
+
+- Workspace-wide deterministic verification passes: `cd backend && go test
+  ./internal/modules/workspace/...` (including the new application and HTTP
+  coverage). `git diff --check` passes and the cumulative candidate contains no
+  `server/**`, generated, migration, or canonical-dirty-overlap path.
+- Full required gates pass: `pnpm typecheck` (6/6 tasks), `pnpm test` (5/5
+  tasks), `cd backend && go test ./...`, `cd backend && make check`, and
+  `cd backend && make test-race`. The race wrapper selects MinGW GCC 15.2.0 and
+  completes without a reported race.
+- The next action is fresh independent R50.6 specification and code/security/
+  quality review of the exact committed candidate. Canonical is unchanged; no
+  push, deployment, migration, generated, legacy, or `server/**` action has
+  occurred.
