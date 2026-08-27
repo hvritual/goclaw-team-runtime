@@ -323,7 +323,7 @@ R46.4 closes the aggregate gate and Release 3 with zero active tasks.
 
 ## Release 4 — Duplicate prevention and dependable reminders
 
-Status: `S08A active under reviewed PCR-001-S08A-R049; S08B and S09 remain inactive`
+Status: `S08A r049 review-blocked; PCR-001-S08A-R050 bounded-input correction active under independent plan PASS; S08B and S09 remain inactive`
 
 ### PCR-S08A — Warn about similar Issues
 
@@ -334,13 +334,15 @@ Acceptance scenarios include exact title, normalized punctuation, near title,
 description overlap, identifier, same-project boost, closed candidate, unrelated
 candidate, detector unavailable, and latency budget.
 
-R49 is a selective canonical integration of the bounded warning candidate. Its
-immediate predecessor r048 is validation-blocked before product code because
-its freeze commit has a trailing blank-line whitespace error. R49
-does not merge the Release 4 source branch or activate a duplicate-decision
-record, relationship persistence, reminders, generated contracts, or a legacy
-backend change. Independent SPEC and code/security/quality PASS remain required
-before the story may be marked complete.
+R49 selectively integrated the bounded warning candidate into an isolated
+review candidate, but independent code/security/quality review blocks it because
+normalized title and description input can create unbounded SQLite predicate
+terms. Draft R50 is limited to assertion-first normalized input bounds before
+authorization/repository use. It does not merge the Release 4 source branch or
+activate a duplicate-decision record, relationship persistence, reminders,
+generated contracts, or a legacy backend change. Fresh independent SPEC and
+code/security/quality PASS remain required before the story may be marked
+complete.
 
 ### PCR-S08B — Record the human duplicate decision
 

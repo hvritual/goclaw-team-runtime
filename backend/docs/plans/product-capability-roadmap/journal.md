@@ -2656,3 +2656,23 @@ Known limitations, blockers, and next action
   separate fresh SPEC and code/security/quality reviews. No canonical merge,
   push, deployment, S08B/S09, generated, legacy backend, or `server/**` work
   has occurred.
+
+## 2026-08-27 — J098 — r049 independent quality review block
+
+- Independent specification review passes, but independent code/security/quality
+  review blocks exact candidate `f412279976c74df575cb8038c64f5474cfdda25d`.
+  Normalized Issue-similarity title and description have no rune or term ceiling
+  before their SQLite predicate and bindings are assembled.
+- r049 and immutable v44 remain review-blocked. The finding does not authorize
+  a broad Release 4 merge or edits outside the minimum correction boundary;
+  canonical remains untouched and no push or deployment occurred.
+
+## 2026-08-27 — J099 — r050 bounded-input successor draft
+
+- Draft v45/r050 starts only from exact review-blocked candidate `f412279976c74df575cb8038c64f5474cfdda25d` to add normalized title/description rune and term ceilings before authorization or repository invocation.
+- v45 SHA-256 is `c2a72b3f5c108343d4c28990a908e12dc9635d1ab5a21a0e3c47d43400155af4`. It authorizes no product byte until a fresh independent R50.1 plan/spec PASS. The canonical branch, pre-existing dirty paths, `server/**`, generated paths, migrations, S08B/S09, push, and deployment remain excluded.
+
+## 2026-08-27 — J100 — r050 independent plan PASS and freeze
+
+- Fresh independent R50.1 draft SPEC review passes exact v45 SHA `c2a72b3f5c108343d4c28990a908e12dc9635d1ab5a21a0e3c47d43400155af4`, exact base `f412279976c74df575cb8038c64f5474cfdda25d`, the policy bundle, plan pointer state, and the exact eight-path write boundary.
+- v45/r050 is now the approved execution snapshot. R50.2 is authorized only for assertion-first RED tests in the three declared backend paths; implementation remains unauthorized until the recorded RED evidence exists. Canonical, user dirt, `server/**`, generated paths, migrations, S08B/S09, push, and deployment remain outside scope.

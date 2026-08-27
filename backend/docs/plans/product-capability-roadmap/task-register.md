@@ -1,9 +1,9 @@
 # Product Capability Roadmap Task Register
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Plan-Version: `v44`
-- Registry status: `Release 3 complete-independent-reviewed; Release 4 S08A selective integration active under reviewed r049`
-- Registry revision: `r049`
+- Plan-Version: `v45`
+- Registry status: `Release 3 complete-independent-reviewed; Release 4 S08A r049 review-blocked; r050 bounded-input correction active under independent plan PASS`
+- Registry revision: `r050`
 - Updated: `2026-08-27`
 
 ## Frozen policy bundle
@@ -3133,7 +3133,7 @@ Expected outputs:
 - Task-Revision: `r049`
 - Work-Item: `PCR-S08A`
 - Title: `Whitespace-validated successor for selective Issue-similarity warning integration`
-- Status: `active — R49.1-R49.4 PASS; R49.5 exact candidate freeze active`
+- Status: `review-blocked — R49.1-R49.5 evidence frozen; independent code/security/quality review requires bounded-input successor`
 - Assignee: `Codex primary agent`
 - Independent reviewer: `Codex independent subagent s08a_r49_manifest_plan_review — DRAFT SPEC PASS`
 - Exact base: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
@@ -3151,3 +3151,22 @@ Expected outputs:
   the frozen manifest. TDD transplant exception is limited to those existing
   tests
 - Acceptance source: `plan_v44.md` R49.1-R49.7
+
+## PCR-001-S08A-R050
+
+- Project-ID: `PRODUCT-CAPABILITY-ROADMAP`
+- Task-ID: `PCR-001-S08A-R050`
+- Task-Revision: `r050`
+- Work-Item: `PCR-S08A`
+- Title: `Bound normalized Issue-similarity input before query construction`
+- Status: `active — R50.1 independent plan PASS; R50.2 assertion-first RED tests active`
+- Assignee: `Codex primary agent`
+- Independent reviewer: `Codex independent subagent s08a_r50_plan_review — DRAFT SPEC PASS`
+- Exact base: `f412279976c74df575cb8038c64f5474cfdda25d`
+- Frozen plan SHA-256: `c2a72b3f5c108343d4c28990a908e12dc9635d1ab5a21a0e3c47d43400155af4`
+- Frozen policy bundle: `6bd6e9f4207b6657b4463564db750a9e4329d5896e74a21fa8839aa940af3646/fc24a977573ea9e36da00d46e8492f7062235a30af4c38aa690e37bc3c5d5209`
+- Predecessor and review finding: `f412279976c74df575cb8038c64f5474cfdda25d` r049 candidate; unbounded normalized title/description terms may reach SQLite predicate construction
+- Revalidation points: R50.1 review, R50.5 candidate freeze, and R50.7 canonical fast-forward must each match this plan/base/policy identity
+- Write boundary: `plan_v45.md`, the four mutable roadmap records, and only the three product/test paths named in `plan_v45.md`
+- Product-code authority: R50.1 fresh independent SPEC PASS is recorded; R50.2 requires assertion-first RED evidence before implementation
+- Acceptance source: `plan_v45.md` R50.1-R50.7

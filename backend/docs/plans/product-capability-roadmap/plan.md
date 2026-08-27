@@ -1,12 +1,12 @@
 # Product capability roadmap
 
-The approved execution snapshot is [plan_v44.md](plan_v44.md).
+The approved execution snapshot is [plan_v45.md](plan_v45.md).
 
 - Plan-ID: `PRODUCT-CAPABILITY-ROADMAP-001`
-- Approved version: `44`
-- Active step: `PCR-001-S08A-R049 / R49.2`
-- Status: `Release 3 complete-independent-reviewed; Release 4 S08A selective integration active under reviewed r049`
-- Plan base commit: `bbc1a452c84945cde3fe633a43610a8f1db3ae77`
+- Approved version: `45`
+- Active step: `PCR-001-S08A-R050 / R50.2`
+- Status: `Release 3 complete-independent-reviewed; Release 4 S08A r049 review-blocked and r050 bounded-input correction active under independent plan PASS`
+- Plan base commit: `f412279976c74df575cb8038c64f5474cfdda25d`
 - Last closed task candidate: `daab0777b110ec6b21645ffe68771263d4619ec5`
 - Capability baseline: [capability-matrix.md](capability-matrix.md)
 - Frozen product contracts: [contract-freeze_v1.md](contract-freeze_v1.md)
