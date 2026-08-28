@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS engineering_context_pack_references;
+DROP TABLE IF EXISTS engineering_context_pack_targets;
+DROP TABLE IF EXISTS engineering_context_packs;
+DROP TABLE IF EXISTS engineering_change_artifacts;
+DROP TABLE IF EXISTS engineering_change_entities;
+DROP TABLE IF EXISTS engineering_changes;
+DROP TABLE IF EXISTS engineering_thread_edges;
+DROP TABLE IF EXISTS engineering_source_bindings;
+DROP TABLE IF EXISTS engineering_entities;
