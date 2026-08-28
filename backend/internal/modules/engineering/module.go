@@ -16,11 +16,11 @@ import (
 )
 
 type Dependencies struct {
-	Memberships             contract.WorkspaceRoleResolver
-	HTTPUserIdentity        func(*http.Request) (string, error)
-	PublishedContextRefs    contract.PublishedContextReferenceReader
-	IncidentContextRefs     contract.IncidentContextReferenceReader
-	Now                     func() time.Time
+	Memberships          contract.WorkspaceRoleResolver
+	HTTPUserIdentity     func(*http.Request) (string, error)
+	PublishedContextRefs contract.PublishedContextReferenceReader
+	IncidentContextRefs  contract.IncidentContextReferenceReader
+	Now                  func() time.Time
 }
 
 type Module struct {
