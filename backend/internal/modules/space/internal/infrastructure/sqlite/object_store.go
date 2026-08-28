@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -27,14 +28,14 @@ func NewObjectStore(root string) (*ObjectStore, error) {
 }
 
 func (s *ObjectStore) Put(ctx context.Context, key string, content []byte) error {
-	path, err := s.pathFor(key)
+	objectPath, err := s.pathFor(key)
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(objectPath), 0o700); err != nil {
 		return err
 	}
-	temporary := path + ".tmp-" + uuid.NewString()
+	temporary := objectPath + ".tmp-" + uuid.NewString()
 	file, err := os.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
@@ -60,7 +61,7 @@ func (s *ObjectStore) Put(ctx context.Context, key string, content []byte) error
 	if err := file.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(temporary, path); err != nil {
+	if err := os.Rename(temporary, objectPath); err != nil {
 		return err
 	}
 	remove = false
@@ -68,15 +69,15 @@ func (s *ObjectStore) Put(ctx context.Context, key string, content []byte) error
 }
 
 func (s *ObjectStore) Open(_ context.Context, key string) (io.ReadCloser, error) {
-	path, err := s.pathFor(key)
+	objectPath, err := s.pathFor(key)
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(path)
+	return os.Open(objectPath)
 }
 
 func (s *ObjectStore) Quarantine(_ context.Context, key string) (string, error) {
-	path, err := s.pathFor(key)
+	objectPath, err := s.pathFor(key)
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +86,7 @@ func (s *ObjectStore) Quarantine(_ context.Context, key string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	if err := os.Rename(path, tombstonePath); err != nil {
+	if err := os.Rename(objectPath, tombstonePath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", errors.Join(err, errors.New("attachment object not found"))
 		}
@@ -107,11 +108,11 @@ func (s *ObjectStore) Restore(_ context.Context, tombstone, key string) error {
 }
 
 func (s *ObjectStore) Remove(_ context.Context, key string) error {
-	path, err := s.pathFor(key)
+	objectPath, err := s.pathFor(key)
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(objectPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
@@ -120,19 +121,19 @@ func (s *ObjectStore) Remove(_ context.Context, key string) error {
 func (s *ObjectStore) Reconcile(_ context.Context, referenced []string) error {
 	expected := make(map[string]struct{}, len(referenced))
 	for _, key := range referenced {
-		path, err := s.pathFor(key)
+		objectPath, err := s.pathFor(key)
 		if err != nil {
 			return err
 		}
-		expected[filepath.Clean(path)] = struct{}{}
+		expected[filepath.Clean(objectPath)] = struct{}{}
 	}
 	var files []string
-	if err := filepath.WalkDir(s.root, func(path string, entry os.DirEntry, err error) error {
+	if err := filepath.WalkDir(s.root, func(objectPath string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if !entry.IsDir() {
-			files = append(files, filepath.Clean(path))
+			files = append(files, filepath.Clean(objectPath))
 		}
 		return nil
 	}); err != nil {
@@ -158,16 +159,16 @@ func (s *ObjectStore) Reconcile(_ context.Context, referenced []string) error {
 			return fmt.Errorf("restore retained Space attachment object: %w", err)
 		}
 	}
-	for path := range expected {
-		if _, err := os.Stat(path); err != nil {
-			return fmt.Errorf("Space attachment object %q is unavailable: %w", path, err)
+	for objectPath := range expected {
+		if _, err := os.Stat(objectPath); err != nil {
+			return fmt.Errorf("Space attachment object %q is unavailable: %w", objectPath, err)
 		}
 	}
-	for _, path := range files {
-		if _, ok := expected[path]; ok {
+	for _, objectPath := range files {
+		if _, ok := expected[objectPath]; ok {
 			continue
 		}
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(objectPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("remove orphan Space attachment object: %w", err)
 		}
 	}
@@ -175,14 +176,21 @@ func (s *ObjectStore) Reconcile(_ context.Context, referenced []string) error {
 }
 
 func (s *ObjectStore) pathFor(key string) (string, error) {
-	clean := filepath.Clean(filepath.FromSlash(strings.TrimSpace(key)))
-	if clean == "." || filepath.IsAbs(clean) || filepath.VolumeName(clean) != "" || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+	// Object keys are logical slash-separated paths, independent of the host OS.
+	// Normalize Windows separators before validation so a key such as
+	// `..\\outside` cannot become a harmless-looking filename on Linux and an
+	// escaping path when the same data is later consumed on Windows.
+	slashKey := strings.ReplaceAll(strings.TrimSpace(key), "\\", "/")
+	cleanKey := path.Clean(slashKey)
+	windowsVolume := len(cleanKey) >= 2 && cleanKey[1] == ':'
+	if cleanKey == "." || path.IsAbs(cleanKey) || windowsVolume || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
 		return "", errors.New("invalid Space attachment object key")
 	}
-	path := filepath.Join(s.root, clean)
-	relative, err := filepath.Rel(s.root, path)
+	clean := filepath.FromSlash(cleanKey)
+	objectPath := filepath.Join(s.root, clean)
+	relative, err := filepath.Rel(s.root, objectPath)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return "", errors.New("Space attachment object escaped its root")
 	}
-	return path, nil
+	return objectPath, nil
 }
