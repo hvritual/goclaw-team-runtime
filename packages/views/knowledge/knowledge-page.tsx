@@ -286,7 +286,7 @@ export function KnowledgePage() {
                       {entry.citation || "No citation"}
                     </p>
                     <p>
-                      {entry.matchedBy} · {t(($) => $.source.count_other, { count: current?.sourceRefs.length ?? 0 })}
+                      {entry.matchedBy} · {t(($) => $.source.count, { count: current?.sourceRefs.length ?? 0 })}
                     </p>
                   </div>
                   <div className="flex justify-end">
