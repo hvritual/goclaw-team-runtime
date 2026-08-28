@@ -20,8 +20,9 @@ type Dependencies struct {
 }
 
 type Module struct {
-	service contract.Service
-	http    *httpinterface.Handler
+	service   contract.Service
+	workLinks contract.WorkLinkProvider
+	http      *httpinterface.Handler
 }
 
 func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
@@ -33,7 +34,11 @@ func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Module{service: service, http: httpinterface.NewHandler(service, dependencies.HTTPUserIdentity)}, nil
+	return &Module{
+		service:   service,
+		workLinks: service,
+		http:      httpinterface.NewHandler(service, dependencies.HTTPUserIdentity),
+	}, nil
 }
 
 func (m *Module) Service() contract.Service {
@@ -41,6 +46,13 @@ func (m *Module) Service() contract.Service {
 		return nil
 	}
 	return m.service
+}
+
+func (m *Module) WorkLinks() contract.WorkLinkProvider {
+	if m == nil {
+		return nil
+	}
+	return m.workLinks
 }
 
 func (m *Module) RegisterHTTP(server *kratoshttp.Server) {
