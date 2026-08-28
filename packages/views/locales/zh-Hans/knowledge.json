@@ -10,6 +10,12 @@
     "published": "已发布",
     "review_queue": "审核队列"
   },
+  "filters": {
+    "source": "来源：{{type}} / {{id}}"
+  },
+  "pagination": {
+    "next": "下一页"
+  },
   "proposal": {
     "title": "新建知识提议",
     "revision_title": "提议知识修订",
@@ -17,7 +23,8 @@
     "content_placeholder": "团队需要沉淀什么？",
     "reason_placeholder": "为什么应将其纳入受治理知识？",
     "submit": "提交提议",
-    "cancel": "取消"
+    "cancel": "取消",
+    "failed": "提交提议失败"
   },
   "detail": {
     "title": "知识历史与来源",
@@ -44,7 +51,12 @@
     "rationale_placeholder": "填写审核理由",
     "approve": "批准",
     "reject": "拒绝",
-    "quarantine": "隔离"
+    "quarantine": "隔离",
+    "loading_candidates": "正在加载候选知识",
+    "load_failed": "无法加载候选知识",
+    "your_proposal": "你的提议",
+    "emergency_self_review": "紧急自审并记录理由",
+    "failed": "审核失败或发生冲突，请刷新队列。"
   },
   "kinds": {
     "goal": "目标",
