@@ -26,8 +26,10 @@ if [ -n "$server_paths" ]; then
   exit 1
 fi
 
-if grep -R --include='*.go' -n 'github.com/hvritual/workspace/server\|/server/internal/' backend >/dev/null 2>&1; then
+legacy_imports=$(grep -R --include='*.go' -n 'github.com/hvritual/workspace/server\|/server/internal/' backend || true)
+if [ -n "$legacy_imports" ]; then
   echo "policy-check: canonical backend imports legacy server code" >&2
+  printf '%s\n' "$legacy_imports" >&2
   exit 1
 fi
 
