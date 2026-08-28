@@ -10,6 +10,12 @@
     "published": "게시됨",
     "review_queue": "검토 대기열"
   },
+  "filters": {
+    "source": "출처: {{type}} / {{id}}"
+  },
+  "pagination": {
+    "next": "다음 페이지"
+  },
   "proposal": {
     "title": "새 지식 제안",
     "revision_title": "지식 개정 제안",
@@ -17,7 +23,8 @@
     "content_placeholder": "팀이 보존해야 할 내용은 무엇인가요?",
     "reason_placeholder": "이 내용을 관리 지식으로 보존해야 하는 이유는 무엇인가요?",
     "submit": "제안 제출",
-    "cancel": "취소"
+    "cancel": "취소",
+    "failed": "제안에 실패했습니다"
   },
   "detail": {
     "title": "지식 이력 및 출처",
@@ -44,7 +51,12 @@
     "rationale_placeholder": "검토 근거 추가",
     "approve": "승인",
     "reject": "거부",
-    "quarantine": "격리"
+    "quarantine": "격리",
+    "loading_candidates": "후보를 불러오는 중",
+    "load_failed": "후보를 불러올 수 없습니다",
+    "your_proposal": "내 제안",
+    "emergency_self_review": "사유를 기록한 긴급 자체 검토",
+    "failed": "검토에 실패했거나 충돌이 발생했습니다. 대기열을 새로고침하세요."
   },
   "kinds": {
     "goal": "목표",
