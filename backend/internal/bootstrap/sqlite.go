@@ -13,6 +13,7 @@ import (
 
 	"github.com/hvritual/workspace/internal/modules/auth"
 	authcontract "github.com/hvritual/workspace/internal/modules/auth/contract"
+	engineeringmodule "github.com/hvritual/workspace/internal/modules/engineering"
 	"github.com/hvritual/workspace/internal/modules/space"
 	spacecontract "github.com/hvritual/workspace/internal/modules/space/contract"
 	systemmodule "github.com/hvritual/workspace/internal/modules/system"
@@ -66,6 +67,9 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 		return nil, nil, nil, nil, err
 	}
 	if err := systemmodule.MigrateSqlite(ctx, db); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := engineeringmodule.MigrateSqlite(ctx, db); err != nil {
 		return nil, nil, nil, nil, err
 	}
 	if err := normalizeRetainedIssueMemberActors(ctx, db); err != nil {
@@ -198,8 +202,16 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("configure System Skill catalog: %w", err)
 	}
+	engineeringModule, err := engineeringmodule.NewWithSQLite(db, engineeringmodule.Dependencies{
+		Memberships:      memberships,
+		HTTPUserIdentity: authModule.ResolveHTTPUserID,
+		Now:              workspaceDependencies.Now,
+	})
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("configure Engineering module: %w", err)
+	}
 	failed = false
-	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemModule), realtimeHub, governance, nil
+	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemModule, engineeringModule), realtimeHub, governance, nil
 }
 
 func reconcileSkillObjects(ctx context.Context, db *sql.DB, objects spacecontract.SkillObjectService) error {
