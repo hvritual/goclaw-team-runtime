@@ -37,7 +37,7 @@ func TestRunContextBinderPinsFrozenContextAndSurvivesRunLifecycle(t *testing.T) 
 	}
 	request := RunExecutionContextRequest{
 		ContextPackID: "context-1", ContextPackChecksum: checksum, AgentReleaseID: "release-1",
-		SkillVersions: []SkillVersionPin{{SkillID: "skill-b", VersionID: "v2"}, {SkillID: "skill-a", VersionID: "v1"}},
+		SkillVersions:  []SkillVersionPin{{SkillID: "skill-b", VersionID: "v2"}, {SkillID: "skill-a", VersionID: "v1"}},
 	}
 	secretRefs := []string{"secret://github/11111111-1111-4111-8111-111111111111"}
 	queued, err := binder.QueueRun(ctx, creator, "command-1", "project-1", 0, "run-1", "worktree://task-1", secretRefs, 2, request)
@@ -59,7 +59,7 @@ func TestRunContextBinderPinsFrozenContextAndSurvivesRunLifecycle(t *testing.T) 
 		ContextPackID: "context-1", ContextPackChecksum: checksum,
 		WorkItemKind: "task", WorkItemID: "task-1", WorkItemRevision: "7", ContextPolicy: "context-v1",
 		AgentReleaseID: "release-1",
-		SkillVersions: []SkillVersionPin{{SkillID: "skill-a", VersionID: "v1"}, {SkillID: "skill-b", VersionID: "v2"}},
+		SkillVersions:  []SkillVersionPin{{SkillID: "skill-a", VersionID: "v1"}, {SkillID: "skill-b", VersionID: "v2"}},
 	}
 	if !reflect.DeepEqual(pinned, want) {
 		t.Fatalf("pinned = %#v, want %#v", pinned, want)
