@@ -228,7 +228,7 @@ export function KnowledgePage() {
         </div>
         {sourceType && sourceId ? (
           <p className="text-xs text-muted-foreground">
-            Source: {sourceType} / {sourceId}
+            {t(($) => $.filters.source, { type: sourceType, id: sourceId })}
             {sourceRevision ? ` @ ${sourceRevision}` : ""}
           </p>
         ) : null}
@@ -272,7 +272,7 @@ export function KnowledgePage() {
                       {entry.status}
                     </Badge>
                     <span className="text-xs text-muted-foreground">
-                      Revision {current?.number}
+                      {t(($) => $.detail.revision, { number: current?.number ?? 0 })}
                     </span>
                   </div>
                   <div>
@@ -286,8 +286,7 @@ export function KnowledgePage() {
                       {entry.citation || "No citation"}
                     </p>
                     <p>
-                      {entry.matchedBy} · {current?.sourceRefs.length ?? 0}{" "}
-                      source(s)
+                      {entry.matchedBy} · {t(($) => $.source.count_other, { count: current?.sourceRefs.length ?? 0 })}
                     </p>
                   </div>
                   <div className="flex justify-end">
@@ -300,7 +299,7 @@ export function KnowledgePage() {
                           setShowProposal(true);
                         }}
                       >
-                        Propose revision
+                        {t(($) => $.detail.propose_revision)}
                       </Button>
                     ) : null}
                     <Button
@@ -323,7 +322,7 @@ export function KnowledgePage() {
               variant="outline"
               onClick={() => setCursor(listQuery.data?.nextCursor ?? undefined)}
             >
-              Next page
+              {t(($) => $.pagination.next)}
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -370,10 +369,12 @@ function KnowledgeDetails({
           {query.data.revisions.map((revision) => (
             <article key={revision.number} className="rounded-lg border p-3">
               <div className="flex items-center gap-2">
-                <Badge variant="outline">Revision {revision.number}</Badge>
+                <Badge variant="outline">
+                  {t(($) => $.detail.revision, { number: revision.number })}
+                </Badge>
                 {revision.supersedesRevision ? (
                   <span className="text-xs text-muted-foreground">
-                    Supersedes {revision.supersedesRevision}
+                    {t(($) => $.detail.supersedes, { number: revision.supersedesRevision })}
                   </span>
                 ) : null}
               </div>
@@ -409,6 +410,7 @@ function KnowledgeProposal({
   knowledgeId?: string;
   onClose: () => void;
 }) {
+  const { t } = useT("knowledge");
   const mutation = useProposeKnowledge(workspaceId);
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [kind, setKind] = useState<KnowledgeKind>("lesson");
@@ -448,15 +450,15 @@ function KnowledgeProposal({
       <div className="flex items-center justify-between">
         <h2 className="font-semibold">
           {knowledgeId
-            ? "Propose a knowledge revision"
-            : "New knowledge proposal"}
+            ? t(($) => $.proposal.revision_title)
+            : t(($) => $.proposal.title)}
         </h2>
         <Button size="icon-sm" variant="ghost" onClick={onClose}>
           <X className="size-4" />
         </Button>
       </div>
       <Select
-        items={KNOWLEDGE_KINDS.map((value) => ({ value, label: value }))}
+        items={KNOWLEDGE_KINDS.map((value) => ({ value, label: t(($) => $.kinds[value]) }))}
         value={kind}
         onValueChange={(value) => value && setKind(value as KnowledgeKind)}
       >
@@ -466,7 +468,7 @@ function KnowledgeProposal({
         <SelectContent>
           {KNOWLEDGE_KINDS.map((value) => (
             <SelectItem key={value} value={value}>
-              {value}
+              {t(($) => $.kinds[value])}
             </SelectItem>
           ))}
         </SelectContent>
@@ -474,17 +476,17 @@ function KnowledgeProposal({
       <Input
         value={title}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="A concise title"
+        placeholder={t(($) => $.proposal.title_placeholder)}
       />
       <Textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
-        placeholder="What should the team retain?"
+        placeholder={t(($) => $.proposal.content_placeholder)}
       />
       <Textarea
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder="Why should this become governed knowledge?"
+        placeholder={t(($) => $.proposal.reason_placeholder)}
       />
       <div className="grid gap-2 sm:grid-cols-3">
         <Input
@@ -504,7 +506,7 @@ function KnowledgeProposal({
         />
       </div>
       {mutation.isError ? (
-        <p className="text-sm text-destructive">Proposal failed</p>
+        <p className="text-sm text-destructive">{t(($) => $.proposal.failed)}</p>
       ) : null}
       <div className="flex justify-end">
         <Button
@@ -516,7 +518,7 @@ function KnowledgeProposal({
             !reason.trim()
           }
         >
-          Submit proposal
+          {t(($) => $.proposal.submit)}
         </Button>
       </div>
     </section>
@@ -532,17 +534,18 @@ function KnowledgeReviewQueue({
   userId: string | null;
   role: "owner" | "admin";
 }) {
+  const { t } = useT("knowledge");
   const query = useQuery(knowledgeCandidateListOptions(workspaceId, true));
   return (
     <section
       className="space-y-3 rounded-xl border bg-card p-4"
       data-testid="knowledge-review-queue"
     >
-      <h2 className="font-semibold">Review queue</h2>
+      <h2 className="font-semibold">{t(($) => $.tabs.review_queue)}</h2>
       {query.isLoading ? (
-        <LoadingState label="Loading candidates" />
+        <LoadingState label={t(($) => $.review.loading_candidates)} />
       ) : query.isError ? (
-        <ErrorState label="Candidates could not be loaded" />
+        <ErrorState label={t(($) => $.review.load_failed)} />
       ) : query.data?.candidates.length ? (
         <div className="space-y-3">
           {query.data.candidates.map((candidate) => (
@@ -556,7 +559,7 @@ function KnowledgeReviewQueue({
           ))}
         </div>
       ) : (
-        <EmptyState label="No candidates need review" />
+        <EmptyState label={t(($) => $.states.empty_candidates)} />
       )}
     </section>
   );
@@ -573,6 +576,7 @@ function KnowledgeCandidateReview({
   userId: string | null;
   role: "owner" | "admin";
 }) {
+  const { t } = useT("knowledge");
   const mutation = useReviewKnowledge(workspaceId);
   const [rationale, setRationale] = useState("");
   const [emergency, setEmergency] = useState(false);
@@ -601,9 +605,9 @@ function KnowledgeCandidateReview({
         <Badge variant="outline">{candidate.status}</Badge>
         <Badge variant="secondary">{candidate.kind}</Badge>
         <span className="text-xs text-muted-foreground">
-          Revision {candidate.revision}
+          {t(($) => $.detail.revision, { number: candidate.revision })}
         </span>
-        {isSelf ? <Badge variant="destructive">Your proposal</Badge> : null}
+        {isSelf ? <Badge variant="destructive">{t(($) => $.review.your_proposal)}</Badge> : null}
       </div>
       <div>
         <h3 className="font-medium">{candidate.title}</h3>
@@ -612,7 +616,7 @@ function KnowledgeCandidateReview({
       <Input
         value={rationale}
         onChange={(event) => setRationale(event.target.value)}
-        placeholder="Add a review rationale"
+        placeholder={t(($) => $.review.rationale_placeholder)}
       />
       {isSelf && role === "owner" ? (
         <label className="flex items-center gap-2 text-xs">
@@ -621,7 +625,7 @@ function KnowledgeCandidateReview({
             checked={emergency}
             onChange={(event) => setEmergency(event.target.checked)}
           />
-          Emergency self-review with documented reason
+          {t(($) => $.review.emergency_self_review)}
         </label>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -650,7 +654,7 @@ function KnowledgeCandidateReview({
       </div>
       {mutation.isError ? (
         <p className="text-sm text-destructive">
-          Review failed or conflicted; refresh the queue.
+          {t(($) => $.review.failed)}
         </p>
       ) : null}
     </article>
