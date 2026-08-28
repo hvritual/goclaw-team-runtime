@@ -231,12 +231,12 @@ func sourceCandidates(resolved scope.Result, depthByEntity map[string]int) ([]ca
 }
 
 func betterSource(left, right scope.SourceRef) bool {
+	if left.Stale != right.Stale {
+		return !left.Stale
+	}
 	leftRank, rightRank := sourceAuthorityRank(left.Authority), sourceAuthorityRank(right.Authority)
 	if leftRank != rightRank {
 		return leftRank > rightRank
-	}
-	if left.Stale != right.Stale {
-		return !left.Stale
 	}
 	if !left.ObservedAt.Equal(right.ObservedAt) {
 		return left.ObservedAt.After(right.ObservedAt)
