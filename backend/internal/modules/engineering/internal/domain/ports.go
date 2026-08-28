@@ -5,35 +5,38 @@ import (
 	"errors"
 )
 
-var ErrNotFound = errors.New("engineering thread record not found")
+var (
+	ErrNotFound = errors.New("engineering thread record not found")
+	ErrConflict = errors.New("engineering thread record conflict")
+)
 
 type EntityRepository interface {
 	PutEntity(context.Context, EngineeringEntity) error
-	GetEntity(context.Context, string, string) (EngineeringEntity, error)
-	ListEntities(context.Context, string) ([]EngineeringEntity, error)
+	GetEntity(context.Context, workspaceID, id string) (EngineeringEntity, error)
+	ListEntities(context.Context, workspaceID string) ([]EngineeringEntity, error)
 }
 
 type SourceBindingRepository interface {
 	PutSourceBinding(context.Context, SourceBinding) error
-	GetSourceBinding(context.Context, string, string) (SourceBinding, error)
-	ListSourceBindings(context.Context, string, string) ([]SourceBinding, error)
+	GetSourceBinding(context.Context, workspaceID, id string) (SourceBinding, error)
+	ListSourceBindings(context.Context, workspaceID, entityID string) ([]SourceBinding, error)
 }
 
 type ThreadEdgeRepository interface {
 	PutThreadEdge(context.Context, ThreadEdge) error
-	GetThreadEdge(context.Context, string, string) (ThreadEdge, error)
-	ListThreadEdges(context.Context, string, NodeRef) ([]ThreadEdge, error)
+	GetThreadEdge(context.Context, workspaceID, id string) (ThreadEdge, error)
+	ListThreadEdges(context.Context, workspaceID string, node NodeRef) ([]ThreadEdge, error)
 }
 
 type ChangeRepository interface {
 	PutChange(context.Context, Change) error
-	GetChange(context.Context, string, string) (Change, error)
-	ListChanges(context.Context, string, string) ([]Change, error)
+	GetChange(context.Context, workspaceID, id string) (Change, error)
+	ListChanges(context.Context, workspaceID, affectedEntityID string) ([]Change, error)
 }
 
 type ContextPackRepository interface {
 	PutContextPack(context.Context, ContextPack) error
-	GetContextPack(context.Context, string, string) (ContextPack, error)
+	GetContextPack(context.Context, workspaceID, id string) (ContextPack, error)
 }
 
 type Repository interface {
