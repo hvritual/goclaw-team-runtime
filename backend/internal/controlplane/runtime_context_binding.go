@@ -102,6 +102,33 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	if err != nil {
 		return AppendResult{}, err
 	}
+	request.SkillVersions = skills
+
+	commandRequest, _ := canonicalKernelRequest(struct {
+		RunID        string                     `json:"run_id"`
+		WorkspaceRef string                     `json:"workspace_ref"`
+		SecretRefs   []string                   `json:"secret_refs,omitempty"`
+		MaxAttempts  int                        `json:"max_attempts"`
+		Context      RunExecutionContextRequest `json:"context"`
+	}{runID, workspaceRef, append([]string(nil), secretRefs...), maxAttempts, request})
+	command := CommandEnvelope{
+		WorkspaceID:  actor.WorkspaceID,
+		ProjectID:    projectID,
+		CommandID:    commandID,
+		Name:         "run.queue.contextual",
+		Actor:        actor,
+		ExpectedHead: expectedHead,
+		Request:      commandRequest,
+	}
+	if receipts, ok := b.kernel.store.(kernelCommandReceiptReader); ok {
+		found, lookupErr := receipts.KernelCommandExists(ctx, actor.WorkspaceID, projectID, commandID)
+		if lookupErr != nil {
+			return AppendResult{}, unavailable(op, "read command receipt")
+		}
+		if found {
+			return b.kernel.store.AppendCommand(ctx, command, nil)
+		}
+	}
 
 	pack, err := b.contexts.ResolveFrozenContextPack(ctx, actor.WorkspaceID, request.ContextPackID)
 	if err != nil {
@@ -153,33 +180,6 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 		}
 	}
 
-	commandRequest, _ := canonicalKernelRequest(struct {
-		RunID        string                  `json:"run_id"`
-		WorkspaceRef string                  `json:"workspace_ref"`
-		SecretRefs   []string                `json:"secret_refs,omitempty"`
-		MaxAttempts  int                     `json:"max_attempts"`
-		Context      RunExecutionContextData `json:"context"`
-	}{runID, workspaceRef, append([]string(nil), secretRefs...), maxAttempts, contextData})
-	command := CommandEnvelope{
-		WorkspaceID: actor.WorkspaceID,
-		ProjectID:   projectID,
-		CommandID:   commandID,
-		Name:        "run.queue.contextual",
-		Actor:       actor,
-		ExpectedHead: expectedHead,
-		Request:     commandRequest,
-	}
-
-	if receipts, ok := b.kernel.store.(kernelCommandReceiptReader); ok {
-		found, lookupErr := receipts.KernelCommandExists(ctx, actor.WorkspaceID, projectID, commandID)
-		if lookupErr != nil {
-			return AppendResult{}, unavailable(op, "read command receipt")
-		}
-		if found {
-			return b.appendContextualRun(ctx, command, runNode, contextNode, edge)
-		}
-	}
-
 	projection, err := b.kernel.Replay(ctx, actor.WorkspaceID, projectID)
 	if err != nil {
 		return AppendResult{}, err
@@ -193,10 +193,7 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	if _, exists := projection.Edges[edge.ID]; exists {
 		return AppendResult{}, conflict(op, "run context trace already exists")
 	}
-	return b.appendContextualRun(ctx, command, runNode, contextNode, edge)
-}
 
-func (b *RunContextBinder) appendContextualRun(ctx context.Context, command CommandEnvelope, runNode, contextNode WorkNode, edge WorkEdge) (AppendResult, error) {
 	now := b.kernel.now().UTC()
 	runPayload, _ := canonicalKernelRequest(runNode)
 	contextPayload, _ := canonicalKernelRequest(contextNode)
