@@ -10,10 +10,17 @@
 - [Space](./docs/contexts/space/CONTEXT.md) — owns workspace-isolated assets and
   their storage lifecycle.
 - [System](./docs/contexts/system/CONTEXT.md) — owns immutable Agent releases,
-  upgrade policy, and the global Skill catalog.
+  upgrade policy, and the global Skill catalog. **System does not mean an IoT
+  product/system catalog.**
 - [Execution/Runtime](./docs/contexts/execution/CONTEXT.md) — owns execution
   attempts: Run, queue state, lease, heartbeat, attempt, retry, cancellation,
   runtime logs, and execution Evidence references.
+- **Engineering Thread** — owns canonical engineering identities and the
+  provenance-bearing digital thread: EngineeringEntity, SourceBinding,
+  ThreadEdge, accepted Change identity, and immutable ContextPack manifests.
+  Engineering Thread does not own Git/GitHub, CI, deployment, observability, or
+  Knowledge truth; it stores canonical mappings/projections with source and
+  authority metadata.
 
 ## Context relationships
 
@@ -28,10 +35,30 @@
   request for a frozen work-item revision. Runtime reports attempt state and
   Evidence references; it cannot change Todo/Issue/Requirement truth or advance
   DoneGate acceptance.
+- **Workspace → Engineering Thread**: Workspace-owned Project, Requirement,
+  Issue, and Todo/Task may reference EngineeringEntity and Change IDs through
+  application contracts. Workspace remains the authority for work intent;
+  Engineering Thread remains the authority for canonical engineering-thread
+  identity/provenance.
+- **Engineering Thread → Auth**: optional human ownership references resolve to
+  Auth-owned canonical Member identity. Engineering Thread does not create
+  membership or authorization facts.
+- **Engineering Thread → Execution/Runtime**: a work-item revision may be paired
+  with an immutable ContextPack. Runtime pins the ContextPack reference for a
+  Run and may produce Evidence/Change proposals, but cannot rewrite the frozen
+  context or self-accept a Change.
+- **Engineering Thread → Knowledge**: engineering entities and Changes may be
+  described or constrained by Architecture, ADR, Standard, Runbook,
+  Troubleshooting, Incident Review, and Lesson knowledge. Automated discoveries
+  are proposals/evidence until Knowledge governance publishes them.
+- **Engineering Thread → external sources**: SourceBinding and ThreadEdge
+  provenance may reference Git/GitHub, API schemas, CI, release, deployment,
+  and observability sources. Those external systems remain authorities for
+  their own source facts.
 - **Execution/Runtime → Auth**: Runtime validates the claiming Agent/Runner
   identity, workspace authorization, project authorization, and capability
   grants. A lease never creates membership or a new identity.
-- **Execution/Runtime → System**: A Run pins an immutable Agent Release and Skill
+- **Execution/Runtime → System**: a Run pins an immutable Agent Release and Skill
   versions. Runtime may resolve them but cannot publish, upgrade, or mutate
   release state.
 - **Execution/Runtime → Space**: Runtime stores logs and artifacts through
@@ -44,6 +71,24 @@
 - **Workspace internal collaboration**: Project, Todo, Issue, Knowledge,
   Requirement, Setting, and Relationship collaborate through application
   contracts rather than transport loopback.
+
+## Engineering digital-thread distinctions
+
+| Concern | Owner | Meaning |
+| --- | --- | --- |
+| Project / Requirement | Workspace | Why and what the team intends to change |
+| Todo / Task | Workspace | Desired work or team commitment |
+| EngineeringEntity | Engineering Thread | Durable engineering identity such as service/repository/API/thing model |
+| Run | Execution/Runtime | One bounded attempt to execute a frozen work-item revision |
+| Change | Engineering Thread | Accepted engineering mutation connecting work to affected entities/artifacts |
+| Execution Evidence | Execution/Runtime | Immutable references produced by an execution attempt |
+| Knowledge | Workspace Knowledge governance | Reviewed organizational interpretation and reusable understanding |
+| ContextPack | Engineering Thread | Immutable revisioned manifest of authoritative context selected for a work item/Run |
+
+A Project changes EngineeringEntity state but never owns the long-lived
+engineering identity. An IoT engineering system is represented as an
+EngineeringEntity with type `engineering_system`; it must not be added to the
+existing Agent-release System context.
 
 ## Todo and Run are different concepts
 
@@ -75,6 +120,7 @@ attempt and its operational state.
 ## Acceptance boundary
 
 Runner, Agent, model output, lease ownership, heartbeat, successful process
-exit, and uploaded Evidence are never authoritative acceptance. Only the
-Workspace/Delivery Kernel's independent deterministic checks and authorized
-human DoneGate can advance governed completion.
+exit, uploaded Evidence, inferred ThreadEdges, and proposed Changes are never
+authoritative acceptance. Only the Workspace/Delivery Kernel's independent
+deterministic checks and authorized human DoneGate can advance governed
+completion. Governed Knowledge publication remains a separate review decision.
