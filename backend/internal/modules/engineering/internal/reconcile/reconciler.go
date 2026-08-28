@@ -16,11 +16,11 @@ import (
 )
 
 var (
-	ErrWorkspaceRequired        = errors.New("engineering reconciliation workspace is required")
-	ErrRepositoryRequired       = errors.New("engineering reconciliation repository is required")
-	ErrSourceRequired           = errors.New("engineering reconciliation source is required")
-	ErrSourceSnapshotInvalid    = errors.New("invalid engineering source snapshot")
-	ErrSourceOwnershipConflict  = errors.New("engineering source ownership conflict")
+	ErrWorkspaceRequired       = errors.New("engineering reconciliation workspace is required")
+	ErrRepositoryRequired      = errors.New("engineering reconciliation repository is required")
+	ErrSourceRequired          = errors.New("engineering reconciliation source is required")
+	ErrSourceSnapshotInvalid   = errors.New("invalid engineering source snapshot")
+	ErrSourceOwnershipConflict = errors.New("engineering source ownership conflict")
 	ErrCanonicalEntityConflict = errors.New("engineering canonical entity conflicts with source manifest")
 )
 
