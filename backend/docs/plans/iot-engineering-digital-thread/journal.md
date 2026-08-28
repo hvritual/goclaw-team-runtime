@@ -87,6 +87,17 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - Final compare from P1-S04 code acceptance head `e76da85761d5f772ac6aeb70588e6b43f3bb865f` to P1-S05 code acceptance head `fa014c9cae5419abff6ad98754e51b722fe36627` is strictly ahead (`ahead_by=6`, `behind_by=0`) and contains only the plan/journal, Engineering module, Workspace module, and Bootstrap composition/test paths. `server/**` and Execution/Runtime module paths are unchanged.
 - `P1-S05` is **accepted**. The work-plane link contract is now available to later digital-thread slices without transferring Workspace ownership into Engineering.
 
+## 2026-08-28 — P1-EXIT implementation
+
+- Activated `plan_v3.md` and repaired the stale plan pointer so the active step is now `P1-EXIT` with Phase 2 queued behind it.
+- Phase 1 exit review found two application-surface gaps: the Change domain already supported `Accept`, and ContextPack persistence already supported immutable writes, but neither operation was available as a governed application/HTTP use case.
+- Added owner/admin-write `AcceptChange` and `FreezeContextPack` lifecycle capabilities without changing Workspace Todo DoneGate, Runtime Run semantics, or existing System ownership.
+- ContextPack freeze validates target EngineeringEntity identities, typed work-item identity, revision/checksum-bearing references and policy version; identical retries return the already frozen manifest while same-ID semantic mutation conflicts.
+- Added public HTTP endpoints for explicit Change acceptance and immutable ContextPack freeze while retaining existing ContextPack read API.
+- Added application tests for member-write denial, explicit Change acceptance, transition conflict, immutable ContextPack replay/conflict, missing target rejection and member readback.
+- Added a canonical SQLite runtime certification scenario covering EngineeringEntity -> SourceBinding -> Project/Requirement/Task links -> proposed Change -> accepted Change -> frozen ContextPack -> public readback, plus Task status/revision non-interference.
+- Product-code candidate commit: `7a6c6320b5f0536327234150d178c0b226454cef`; canonical CI evidence is pending before P1-EXIT can be accepted.
+
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
@@ -94,3 +105,4 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - `P1-S03`: **accepted** at `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`; CI run `33172633893` passed governance, canonical deterministic checks, race tests, frontend validation, and final required aggregation under the canonical branch.
 - `P1-S04`: **accepted** at `e76da85761d5f772ac6aeb70588e6b43f3bb865f`; CI run `33175226835` passed deterministic validation, frontend validation, and—on the identical-head canonical-backend rerun—the full race suite and final required aggregation.
 - `P1-S05`: **accepted** at code head `fa014c9cae5419abff6ad98754e51b722fe36627`; CI run `33180637983` passed governance, Go 1.26.1 deterministic checks, canonical race tests, frontend validation, and final required aggregation.
+- `P1-EXIT`: implementation candidate `7a6c6320b5f0536327234150d178c0b226454cef`; acceptance pending canonical CI.
