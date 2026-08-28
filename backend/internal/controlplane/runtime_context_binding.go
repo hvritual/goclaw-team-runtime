@@ -5,12 +5,11 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
-	"time"
 )
 
 var ErrRuntimeContextPackNotFound = errors.New("runtime context pack not found")
@@ -93,7 +92,7 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	request.ContextPackID = strings.TrimSpace(request.ContextPackID)
 	request.ContextPackChecksum = strings.ToLower(strings.TrimSpace(request.ContextPackChecksum))
 	request.AgentReleaseID = strings.TrimSpace(request.AgentReleaseID)
-	if request.ContextPackID == "" || !validSHA256(request.ContextPackChecksum) {
+	if !safeImmutableAuditRef(request.ContextPackID, 128) || !validSHA256(request.ContextPackChecksum) {
 		return AppendResult{}, invalid(op, "context_pack", "id and canonical SHA-256 checksum are required")
 	}
 	if err := validateIdentifier(op, "agent_release_id", request.AgentReleaseID); err != nil {
@@ -103,7 +102,6 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	if err != nil {
 		return AppendResult{}, err
 	}
-	request.SkillVersions = skills
 
 	pack, err := b.contexts.ResolveFrozenContextPack(ctx, actor.WorkspaceID, request.ContextPackID)
 	if err != nil {
@@ -119,7 +117,7 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	if !validSHA256(pack.Checksum) || pack.Checksum != request.ContextPackChecksum {
 		return AppendResult{}, conflict(op, "ContextPack checksum changed")
 	}
-	if !validRuntimeWorkPin(pack.WorkItemKind, pack.WorkItemID, pack.WorkItemRevision) || pack.PolicyVersion == "" {
+	if !validRuntimeWorkPin(pack.WorkItemKind, pack.WorkItemID, pack.WorkItemRevision) || !safeImmutableAuditRef(pack.PolicyVersion, 128) {
 		return AppendResult{}, invariant(op, "resolved ContextPack is missing immutable work/policy identity")
 	}
 
@@ -137,11 +135,11 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 		return AppendResult{}, err
 	}
 
-	runPayload, _ := canonicalKernelRequest(RunData{MaxAttempts: maxAttempts, WorkspaceRef: workspaceRef, SecretRefs: append([]string(nil), secretRefs...)})
-	contextPayload, _ := canonicalKernelRequest(contextData)
-	runNode := WorkNode{ID: runID, Kind: "run", Revision: 1, State: "queued", CreatorID: actor.ID, Data: runPayload}
+	runData, _ := canonicalKernelRequest(RunData{MaxAttempts: maxAttempts, WorkspaceRef: workspaceRef, SecretRefs: append([]string(nil), secretRefs...)})
+	contextDataJSON, _ := canonicalKernelRequest(contextData)
+	runNode := WorkNode{ID: runID, Kind: "run", Revision: 1, State: "queued", CreatorID: actor.ID, Data: runData}
 	contextNodeID := runContextNodeID(actor.WorkspaceID, projectID, runID)
-	contextNode := WorkNode{ID: contextNodeID, Kind: "run_context", Revision: 1, State: "frozen", CreatorID: actor.ID, Data: contextPayload}
+	contextNode := WorkNode{ID: contextNodeID, Kind: "run_context", Revision: 1, State: "frozen", CreatorID: actor.ID, Data: contextDataJSON}
 	edge := WorkEdge{ID: runContextEdgeID(actor.WorkspaceID, projectID, runID), From: runID, To: contextNodeID, Kind: "trace"}
 	if err := validateWorkNode(op, runNode); err != nil {
 		return AppendResult{}, err
@@ -164,12 +162,12 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	}{runID, workspaceRef, append([]string(nil), secretRefs...), maxAttempts, contextData})
 	command := CommandEnvelope{
 		WorkspaceID: actor.WorkspaceID,
-		ProjectID: projectID,
-		CommandID: commandID,
-		Name: "run.queue.contextual",
-		Actor: actor,
+		ProjectID:   projectID,
+		CommandID:   commandID,
+		Name:        "run.queue.contextual",
+		Actor:       actor,
 		ExpectedHead: expectedHead,
-		Request: commandRequest,
+		Request:     commandRequest,
 	}
 
 	if receipts, ok := b.kernel.store.(kernelCommandReceiptReader); ok {
@@ -186,22 +184,14 @@ func (b *RunContextBinder) QueueRun(ctx context.Context, actor Actor, commandID,
 	if err != nil {
 		return AppendResult{}, err
 	}
-	if existing, ok := projection.Nodes[runNode.ID]; ok && !reflect.DeepEqual(existing, runNode) {
+	if _, exists := projection.Nodes[runNode.ID]; exists {
 		return AppendResult{}, conflict(op, "run id already exists")
 	}
-	if existing, ok := projection.Nodes[contextNode.ID]; ok && !reflect.DeepEqual(existing, contextNode) {
-		return AppendResult{}, conflict(op, "run context binding is immutable")
+	if _, exists := projection.Nodes[contextNode.ID]; exists {
+		return AppendResult{}, conflict(op, "run context binding already exists")
 	}
-	if existing, ok := projection.Edges[edge.ID]; ok && existing != edge {
-		return AppendResult{}, conflict(op, "run context trace is immutable")
-	}
-	if _, runExists := projection.Nodes[runNode.ID]; runExists {
-		if _, contextExists := projection.Nodes[contextNode.ID]; !contextExists {
-			return AppendResult{}, invariant(op, "existing contextual run is missing its frozen context node")
-		}
-		if _, edgeExists := projection.Edges[edge.ID]; !edgeExists {
-			return AppendResult{}, invariant(op, "existing contextual run is missing its context trace")
-		}
+	if _, exists := projection.Edges[edge.ID]; exists {
+		return AppendResult{}, conflict(op, "run context trace already exists")
 	}
 	return b.appendContextualRun(ctx, command, runNode, contextNode, edge)
 }
@@ -281,13 +271,13 @@ func validRuntimeWorkPin(kind, id, revision string) bool {
 
 func validateRunExecutionContext(value RunExecutionContextData) error {
 	const op = "validate run execution context"
-	if strings.TrimSpace(value.ContextPackID) == "" || !validSHA256(strings.ToLower(strings.TrimSpace(value.ContextPackChecksum))) {
+	if !safeImmutableAuditRef(value.ContextPackID, 128) || !validSHA256(strings.ToLower(strings.TrimSpace(value.ContextPackChecksum))) {
 		return invalid(op, "context_pack", "immutable ContextPack identity is required")
 	}
-	if !validRuntimeWorkPin(value.WorkItemKind, value.WorkItemID, value.WorkItemRevision) || strings.TrimSpace(value.ContextPolicy) == "" {
+	if !validRuntimeWorkPin(value.WorkItemKind, value.WorkItemID, value.WorkItemRevision) || !safeImmutableAuditRef(value.ContextPolicy, 128) {
 		return invalid(op, "work_item", "kind, id, revision, and context policy are required")
 	}
-	if err := validateIdentifier(op, "agent_release_id", value.AgentReleaseID); err != nil {
+	if err := validateIdentifier(op, "agent_release_id", strings.TrimSpace(value.AgentReleaseID)); err != nil {
 		return err
 	}
 	_, err := normalizeSkillVersionPins(value.SkillVersions)
@@ -324,7 +314,7 @@ func normalizeSkillVersionPins(values []SkillVersionPin) ([]SkillVersionPin, err
 
 func safeImmutableAuditRef(value string, max int) bool {
 	value = strings.TrimSpace(value)
-	return value != "" && len(value) <= max && !strings.ContainsAny(value, "\r\n\t") && value == strings.TrimSpace(value)
+	return value != "" && len(value) <= max && !strings.ContainsAny(value, "\r\n\t")
 }
 
 func runContextNodeID(workspaceID, projectID, runID string) string {
@@ -352,5 +342,3 @@ func (r *sqlRepository) KernelCommandExists(ctx context.Context, workspaceID, pr
 	}
 	return marker == 1, nil
 }
-
-var _ = time.Time{}
