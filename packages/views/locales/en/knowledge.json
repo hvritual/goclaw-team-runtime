@@ -10,6 +10,12 @@
     "published": "Published",
     "review_queue": "Review queue"
   },
+  "filters": {
+    "source": "Source: {{type}} / {{id}}"
+  },
+  "pagination": {
+    "next": "Next page"
+  },
   "proposal": {
     "title": "New knowledge proposal",
     "revision_title": "Propose a knowledge revision",
@@ -17,7 +23,8 @@
     "content_placeholder": "What should the team retain?",
     "reason_placeholder": "Why should this become governed knowledge?",
     "submit": "Submit proposal",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "failed": "Proposal failed"
   },
   "detail": {
     "title": "Knowledge history and sources",
@@ -46,7 +53,12 @@
     "rationale_placeholder": "Add a review rationale",
     "approve": "Approve",
     "reject": "Reject",
-    "quarantine": "Quarantine"
+    "quarantine": "Quarantine",
+    "loading_candidates": "Loading candidates",
+    "load_failed": "Candidates could not be loaded",
+    "your_proposal": "Your proposal",
+    "emergency_self_review": "Emergency self-review with documented reason",
+    "failed": "Review failed or conflicted; refresh the queue."
   },
   "kinds": {
     "goal": "Goal",
