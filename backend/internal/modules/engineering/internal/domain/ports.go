@@ -11,32 +11,32 @@ var (
 )
 
 type EntityRepository interface {
-	PutEntity(context.Context, EngineeringEntity) error
-	GetEntity(context.Context, workspaceID, id string) (EngineeringEntity, error)
-	ListEntities(context.Context, workspaceID string) ([]EngineeringEntity, error)
+	PutEntity(ctx context.Context, entity EngineeringEntity) error
+	GetEntity(ctx context.Context, workspaceID, id string) (EngineeringEntity, error)
+	ListEntities(ctx context.Context, workspaceID string) ([]EngineeringEntity, error)
 }
 
 type SourceBindingRepository interface {
-	PutSourceBinding(context.Context, SourceBinding) error
-	GetSourceBinding(context.Context, workspaceID, id string) (SourceBinding, error)
-	ListSourceBindings(context.Context, workspaceID, entityID string) ([]SourceBinding, error)
+	PutSourceBinding(ctx context.Context, binding SourceBinding) error
+	GetSourceBinding(ctx context.Context, workspaceID, id string) (SourceBinding, error)
+	ListSourceBindings(ctx context.Context, workspaceID, entityID string) ([]SourceBinding, error)
 }
 
 type ThreadEdgeRepository interface {
-	PutThreadEdge(context.Context, ThreadEdge) error
-	GetThreadEdge(context.Context, workspaceID, id string) (ThreadEdge, error)
-	ListThreadEdges(context.Context, workspaceID string, node NodeRef) ([]ThreadEdge, error)
+	PutThreadEdge(ctx context.Context, edge ThreadEdge) error
+	GetThreadEdge(ctx context.Context, workspaceID, id string) (ThreadEdge, error)
+	ListThreadEdges(ctx context.Context, workspaceID string, node NodeRef) ([]ThreadEdge, error)
 }
 
 type ChangeRepository interface {
-	PutChange(context.Context, Change) error
-	GetChange(context.Context, workspaceID, id string) (Change, error)
-	ListChanges(context.Context, workspaceID, affectedEntityID string) ([]Change, error)
+	PutChange(ctx context.Context, change Change) error
+	GetChange(ctx context.Context, workspaceID, id string) (Change, error)
+	ListChanges(ctx context.Context, workspaceID, affectedEntityID string) ([]Change, error)
 }
 
 type ContextPackRepository interface {
-	PutContextPack(context.Context, ContextPack) error
-	GetContextPack(context.Context, workspaceID, id string) (ContextPack, error)
+	PutContextPack(ctx context.Context, pack ContextPack) error
+	GetContextPack(ctx context.Context, workspaceID, id string) (ContextPack, error)
 }
 
 type Repository interface {
