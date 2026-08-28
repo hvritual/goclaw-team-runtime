@@ -1,0 +1,34 @@
+schema_version: v1
+entity:
+  id: service-device-gateway
+  type: service
+  name: Device Gateway
+  status: active
+  owner_ref: team:iot-platform
+source:
+  type: github
+  locator: github://Acme/Device-Gateway.git
+domains:
+  - telemetry
+  - Connectivity
+dependencies:
+  - service-device-session
+relations:
+  - relation: part_of
+    target: system-device-cloud
+interfaces:
+  - id: thing-model-coffee-machine-v3
+    type: thing_model
+    direction: uses
+  - id: api-device-session-v1
+    type: api
+    direction: provides
+knowledge:
+  architecture:
+    - docs/architecture.md
+  adr:
+    - docs/adr/ADR-001.md
+  standards:
+    - docs/standards/mqtt.md
+  runbooks:
+    - docs/runbook.md
