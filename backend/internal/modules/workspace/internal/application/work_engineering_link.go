@@ -12,9 +12,9 @@ type EngineeringWorkReferenceReader interface {
 }
 
 type WorkEngineeringLinkUseCase struct {
-	work         EngineeringWorkReferenceReader
-	memberships  contract.WorkspaceMembershipReader
-	engineering  contract.EngineeringLinkGateway
+	work        EngineeringWorkReferenceReader
+	memberships contract.WorkspaceMembershipReader
+	engineering contract.EngineeringLinkGateway
 }
 
 func NewWorkEngineeringLinkUseCase(work EngineeringWorkReferenceReader, memberships contract.WorkspaceMembershipReader, engineering contract.EngineeringLinkGateway) (*WorkEngineeringLinkUseCase, error) {
