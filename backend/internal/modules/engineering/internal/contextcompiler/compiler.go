@@ -148,7 +148,7 @@ func (c *Compiler) Compile(ctx context.Context, request contract.CompileContextR
 		refs = append(refs, ref)
 		selections = append(selections, contract.ContextSelection{
 			Reference: contract.ContextReference{Kind: string(item.kind), ID: item.id, Revision: item.revision, Checksum: item.checksum},
-			Source: item.source, Score: item.score, EstimatedTokens: item.estimatedTokens,
+			Source:    item.source, Score: item.score, EstimatedTokens: item.estimatedTokens,
 		})
 	}
 
@@ -406,9 +406,9 @@ func changeChecksum(value domain.Change) string {
 	provenance := value.Provenance()
 	payload := struct {
 		ID, Summary, Status, SourceType, Locator, SourceRevision string
-		Affected                                               []string
-		Artifacts                                              []artifact
-		AcceptedAt                                             string
+		Affected                                                 []string
+		Artifacts                                                []artifact
+		AcceptedAt                                               string
 	}{
 		ID: value.ID(), Summary: value.Summary(), Status: string(value.Status()), SourceType: provenance.SourceType(), Locator: provenance.Locator(), SourceRevision: provenance.Revision(),
 		Affected: value.AffectedEntityIDs(), Artifacts: artifacts, AcceptedAt: value.AcceptedAt().UTC().Format(time.RFC3339Nano),
