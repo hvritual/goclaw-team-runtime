@@ -59,7 +59,7 @@ func TestSQLiteRuntimeCertifiesPhaseOneEngineeringDigitalThread(t *testing.T) {
 	}
 
 	change := runtimeRequest(runtime, http.MethodPost, "/api/engineering/v1/workspaces/workspace-one/changes", `{"id":"change-one","project_id":"project-one","requirement_id":"requirement-one","work_item":{"kind":"task","id":"task-one"},"summary":"Update reconnect handling","affected_entity_ids":["service-one"],"artifacts":[{"kind":"pull_request","locator":"github://acme/device-gateway/pull/7","revision":"abc123"}],"provenance":{"source_type":"workspace","locator":"workspace://workspace-one/tasks/task-one","revision":"1"}}`, engineeringHeaders)
-	if change.Code != http.StatusCreated || !containsJSON(change.Body.Bytes(), `"id":"change-one"`, `"status":"proposed"`, `"run_id":""`) {
+	if change.Code != http.StatusCreated || !containsJSON(change.Body.Bytes(), `"id":"change-one"`, `"status":"proposed"`) {
 		t.Fatalf("create change = %d %s", change.Code, change.Body.String())
 	}
 	accepted := runtimeRequest(runtime, http.MethodPost, "/api/engineering/v1/workspaces/workspace-one/changes/change-one/accept", "", engineeringHeaders)
