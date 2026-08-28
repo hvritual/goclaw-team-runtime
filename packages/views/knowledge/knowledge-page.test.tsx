@@ -186,7 +186,7 @@ vi.mock("../i18n", () => {
       loading: "Loading knowledge",
       load_failed: "Knowledge could not be loaded",
     },
-    source: { count_other: "{{count}} sources" },
+    source: { count: "{{count}} sources" },
     pagination: { next: "Next page" },
     review: {
       loading_candidates: "Loading candidates",
