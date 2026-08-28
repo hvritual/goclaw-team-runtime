@@ -26,7 +26,10 @@ if [ -n "$server_paths" ]; then
   exit 1
 fi
 
-legacy_imports=$(grep -R --include='*.go' -n 'github.com/hvritual/workspace/server\|/server/internal/' backend || true)
+# This fast preflight scans production Go sources only. The authoritative
+# parser-based policy check runs later in `make check` and covers test imports
+# without mistaking negative-test fixture strings for real imports.
+legacy_imports=$(grep -R --include='*.go' --exclude='*_test.go' -n 'github.com/hvritual/workspace/server\|/server/internal/' backend || true)
 if [ -n "$legacy_imports" ]; then
   echo "policy-check: canonical backend imports legacy server code" >&2
   printf '%s\n' "$legacy_imports" >&2
