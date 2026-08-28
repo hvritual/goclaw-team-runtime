@@ -418,7 +418,12 @@ function UrlForm({
             placeholder="https://clawhub.ai/owner/skill"
             className="font-mono text-sm"
             onKeyDown={(e) => {
-              if (e.key === "Enter") preview ? submit() : loadPreview();
+              if (e.key !== "Enter") return;
+              if (preview) {
+                void submit();
+                return;
+              }
+              void loadPreview();
             }}
           />
         </div>
