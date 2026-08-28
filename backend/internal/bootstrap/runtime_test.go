@@ -73,8 +73,8 @@ func TestConfigValidate(t *testing.T) {
 
 func TestRuntimeRegistersHealthAndModuleRoutes(t *testing.T) {
 	runtime := newTestRuntime(t)
-	if got := len(runtime.Application().Modules()); got != 4 {
-		t.Fatalf("module count = %d, want 4", got)
+	if got := len(runtime.Application().Modules()); got != 5 {
+		t.Fatalf("module count = %d, want 5", got)
 	}
 
 	tests := []struct {
@@ -88,6 +88,7 @@ func TestRuntimeRegistersHealthAndModuleRoutes(t *testing.T) {
 		{path: "/v1/auth/ping", wantStatus: http.StatusOK, wantBody: map[string]string{"message": "pong"}},
 		{path: "/v1/space/ping", wantStatus: http.StatusOK, wantBody: map[string]string{"message": "pong"}},
 		{path: "/v1/system/ping", wantStatus: http.StatusOK, wantBody: map[string]string{"message": "pong"}},
+		{path: "/api/engineering/v1/workspaces/workspace-1/entities", wantStatus: http.StatusUnauthorized, wantBody: map[string]string{"error": "user not authenticated"}},
 	}
 
 	for _, test := range tests {
