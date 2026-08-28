@@ -210,6 +210,17 @@ func newSQLiteApplication(ctx context.Context, config Config) (*sql.DB, *Applica
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("configure Engineering module: %w", err)
 	}
+	workEngineeringLinks, err := workspace.NewSQLiteWorkEngineeringLinkService(
+		db,
+		memberships,
+		workspaceEngineeringLinkAdapter{provider: engineeringModule.WorkLinks()},
+	)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("configure Workspace Engineering work links: %w", err)
+	}
+	if err := workspaceModule.InstallWorkEngineeringLinks(workEngineeringLinks, workspaceIdentity, authModule.ResolveHTTPUserID, authModule.AuthorizeHTTPMutation); err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("install Workspace Engineering work links: %w", err)
+	}
 	failed = false
 	return db, NewApplicationWithModules(workspaceModule, authModule, spaceModule, systemModule, engineeringModule), realtimeHub, governance, nil
 }
