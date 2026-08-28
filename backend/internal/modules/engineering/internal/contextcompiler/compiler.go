@@ -365,6 +365,7 @@ func (c *Compiler) recentChanges(ctx context.Context, workspaceID string, entity
 			if value.Status() == domain.ChangeStatusAccepted && value.AcceptedAt() != nil {
 				byID[value.ID()] = value
 			}
+		}
 	}
 	values := make([]domain.Change, 0, len(byID))
 	for _, value := range byID {
