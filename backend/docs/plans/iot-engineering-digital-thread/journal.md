@@ -20,9 +20,20 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - Added monotonic authority classes: `proposed -> inferred -> observed -> authoritative`; downgrade through the ordinary promotion API is rejected.
 - Added table-driven tests for entity validation, provenance, self-edge rejection, generic-relation rejection, and authority promotion.
 - Pre-commit isolated verification used the exact candidate Go files: `gofmt`, `go test ./... -count=1`, and `go vet ./...` passed under the available Go 1.23.2 toolchain. This is not a claim that the repository-wide Go 1.26.1 checks have run.
-- Remaining `P1-S02` work: Change lifecycle, immutable ContextPack/revision checksum rules, repository ports, and their domain tests.
+
+## 2026-08-28 — P1-S02 continuation
+
+- Added `Change` as a first-class domain object, separate from both Workspace work intent and Runtime execution attempts.
+- Change starts as `proposed`; acceptance is an explicit transition and records an acceptance timestamp. Accepted changes may later be superseded, while rejected/accepted states cannot be silently rewritten through invalid transitions.
+- Change work linkage uses a typed work-item reference and rejects a Runtime `run` node as a work-item identity; Run remains a separate optional execution reference.
+- Added immutable `ContextPack` manifests with pinned work-item revision, target engineering entities, revision/checksum-bearing context references, selection-policy version, and deterministic content checksum.
+- ContextPack checksum is independent of pack ID, creation time, input target ordering, and context-reference ordering so equivalent frozen context produces the same content identity.
+- Added repository port interfaces for EngineeringEntity, SourceBinding, ThreadEdge, Change, and ContextPack. No persistence or transport dependency enters the domain package.
+- Added tests for Task/Todo vs Run vs Change separation, invalid work-item links, deterministic ContextPack checksum, checksum mismatch on rehydrate, and mandatory context revision/checksum metadata.
+- Re-ran isolated `gofmt`, `go test ./... -count=1`, and `go vet ./...` against the complete P1-S02 candidate package; all passed under Go 1.23.2.
+- `P1-S02` domain deliverables are now implemented. Repository-wide Go 1.26.1 checks and CI remain required before the step can be considered accepted and before durable adapter work (`P1-S03`) is treated as dependency-complete.
 
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
-- `P1-S02` foundation slice: isolated package `go test` and `go vet` passed before commit; repository CI/full backend checks pending.
+- `P1-S02`: isolated complete package `gofmt`, `go test`, and `go vet` passed before commit; repository CI/full backend checks pending.
