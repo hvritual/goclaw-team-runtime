@@ -45,11 +45,21 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - Compare from the P1-S02 head `0a60e5348c11244a3cf17bc36b9b14164718a876` to P1-S03 implementation head `b8cd8f98b97fa58c2da2f9277c8de2662cb7867c` contains only `backend/internal/modules/engineering/**`; no `server/**` path was changed.
 - CI run `33161301114` reached the repository governance gate. `frontend-test` passed, but `governance-policy` failed at the pre-existing canonical-backend legacy-import guard and therefore skipped `canonical-backend`; frontend build also failed.
 - The same two failures already exist on CI run `33159973803` for pre-P1-S03 head `0a60e5348c11244a3cf17bc36b9b14164718a876`. This proves those repository-level blockers predate P1-S03 rather than being introduced by the durable-adapter diff.
-- Because `canonical-backend` was skipped, repository-authoritative Go 1.26.1 compilation/test/vet evidence is not available for P1-S03. The implementation is complete, but `P1-S03` remains **acceptance-blocked** until the pre-existing governance failure is repaired and the canonical backend checks run successfully.
-- Per plan dependency rules, `P1-S04` must not start while `P1-S03` remains acceptance-blocked.
+- Because `canonical-backend` was skipped, repository-authoritative Go 1.26.1 compilation/test/vet evidence was initially unavailable for P1-S03; the step remained acceptance-blocked while the baseline blockers were repaired.
+
+## 2026-08-28 — P1-S03 acceptance
+
+- Repaired the repository governance false positive by making the canonical policy gate use the existing Go-parser-backed legacy import detector rather than raw text matching; negative test fixtures no longer masquerade as imports.
+- Repaired the P1-S03 repository-port signatures exposed when canonical Go 1.26.1 checks first executed.
+- Repaired pre-existing cross-platform Space ObjectStore path escape handling and frontend build/test blockers without weakening policy, lint, or i18n rules.
+- Final P1-S03 acceptance head is `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`.
+- CI run `33172633893` is fully green: `governance-policy`, `canonical-backend`, canonical race tests, `frontend-test`, `frontend-build`, `frontend`, and final `required` all succeeded.
+- Canonical backend verification ran with repository-declared Go 1.26.1 and passed deterministic `make check` plus race validation.
+- `server/**` remained unchanged throughout the repair and acceptance sequence.
+- `P1-S03` is **accepted**. The dependency gate for `P1-S04 — Application service and read API` is now open.
 
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
-- `P1-S02`: isolated complete package `gofmt`, `go test`, and `go vet` passed before commit; repository CI/full backend checks pending.
-- `P1-S03`: durable adapter implementation and contract-test sources are committed; diff is confined to Engineering Thread paths and contains no `server/**` changes. CI run `33161301114` cannot execute canonical backend checks because the baseline-wide policy guard already fails on pre-P1-S03 head `0a60e534` (run `33159973803`). Acceptance is blocked, not claimed.
+- `P1-S02`: isolated complete package `gofmt`, `go test`, and `go vet` passed before commit; later canonical backend validation also passed as part of P1-S03 acceptance run `33172633893`.
+- `P1-S03`: **accepted** at `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`; CI run `33172633893` passed governance, canonical deterministic checks, race tests, frontend validation, and final required aggregation under the canonical branch.
