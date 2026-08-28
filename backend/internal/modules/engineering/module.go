@@ -21,8 +21,10 @@ type Dependencies struct {
 
 type Module struct {
 	service   contract.Service
+	lifecycle contract.LifecycleService
 	workLinks contract.WorkLinkProvider
 	http      *httpinterface.Handler
+	exitHTTP  *httpinterface.LifecycleHandler
 }
 
 func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
@@ -36,8 +38,10 @@ func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
 	}
 	return &Module{
 		service:   service,
+		lifecycle: service,
 		workLinks: service,
 		http:      httpinterface.NewHandler(service, dependencies.HTTPUserIdentity),
+		exitHTTP:  httpinterface.NewLifecycleHandler(service, dependencies.HTTPUserIdentity),
 	}, nil
 }
 
@@ -56,10 +60,15 @@ func (m *Module) WorkLinks() contract.WorkLinkProvider {
 }
 
 func (m *Module) RegisterHTTP(server *kratoshttp.Server) {
-	if m == nil || m.http == nil || server == nil {
+	if m == nil || server == nil {
 		return
 	}
-	m.http.Register(server)
+	if m.http != nil {
+		m.http.Register(server)
+	}
+	if m.exitHTTP != nil {
+		m.exitHTTP.Register(server)
+	}
 }
 
 func (*Module) RegisterGRPC(*kratosgrpc.Server) {}
