@@ -50,7 +50,7 @@ func NewSourceProjection(entity EngineeringEntity, binding SourceBinding, upsert
 	}
 	return SourceProjection{
 		entity: entity, binding: binding,
-		upsertEdges: append([]ThreadEdge(nil), upsertEdges...),
+		upsertEdges:   append([]ThreadEdge(nil), upsertEdges...),
 		deleteEdgeIDs: cleanDeletes,
 	}, nil
 }
