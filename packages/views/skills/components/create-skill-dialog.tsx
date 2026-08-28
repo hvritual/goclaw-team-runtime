@@ -57,10 +57,6 @@ function seedAfterCreate(
   qc.invalidateQueries({ queryKey: workspaceKeys.skills(wsId) });
 }
 
-// ---------------------------------------------------------------------------
-// Chooser — initial method picker (3 cards)
-// ---------------------------------------------------------------------------
-
 function MethodChooser({ onChoose, allowImport }: { onChoose: (m: Method) => void; allowImport: boolean }) {
   const { t } = useT("skills");
   const methods: {
@@ -98,10 +94,6 @@ function MethodChooser({ onChoose, allowImport }: { onChoose: (m: Method) => voi
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Manual form
-// ---------------------------------------------------------------------------
 
 function ManualForm({
   onCreated,
@@ -236,12 +228,7 @@ function ManualForm({
   );
 }
 
-// ---------------------------------------------------------------------------
-// URL import form
-// ---------------------------------------------------------------------------
-
 type DetectedSource = "clawhub" | "skills.sh" | "github" | null;
-
 type ConflictMode = "new_version" | "replace";
 
 function PreviewSummary({
@@ -488,7 +475,9 @@ function UrlForm({
           variant="ghost"
           size="sm"
           onClick={onCancel}
-          onMouseDown={() => loading && abortRef.current?.abort()}
+          onMouseDown={() => {
+            if (loading) abortRef.current?.abort();
+          }}
         >
           {loading ? t(($) => $.create.import_common.cancel_operation) : t(($) => $.create.url.cancel)}
         </Button>
@@ -605,7 +594,15 @@ function ArchiveForm({
         )}
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 border-t bg-muted/30 px-5 py-3">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} onMouseDown={() => loading && abortRef.current?.abort()}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          onMouseDown={() => {
+            if (loading) abortRef.current?.abort();
+          }}
+        >
           {loading ? t(($) => $.create.import_common.cancel_operation) : t(($) => $.create.archive.cancel)}
         </Button>
         <Button type="button" size="sm" onClick={preview ? submit : loadPreview} disabled={!file || loading || (conflictMode === "replace" && !replaceConfirmed)}>
@@ -617,10 +614,6 @@ function ArchiveForm({
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Root dialog
-// ---------------------------------------------------------------------------
 
 export function CreateSkillDialog({
   onClose,
@@ -649,7 +642,6 @@ export function CreateSkillDialog({
           "!h-auto !max-h-[85vh] !max-w-md !w-full",
         )}
       >
-        {/* Header */}
         <div className="flex shrink-0 items-start justify-between gap-3 border-b px-5 pt-4 pb-3">
           <div className="flex items-center gap-2 min-w-0">
             {method !== "chooser" && (
@@ -695,7 +687,6 @@ export function CreateSkillDialog({
           </Tooltip>
         </div>
 
-        {/* Method body — each form owns its scroll middle + footer */}
         {method === "chooser" && <MethodChooser onChoose={setMethod} allowImport={allowImport} />}
         {method === "manual" && (
           <ManualForm
