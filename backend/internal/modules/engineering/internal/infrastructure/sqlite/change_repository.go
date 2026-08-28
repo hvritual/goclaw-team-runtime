@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hvritual/workspace/internal/modules/engineering/internal/domain"
 )
@@ -24,8 +25,8 @@ func (s *Store) PutChange(ctx context.Context, value domain.Change) error {
 		workID = workItem.ID()
 	}
 	var acceptedAt any
-	if value.AcceptedAt() != nil {
-		acceptedAt = formatTime(*value.AcceptedAt())
+	if timestamp := value.AcceptedAt(); timestamp != nil {
+		acceptedAt = formatTime(*timestamp)
 	}
 	provenance := value.Provenance()
 	if _, err := tx.ExecContext(ctx, `INSERT INTO engineering_changes(
@@ -166,13 +167,13 @@ func (s *Store) scanChange(ctx context.Context, row scanner, workspaceID, id str
 	if err != nil {
 		return domain.Change{}, fmt.Errorf("parse engineering change updated_at: %w", err)
 	}
-	var accepted *timeValue
+	var acceptedPointer *time.Time
 	if acceptedAt.Valid {
 		parsed, err := parseTime(acceptedAt.String)
 		if err != nil {
 			return domain.Change{}, fmt.Errorf("parse engineering change accepted_at: %w", err)
 		}
-		accepted = &timeValue{Time: parsed}
+		acceptedPointer = &parsed
 	}
 	affected, err := s.loadChangeEntities(ctx, workspaceID, id)
 	if err != nil {
@@ -182,20 +183,11 @@ func (s *Store) scanChange(ctx context.Context, row scanner, workspaceID, id str
 	if err != nil {
 		return domain.Change{}, err
 	}
-	var acceptedPointer *time.Time
-	if accepted != nil {
-		value := accepted.Time
-		acceptedPointer = &value
-	}
 	value, err := domain.RehydrateChange(id, workspaceID, projectID, requirementID, workItem, runID, summary, domain.ChangeStatus(status), affected, artifacts, provenance, created, updated, acceptedPointer)
 	if err != nil {
 		return domain.Change{}, fmt.Errorf("rehydrate engineering change: %w", err)
 	}
 	return value, nil
-}
-
-type timeValue struct {
-	Time time.Time
 }
 
 func (s *Store) loadChangeEntities(ctx context.Context, workspaceID, changeID string) ([]string, error) {
