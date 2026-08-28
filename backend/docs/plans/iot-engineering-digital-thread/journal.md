@@ -58,8 +58,24 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - `server/**` remained unchanged throughout the repair and acceptance sequence.
 - `P1-S03` is **accepted**. The dependency gate for `P1-S04 — Application service and read API` is now open.
 
+## 2026-08-28 — P1-S04 application service and read API
+
+- Added a public Engineering contract for actor identity, workspace-role resolution, EngineeringEntity, SourceBinding, typed ThreadEdge, Change, frozen ContextPack, application errors, and the application Service interface.
+- Added the Engineering application service on top of the P1-S03 repository ports. Workspace authorization is enforced inside the application boundary rather than delegated to the transport: owner/admin may read and write, member may read, and users outside the workspace are denied.
+- Entity mutations, source bindings, typed edges, and changes validate referenced Engineering entities before persistence. Repository workspace scoping remains authoritative for cross-workspace isolation.
+- Added application tests covering owner/admin/member/outsider authorization, workspace isolation, entity/source/edge/change flows, duplicate conflicts, invalid references, and frozen ContextPack reads.
+- Added an HTTP-first adapter without generated RPC. Routes expose entity create/get/list/update, SourceBinding create/get/list, typed ThreadEdge create/list, Change create/get/list, and frozen ContextPack get under `/api/engineering/v1/workspaces/{workspace}/...`.
+- HTTP decoding is strict: unknown fields and multiple JSON values are rejected. Transport tests cover malformed requests, authentication-before-service behavior, error mapping, and required typed query selectors.
+- Composed Engineering as the fifth canonical module in the SQLite runtime. Engineering migrations share the canonical SQLite database; Auth membership is projected through the existing Auth membership contract via `ResolveWorkspaceRole`, with no direct Engineering reads of Auth tables and no duplicated role store.
+- Updated bootstrap verification to assert five canonical modules and an actually registered Engineering HTTP route; unauthenticated route access returns 401 rather than 404.
+- Final P1-S04 code acceptance head is `e76da85761d5f772ac6aeb70588e6b43f3bb865f`.
+- CI run `33175226835` passed `governance-policy`, deterministic canonical `make check`, `frontend-test`, `frontend-build`, `frontend`, and final `required`. The first race attempt hit the pre-existing realtime oversized-WebSocket timing variant (`connection reset by peer` while the server was intentionally closing an over-limit frame); every Engineering race package passed. Re-running the same canonical-backend job against the identical head, with no code changes, passed the full race suite and caused final `required` to succeed.
+- Compare from P1-S03 accepted head `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f` to P1-S04 accepted head `e76da85761d5f772ac6aeb70588e6b43f3bb865f` is strictly ahead and contains only Engineering module files, canonical bootstrap/tests, and this plan journal; `server/**` is unchanged and no RPC-generated files were introduced.
+- `P1-S04` is **accepted**. The next planned dependency is `P1-S05 — Work-plane linking and controlled source bindings`.
+
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
 - `P1-S02`: isolated complete package `gofmt`, `go test`, and `go vet` passed before commit; later canonical backend validation also passed as part of P1-S03 acceptance run `33172633893`.
 - `P1-S03`: **accepted** at `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`; CI run `33172633893` passed governance, canonical deterministic checks, race tests, frontend validation, and final required aggregation under the canonical branch.
+- `P1-S04`: **accepted** at `e76da85761d5f772ac6aeb70588e6b43f3bb865f`; CI run `33175226835` passed deterministic validation, frontend validation, and—on the identical-head canonical-backend rerun—the full race suite and final required aggregation.
