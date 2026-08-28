@@ -73,9 +73,24 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - Compare from P1-S03 accepted head `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f` to P1-S04 accepted head `e76da85761d5f772ac6aeb70588e6b43f3bb865f` is strictly ahead and contains only Engineering module files, canonical bootstrap/tests, and this plan journal; `server/**` is unchanged and no RPC-generated files were introduced.
 - `P1-S04` is **accepted**. The next planned dependency is `P1-S05 — Work-plane linking and controlled source bindings`.
 
+## 2026-08-28 — P1-S05 work-plane linking acceptance
+
+- Added plan amendment `plan_v2.md` to make the composition-root boundary explicit: Bootstrap may bind interfaces and add integration tests, but it may not query Workspace or Engineering tables or become an owner of work-link semantics.
+- Added an Engineering-owned internal `WorkLinkProvider` over canonical `ThreadEdge` storage. Workspace callers cannot choose the relation, authority, or provenance: Project derives `changes`; Requirement and Task derive `affects`; authority is `authoritative`; provenance source is `workspace` with a stable work locator.
+- Added deterministic idempotent work-link identities, same-workspace EngineeringEntity validation, archived-entity rejection for new links, explicit edge deletion, and historical edge retention when either the Workspace source disappears or the EngineeringEntity is later archived.
+- Added a Workspace-owned `EngineeringLinkGateway` consumer seam and use case. Workspace validates Project, Requirement, and Task existence from its own tables before link creation; Engineering never reads Workspace tables. Historical reads and explicit unlink deliberately do not revalidate Workspace source existence so there is no lifecycle cascade into Engineering history.
+- Added user-facing Project, Requirement, and Task HTTP link/list/unlink routes. Reads require Workspace membership; mutations require owner/admin plus the existing HTTP mutation authorization boundary.
+- Added the Bootstrap adapter solely for type/error translation and dependency injection. Workspace does not import the Engineering bounded context, Bootstrap performs no work-link table reads, and the existing generated Workspace relationship service was not expanded.
+- Added application/provider tests plus a canonical SQLite runtime test covering all three relation mappings, authoritative provenance, source-workspace isolation, source deletion with retained history, explicit unlink after source deletion, archived EngineeringEntity history retention, rejection of new links to archived entities, and Task lifecycle non-interference (`status=todo`, `revision=1` after linking).
+- CI run `33180418211` first exposed one formatting-only failure before compilation (`work_engineering_link.go`); it was corrected without changing behavior. Final P1-S05 code acceptance head is `fa014c9cae5419abff6ad98754e51b722fe36627`.
+- CI run `33180637983` is fully green: `governance-policy`, repository-declared Go 1.26.1 deterministic `make check`, canonical `make test-race`, `frontend-test`, `frontend-build`, `frontend`, and final `required` all succeeded.
+- Final compare from P1-S04 code acceptance head `e76da85761d5f772ac6aeb70588e6b43f3bb865f` to P1-S05 code acceptance head `fa014c9cae5419abff6ad98754e51b722fe36627` is strictly ahead (`ahead_by=6`, `behind_by=0`) and contains only the plan/journal, Engineering module, Workspace module, and Bootstrap composition/test paths. `server/**` and Execution/Runtime module paths are unchanged.
+- `P1-S05` is **accepted**. The work-plane link contract is now available to later digital-thread slices without transferring Workspace ownership into Engineering.
+
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
 - `P1-S02`: isolated complete package `gofmt`, `go test`, and `go vet` passed before commit; later canonical backend validation also passed as part of P1-S03 acceptance run `33172633893`.
 - `P1-S03`: **accepted** at `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`; CI run `33172633893` passed governance, canonical deterministic checks, race tests, frontend validation, and final required aggregation under the canonical branch.
 - `P1-S04`: **accepted** at `e76da85761d5f772ac6aeb70588e6b43f3bb865f`; CI run `33175226835` passed deterministic validation, frontend validation, and—on the identical-head canonical-backend rerun—the full race suite and final required aggregation.
+- `P1-S05`: **accepted** at code head `fa014c9cae5419abff6ad98754e51b722fe36627`; CI run `33180637983` passed governance, Go 1.26.1 deterministic checks, canonical race tests, frontend validation, and final required aggregation.
