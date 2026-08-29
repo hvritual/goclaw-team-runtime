@@ -98,6 +98,21 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - Added a canonical SQLite runtime certification scenario covering EngineeringEntity -> SourceBinding -> Project/Requirement/Task links -> proposed Change -> accepted Change -> frozen ContextPack -> public readback, plus Task status/revision non-interference.
 - Product-code candidate commit: `7a6c6320b5f0536327234150d178c0b226454cef`; canonical CI evidence is pending before P1-EXIT can be accepted.
 
+## 2026-08-29 — P1-EXIT and P2-S01 through P2-S07 cumulative acceptance
+
+- Hosted GitHub Actions execution recovered through validation-only draft PR #12 from `agent/iot-edt-p2-staging` into `codex/multica-six-domain-baseline`; the direct ref update was correctly rejected by repository rules requiring PR integration and the `CI / required` check.
+- Final cumulatively validated product head is `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`, strictly ahead of canonical base `9b4c5b6ee1b92857ad89ec65c0d02e6691358583` with no `server/**` modifications.
+- PR workflow run `33242218546` is fully green: `governance-policy`, repository-declared Go 1.26.1 deterministic `make check`, canonical `make test-race`, `frontend-test`, `frontend-build`, `frontend`, and final `required` all succeeded.
+- `P1-EXIT` is **accepted**: the canonical Phase-1 E2E path now covers EngineeringEntity -> SourceBinding -> Project/Requirement/Task work links -> proposed Change -> explicit accepted Change -> immutable frozen ContextPack -> readback, without mutating Todo/Run DoneGate semantics.
+- `P2-S01` is **accepted**: repository `engineering.yaml` v1 has strict parsing, canonical ontology validation, deterministic normalization/checksum, path/source safety rules, and no dynamic work/release/deployment facts in the static manifest.
+- `P2-S02` is **accepted**: the GitHub adapter is read-only, resolves repository/ref to immutable commit identity, reads `engineering.yaml` at that commit, exposes commit/PR facts, rejects unsafe redirects, and does not write the Engineering graph.
+- `P2-S03` is **accepted**: reconciliation applies one repository+commit projection atomically, persists source-owned entity/binding/authoritative edges, removes stale source-derived edges in the same transaction, and reports unresolved targets instead of creating ghost entities.
+- `P2-S04` is **accepted**: merged PR evidence creates only a `proposed` Change when an explicit Workspace work-link and matching GitHub SourceBinding exist; Change acceptance remains a separate governed action.
+- `P2-S05` is **accepted**: Scope Resolver uses explicit authoritative Workspace work-links as seeds, bounded deterministic graph traversal, pinned source collection, and explicit dangling/stale/truncation warnings without embedding/vector dependence.
+- `P2-S06` is **accepted**: Context Compiler freezes graph-scoped source revisions, governed versioned references, accepted Changes and Incident hooks under deterministic ranking/reference/token budgets; same semantic input reproduces the same ContextPack checksum and same-ID semantic drift conflicts.
+- `P2-S07` is **accepted**: contextual Run creation atomically records a Run node, immutable `run_context` node and trace edge pinning ContextPack ID/checksum, WorkItem revision, policy version, Agent Release ID and Skill versions; Claim/Heartbeat/Retry/DoneGate semantics remain owned by Runtime and do not mutate the frozen binding.
+- PR #12 remains the protected-branch integration vehicle. Acceptance evidence was captured before integration; the PR must pass its docs-only follow-up CI and then be merged through repository rules rather than bypassed with a direct ref update.
+
 ## Verification log
 
 - `P1-S01`: documentation-only; no product-code verification claimed.
@@ -105,4 +120,5 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - `P1-S03`: **accepted** at `49c095932bb7ddf4f2e2ffcd3cdc2535fa51b70f`; CI run `33172633893` passed governance, canonical deterministic checks, race tests, frontend validation, and final required aggregation under the canonical branch.
 - `P1-S04`: **accepted** at `e76da85761d5f772ac6aeb70588e6b43f3bb865f`; CI run `33175226835` passed deterministic validation, frontend validation, and—on the identical-head canonical-backend rerun—the full race suite and final required aggregation.
 - `P1-S05`: **accepted** at code head `fa014c9cae5419abff6ad98754e51b722fe36627`; CI run `33180637983` passed governance, Go 1.26.1 deterministic checks, canonical race tests, frontend validation, and final required aggregation.
-- `P1-EXIT`: implementation candidate `7a6c6320b5f0536327234150d178c0b226454cef`; acceptance pending canonical CI.
+- `P1-EXIT`: **accepted** in cumulative product head `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`; PR CI run `33242218546` passed governance, Go 1.26.1 deterministic checks, race, frontend validation, and final required aggregation.
+- `P2-S01` through `P2-S07`: **accepted cumulatively** at product head `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`; PR #12 CI run `33242218546` passed the canonical validation workflow against base `9b4c5b6ee1b92857ad89ec65c0d02e6691358583`.
