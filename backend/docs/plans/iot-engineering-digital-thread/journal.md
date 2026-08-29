@@ -111,7 +111,7 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - `P2-S05` is **accepted**: Scope Resolver uses explicit authoritative Workspace work-links as seeds, bounded deterministic graph traversal, pinned source collection, and explicit dangling/stale/truncation warnings without embedding/vector dependence.
 - `P2-S06` is **accepted**: Context Compiler freezes graph-scoped source revisions, governed versioned references, accepted Changes and Incident hooks under deterministic ranking/reference/token budgets; same semantic input reproduces the same ContextPack checksum and same-ID semantic drift conflicts.
 - `P2-S07` is **accepted**: contextual Run creation atomically records a Run node, immutable `run_context` node and trace edge pinning ContextPack ID/checksum, WorkItem revision, policy version, Agent Release ID and Skill versions; Claim/Heartbeat/Retry/DoneGate semantics remain owned by Runtime and do not mutate the frozen binding.
-- PR #12 remains the protected-branch integration vehicle. Acceptance evidence was captured before integration; the PR must pass its docs-only follow-up CI and then be merged through repository rules rather than bypassed with a direct ref update.
+- Validation PR #12 was closed unmerged after its required checks passed because the connector could not transition the draft to ready-for-review. Non-draft PR #13 is the protected-branch integration vehicle and must pass its own final `CI / required` before merge.
 
 ## Verification log
 
@@ -121,4 +121,4 @@ Plan-ID: `IOT-ENGINEERING-DIGITAL-THREAD-001`
 - `P1-S04`: **accepted** at `e76da85761d5f772ac6aeb70588e6b43f3bb865f`; CI run `33175226835` passed deterministic validation, frontend validation, and—on the identical-head canonical-backend rerun—the full race suite and final required aggregation.
 - `P1-S05`: **accepted** at code head `fa014c9cae5419abff6ad98754e51b722fe36627`; CI run `33180637983` passed governance, Go 1.26.1 deterministic checks, canonical race tests, frontend validation, and final required aggregation.
 - `P1-EXIT`: **accepted** in cumulative product head `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`; PR CI run `33242218546` passed governance, Go 1.26.1 deterministic checks, race, frontend validation, and final required aggregation.
-- `P2-S01` through `P2-S07`: **accepted cumulatively** at product head `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`; PR #12 CI run `33242218546` passed the canonical validation workflow against base `9b4c5b6ee1b92857ad89ec65c0d02e6691358583`.
+- `P2-S01` through `P2-S07`: **accepted cumulatively** at product head `86f6ce3748be9d6e9418bdfdb349f43bc8241d78`; validation PR #12 CI run `33242218546` passed the canonical validation workflow against base `9b4c5b6ee1b92857ad89ec65c0d02e6691358583`.
