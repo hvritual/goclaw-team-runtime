@@ -6,6 +6,7 @@ require (
 	github.com/go-kratos/kratos/v3 v3.0.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	golang.org/x/text v0.37.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60
 	google.golang.org/grpc v1.81.0
