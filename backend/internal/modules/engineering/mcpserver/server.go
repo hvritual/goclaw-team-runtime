@@ -62,7 +62,6 @@ type entityGetInput struct {
 	WorkspaceID string `json:"workspace_id" jsonschema:"authorized workspace id"`
 	EntityID    string `json:"entity_id" jsonschema:"canonical EngineeringEntity id"`
 }
-
 type entityGetOutput struct {
 	Entity contract.Entity `json:"entity"`
 }
@@ -81,7 +80,6 @@ type entityListInput struct {
 	Status      string `json:"status,omitempty" jsonschema:"optional entity status"`
 	Limit       int    `json:"limit,omitempty" jsonschema:"maximum results, default 100, max 500"`
 }
-
 type entityListOutput struct {
 	Items []contract.Entity `json:"items"`
 }
@@ -101,7 +99,6 @@ type entitySearchInput struct {
 	Status      string `json:"status,omitempty" jsonschema:"optional entity status"`
 	Limit       int    `json:"limit,omitempty" jsonschema:"maximum results, default 20, max 100"`
 }
-
 type entitySearchOutput struct {
 	Items []contract.Entity `json:"items"`
 }
@@ -160,13 +157,11 @@ type threadTraverseInput struct {
 	MaxDepth    int    `json:"max_depth,omitempty" jsonschema:"BFS depth, default 2, max 4"`
 	MaxNodes    int    `json:"max_nodes,omitempty" jsonschema:"node budget, default 64, max 256"`
 }
-
 type traversedNode struct {
 	Kind  string `json:"kind"`
 	ID    string `json:"id"`
 	Depth int    `json:"depth"`
 }
-
 type threadTraverseOutput struct {
 	Nodes     []traversedNode       `json:"nodes"`
 	Edges     []contract.ThreadEdge `json:"edges"`
@@ -264,14 +259,15 @@ func otherNode(edge contract.ThreadEdge, current contract.NodeRef) (contract.Nod
 	return contract.NodeRef{}, false
 }
 
-func sameNode(left, right contract.NodeRef) bool { return left.Kind == right.Kind && left.ID == right.ID }
-func nodeKey(value contract.NodeRef) string       { return value.Kind + "\x00" + value.ID }
+func sameNode(left, right contract.NodeRef) bool {
+	return left.Kind == right.Kind && left.ID == right.ID
+}
+func nodeKey(value contract.NodeRef) string { return value.Kind + "\x00" + value.ID }
 
 type changeGetInput struct {
 	WorkspaceID string `json:"workspace_id" jsonschema:"authorized workspace id"`
 	ChangeID    string `json:"change_id" jsonschema:"Engineering Change id"`
 }
-
 type changeGetOutput struct {
 	Change contract.Change `json:"change"`
 }
@@ -290,7 +286,6 @@ type changeListInput struct {
 	Status           string `json:"status,omitempty" jsonschema:"optional Change status"`
 	Limit            int    `json:"limit,omitempty" jsonschema:"maximum results, default 100, max 500"`
 }
-
 type changeListOutput struct {
 	Items []contract.Change `json:"items"`
 }
@@ -328,7 +323,6 @@ type contextPackGetInput struct {
 	WorkspaceID string `json:"workspace_id" jsonschema:"authorized workspace id"`
 	PackID      string `json:"pack_id" jsonschema:"immutable ContextPack id"`
 }
-
 type contextPackGetOutput struct {
 	Pack contract.ContextPack `json:"pack"`
 }
@@ -356,7 +350,6 @@ type contextPackCompileInput struct {
 	MaxEstimatedTokens    int    `json:"max_estimated_tokens,omitempty"`
 	MaxRecentChanges      int    `json:"max_recent_changes,omitempty"`
 }
-
 type contextPackCompileOutput struct {
 	Result contract.CompileContextResult `json:"result"`
 }
@@ -371,14 +364,10 @@ func (t *toolset) contextPackCompile(ctx context.Context, _ *mcpsdk.CallToolRequ
 		WorkItem:         contract.NodeRef{Kind: strings.TrimSpace(input.WorkItemKind), ID: strings.TrimSpace(input.WorkItemID)},
 		WorkItemRevision: strings.TrimSpace(input.WorkItemRevision),
 		Policy: contract.ContextCompilePolicy{
-			Version:             strings.TrimSpace(input.PolicyVersion),
-			MaxDepth:            input.MaxDepth,
-			MaxEntities:         input.MaxEntities,
+			Version: strings.TrimSpace(input.PolicyVersion), MaxDepth: input.MaxDepth, MaxEntities: input.MaxEntities,
 			SourceStaleAfter:    time.Duration(input.SourceStaleSeconds) * time.Second,
 			KnowledgeStaleAfter: time.Duration(input.KnowledgeStaleSeconds) * time.Second,
-			MaxReferences:       input.MaxReferences,
-			MaxEstimatedTokens:  input.MaxEstimatedTokens,
-			MaxRecentChanges:    input.MaxRecentChanges,
+			MaxReferences:       input.MaxReferences, MaxEstimatedTokens: input.MaxEstimatedTokens, MaxRecentChanges: input.MaxRecentChanges,
 		},
 	}
 	value, err := t.compiler.CompileContext(ctx, t.actor, request)
