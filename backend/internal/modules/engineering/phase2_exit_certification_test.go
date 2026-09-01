@@ -209,7 +209,7 @@ func TestPhase2ExitPreCertificationDigitalThread(t *testing.T) {
 		MaxReferences: 16, MaxEstimatedTokens: 4096, MaxRecentChanges: 8,
 	}
 	compile := func(packID string) contract.CompileContextResult {
-		result, compileErr := compiler.CompileContext(ctx, contract.CompileContextRequest{
+		result, compileErr := compiler.Compile(ctx, contract.CompileContextRequest{
 			WorkspaceID: workspaceID, PackID: packID,
 			WorkItem: contract.NodeRef{Kind: "task", ID: "task-1"}, WorkItemRevision: "7", Policy: policy,
 		})
