@@ -1,0 +1,33 @@
+name: P2-S08 Tidy Probe
+
+on:
+  push:
+    branches:
+      - agent/iot-edt-p2-s08-tidy-probe
+
+permissions:
+  contents: read
+
+jobs:
+  tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Generate exact module tidy diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd backend
+          go mod tidy
+          echo '=== P2-S08 GO MOD TIDY DIFF BEGIN ==='
+          git diff -- go.mod go.sum
+          echo '=== P2-S08 GO MOD TIDY DIFF END ==='
+          if git diff --quiet -- go.mod go.sum; then
+            echo 'module files already tidy'
+          else
+            exit 1
+          fi
