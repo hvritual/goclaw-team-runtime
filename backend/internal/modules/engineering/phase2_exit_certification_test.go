@@ -79,15 +79,15 @@ func (s phase2PullSource) GetPullRequest(_ context.Context, locator string, numb
 }
 
 type phase2PublishedRefs struct {
-	refs []contract.VersionedContextReference
+	refs []contract.ContextReferenceCandidate
 }
 
-func (p phase2PublishedRefs) ListPublishedContextReferences(_ context.Context, _ string, entityIDs []string) ([]contract.VersionedContextReference, error) {
+func (p phase2PublishedRefs) ListPublishedContextReferences(_ context.Context, _ string, entityIDs []string) ([]contract.ContextReferenceCandidate, error) {
 	allowed := make(map[string]struct{}, len(entityIDs))
 	for _, id := range entityIDs {
 		allowed[id] = struct{}{}
 	}
-	result := make([]contract.VersionedContextReference, 0, len(p.refs))
+	result := make([]contract.ContextReferenceCandidate, 0, len(p.refs))
 	for _, ref := range p.refs {
 		for _, entityID := range ref.EntityIDs {
 			if _, ok := allowed[entityID]; ok {
@@ -186,7 +186,7 @@ func TestPhase2ExitPreCertificationDigitalThread(t *testing.T) {
 		t.Fatalf("PR projection must remain proposed: status=%s accepted_at=%v", proposed.Change.Status(), proposed.Change.AcceptedAt())
 	}
 
-	published := phase2PublishedRefs{refs: []contract.VersionedContextReference{{
+	published := phase2PublishedRefs{refs: []contract.ContextReferenceCandidate{{
 		Kind: "standard", ID: "std-mqtt", Revision: "std-v3", Checksum: strings.Repeat("f", 64),
 		EntityIDs: []string{"service-device-gateway"}, EstimatedTokens: 128, UpdatedAt: now,
 	}}}
@@ -198,14 +198,15 @@ func TestPhase2ExitPreCertificationDigitalThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy := contract.ContextPolicy{
+	policy := contract.ContextCompilePolicy{
 		Version: "context-v1", MaxDepth: 2, MaxEntities: 16,
 		SourceStaleAfter: 24 * time.Hour, KnowledgeStaleAfter: 24 * time.Hour,
 		MaxReferences: 16, MaxEstimatedTokens: 4096, MaxRecentChanges: 8,
 	}
 	compile := func(packID string) contract.CompileContextResult {
 		result, compileErr := compiler.CompileContext(ctx, contract.CompileContextRequest{
-			WorkspaceID: workspaceID, PackID: packID, WorkItemKind: "task", WorkItemID: "task-1", WorkItemRevision: "7", Policy: policy,
+			WorkspaceID: workspaceID, PackID: packID,
+			WorkItem: contract.NodeRef{Kind: "task", ID: "task-1"}, WorkItemRevision: "7", Policy: policy,
 		})
 		if compileErr != nil {
 			t.Fatalf("compile %s: %v", packID, compileErr)
