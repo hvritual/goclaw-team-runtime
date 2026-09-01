@@ -161,7 +161,12 @@ func TestPhase2ExitPreCertificationDigitalThread(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	workLink, err := service.PutWorkLink(ctx, workspaceID, contract.WorkLinkTask, "task-1", "service-device-gateway")
+	workLink, err := service.PutWorkLink(ctx, contract.PutWorkLinkRequest{
+		WorkspaceID: workspaceID,
+		WorkKind:    contract.WorkLinkTask,
+		WorkID:      "task-1",
+		EntityID:    "service-device-gateway",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
