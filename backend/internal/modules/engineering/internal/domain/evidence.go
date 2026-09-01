@@ -78,8 +78,12 @@ func NewEvidenceSource(sourceType, locator, revision, digest string, observedAt 
 }
 
 func (value EvidenceSource) Valid() bool {
-	return value.sourceType != "" && validEvidenceURI(value.locator) && (value.revision != "" || validSHA256Digest(value.digest)) && !value.observedAt.IsZero()
+	if value.sourceType == "" || !validEvidenceURI(value.locator) || (value.revision == "" && value.digest == "") || value.observedAt.IsZero() {
+		return false
+	}
+	return value.digest == "" || validSHA256Digest(value.digest)
 }
+
 func (value EvidenceSource) SourceType() string    { return value.sourceType }
 func (value EvidenceSource) Locator() string       { return value.locator }
 func (value EvidenceSource) Revision() string      { return value.revision }
@@ -102,6 +106,7 @@ type EvidenceEnvelope struct {
 func NewEvidenceEnvelope(id, workspaceID string, kind EvidenceKind, subject NodeRef, source EvidenceSource, producerID, artifactURI, artifactDigest string, capturedAt time.Time) (EvidenceEnvelope, error) {
 	id = strings.TrimSpace(id)
 	workspaceID = strings.TrimSpace(workspaceID)
+	kind = EvidenceKind(strings.TrimSpace(string(kind)))
 	producerID = strings.TrimSpace(producerID)
 	artifactURI = strings.TrimSpace(artifactURI)
 	artifactDigest = strings.ToLower(strings.TrimSpace(artifactDigest))
@@ -114,8 +119,11 @@ func NewEvidenceEnvelope(id, workspaceID string, kind EvidenceKind, subject Node
 	if !kind.Valid() {
 		return EvidenceEnvelope{}, ErrEvidenceKindInvalid
 	}
-	if !subject.Kind().Valid() || strings.TrimSpace(subject.ID()) == "" {
+	if !subject.Kind().Valid() {
 		return EvidenceEnvelope{}, ErrNodeKindInvalid
+	}
+	if strings.TrimSpace(subject.ID()) == "" {
+		return EvidenceEnvelope{}, ErrNodeIDRequired
 	}
 	if !source.Valid() {
 		return EvidenceEnvelope{}, ErrProvenanceRequired
@@ -155,16 +163,18 @@ func RehydrateEvidenceEnvelope(id, workspaceID string, kind EvidenceKind, subjec
 	return value, nil
 }
 
-func (value EvidenceEnvelope) ID() string               { return value.id }
-func (value EvidenceEnvelope) WorkspaceID() string      { return value.workspaceID }
-func (value EvidenceEnvelope) Kind() EvidenceKind       { return value.kind }
-func (value EvidenceEnvelope) Subject() NodeRef          { return value.subject }
-func (value EvidenceEnvelope) Source() EvidenceSource    { return value.source }
-func (value EvidenceEnvelope) ProducerID() string        { return value.producerID }
-func (value EvidenceEnvelope) ArtifactURI() string       { return value.artifactURI }
-func (value EvidenceEnvelope) ArtifactDigest() string    { return value.artifactDigest }
-func (value EvidenceEnvelope) CapturedAt() time.Time     { return value.capturedAt }
-func (value EvidenceEnvelope) ContentChecksum() string   { return value.checksum }
+func (value EvidenceEnvelope) ID() string             { return value.id }
+func (value EvidenceEnvelope) WorkspaceID() string    { return value.workspaceID }
+func (value EvidenceEnvelope) Kind() EvidenceKind     { return value.kind }
+func (value EvidenceEnvelope) Subject() NodeRef       { return value.subject }
+func (value EvidenceEnvelope) Source() EvidenceSource { return value.source }
+func (value EvidenceEnvelope) ProducerID() string     { return value.producerID }
+func (value EvidenceEnvelope) ArtifactURI() string    { return value.artifactURI }
+func (value EvidenceEnvelope) ArtifactDigest() string { return value.artifactDigest }
+func (value EvidenceEnvelope) CapturedAt() time.Time  { return value.capturedAt }
+func (value EvidenceEnvelope) ContentChecksum() string {
+	return value.checksum
+}
 
 func evidenceContentChecksum(value EvidenceEnvelope) string {
 	canonical := struct {
@@ -202,7 +212,7 @@ func validEvidenceURI(value string) bool {
 		return false
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.Scheme == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" {
 		return false
 	}
 	return parsed.String() == value
