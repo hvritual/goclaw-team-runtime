@@ -39,10 +39,17 @@ type ContextPackRepository interface {
 	GetContextPack(ctx context.Context, workspaceID, id string) (ContextPack, error)
 }
 
+type EvidenceRepository interface {
+	PutEvidence(ctx context.Context, evidence EvidenceEnvelope) error
+	GetEvidence(ctx context.Context, workspaceID, id string) (EvidenceEnvelope, error)
+	ListEvidence(ctx context.Context, workspaceID string, subject *NodeRef) ([]EvidenceEnvelope, error)
+}
+
 type Repository interface {
 	EntityRepository
 	SourceBindingRepository
 	ThreadEdgeRepository
 	ChangeRepository
 	ContextPackRepository
+	EvidenceRepository
 }
