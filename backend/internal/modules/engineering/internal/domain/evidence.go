@@ -46,25 +46,25 @@ const (
 )
 
 var (
-	ErrEvidenceIDRequired           = errors.New("evidence id is required")
-	ErrEvidenceKindInvalid          = errors.New("invalid evidence kind")
-	ErrEvidenceOutcomeInvalid       = errors.New("invalid evidence outcome for kind")
-	ErrEvidenceSourceInvalid        = errors.New("invalid evidence source")
-	ErrEvidenceSourceTypeRequired   = errors.New("evidence source type is required")
-	ErrEvidenceSourceIDRequired     = errors.New("evidence source id is required")
-	ErrEvidenceSourceIdentityWeak   = errors.New("evidence source requires an immutable revision or sha256 digest")
-	ErrEvidenceSourceDigestInvalid  = errors.New("evidence source digest must be sha256")
-	ErrEvidenceSourceLocatorInvalid = errors.New("evidence source locator must be a canonical secret-free absolute uri")
-	ErrEvidenceProducerRequired     = errors.New("evidence producer id is required")
-	ErrEvidenceArtifactInvalid      = errors.New("invalid evidence artifact")
-	ErrEvidenceArtifactURIInvalid   = errors.New("evidence artifact uri must be a canonical secret-free absolute uri")
+	ErrEvidenceIDRequired            = errors.New("evidence id is required")
+	ErrEvidenceKindInvalid           = errors.New("invalid evidence kind")
+	ErrEvidenceOutcomeInvalid        = errors.New("invalid evidence outcome for kind")
+	ErrEvidenceSourceInvalid         = errors.New("invalid evidence source")
+	ErrEvidenceSourceTypeRequired    = errors.New("evidence source type is required")
+	ErrEvidenceSourceIDRequired      = errors.New("evidence source id is required")
+	ErrEvidenceSourceIdentityWeak    = errors.New("evidence source requires an immutable revision or sha256 digest")
+	ErrEvidenceSourceDigestInvalid   = errors.New("evidence source digest must be sha256")
+	ErrEvidenceSourceLocatorInvalid  = errors.New("evidence source locator must be a canonical secret-free absolute uri")
+	ErrEvidenceProducerRequired      = errors.New("evidence producer id is required")
+	ErrEvidenceArtifactInvalid       = errors.New("invalid evidence artifact")
+	ErrEvidenceArtifactURIInvalid    = errors.New("evidence artifact uri must be a canonical secret-free absolute uri")
 	ErrEvidenceArtifactDigestInvalid = errors.New("evidence artifact digest must be sha256")
-	ErrEvidencePayloadInvalid       = errors.New("evidence payload must be valid json")
+	ErrEvidencePayloadInvalid        = errors.New("evidence payload must be valid json")
 	ErrEvidencePayloadObjectRequired = errors.New("evidence payload must be a json object")
-	ErrEvidencePayloadTooLarge      = errors.New("evidence payload exceeds 256 KiB")
-	ErrEvidenceCapturedAtRequired   = errors.New("evidence captured at is required")
-	ErrEvidenceSchemaVersionInvalid = errors.New("unsupported evidence envelope schema version")
-	ErrEvidenceChecksumMismatch     = errors.New("evidence content checksum mismatch")
+	ErrEvidencePayloadTooLarge       = errors.New("evidence payload exceeds 256 KiB")
+	ErrEvidenceCapturedAtRequired    = errors.New("evidence captured at is required")
+	ErrEvidenceSchemaVersionInvalid  = errors.New("unsupported evidence envelope schema version")
+	ErrEvidenceChecksumMismatch      = errors.New("evidence content checksum mismatch")
 )
 
 type EvidenceSource struct {
@@ -124,12 +124,12 @@ func (value EvidenceSource) Valid() bool {
 	return value.digest == "" || validSHA256Digest(value.digest)
 }
 
-func (value EvidenceSource) Type() string            { return value.sourceType }
-func (value EvidenceSource) ID() string              { return value.id }
-func (value EvidenceSource) Locator() string         { return value.locator }
-func (value EvidenceSource) Revision() string        { return value.revision }
-func (value EvidenceSource) Digest() string          { return value.digest }
-func (value EvidenceSource) ObservedAt() time.Time   { return value.observedAt }
+func (value EvidenceSource) Type() string          { return value.sourceType }
+func (value EvidenceSource) ID() string            { return value.id }
+func (value EvidenceSource) Locator() string       { return value.locator }
+func (value EvidenceSource) Revision() string      { return value.revision }
+func (value EvidenceSource) Digest() string        { return value.digest }
+func (value EvidenceSource) ObservedAt() time.Time { return value.observedAt }
 
 type EvidenceArtifact struct {
 	uri    string
@@ -260,15 +260,15 @@ func RehydrateEvidenceEnvelope(
 	return value, nil
 }
 
-func (value EvidenceEnvelope) SchemaVersion() string  { return value.schemaVersion }
-func (value EvidenceEnvelope) ID() string             { return value.id }
-func (value EvidenceEnvelope) WorkspaceID() string    { return value.workspaceID }
-func (value EvidenceEnvelope) Kind() EvidenceKind     { return value.kind }
+func (value EvidenceEnvelope) SchemaVersion() string    { return value.schemaVersion }
+func (value EvidenceEnvelope) ID() string               { return value.id }
+func (value EvidenceEnvelope) WorkspaceID() string      { return value.workspaceID }
+func (value EvidenceEnvelope) Kind() EvidenceKind       { return value.kind }
 func (value EvidenceEnvelope) Outcome() EvidenceOutcome { return value.outcome }
-func (value EvidenceEnvelope) Source() EvidenceSource { return value.source }
-func (value EvidenceEnvelope) ProducerID() string     { return value.producerID }
-func (value EvidenceEnvelope) CapturedAt() time.Time  { return value.capturedAt }
-func (value EvidenceEnvelope) ContentChecksum() string { return value.checksum }
+func (value EvidenceEnvelope) Source() EvidenceSource   { return value.source }
+func (value EvidenceEnvelope) ProducerID() string       { return value.producerID }
+func (value EvidenceEnvelope) CapturedAt() time.Time    { return value.capturedAt }
+func (value EvidenceEnvelope) ContentChecksum() string  { return value.checksum }
 
 func (value EvidenceEnvelope) Artifact() *EvidenceArtifact {
 	if value.artifact == nil {
