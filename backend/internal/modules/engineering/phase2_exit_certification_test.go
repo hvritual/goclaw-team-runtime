@@ -132,8 +132,8 @@ func TestPhase2ExitPreCertificationDigitalThread(t *testing.T) {
 
 	source := phase2Source{
 		repository: githubsource.Repository{Locator: repositoryLocator, FullName: "acme/device-gateway", DefaultBranch: "main", UpdatedAt: now},
-		commit: githubsource.Commit{RepositoryLocator: repositoryLocator, SHA: commitSHA, TreeSHA: strings.Repeat("d", 40), HTMLURL: "https://github.com/acme/device-gateway/commit/" + commitSHA, CommittedAt: now},
-		manifest: githubsource.ManifestBlob{RepositoryLocator: repositoryLocator, CommitSHA: commitSHA, Path: "engineering.yaml", BlobSHA: blobSHA, Content: []byte(phase2Manifest)},
+		commit:     githubsource.Commit{RepositoryLocator: repositoryLocator, SHA: commitSHA, TreeSHA: strings.Repeat("d", 40), HTMLURL: "https://github.com/acme/device-gateway/commit/" + commitSHA, CommittedAt: now},
+		manifest:   githubsource.ManifestBlob{RepositoryLocator: repositoryLocator, CommitSHA: commitSHA, Path: "engineering.yaml", BlobSHA: blobSHA, Content: []byte(phase2Manifest)},
 	}
 	reconciler, err := reconcile.New(repository, source, func() time.Time { return now })
 	if err != nil {
