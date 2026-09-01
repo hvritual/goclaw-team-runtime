@@ -140,7 +140,11 @@ func serve(t *testing.T, service contract.Service, authenticate func(*http.Reque
 	NewHandler(service, authenticate).Register(server)
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
-	request.Header.Set("Content-Type", "application/json")
+	if body != "" {
+		request.Header.Set("Content-Type", "application/json")
+	}
 	server.ServeHTTP(response, request)
 	return response
 }
+
+var _ contract.Service = (*recordingService)(nil)
