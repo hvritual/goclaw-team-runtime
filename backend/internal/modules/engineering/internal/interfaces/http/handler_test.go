@@ -66,6 +66,15 @@ func (*recordingService) ListChanges(context.Context, contract.Actor, string, st
 func (*recordingService) GetContextPack(context.Context, contract.Actor, string, string) (contract.ContextPack, error) {
 	return contract.ContextPack{}, contract.ErrNotFound
 }
+func (*recordingService) RecordEvidence(context.Context, contract.Actor, string, contract.RecordEvidenceRequest) (contract.Evidence, error) {
+	return contract.Evidence{}, nil
+}
+func (*recordingService) GetEvidence(context.Context, contract.Actor, string, string) (contract.Evidence, error) {
+	return contract.Evidence{}, contract.ErrNotFound
+}
+func (*recordingService) ListEvidence(context.Context, contract.Actor, string, *contract.NodeRef) ([]contract.Evidence, error) {
+	return []contract.Evidence{}, nil
+}
 
 func TestCreateEntityPassesAuthenticatedWorkspaceActor(t *testing.T) {
 	service := &recordingService{}
@@ -131,11 +140,7 @@ func serve(t *testing.T, service contract.Service, authenticate func(*http.Reque
 	NewHandler(service, authenticate).Register(server)
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
-	if body != "" {
-		request.Header.Set("Content-Type", "application/json")
-	}
+	request.Header.Set("Content-Type", "application/json")
 	server.ServeHTTP(response, request)
 	return response
 }
-
-var _ contract.Service = (*recordingService)(nil)
