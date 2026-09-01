@@ -20,4 +20,8 @@ type Service interface {
 	ListChanges(ctx context.Context, actor Actor, workspaceID, affectedEntityID string) ([]Change, error)
 
 	GetContextPack(ctx context.Context, actor Actor, workspaceID, id string) (ContextPack, error)
+
+	RecordEvidence(ctx context.Context, actor Actor, workspaceID string, request RecordEvidenceRequest) (Evidence, error)
+	GetEvidence(ctx context.Context, actor Actor, workspaceID, id string) (Evidence, error)
+	ListEvidence(ctx context.Context, actor Actor, workspaceID string, subject *NodeRef) ([]Evidence, error)
 }
