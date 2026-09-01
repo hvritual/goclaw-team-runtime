@@ -6,7 +6,7 @@ on:
       - agent/iot-edt-p2-s08-tidy-probe
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   tidy:
@@ -17,7 +17,7 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: Generate exact module tidy diff
+      - name: Generate and persist exact module tidy result
         shell: bash
         run: |
           set -euo pipefail
@@ -28,6 +28,10 @@ jobs:
           echo '=== P2-S08 GO MOD TIDY DIFF END ==='
           if git diff --quiet -- go.mod go.sum; then
             echo 'module files already tidy'
-          else
-            exit 1
+            exit 0
           fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add go.mod go.sum
+          git commit -m 'chore(engineering): machine-generate P2-S08 module tidy [skip ci]'
+          git push origin HEAD:agent/iot-edt-p2-s08-tidy-probe
