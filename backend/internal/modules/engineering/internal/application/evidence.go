@@ -20,11 +20,7 @@ func (s *Service) RecordEvidence(ctx context.Context, actor contract.Actor, work
 	if err := s.requireEvidenceSubject(ctx, workspaceID, subject); err != nil {
 		return contract.Evidence{}, err
 	}
-	observedAt := request.Source.ObservedAt
-	if observedAt.IsZero() {
-		observedAt = s.now().UTC()
-	}
-	source, err := domain.NewEvidenceSource(request.Source.SourceType, request.Source.Locator, request.Source.Revision, request.Source.Digest, observedAt)
+	source, err := domain.NewEvidenceSource(request.Source.SourceType, request.Source.Locator, request.Source.Revision, request.Source.Digest, request.Source.ObservedAt)
 	if err != nil {
 		return contract.Evidence{}, invalid(err)
 	}
@@ -99,28 +95,28 @@ func (s *Service) requireEvidenceSubject(ctx context.Context, workspaceID string
 		_, err := s.repository.GetChange(ctx, workspaceID, subject.ID())
 		return repositoryError(err)
 	default:
-		return nil
+		return contract.ErrInvalidArgument
 	}
 }
 
 func toEvidence(value domain.EvidenceEnvelope) contract.Evidence {
 	source := value.Source()
 	return contract.Evidence{
-		ID: value.ID(),
+		ID:          value.ID(),
 		WorkspaceID: value.WorkspaceID(),
-		Kind: string(value.Kind()),
-		Subject: toNodeRef(value.Subject()),
+		Kind:        string(value.Kind()),
+		Subject:     toNodeRef(value.Subject()),
 		Source: contract.EvidenceSource{
 			SourceType: source.SourceType(),
-			Locator: source.Locator(),
-			Revision: source.Revision(),
-			Digest: source.Digest(),
+			Locator:    source.Locator(),
+			Revision:   source.Revision(),
+			Digest:     source.Digest(),
 			ObservedAt: source.ObservedAt(),
 		},
-		ProducerID: value.ProducerID(),
-		ArtifactURI: value.ArtifactURI(),
-		ArtifactDigest: value.ArtifactDigest(),
-		CapturedAt: value.CapturedAt(),
+		ProducerID:      value.ProducerID(),
+		ArtifactURI:     value.ArtifactURI(),
+		ArtifactDigest:  value.ArtifactDigest(),
+		CapturedAt:      value.CapturedAt(),
 		ContentChecksum: value.ContentChecksum(),
 	}
 }
