@@ -24,12 +24,13 @@ type Dependencies struct {
 }
 
 type Module struct {
-	service         contract.Service
-	lifecycle       contract.LifecycleService
-	workLinks       contract.WorkLinkProvider
-	contextCompiler contract.ContextCompiler
-	http            *httpinterface.Handler
-	exitHTTP        *httpinterface.LifecycleHandler
+	service                   contract.Service
+	lifecycle                 contract.LifecycleService
+	workLinks                 contract.WorkLinkProvider
+	contextCompiler           contract.ContextCompiler
+	authorizedContextCompiler contract.AuthorizedContextCompiler
+	http                      *httpinterface.Handler
+	exitHTTP                  *httpinterface.LifecycleHandler
 }
 
 func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
@@ -49,13 +50,18 @@ func NewWithSQLite(db *sql.DB, dependencies Dependencies) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
+	authorizedCompiler, err := application.NewAuthorizedContextCompiler(service, compiler)
+	if err != nil {
+		return nil, err
+	}
 	return &Module{
-		service:         service,
-		lifecycle:       service,
-		workLinks:       service,
-		contextCompiler: compiler,
-		http:            httpinterface.NewHandler(service, dependencies.HTTPUserIdentity),
-		exitHTTP:        httpinterface.NewLifecycleHandler(service, dependencies.HTTPUserIdentity),
+		service:                   service,
+		lifecycle:                 service,
+		workLinks:                 service,
+		contextCompiler:           compiler,
+		authorizedContextCompiler: authorizedCompiler,
+		http:                      httpinterface.NewHandler(service, dependencies.HTTPUserIdentity),
+		exitHTTP:                  httpinterface.NewLifecycleHandler(service, dependencies.HTTPUserIdentity),
 	}, nil
 }
 
@@ -78,6 +84,13 @@ func (m *Module) ContextCompiler() contract.ContextCompiler {
 		return nil
 	}
 	return m.contextCompiler
+}
+
+func (m *Module) AuthorizedContextCompiler() contract.AuthorizedContextCompiler {
+	if m == nil {
+		return nil
+	}
+	return m.authorizedContextCompiler
 }
 
 func (m *Module) RegisterHTTP(server *kratoshttp.Server) {
