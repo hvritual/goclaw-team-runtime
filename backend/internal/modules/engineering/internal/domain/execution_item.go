@@ -101,13 +101,33 @@ func NewExecutionItem(
 	}, nil
 }
 
-func (value ExecutionItem) ID() string                  { return value.id }
-func (value ExecutionItem) WorkspaceID() string         { return value.workspaceID }
-func (value ExecutionItem) Kind() ExecutionItemKind     { return value.kind }
-func (value ExecutionItem) SourceType() string          { return value.sourceType }
-func (value ExecutionItem) SourceID() string            { return value.sourceID }
-func (value ExecutionItem) SourceLocator() string       { return value.sourceLocator }
-func (value ExecutionItem) CreatedAt() time.Time        { return value.createdAt }
+func (value ExecutionItem) ID() string {
+	return value.id
+}
+
+func (value ExecutionItem) WorkspaceID() string {
+	return value.workspaceID
+}
+
+func (value ExecutionItem) Kind() ExecutionItemKind {
+	return value.kind
+}
+
+func (value ExecutionItem) SourceType() string {
+	return value.sourceType
+}
+
+func (value ExecutionItem) SourceID() string {
+	return value.sourceID
+}
+
+func (value ExecutionItem) SourceLocator() string {
+	return value.sourceLocator
+}
+
+func (value ExecutionItem) CreatedAt() time.Time {
+	return value.createdAt
+}
 
 // EvidenceAttachment keeps the subject relationship outside EvidenceEnvelope.
 // The repository validates that both identities exist in the same workspace.
@@ -142,7 +162,18 @@ func NewEvidenceAttachment(workspaceID, executionItemID, evidenceID string, atta
 	}, nil
 }
 
-func (value EvidenceAttachment) WorkspaceID() string     { return value.workspaceID }
-func (value EvidenceAttachment) ExecutionItemID() string { return value.executionItemID }
-func (value EvidenceAttachment) EvidenceID() string      { return value.evidenceID }
-func (value EvidenceAttachment) AttachedAt() time.Time   { return value.attachedAt }
+func (value EvidenceAttachment) WorkspaceID() string {
+	return value.workspaceID
+}
+
+func (value EvidenceAttachment) ExecutionItemID() string {
+	return value.executionItemID
+}
+
+func (value EvidenceAttachment) EvidenceID() string {
+	return value.evidenceID
+}
+
+func (value EvidenceAttachment) AttachedAt() time.Time {
+	return value.attachedAt
+}
