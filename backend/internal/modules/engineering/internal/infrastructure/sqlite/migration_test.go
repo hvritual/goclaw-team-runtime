@@ -48,17 +48,28 @@ func TestMigrationReopenRollbackAndReapply(t *testing.T) {
 	if _, err := store.GetEntity(ctx, "workspace-1", entity.ID()); err != nil {
 		t.Fatalf("reopen get: %v", err)
 	}
+	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_execution_items LIMIT 1`); err != nil {
+		t.Fatalf("execution evidence schema before rollback: %v", err)
+	}
+
 	if err := engineering.RollbackSqliteLatest(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_entities LIMIT 1`); err == nil {
-		t.Fatal("engineering_entities must be removed after rollback")
+	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_execution_items LIMIT 1`); err == nil {
+		t.Fatal("latest rollback must remove engineering_execution_items")
 	}
+	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_entities LIMIT 1`); err != nil {
+		t.Fatalf("latest rollback must preserve prior engineering schema: %v", err)
+	}
+	if _, err := store.GetEntity(ctx, "workspace-1", entity.ID()); err != nil {
+		t.Fatalf("latest rollback must preserve prior engineering data: %v", err)
+	}
+
 	if err := engineering.MigrateSqlite(ctx, db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_entities LIMIT 1`); err != nil {
-		t.Fatalf("reapplied schema: %v", err)
+	if _, err := db.ExecContext(ctx, `SELECT 1 FROM engineering_execution_items LIMIT 1`); err != nil {
+		t.Fatalf("reapplied execution evidence schema: %v", err)
 	}
 }
 
@@ -71,7 +82,8 @@ func TestSchemaHasNoForeignKeys(t *testing.T) {
 	for _, table := range []string{
 		"engineering_entities", "engineering_source_bindings", "engineering_thread_edges", "engineering_changes",
 		"engineering_change_entities", "engineering_change_artifacts", "engineering_context_packs",
-		"engineering_context_pack_targets", "engineering_context_pack_references",
+		"engineering_context_pack_targets", "engineering_context_pack_references", "engineering_execution_items",
+		"engineering_evidence", "engineering_execution_item_evidence",
 	} {
 		rows, err := db.QueryContext(ctx, `PRAGMA foreign_key_list(`+table+`)`)
 		if err != nil {
