@@ -39,10 +39,28 @@ type ContextPackRepository interface {
 	GetContextPack(ctx context.Context, workspaceID, id string) (ContextPack, error)
 }
 
+type ExecutionItemRepository interface {
+	CreateExecutionItem(ctx context.Context, item ExecutionItem) error
+	GetExecutionItem(ctx context.Context, workspaceID, id string) (ExecutionItem, error)
+}
+
+type EvidenceRepository interface {
+	CreateEvidence(ctx context.Context, evidence EvidenceEnvelope) error
+	GetEvidence(ctx context.Context, workspaceID, id string) (EvidenceEnvelope, error)
+}
+
+type EvidenceAttachmentRepository interface {
+	AttachEvidence(ctx context.Context, attachment EvidenceAttachment) error
+	ListEvidenceAttachments(ctx context.Context, workspaceID, executionItemID string) ([]EvidenceAttachment, error)
+}
+
 type Repository interface {
 	EntityRepository
 	SourceBindingRepository
 	ThreadEdgeRepository
 	ChangeRepository
 	ContextPackRepository
+	ExecutionItemRepository
+	EvidenceRepository
+	EvidenceAttachmentRepository
 }
