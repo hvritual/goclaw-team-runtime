@@ -54,13 +54,19 @@ type EvidenceAttachmentRepository interface {
 	ListEvidenceAttachments(ctx context.Context, workspaceID, executionItemID string) ([]EvidenceAttachment, error)
 }
 
+// ExecutionEvidenceRepository is deliberately separate from Repository so
+// existing Engineering application services do not acquire unused Phase 3
+// storage responsibilities. P3-S03 can depend on this narrower port directly.
+type ExecutionEvidenceRepository interface {
+	ExecutionItemRepository
+	EvidenceRepository
+	EvidenceAttachmentRepository
+}
+
 type Repository interface {
 	EntityRepository
 	SourceBindingRepository
 	ThreadEdgeRepository
 	ChangeRepository
 	ContextPackRepository
-	ExecutionItemRepository
-	EvidenceRepository
-	EvidenceAttachmentRepository
 }
